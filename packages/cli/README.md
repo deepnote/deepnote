@@ -916,10 +916,16 @@ These options work with all commands:
 
 ## Environment Variables
 
-| Variable      | Description                                |
-| ------------- | ------------------------------------------ |
-| `NO_COLOR`    | Set to any value to disable colored output |
-| `FORCE_COLOR` | Set to `1` to force colors, `0` to disable |
+| Variable         | Description                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `DEEPNOTE_TOKEN` | API token for commands that talk to Deepnote Cloud (`sync`, `publish`, `schedule`, `run --cloud`, ...) |
+| `NO_COLOR`       | Set to any value to disable colored output                                                             |
+| `FORCE_COLOR`    | Set to `1` to force colors, `0` to disable                                                             |
+
+`DEEPNOTE_TOKEN` can also live in a `.env` file: next to the notebook for `run` and `schedule`, in the sync
+root for `sync`, or in the current directory for `publish` and `static-site access`. A value already set in
+the shell takes precedence. Create an API key in Deepnote under **Settings & members > Security > API keys**
+(see the [Deepnote API docs](https://deepnote.com/docs/deepnote-api)).
 
 The CLI follows the [NO_COLOR](https://no-color.org/) and [FORCE_COLOR](https://force-color.org/) standards.
 

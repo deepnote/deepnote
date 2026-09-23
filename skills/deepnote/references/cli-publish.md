@@ -8,7 +8,8 @@ only after all file operations succeed.
 deepnote publish ./dist --project-id <uuid>
 ```
 
-Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origin and defaults to
+Authentication uses `--token`, the `DEEPNOTE_TOKEN` env var, or `DEEPNOTE_TOKEN` in a `.env` file in
+the current directory (same for `static-site access`). `--url` selects the API origin and defaults to
 `https://api.deepnote.com`.
 
 ## Options

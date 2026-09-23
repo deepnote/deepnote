@@ -34,9 +34,9 @@ They can be used together, but they are separate mechanisms with separate state.
 
 ## Authentication
 
-The CLI reads your token from the `DEEPNOTE_TOKEN` environment variable, or from an explicit
-`--token` flag. Create a token in your workspace under
-[Settings & members → API tokens](https://deepnote.com/workspace/settings/api-tokens).
+The CLI reads your token from the `DEEPNOTE_TOKEN` environment variable, from a `.env` file in the
+sync directory, or from an explicit `--token` flag. Create an API key in your workspace under
+**Settings & members → Security → API keys** (see the [Deepnote API docs](/docs/deepnote-api)).
 
 ```bash
 export DEEPNOTE_TOKEN="<your-token>"
