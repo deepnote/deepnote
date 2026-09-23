@@ -216,6 +216,17 @@ const testFixturesDir = path.join(__dirname, "../../../test-fixtures");
 const fixturePath = path.join(testFixturesDir, "my-fixture.ipynb");
 ```
 
+## Keeping Documentation in Sync
+
+Before opening a pull request, check whether the change makes any documentation stale, and update it in the same pull request:
+
+- `docs/` — user-facing product documentation, published at <https://deepnote.com/docs>. This directory is the source of truth for the whole product, including features developed in other repositories. Update it whenever user-visible behavior changes: CLI commands and flags, the `.deepnote` format, hosted MCP, integrations, or app behavior.
+- `packages/<name>/README.md` and `packages/<name>/docs/` — reference for the package you changed.
+- `skills/deepnote/references/` — agent-facing references; see the rules below.
+- `README.md`, `CONTRIBUTING.md`, and `FILES.md` — repository layout, setup, and workflow changes.
+
+Update only the pages your change actually affects. An unrelated documentation rewrite belongs in its own pull request.
+
 ## Keeping the Deepnote Skill in Sync
 
 The `skills/deepnote/` directory contains reference documentation used by AI agents. When making changes to any of the following, you **must** also update the corresponding skill files:
