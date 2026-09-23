@@ -53,7 +53,9 @@ describe('integrations command', () => {
         expect(error.name).toBe('MissingTokenError')
         expect(error.message).toContain('--token')
         expect(error.message).toContain('DEEPNOTE_TOKEN')
-        expect(error.message).toContain('api-tokens')
+        expect(error.message).toContain('.env file')
+        expect(error.message).toContain('Settings & members > Security > API keys')
+        expect(error.message).toContain('https://deepnote.com/docs/deepnote-api')
       })
     })
 
