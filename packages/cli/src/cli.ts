@@ -619,14 +619,16 @@ ${c.bold('Streamlit apps:')}
   project's Files: upload it in Deepnote or push it with ${c.dim('deepnote sync --all-files')} first.
   Nothing is uploaded and no static app setting changes. Creating the app restarts the
   project machine, which interrupts anyone working in the project; the command then waits up to
-  10 minutes for the app to answer. A file that is already served reports its existing app.
+  10 minutes for the app to answer. A file that is already served reports its existing app and
+  waits for it too. Use --no-wait to return without checking readiness.
 
 ${c.bold('Embedded API access:')}
-  With API access enabled, the embedded app calls Deepnote with a viewer-scoped token that
-  expires after 15 minutes — never your personal token. It covers one run loop: read the
-  configured notebook (inputs and block metadata, no source), start a detached run, and poll
-  that run for its outputs as ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so a
-  feature built against a local preview with a personal token can break only once embedded.
+  With API access enabled, the embedded static app uses a viewer token that expires after
+  15 minutes. It can read notebook inputs and block metadata (no source) and start detached
+  runs in the hosting project or other projects in the same workspace where the viewer has
+  direct access. Runs in other projects also require execute permission. It can poll the
+  viewer's own runs for ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so features
+  built against a local preview with a personal token can fail when embedded.
   Gate those paths on an ${c.dim('isEmbedded')} check (${c.dim('window !== window.parent')}): skip or hide them
   when embedded, and surface a 403 instead of swallowing it.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
@@ -671,8 +673,7 @@ ${c.bold('Examples:')}
   $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit --no-wait
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Static app published, or Streamlit app running, created/found with --no-wait,
-     or found on a stopped project machine
+  ${c.dim('0')}  Static app published, or Streamlit app running or created/found with --no-wait
   ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes,
      a Streamlit app request failed, or the app did not start in time
   ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root,

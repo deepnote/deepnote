@@ -49,13 +49,15 @@ See [Data apps](https://deepnote.com/docs/data-apps) for sharing and layout sett
    URL and test the app as its intended viewer.
 
 Creating an app restarts the project machine and interrupts active work. Replacing the entrypoint
-through file sync deletes the existing app; publish it again and use the new URL.
+through file sync can remove its app registration; publish again and use the returned URL, which
+may change. Some apps created in the UI retain their registration.
 
 For ordinary Python integration access, use the project's integrations. Federated-auth integrations
 require each viewer to authenticate; see [Streamlit apps](https://deepnote.com/docs/streamlit).
 
 For public API calls as the viewer, the project owner must enable Streamlit app API access, and
-the viewer must be signed in with direct project access. Handle missing viewer
+the viewer must be signed in with direct project access. This token can access notebooks only in
+the hosting project. Handle missing viewer
 credentials with a sign-in/access hint or saved results instead of offering a run that will fail.
 Do not substitute the publisher's personal token.
 
@@ -79,9 +81,12 @@ Enable API access only when the app needs notebook inputs or runs. Use the token
 the shell origin when sending and receiving messages, and send API requests to the returned API
 origin. Keep personal development tokens out of the published build.
 
-Design the UI around the viewer token's supported operations:
+A static app's viewer token can access notebooks in the hosting project and other projects in the
+same workspace where the viewer has direct access; starting runs in other projects also requires
+execute permission. Supply notebook IDs explicitly; the token cannot list notebooks. Design the UI
+around its supported operations:
 
-- Read the configured notebook's inputs and block metadata, without source content.
+- Read notebook inputs and block metadata, without source content.
 - Start a detached run and poll that viewer's own run by ID.
 - Render the returned `snapshotBlocks`; raw snapshot YAML and download URLs are unavailable.
 

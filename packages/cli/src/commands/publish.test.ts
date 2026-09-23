@@ -10,7 +10,6 @@ vi.mock('@deepnote/cloud', async importOriginal => {
     createStreamlitApp: vi.fn(),
     deleteProjectFile: vi.fn(),
     getProjectDetail: vi.fn(),
-    getStreamlitAppStatus: vi.fn(),
     listStreamlitApps: vi.fn(),
     updateProjectStaticFiles: vi.fn(),
     uploadProjectFile: vi.fn(),
@@ -22,7 +21,6 @@ import {
   createStreamlitApp,
   deleteProjectFile,
   getProjectDetail,
-  getStreamlitAppStatus,
   listStreamlitApps,
   StreamlitAppTimeoutError,
   updateProjectStaticFiles,
@@ -45,7 +43,6 @@ const STREAMLIT_APP = {
 const mockedCreateStreamlitApp = vi.mocked(createStreamlitApp)
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
-const mockedGetStreamlitAppStatus = vi.mocked(getStreamlitAppStatus)
 const mockedListStreamlitApps = vi.mocked(listStreamlitApps)
 const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
 const mockedUpload = vi.mocked(uploadProjectFile)
@@ -57,7 +54,6 @@ beforeEach(async () => {
   process.exitCode = undefined
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-test-'))
   mockedCreateStreamlitApp.mockReset().mockResolvedValue(STREAMLIT_APP)
-  mockedGetStreamlitAppStatus.mockReset().mockResolvedValue('starting')
   mockedListStreamlitApps.mockReset().mockResolvedValue([])
   mockedWaitForStreamlitApp.mockReset().mockResolvedValue(undefined)
   mockedDelete.mockReset().mockResolvedValue(false)
@@ -811,32 +807,54 @@ describe('deepnote publish --streamlit', () => {
     expect(process.exitCode).toBeUndefined()
   })
 
-  it('does not wait for an existing app when the project machine is not running', async () => {
+  it.each([
+    { statuses: ['unavailable', 'starting', 'running'] as const, exitCode: undefined },
+    { statuses: ['unavailable'] as const, exitCode: 1 },
+  ])('waits for an existing app through $statuses, exiting with $exitCode', async ({ statuses, exitCode }) => {
     const logged = captureLogs()
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
     mockedListStreamlitApps.mockResolvedValue([STREAMLIT_APP])
-    mockedGetStreamlitAppStatus.mockResolvedValue('unavailable')
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    for (const status of statuses) {
+      fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ status })))
+    }
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ status: statuses.at(-1) })))
+    const { waitForStreamlitApp: poll } = await vi.importActual<typeof import('@deepnote/cloud')>('@deepnote/cloud')
+    let now = 0
+    mockedWaitForStreamlitApp.mockImplementation((base, token, id, options) =>
+      poll(base, token, id, {
+        ...options,
+        timeoutMs: 15_000,
+        now: () => now,
+        sleep: async ms => {
+          now += ms
+        },
+      })
+    )
 
     await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
 
-    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(logged.join('\n')).toContain(STREAMLIT_APP.url)
-    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('project machine is not running')
-    expect(process.exitCode).toBeUndefined()
+    expect(logged.join('\n').includes('App is running')).toBe(exitCode === undefined)
+    if (exitCode === 1) {
+      expect(console.error).toHaveBeenCalledWith(expect.stringContaining('is still unavailable'))
+    } else {
+      expect(console.error).not.toHaveBeenCalled()
+    }
+    expect(process.exitCode).toBe(exitCode)
   })
 
   it('reports a failed status check for an existing app with exit code 1', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
     mockedListStreamlitApps.mockResolvedValue([STREAMLIT_APP])
-    mockedGetStreamlitAppStatus.mockRejectedValue(
+    mockedWaitForStreamlitApp.mockRejectedValue(
       new ApiError(403, 'Insufficient permissions to access this Streamlit app.')
     )
 
     await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--streamlit')
 
-    expect(mockedWaitForStreamlitApp).not.toHaveBeenCalled()
     expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('Could not check the app status: Insufficient permissions')
     expect(process.exitCode).toBe(1)
   })

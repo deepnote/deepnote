@@ -1,7 +1,6 @@
 import { posix } from 'node:path'
 import {
   createStreamlitApp,
-  getStreamlitAppStatus,
   listStreamlitApps,
   type StreamlitApp,
   StreamlitAppTimeoutError,
@@ -60,26 +59,13 @@ export async function publishStreamlitApp(
   if (!options.wait) {
     return
   }
-  // Only a create restarts the machine. An existing app on a stopped machine would never come up.
-  if (!created) {
-    try {
-      const status = await getStreamlitAppStatus(baseUrl, token, app.id)
-      if (status === 'unavailable') {
-        warn('The project machine is not running, so the app is not being served. Start the project in Deepnote.')
-        return
-      }
-    } catch (error) {
-      fail(`Could not check the app status: ${errorMessage(error)}`)
-      return
-    }
-  }
 
   try {
     await waitUntilAppRuns(baseUrl, token, app.id)
   } catch (error) {
     fail(
       error instanceof StreamlitAppTimeoutError
-        ? `${error.message}. Open the app URL later, or run this command again to keep waiting.`
+        ? `${error.message}. Check the project in Deepnote and start its machine if stopped, then run this command again to keep waiting.`
         : `Could not check the app status: ${errorMessage(error)}`
     )
   }

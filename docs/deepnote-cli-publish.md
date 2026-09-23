@@ -95,10 +95,11 @@ Enable API access when a static app needs to read notebook inputs or start runs:
 deepnote publish ./dist --project-id <project-id> --api-access enabled
 ```
 
-The embedded app can request a project- and viewer-scoped token from the Deepnote shell. This token
-allows it to read the configured notebook's inputs and block metadata, start a detached run, and
-poll that viewer's run for `snapshotBlocks`. It cannot read block source, list notebooks or run
-history, or call other API endpoints; unsupported requests return 403.
+The embedded static app can request a viewer token from the Deepnote shell. It can read notebook
+inputs and block metadata and start detached runs in the hosting project or other projects in the
+same workspace where the viewer has direct access. Starting runs in other projects also requires
+execute permission. It can poll that viewer's own runs for `snapshotBlocks`. It cannot read block source, list notebooks or run history, or call other API
+endpoints; unsupported requests return 403.
 
 Use `postMessage` with `deepnote-static-files-api-token-request` to request a token. Pin the shell
 origin when sending and receiving messages, then use the API origin returned with the token.
@@ -176,19 +177,21 @@ Creating a Streamlit app restarts the project machine and interrupts anyone work
 
 The command prints the app URL and waits up to 10 minutes for `running`. If the entrypoint is
 already served, it reports the existing app ID and URL without restarting the machine. It waits
-for that app too, unless the machine is stopped; start the project in Deepnote in that case.
+for that app too: `unavailable` can be a temporary state during a restart.
 Use `--no-wait` to return after creation or lookup without checking readiness.
 
-Deleting the entrypoint also removes the app. Sync replaces changed files by deleting and uploading
-them, so publishing after syncing an edited entrypoint creates a new app with a new URL and restarts
-the machine.
+Deleting the entrypoint can remove its app registration, but some apps created in the UI retain it.
+Sync replaces changed files by deleting and uploading them. After syncing an edited entrypoint,
+publish again and use the returned URL; it may change. Creating a replacement app restarts the machine.
 
 If the app calls the public API, the project owner must enable Streamlit app API access and the
-viewer must be signed in with direct project access. If it runs a notebook, deploy that notebook
-before publishing and keep its block IDs aligned with the local `.deepnote` file.
+viewer must be signed in with direct project access. Streamlit viewer API access is limited to the
+hosting project. If it runs a notebook, deploy that notebook before publishing and keep its block
+IDs aligned with the local `.deepnote` file.
 
 A missing-entrypoint error means the file must be uploaded first. After a startup timeout, the app
-still exists; inspect it in Deepnote and rerun publish to check its status again.
+still exists; inspect it in Deepnote, start the project machine if it is stopped, and rerun publish
+to check its status again.
 
 ## Options
 
@@ -211,14 +214,13 @@ Options for one app type are rejected with the other (exit code `2`).
 
 ## Exit codes
 
-| Code | Static app                                                                      | Streamlit app                                                                 |
-| ---- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                              | App running, created/found with `--no-wait`, or existing on a stopped machine |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes | A request failed or startup timed out                                         |
-| `2`  | Invalid arguments, missing token/directory, or unusable sync workspace          | Invalid arguments, missing token, or incompatible options                     |
+| Code | Static app                                                                      | Streamlit app                                             |
+| ---- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait`            |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes | A request failed or startup timed out                     |
+| `2`  | Invalid arguments, missing token/directory, or unusable sync workspace          | Invalid arguments, missing token, or incompatible options |
 
-An existing Streamlit app on a stopped machine exits successfully because the app exists; it is
-not ready to serve requests until the machine starts. `--no-wait` also does not verify readiness.
+Without `--no-wait`, an app that remains unavailable exits with code `1` after the startup timeout.
 
 ## Related
 
