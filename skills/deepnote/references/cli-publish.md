@@ -85,19 +85,18 @@ files absent from Deepnote.
 Creating an app restarts the project machine. By default the command waits up to 10 minutes for
 `running`; use `--no-wait` to return after the app is created or found without checking readiness.
 Re-publishing an existing entrypoint reports its app ID and URL without restarting the machine.
-It waits for that app too, unless the machine is stopped; in that case, start the project in Deepnote.
+It waits for that app too; `unavailable` can be a temporary state during a restart.
 
-Deleting the entrypoint also deletes its app. Sync replaces changed files by deleting and uploading
-them, so after syncing an edited entrypoint, publish again and use the new app URL.
+Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
+Sync replaces changed files by deleting and uploading them. After syncing an edited entrypoint,
+publish again and use the returned URL, which may change.
 
 ### Handle failures
 
 - **Entrypoint not found:** upload the file to the target project's Files, then retry. This command
   does not upload local files.
-- **Startup timeout:** the app still exists. Inspect it in Deepnote and rerun publish to check its
-  status again.
-- **Existing app on a stopped machine:** start the project in Deepnote. Exit code 0 in this case
-  confirms the app exists, not that it is serving requests.
+- **Startup timeout:** the app still exists. Inspect it in Deepnote, start the project machine if it
+  is stopped, and rerun publish to check its status again.
 - **Other request failures:** resolve the reported access, project, or network error before retrying.
 
 ## Options
@@ -140,11 +139,11 @@ serves the retained files at the returned URL. Authentication and the API origin
 
 ## Interpret the result
 
-| Exit code | Static app                                                                      | Streamlit app                                                                 |
-| --------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `0`       | Files uploaded and sharing enabled                                              | App running, created/found with `--no-wait`, or existing on a stopped machine |
-| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes         | Request failure or startup timeout                                            |
-| `2`       | Invalid arguments, missing token/directory, or unusable sync manifest/workspace | Invalid arguments, missing token, or incompatible options                     |
+| Exit code | Static app                                                                      | Streamlit app                                             |
+| --------- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `0`       | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait`            |
+| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes         | Request failure or startup timeout                        |
+| `2`       | Invalid arguments, missing token/directory, or unusable sync manifest/workspace | Invalid arguments, missing token, or incompatible options |
 
 A failed static upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. Sharing is not changed and remaining stale files are not

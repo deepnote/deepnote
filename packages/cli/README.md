@@ -595,11 +595,12 @@ the working files. For a `.py`-only edit, upload in Deepnote; sync does not push
 
 Creating an app restarts the project machine and interrupts active work. The command prints the app
 URL and waits up to 10 minutes for it to start. An existing app keeps its ID and URL and does not
-restart the machine. The command waits for it unless the machine is stopped. Use `--no-wait` to
+restart the machine. The command waits for existing apps too. Use `--no-wait` to
 return after either creation or lookup without checking readiness.
 
-Deleting the entrypoint removes its app. Sync replaces changed files by deleting and uploading them,
-so publish again after syncing an edited entrypoint and use the new URL. See the
+Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
+Sync replaces changed files by deleting and uploading them, so publish again after syncing an edited
+entrypoint and use the returned URL, which may change. See the
 [publishing guide](../../docs/deepnote-cli-publish.md) for access requirements and failure handling.
 
 **Examples:**
