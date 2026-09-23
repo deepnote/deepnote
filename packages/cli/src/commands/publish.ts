@@ -8,7 +8,9 @@ import {
   updateProjectStaticFiles,
   uploadProjectFile,
 } from '@deepnote/cloud'
+import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
@@ -116,6 +118,8 @@ function errorMessage(error: unknown): string {
 export function createPublishAction(program: Command) {
   return async (dir: string, options: PublishOptions) => {
     const c = getChalk()
+    // Load .env from the current directory before reading the token — mirrors `sync` and `run --cloud`.
+    dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
     const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
