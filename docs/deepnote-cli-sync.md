@@ -248,6 +248,7 @@ run continues.
 
 ## Related
 
+- [Deepnote CLI](/docs/deepnote-cli) — install the CLI and see every command
 - [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
