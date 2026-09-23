@@ -693,4 +693,35 @@ describe('deepnote publish', () => {
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('deepnote sync --all-files'))
     })
   })
+
+  describe('token from .env', () => {
+    let previousCwd: string
+    let previousToken: string | undefined
+
+    beforeEach(() => {
+      previousCwd = process.cwd()
+      previousToken = process.env.DEEPNOTE_TOKEN
+      delete process.env.DEEPNOTE_TOKEN
+    })
+
+    afterEach(() => {
+      process.chdir(previousCwd)
+      if (previousToken === undefined) {
+        delete process.env.DEEPNOTE_TOKEN
+      } else {
+        process.env.DEEPNOTE_TOKEN = previousToken
+      }
+    })
+
+    it('reads DEEPNOTE_TOKEN from a .env file in the current directory', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      await fs.writeFile(join(tempDir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      process.chdir(tempDir)
+
+      await run(tempDir, '--project-id', 'p1', '-q')
+
+      expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'dotenv-token', 'p1')
+      expect(process.exitCode).toBeUndefined()
+    })
+  })
 })
