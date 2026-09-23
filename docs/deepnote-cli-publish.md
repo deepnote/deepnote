@@ -1,20 +1,24 @@
 ---
-title: Publishing apps with the Deepnote CLI
-description: Publish a static app from a local build directory or a Streamlit app from an existing Deepnote project file using deepnote publish
+title: Publishing apps and Streamlit apps with the Deepnote CLI
+description: Publish HTML, CSS, and JavaScript as an app or a Python entrypoint as a Streamlit app using deepnote publish
 noIndex: false
 noContent: false
 ---
 
-`deepnote publish` publishes an app to an existing Deepnote project. Choose the mode that matches
-your source:
+`deepnote publish` publishes apps and Streamlit apps to an existing Deepnote project:
+
+- **App:** HTML, CSS, JavaScript, and assets hosted by Deepnote and run in the browser.
+- **Streamlit app:** a Python UI that runs on the project's hardware.
+
+Choose the mode that matches your source:
 
 | App type      | Source                                                 | Command                                                                    |
 | ------------- | ------------------------------------------------------ | -------------------------------------------------------------------------- |
-| Static app    | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                        |
+| App           | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                        |
 | Streamlit app | A Python entrypoint already in the project's Files     | `deepnote publish apps/dashboard.py --project-id <project-id> --streamlit` |
 
-Static apps run in the browser. Streamlit apps run Python on the project's hardware. To publish
-notebook blocks through the Deepnote editor instead, see [Data apps](/docs/data-apps).
+Apps can be interactive and run notebooks through the Deepnote API. To publish notebook blocks
+through the Deepnote editor instead, see [Data apps](/docs/data-apps).
 
 ## Prerequisites
 
@@ -46,9 +50,9 @@ https://deepnote.com/workspace/<workspace_name>-<workspace_id>/project/<project_
 
 Inside a running notebook, the ID is also available as `DEEPNOTE_PROJECT_ID`.
 
-## Static apps
+## Apps
 
-Publish a dedicated build directory, such as a Vite build, a Next.js static export, or a directory
+Publish a dedicated build directory, such as a Vite build, a Next.js HTML export, or a directory
 of HTML files:
 
 ```bash
@@ -77,25 +81,25 @@ The target must be `_deepnote_static` or a directory below it. The printed URL i
 with special characters encoded. Deepnote serves `index.html` for directory URLs; other URLs must
 match the filename, such as `about.html`.
 
-### Who can view a static app
+### Who can view an app
 
 Viewers must be signed in, have an active Deepnote account, and have project access. Workspace
 members, project collaborators (including app users), and user groups can receive that access.
-Sharing also requires workspace-level static file sharing and a plan that supports the feature.
+Sharing also requires the workspace to allow app file sharing and a plan that supports the feature.
 These permissions are checked on every request.
 
-Static apps have no anonymous or link-only access. If the audience needs those access levels,
+Apps have no anonymous or link-only access. If the audience needs those access levels,
 consider [Data apps](/docs/data-apps).
 
 ### Viewer API access
 
-Enable API access when a static app needs to read notebook inputs or start runs:
+Enable API access when an app needs to read notebook inputs or start runs:
 
 ```bash
 deepnote publish ./dist --project-id <project-id> --api-access enabled
 ```
 
-The embedded static app can request a viewer token from the Deepnote shell. It can read notebook
+The embedded app can request a viewer token from the Deepnote shell. It can read notebook
 inputs and block metadata and start detached runs in the hosting project or other projects in the
 same workspace where the viewer has direct access. Starting runs in other projects also requires
 execute permission. It can poll that viewer's own runs for `snapshotBlocks`. It cannot read block source, list notebooks or run history, or call other API
@@ -137,7 +141,7 @@ without that baseline are not protected by it.
 
 ### Change access without republishing
 
-Use the `static-site access` command to change a static app's settings without changing its files:
+Use the `static-site access` command to change an app's settings without changing its files:
 
 ```bash
 # Stop serving the app and disable viewer API access
@@ -195,26 +199,26 @@ to check its status again.
 
 ## Options
 
-| Option                           | Description                                                       | Default                                |
-| -------------------------------- | ----------------------------------------------------------------- | -------------------------------------- |
-| `--project-id <id>`              | Target project (required)                                         |                                        |
-| `--streamlit`                    | Publish an existing project entrypoint as a Streamlit app         | `false`                                |
-| `--no-wait`                      | Streamlit apps only: return without checking readiness            | `false`                                |
-| `--path <prefix>`                | Static apps only: target directory                                | `_deepnote_static`                     |
-| `--api-access enabled\|disabled` | Static apps only: change viewer API access                        | unchanged                              |
-| `--prune`                        | Static apps only: delete remote files absent from the build       | `false`                                |
-| `--sync-root <dir>`              | Static apps only: sync workspace to update                        | search upward from the build directory |
-| `--no-sync-root`                 | Static apps only: skip sync workspace discovery and updates       | `false`                                |
-| `--force`                        | Static apps only: overwrite changes not pulled into the workspace | `false`                                |
-| `--token <token>`                | API token                                                         | `DEEPNOTE_TOKEN`                       |
-| `--url <url>`                    | API origin                                                        | `https://api.deepnote.com`             |
-| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr            | `false`                                |
+| Option                           | Description                                                | Default                                |
+| -------------------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `--project-id <id>`              | Target project (required)                                  |                                        |
+| `--streamlit`                    | Publish an existing project entrypoint as a Streamlit app  | `false`                                |
+| `--no-wait`                      | Streamlit apps only: return without checking readiness     | `false`                                |
+| `--path <prefix>`                | Apps only: target directory                                | `_deepnote_static`                     |
+| `--api-access enabled\|disabled` | Apps only: change viewer API access                        | unchanged                              |
+| `--prune`                        | Apps only: delete remote files absent from the build       | `false`                                |
+| `--sync-root <dir>`              | Apps only: sync workspace to update                        | search upward from the build directory |
+| `--no-sync-root`                 | Apps only: skip sync workspace discovery and updates       | `false`                                |
+| `--force`                        | Apps only: overwrite changes not pulled into the workspace | `false`                                |
+| `--token <token>`                | API token                                                  | `DEEPNOTE_TOKEN`                       |
+| `--url <url>`                    | API origin                                                 | `https://api.deepnote.com`             |
+| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr     | `false`                                |
 
 Options for one app type are rejected with the other (exit code `2`).
 
 ## Exit codes
 
-| Code | Static app                                                                      | Streamlit app                                             |
+| Code | App                                                                             | Streamlit app                                             |
 | ---- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | `0`  | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait`            |
 | `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes | A request failed or startup timed out                     |

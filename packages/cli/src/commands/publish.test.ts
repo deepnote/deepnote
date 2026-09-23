@@ -123,7 +123,7 @@ describe('deepnote publish', () => {
     ['release?x', 'release%3Fx'],
     ['release%2F1', 'release%252F1'],
     ['javascript:alert(1)', 'javascript%3Aalert(1)'],
-  ])('publishes below the static root at %s using an encoded canonical URL', async (suffix, encodedSuffix) => {
+  ])('publishes below the app file root at %s using an encoded canonical URL', async (suffix, encodedSuffix) => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedUpdateProject.mockResolvedValue({
       sharingEnabled: true,
@@ -140,7 +140,7 @@ describe('deepnote publish', () => {
     expect(logged.join('\n')).toContain(`https://apps.example.test/static-files/p1/${encodedSuffix}/`)
   })
 
-  it('skips the project update when the existing static app settings already match', async () => {
+  it('skips the project update when the existing app settings already match', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',
@@ -729,7 +729,7 @@ describe('deepnote publish --streamlit', () => {
     return logged
   }
 
-  it('creates the app, warns about the restart, waits for it, and touches no static files or settings', async () => {
+  it('creates the app, warns about the restart, waits for it, and touches no app files or settings', async () => {
     const logged = captureLogs()
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockedWaitForStreamlitApp.mockImplementation(async (_base, _token, _id, options) => {
@@ -938,7 +938,7 @@ describe('deepnote publish --streamlit', () => {
     ['--sync-root', '.'],
     ['--no-sync-root'],
     ['--force'],
-  ])('rejects static-only option %s', async (...option) => {
+  ])('rejects app publishing option %s', async (...option) => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit')
     })
@@ -951,7 +951,7 @@ describe('deepnote publish --streamlit', () => {
     expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
   })
 
-  it('rejects --no-wait in static mode', async () => {
+  it('rejects --no-wait without --streamlit', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit')

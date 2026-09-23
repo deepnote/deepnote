@@ -4,7 +4,7 @@ description: >-
   Work with Deepnote project files (.deepnote). Use when creating, editing,
   or understanding .deepnote files — YAML-based notebook projects containing
   Python code, SQL queries, markdown, visualizations, and input widgets.
-  Also use when building or publishing Deepnote apps, choosing an app runtime,
+  Also use when building or publishing Deepnote apps or Streamlit apps, choosing a runtime,
   or using the Deepnote CLI to run, sync, or publish project files.
 ---
 
@@ -268,13 +268,14 @@ deepnote run project.deepnote -o json                  # JSON output
 3. If errors, check snapshot for details
 4. Fix and re-run
 
-## Apps
+## Apps and Streamlit apps
 
-For an app task, start with [Build and publish a Deepnote app](references/apps.md):
+Use **app** for HTML, CSS, and JavaScript hosted by Deepnote, and **Streamlit app** for a Python
+UI. Start with [Build and publish apps and Streamlit apps](references/apps.md):
 
-1. Choose the app type from the user's framework, hosting target, and audience.
+1. Choose the workflow from the user's framework, hosting target, and audience.
 2. Prepare and verify its notebook, Streamlit entrypoint, or browser build.
-3. Follow [Publish an app](references/cli-publish.md) for a static or Streamlit app.
+3. Follow [Publish apps and Streamlit apps](references/cli-publish.md) for an app or Streamlit app.
 4. Test the hosted URL as the intended viewer, including notebook runs and API access when used.
 
 ## CLI Quick Reference
@@ -294,8 +295,8 @@ For an app task, start with [Build and publish a Deepnote app](references/apps.m
 | `deepnote split <path>`                 | Split a multi-notebook file into one `.deepnote` per notebook. The init notebook (if any) becomes its own standalone file; each main file keeps `initNotebookId` so `deepnote run` resolves and runs the sibling init as a prelude.                                                                 |
 | `deepnote open <path>`                  | Open in Deepnote Cloud                                                                                                                                                                                                                                                                              |
 | `deepnote schedule <path>`              | Create or update recurring Deepnote Cloud runs                                                                                                                                                                                                                                                      |
-| `deepnote publish <path>`               | Publish a static app from a build directory, or a Streamlit app from an existing project file with `--streamlit`.                                                                                                                                                                                   |
-| `deepnote static-site access`           | Enable or disable sharing and viewer API access for an existing static app without changing its files.                                                                                                                                                                                              |
+| `deepnote publish <path>`               | Publish an app from a build directory, or a Streamlit app from an existing project file with `--streamlit`.                                                                                                                                                                                         |
+| `deepnote static-site access`           | Enable or disable sharing and viewer API access for an existing app without changing its files.                                                                                                                                                                                                     |
 | `deepnote sync [dir]`                   | Sync Deepnote Cloud projects with a local directory, both ways: pull every project into `<folder path>/<project name>/` (one `.deepnote` per notebook), push local edits back (the exact-inverse ZIP import). State in `.deepnote-sync.json`; conflicts prompt (or `--on-conflict skip\|override`). |
 | `deepnote integrations pull\|add\|edit` | Manage database integrations in the local integrations file                                                                                                                                                                                                                                         |
 

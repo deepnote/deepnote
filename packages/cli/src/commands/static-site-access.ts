@@ -21,7 +21,7 @@ function requestedUpdate(options: StaticSiteAccessOptions): ProjectStaticFilesUp
     return undefined
   }
   if (sharingEnabled === false && apiAccessEnabled === true) {
-    throw new TypeError('API access cannot be enabled while static app sharing is disabled.')
+    throw new TypeError('API access cannot be enabled while app sharing is disabled.')
   }
   if (sharingEnabled === false) {
     return { sharingEnabled: false, ...(apiAccessEnabled === false ? { apiAccessEnabled: false as const } : {}) }
@@ -55,7 +55,7 @@ export function createStaticSiteAccessAction(program: Command) {
     try {
       const settings = await updateProjectStaticFiles(options.url, token, options.projectId, update)
       const c = getChalk()
-      log(`${c.green('✓')} Updated static-site access for project ${c.dim(options.projectId)}`)
+      log(`${c.green('✓')} Updated app access for project ${c.dim(options.projectId)}`)
       log(`${c.dim('Sharing:')} ${settings.sharingEnabled ? 'enabled' : 'disabled'}`)
       log(`${c.dim('API access:')} ${settings.apiAccessEnabled ? 'enabled' : 'disabled'}`)
       if (settings.sharingEnabled) {

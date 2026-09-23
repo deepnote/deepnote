@@ -1,24 +1,24 @@
-# Publish an app
+# Publish apps and Streamlit apps
 
 Use `deepnote publish <path> --project-id <uuid>` to publish to an existing Deepnote project.
 Choose the mode from the source:
 
-- **Static app:** a local directory of browser files, uploaded by the command.
+- **App:** a local directory of HTML, CSS, JavaScript, and assets, uploaded for Deepnote to host.
 - **Streamlit app:** a project-relative `.py` entrypoint already in the project's Files; add
   `--streamlit`.
 
-If the app type is undecided, start with [Build and publish a Deepnote app](apps.md).
+If the workflow is undecided, start with [Build and publish apps and Streamlit apps](apps.md).
 
 ## Before publishing
 
 1. Confirm the target project ID and the files to publish. The command does not create projects.
 2. Set `DEEPNOTE_TOKEN` or pass `--token`. Use `--url` only to override the default API origin,
    `https://api.deepnote.com`. Keep the token out of app files.
-3. For a static app, build into a dedicated directory and inspect its contents. Everything in that
+3. For an app, build into a dedicated directory and inspect its contents. Everything in that
    directory will be uploaded, including dotfiles.
 4. For a new Streamlit app, account for the project-machine restart and interruption to active work.
 
-## Publish a static app
+## Publish an app
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
@@ -82,8 +82,8 @@ files absent from Deepnote.
 4. Open the printed URL and check the UI and any notebook runs as the intended viewer. API calls
    require the owner's Streamlit API-access opt-in and a signed-in viewer with direct project access.
 
-Creating an app restarts the project machine. By default the command waits up to 10 minutes for
-`running`; use `--no-wait` to return after the app is created or found without checking readiness.
+Creating a Streamlit app restarts the project machine. By default the command waits up to 10 minutes
+for `running`; use `--no-wait` to return after creation or lookup without checking readiness.
 Re-publishing an existing entrypoint reports its app ID and URL without restarting the machine.
 It waits for that app too; `unavailable` can be a temporary state during a restart.
 
@@ -101,25 +101,25 @@ publish again and use the returned URL, which may change.
 
 ## Options
 
-| Option                           | Use                                                                               |
-| -------------------------------- | --------------------------------------------------------------------------------- |
-| `--project-id <uuid>`            | Required target project                                                           |
-| `--streamlit`                    | Publish an existing project entrypoint as a Streamlit app                         |
-| `--no-wait`                      | Streamlit apps only: return without checking readiness                            |
-| `--path <prefix>`                | Static apps only: target directory at or below `_deepnote_static`                 |
-| `--api-access enabled\|disabled` | Static apps only: change viewer API access; omitted preserves it                  |
-| `--prune`                        | Static apps only: delete remote files absent from the local build                 |
-| `--sync-root <dir>`              | Static apps only: use this sync workspace; default searches upward from the build |
-| `--no-sync-root`                 | Static apps only: skip sync workspace discovery and updates                       |
-| `--force`                        | Static apps only: overwrite changes not yet pulled into the sync workspace        |
-| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                                           |
-| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`                                |
-| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr                          |
+| Option                           | Use                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| `--project-id <uuid>`            | Required target project                                                    |
+| `--streamlit`                    | Publish an existing project entrypoint as a Streamlit app                  |
+| `--no-wait`                      | Streamlit apps only: return without checking readiness                     |
+| `--path <prefix>`                | Apps only: target directory at or below `_deepnote_static`                 |
+| `--api-access enabled\|disabled` | Apps only: change viewer API access; omitted preserves it                  |
+| `--prune`                        | Apps only: delete remote files absent from the local build                 |
+| `--sync-root <dir>`              | Apps only: use this sync workspace; default searches upward from the build |
+| `--no-sync-root`                 | Apps only: skip sync workspace discovery and updates                       |
+| `--force`                        | Apps only: overwrite changes not yet pulled into the sync workspace        |
+| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                                    |
+| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`                         |
+| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr                   |
 
-Options for one app type are rejected with the other. Streamlit publishing does not update static
-app settings or a sync workspace.
+Options for one app type are rejected with the other. Streamlit publishing does not update app
+settings or a sync workspace.
 
-## Change static app access
+## Change app access
 
 Use `deepnote static-site access` to change sharing or viewer API access without changing files:
 
@@ -139,13 +139,13 @@ serves the retained files at the returned URL. Authentication and the API origin
 
 ## Interpret the result
 
-| Exit code | Static app                                                                      | Streamlit app                                             |
+| Exit code | App                                                                             | Streamlit app                                             |
 | --------- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | `0`       | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait`            |
 | `1`       | Request, upload, prune, or settings failure; or unsynced remote changes         | Request failure or startup timeout                        |
 | `2`       | Invalid arguments, missing token/directory, or unusable sync manifest/workspace | Invalid arguments, missing token, or incompatible options |
 
-A failed static upload can leave partial changes; successful uploads are not rolled back. Fix the
+A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. Sharing is not changed and remaining stale files are not
 pruned after an upload fails.
 
