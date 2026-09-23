@@ -571,6 +571,10 @@ deepnote publish ./dist --project-id <uuid>
 The command prints the canonical website URL returned by the server. Use `--api-access enabled`
 only when the website needs to load notebooks or start runs through the Deepnote API.
 
+Every published file is readable by anyone who can view the site, so the command refuses to publish
+a directory that contains a `.env` or `.env.*` file at any depth (exit code `2`, nothing uploaded).
+Publish a clean build output directory, not a project root.
+
 #### Working with `deepnote sync`
 
 `_deepnote_static/` lives in the same project file store that [`deepnote sync --all-files`](#sync-dir)

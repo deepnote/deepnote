@@ -29,7 +29,9 @@ the current directory (same for `static-site access`). `--url` selects the API o
 
 Publishing reads the project inventory, then replaces each matching file with a delete followed by
 an upload. Before any remote mutation, it rejects local paths the file API would normalize
-differently or that collide at the destination. If an upload fails, the command reports exit code 1
+differently or that collide at the destination, and refuses the whole publish (exit code 2) when the
+directory contains a `.env` or `.env.*` file at any depth, since every published file is world-readable.
+If an upload fails, the command reports exit code 1
 and does not prune remaining stale files or change project settings. With `--prune`, stale files that
 block required directories are deleted before uploading; remaining stale files are deleted only
 after all uploads succeed. Finally, the command enables sharing through `PATCH /v2/projects/{id}`
