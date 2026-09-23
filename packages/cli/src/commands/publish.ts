@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { join, posix, relative, sep } from 'node:path'
+import { basename, join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
@@ -48,6 +48,12 @@ interface PublishFile {
 async function collectFiles(dir: string): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true, recursive: true })
   return entries.filter(entry => entry.isFile()).map(entry => join(entry.parentPath ?? entry.path, entry.name))
+}
+
+/** `.env` and `.env.*` files: they usually hold secrets, and everything published is world-readable. */
+function isEnvFile(localPath: string): boolean {
+  const name = basename(localPath)
+  return name === DEFAULT_ENV_FILE || name.startsWith(`${DEFAULT_ENV_FILE}.`)
 }
 
 function normalizeTargetPrefix(path: string): string | null {
@@ -157,6 +163,19 @@ export function createPublishAction(program: Command) {
     }
     if (files.length === 0) {
       program.error(`No files found in ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
+    // Everything under the published directory becomes readable at the site URL, so a `.env` file
+    // would expose its secrets (possibly the very token used to publish). Refuse before any remote work.
+    const envFiles = files.filter(isEnvFile).map(localPath => relative(dir, localPath).split(sep).join('/'))
+    if (envFiles.length > 0) {
+      program.error(
+        `Refusing to publish ${envFiles.map(file => `"${file}"`).join(', ')}: environment files may contain secrets ` +
+          `and every published file is readable by anyone who can view the site. ` +
+          `Remove them from ${dir} or publish a clean build output directory.`,
+        { exitCode: ExitCode.InvalidUsage }
+      )
       return
     }
 

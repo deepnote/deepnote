@@ -55,8 +55,10 @@ An API token carries your access to the workspace. Treat it like a password.
   `DEEPNOTE_TOKEN` for the publish step only. Never commit it to the repository you are deploying.
 - **Rotate and revoke** from the same settings page if a token is ever exposed.
 - **Keep it out of the build directory.** Everything under the directory you publish becomes readable
-  at the site URL by anyone who can view the site — including dotfiles, source maps, and stray `.env`
-  files. Publish a clean build output directory, not a project root.
+  at the site URL by anyone who can view the site — including dotfiles and source maps. Publish a
+  clean build output directory, not a project root. As a safeguard, the CLI refuses to publish a
+  directory that contains a `.env` or `.env.*` file anywhere inside it (exit code `2`, nothing is
+  uploaded).
 
 ## Finding a project ID
 
