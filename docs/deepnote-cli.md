@@ -83,7 +83,7 @@ contact Deepnote and need no token.
 | `deepnote validate <path>`                             | Validate a `.deepnote` file against the schema                                                 |
 | `deepnote stats <path>`                                | Block counts, lines of code and imported modules                                               |
 | `deepnote analyze <path>`                              | Quality score, structure analysis and suggestions                                              |
-| `deepnote dag <subcommand> <path>`                     | Analyze block dependencies and variable flow                                                   |
+| `deepnote dag show\|vars\|downstream <path>`           | Analyze block dependencies and variable flow                                                   |
 | `deepnote convert <path>`                              | Convert between `.ipynb`, `.py`, `.qmd` and `.deepnote`                                        |
 | `deepnote split <path>`                                | Split a multi-notebook `.deepnote` file into one file per notebook                             |
 | `deepnote open <path>`                                 | Upload a `.deepnote` file to Deepnote Cloud and open it in the browser                         |
