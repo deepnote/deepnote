@@ -14,6 +14,7 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
 | **VS Code and Cursor extensions**             | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **Deepnote CLI**                              | Scripting, CI, automation | ✅ Yes    | ❌ No   | Easy       |
 | **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
@@ -96,6 +97,25 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 - [GitHub repository](https://github.com/deepnote/vscode-deepnote)
 - [Architecture documentation](https://github.com/deepnote/vscode-deepnote/blob/main/specs/architecture.md)
 - [Contributing guide](https://github.com/deepnote/vscode-deepnote/blob/main/CONTRIBUTING.md)
+
+## ⌨️ Deepnote CLI
+
+The **Deepnote CLI** runs, inspects, converts and validates `.deepnote` files from the terminal, mirrors a whole workspace to a local directory, and deploys static sites to a project. It is the right tool when you want notebooks in scripts, cron jobs or CI rather than in an editor.
+
+```bash
+npm install -g @deepnote/cli
+
+# Run a notebook locally
+deepnote run my-project.deepnote
+
+# Convert a Jupyter notebook to the Deepnote format
+deepnote convert notebook.ipynb
+
+# Mirror your workspace to ./workspace
+deepnote sync ./workspace
+```
+
+The CLI does not edit notebooks; pair it with the VS Code extension or the Deepnote editor for that. See the [Deepnote CLI](/docs/deepnote-cli) page for installation, authentication and the full command list.
 
 ## Deepnote Toolkit (advanced)
 
@@ -214,18 +234,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code and Cursor extensions | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ----------------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                            | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                            | ✅               | ✅                   |
-| **Execute code**            | ✅                            | ✅               | ✅                   |
-| **SQL blocks**              | ✅                            | ✅               | ✅                   |
-| **Database integrations**   | ✅                            | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                            | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                            | ❌               | ✅                   |
-| **Offline mode**            | ✅                            | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                    | ✅               | ✅                   |
-| **AI features**             | ❌                            | ❌               | ✅                   |
+| Feature                     | VS Code and Cursor extensions | Deepnote CLI                  | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ----------------------------- | ----------------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                            | ✅                            | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                            | ❌                            | ✅               | ✅                   |
+| **Execute code**            | ✅                            | ✅                            | ✅               | ✅                   |
+| **SQL blocks**              | ✅                            | ✅                            | ✅               | ✅                   |
+| **Database integrations**   | ✅                            | ✅                            | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                            | ❌                            | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                            | ❌                            | ❌               | ✅                   |
+| **Offline mode**            | ✅                            | ✅                            | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                    | ⚠️ Limited                    | ✅               | ✅                   |
+| **AI features**             | ❌                            | ⚠️ Agent block via `--prompt` | ❌               | ✅                   |
 
 \*Coming soon
 
@@ -242,6 +262,7 @@ If you encounter issues with any local setup option:
 
 - [Deepnote community](https://github.com/deepnote/deepnote/discussions)
 - [Deepnote Documentation](https://deepnote.com/docs)
+- [Deepnote CLI](/docs/deepnote-cli)
 - [VS Code Extension Issues](https://github.com/deepnote/vscode-deepnote/issues)
 - [Deepnote Toolkit Issues](https://github.com/deepnote/deepnote-toolkit/issues)
 
