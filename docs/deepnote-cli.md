@@ -54,7 +54,7 @@ automatically, or point it at an interpreter with `--python`.
 
 ## Authentication
 
-Commands that talk to Deepnote Cloud (`run --cloud`, `open`, `schedule`, `sync`, `publish`,
+Commands that talk to Deepnote Cloud (`run --cloud`, `schedule`, `sync`, `publish`,
 `static-site access`, `integrations pull`) need an API key. Create one in your workspace under
 **Settings & members → Security → API keys** (see the [Deepnote API docs](/docs/deepnote-api)) and
 pass it in one of three ways:
@@ -68,8 +68,9 @@ pass it in one of three ways:
 Prefer the environment variable or a `.env` file: a token passed as `--token` ends up in your shell
 history. Without a token, cloud commands exit with code `2` and print these options.
 
-Local-only commands such as `inspect`, `cat`, `lint`, `convert` and `run` without `--cloud` never
-contact Deepnote and need no token.
+`inspect`, `cat`, `lint`, `validate`, `convert` and `run` without `--cloud` work on local files and
+need no token. `deepnote open`, and the `--open` flag on `run` and `convert`, upload the file to
+Deepnote Cloud and open it in your browser, where you sign in; they need no token either.
 
 ## Commands
 
@@ -125,7 +126,7 @@ deepnote publish ./dist --project-id <project-id>
 
 ## Scripting and automation
 
-The CLI is designed to be driven by scripts and AI agents.
+The CLI is built for scripts and AI agents.
 
 - **Exit codes** are consistent across commands: `0` success, `1` runtime error, `2` invalid usage
   (bad arguments, missing file, missing token).

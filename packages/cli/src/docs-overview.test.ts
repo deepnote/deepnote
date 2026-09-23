@@ -23,6 +23,15 @@ function documentedCommandName(row: string): string {
   return match?.[1] ?? ''
 }
 
+// The word after the command name, split on the escaped pipes a markdown table
+// cell uses: `deepnote integrations pull\|add\|edit` yields pull, add, edit.
+// A placeholder such as `<path>` is not a subcommand and yields nothing.
+function documentedSubcommandNames(row: string): string[] {
+  const match = row.match(/`deepnote [a-z-]+ ([^`\s]+)/)
+  const names = (match?.[1] ?? '').split('\\|')
+  return names.filter(name => /^[a-z-]+$/.test(name)).sort()
+}
+
 describe('docs/deepnote-cli.md command table', () => {
   const program = createProgram()
   const rows = readCommandTableRows()
@@ -34,20 +43,13 @@ describe('docs/deepnote-cli.md command table', () => {
     expect(documented).toEqual(registered)
   })
 
-  it('names every subcommand in its parent row', () => {
+  it('names exactly the subcommands of each parent command in its row', () => {
     for (const command of program.commands) {
-      if (command.commands.length === 0) {
-        continue
-      }
-
       const row = rows.find(candidate => documentedCommandName(candidate) === command.name())
       expect(row, `no table row for "deepnote ${command.name()}"`).toBeDefined()
 
-      for (const subcommand of command.commands) {
-        expect(row, `row for "deepnote ${command.name()}" must mention "${subcommand.name()}"`).toContain(
-          subcommand.name()
-        )
-      }
+      const registered = command.commands.map(subcommand => subcommand.name()).sort()
+      expect(documentedSubcommandNames(row ?? ''), `subcommands of "deepnote ${command.name()}"`).toEqual(registered)
     }
   })
 })

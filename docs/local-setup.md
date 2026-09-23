@@ -98,7 +98,7 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 - [Architecture documentation](https://github.com/deepnote/vscode-deepnote/blob/main/specs/architecture.md)
 - [Contributing guide](https://github.com/deepnote/vscode-deepnote/blob/main/CONTRIBUTING.md)
 
-## ⌨️ Deepnote CLI
+## Deepnote CLI
 
 The **Deepnote CLI** runs, inspects, converts and validates `.deepnote` files from the terminal, mirrors a whole workspace to a local directory, and deploys static sites to a project. It is the right tool when you want notebooks in scripts, cron jobs or CI rather than in an editor.
 
