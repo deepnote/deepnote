@@ -5,6 +5,9 @@ fetch its execution snapshot, and publish existing project files as Streamlit ap
 
 Used by `deepnote run --cloud` (`@deepnote/cli`) and by `@deepnote/local-runner`.
 
+An **app** is HTML, CSS, and JavaScript hosted by Deepnote and run in the browser. A **Streamlit app**
+is a Python UI that runs on project hardware.
+
 The client accepts IDs and plain objects. Map notebook content to `ProjectSpec` when creating a project.
 
 ## Installation
@@ -60,8 +63,8 @@ therefore cannot use `detachedRunStorageMode`.
 | `RunTimeoutError`                                                                                                                            | Thrown when `pollRunUntilComplete` exceeds its deadline. Carries the `runId` — the run may still be executing.                                               |
 | `NormalizedRun`, `TriggerRunBody`, `GetRunOptions`, `PollOptions`, `FetchSnapshotOptions`, `SettledRunSnapshot`, `WaitForRunSnapshotOptions` | Types.                                                                                                                                                       |
 | `listAllProjects(baseUrl, token, opts?)`                                                                                                     | `GET /v2/projects` — every project in the workspace, walking pagination to exhaustion.                                                                       |
-| `getProjectDetail(baseUrl, token, projectId, opts?)`                                                                                         | `GET /v2/projects/{id}` — one project, including its working-directory file inventory and static app settings when supported by the server.                  |
-| `updateProjectStaticFiles(baseUrl, token, projectId, update, opts?)`                                                                         | `PATCH /v2/projects/{id}` — update static app sharing and/or API access; returns the settings and canonical app URL.                                         |
+| `getProjectDetail(baseUrl, token, projectId, opts?)`                                                                                         | `GET /v2/projects/{id}` — one project, including its working-directory file inventory and app settings when supported by the server.                         |
+| `updateProjectStaticFiles(baseUrl, token, projectId, update, opts?)`                                                                         | `PATCH /v2/projects/{id}` — update app sharing and/or API access; returns the settings and canonical app URL.                                                |
 | `exportProject(baseUrl, token, projectId, opts?)`                                                                                            | `GET /v2/projects/{id}/export` — the project's notebooks as deterministic `.deepnote` documents (unzipped from the export ZIP, one per notebook). See below. |
 | `importProject(baseUrl, token, projectId, files, opts?)`                                                                                     | `POST /v2/projects/{id}/import` — reconcile a ZIP of `.deepnote` documents (the exact inverse of export) into the project. See below.                        |
 | `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                                                                           | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first. Buffered transfers are limited to 100 MiB.               |

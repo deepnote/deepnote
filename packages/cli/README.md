@@ -49,7 +49,7 @@ deepnote convert notebook.ipynb
 # Schedule recurring runs in Deepnote Cloud
 deepnote schedule report.deepnote --daily --at 09:00
 
-# Publish a static app to an existing Deepnote project
+# Publish an app to an existing Deepnote project
 deepnote publish ./dist --project-id <uuid>
 
 # Stop serving it later without deleting its files
@@ -549,9 +549,13 @@ deepnote open my-project.deepnote -o json
 
 ### `publish <path>`
 
-Publish a static app or Streamlit app to an existing Deepnote project. Static publishing uploads
-a local directory and enables app sharing after every upload succeeds. With `--streamlit`, the
-path is a file already in the project's Files that Deepnote serves without uploading it.
+Publish an app or Streamlit app to an existing Deepnote project. An **app** is HTML, CSS, and
+JavaScript hosted by Deepnote and run in the browser; it can be interactive and call the Deepnote
+API. A **Streamlit app** is a Python UI that runs on the project's hardware.
+
+By default, the command uploads a local build directory and enables app sharing after every upload
+succeeds. With `--streamlit`, the path is a Python file already in the project's Files; the command
+does not upload it.
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
@@ -559,21 +563,21 @@ deepnote publish ./dist --project-id <uuid>
 
 **Options:**
 
-| Option                           | Description                                                                             | Default                                     |
-| -------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `--project-id <uuid>`            | Project to publish to (required)                                                        |                                             |
-| `--streamlit`                    | Serve the project-relative path as a Streamlit app                                      | `false`                                     |
-| `--no-wait`                      | Streamlit only: exit without waiting for the app to start                               | `false`                                     |
-| `--path <prefix>`                | Static apps only: target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
-| `--api-access enabled\|disabled` | Static apps only: explicitly enable or disable API access for the published app         | unchanged                                   |
-| `--prune`                        | Static apps only: delete remote files below `--path` that are absent locally            | `false`                                     |
-| `--sync-root <dir>`              | Static apps only: sync workspace whose mirror to update                                 | search upwards from the published directory |
-| `--no-sync-root`                 | Static apps only: publish without looking for or updating a sync workspace              | `false`                                     |
-| `--force`                        | Static apps only: publish even when Deepnote holds changes the workspace has not synced | `false`                                     |
-| `--token <token>`                | Deepnote API token                                                                      | `DEEPNOTE_TOKEN`                            |
-| `--url <url>`                    | Deepnote API base URL                                                                   | `https://api.deepnote.com`                  |
+| Option                           | Description                                                                      | Default                                     |
+| -------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                                                 |                                             |
+| `--streamlit`                    | Serve the project-relative path as a Streamlit app                               | `false`                                     |
+| `--no-wait`                      | Streamlit only: exit without waiting for the app to start                        | `false`                                     |
+| `--path <prefix>`                | Apps only: target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
+| `--api-access enabled\|disabled` | Apps only: explicitly enable or disable API access for the published app         | unchanged                                   |
+| `--prune`                        | Apps only: delete remote files below `--path` that are absent locally            | `false`                                     |
+| `--sync-root <dir>`              | Apps only: sync workspace whose mirror to update                                 | search upwards from the published directory |
+| `--no-sync-root`                 | Apps only: publish without looking for or updating a sync workspace              | `false`                                     |
+| `--force`                        | Apps only: publish even when Deepnote holds changes the workspace has not synced | `false`                                     |
+| `--token <token>`                | Deepnote API token                                                               | `DEEPNOTE_TOKEN`                            |
+| `--url <url>`                    | Deepnote API base URL                                                            | `https://api.deepnote.com`                  |
 
-Use `--api-access enabled` only when a static app needs to read notebook inputs or start runs through
+Use `--api-access enabled` only when an app needs to read notebook inputs or start runs through
 the Deepnote API. API calls from a hosted Streamlit app work only when the project owner has
 enabled Streamlit app API access, and only for signed-in viewers with direct access to the project.
 
@@ -593,10 +597,10 @@ Upload the entrypoint and its dependencies into the project's Files in Deepnote 
 If a notebook push is already pending in a sync workspace, `deepnote sync --all-files` can include
 the working files. For a `.py`-only edit, upload in Deepnote; sync does not push that edit alone.
 
-Creating an app restarts the project machine and interrupts active work. The command prints the app
-URL and waits up to 10 minutes for it to start. An existing app keeps its ID and URL and does not
-restart the machine. The command waits for existing apps too. Use `--no-wait` to
-return after either creation or lookup without checking readiness.
+Creating a Streamlit app restarts the project machine and interrupts active work. The command
+prints the app URL and waits up to 10 minutes for it to start. An existing Streamlit app keeps its
+ID and URL and does not restart the machine. The command waits for existing Streamlit apps too.
+Use `--no-wait` to return after either creation or lookup without checking readiness.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
 Sync replaces changed files by deleting and uploading them, so publish again after syncing an edited
@@ -606,7 +610,7 @@ entrypoint and use the returned URL, which may change. See the
 **Examples:**
 
 ```bash
-# Publish an app that needs a static app viewer token
+# Publish an app with viewer API access
 deepnote publish ./dist --project-id <uuid> --api-access enabled
 
 # Serve a file already in the project as a Streamlit app and wait for it to start
@@ -627,11 +631,11 @@ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
 ### `static-site access`
 
-Change access to an already-published static app without uploading or deleting files. At least one
+Change access to an already-published app without uploading or deleting files. At least one
 of `--sharing` and `--api-access` is required.
 
 ```bash
-# Stop serving the static app; its files remain stored
+# Stop serving the app; its files remain stored
 deepnote static-site access --project-id <uuid> --sharing disabled
 
 # Serve the stored files again and allow viewer-scoped Deepnote API calls
@@ -726,7 +730,7 @@ the cloud copy is deleted, so an interrupted upload is retried on the next `--al
 Working-directory files larger than 100 MiB are rejected because these transfers are buffered in
 memory; use another transfer method for larger data files.
 
-Sync is not the only writer of a project's files — [`deepnote publish`](#publish-dir) deploys into
+Sync is not the only writer of a project's files — [`deepnote publish`](#publish-path) deploys into
 `_deepnote_static/` and the Deepnote app can write anything — so each file is checked against the
 cloud inventory before it is uploaded. A file whose cloud copy changed, or was deleted, since the
 manifest last recorded it goes through the same `--on-conflict` override-or-skip choice as a diverged
