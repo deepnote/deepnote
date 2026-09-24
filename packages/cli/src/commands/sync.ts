@@ -253,6 +253,23 @@ async function resolveConflict(ctx: SyncContext, message: string, overrideLabel:
   return ctx.askConflict ? ctx.askConflict(question) : promptConflict(question)
 }
 
+/** The questions a project's notebook sync can ask. */
+type NotebookQuestion = 'both-changed' | 'empty-push' | 'push-409'
+
+/** Asks one of the {@link NotebookQuestion}s, unless an earlier answer to it already applies. */
+type AskNotebookQuestion = (kind: NotebookQuestion, message: string, overrideLabel: string) => Promise<ConflictChoice>
+
+/**
+ * Thrown when a deferred question is answered with override. The answer arrived after the rest of the
+ * workspace synced, so the local files and cloud export read before the question may be stale: the
+ * project's notebook sync starts over on fresh data, with this answer on record. If the same question
+ * comes up again the answer applies; if the fresh data no longer raises it, the ordinary (and
+ * non-destructive) pull, push, or no-op happens instead.
+ */
+class DeferredOverride {
+  constructor(readonly kind: NotebookQuestion) {}
+}
+
 function promptConflict(question: ConflictQuestion): Promise<ConflictChoice> {
   return select({
     message: question.message,
@@ -525,9 +542,9 @@ type PushOutcome =
 async function pushProject(
   ctx: SyncContext,
   project: SyncProject,
-  projectDir: string,
   localFiles: readonly ExportedNotebookFile[],
-  record: ManifestProjectRecord
+  record: ManifestProjectRecord,
+  ask: AskNotebookQuestion
 ): Promise<PushOutcome> {
   const deleteMissingNotebooks = ctx.options.deleteMissingNotebooks ?? false
 
@@ -535,8 +552,8 @@ async function pushProject(
   // notebook. Locally an empty directory is more often an accident than intent, so confirm it like
   // a conflict instead of carrying it out silently.
   if (deleteMissingNotebooks && localFiles.length === 0) {
-    const choice = await resolveConflict(
-      ctx,
+    const choice = await ask(
+      'empty-push',
       `The local directory for "${project.name}" has no notebooks. Pushing it with --delete-missing-notebooks deletes every notebook in the cloud project. Push anyway?`,
       'Push and delete every notebook in the cloud project'
     )
@@ -560,30 +577,16 @@ async function pushProject(
     if (!(error instanceof ApiError) || error.statusCode !== 409 || error.message === 'Project is suspended') {
       throw error
     }
-    const choice = await resolveConflict(
-      ctx,
+    const choice = await ask(
+      'push-409',
       `"${project.name}" changed in Deepnote after your local edit. Overwrite the cloud version with your local files?`,
       'Overwrite the cloud version with the local files'
     )
     if (choice === 'skip') {
       return { kind: 'skipped', reason: 'cloud changed after the local edit' }
     }
-    // The answer may have waited for the rest of the workspace to sync, so push what is on disk now:
-    // an edit made in the meantime is a fresh local edit, not something to overwrite with the copy
-    // read at the start of the run.
-    const currentFiles = await readLocalNotebookFiles(toAbsolute(ctx, projectDir))
-    if (currentFiles === null) {
-      return { kind: 'skipped', reason: 'local directory was removed before the push' }
-    }
-    if (deleteMissingNotebooks && currentFiles.length === 0 && localFiles.length > 0) {
-      return { kind: 'skipped', reason: 'local directory has no notebooks; refusing to delete every cloud notebook' }
-    }
-    if (canonicalProjectHash(currentFiles) !== canonicalProjectHash(localFiles)) {
-      debug(`"${project.name}" changed locally while waiting for an answer; pushing the current files`)
-    }
-    notebooks = (
-      await importProject(ctx.baseUrl, ctx.token, project.id, currentFiles, { ...importOptions, force: true })
-    ).notebooks
+    notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, { ...importOptions, force: true }))
+      .notebooks
   }
 
   const files = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
@@ -651,63 +654,81 @@ async function uploadProjectFiles(
   const pending = new Set(record.pendingFileUploads ?? [])
   let uploaded = 0
 
-  const localPaths = await listLocalFilesRecursive(filesDirAbsolute)
-  const nonCanonicalPath = localPaths.find(relPath => relPath !== relPath.trim())
-  if (nonCanonicalPath) {
-    throw new Error(`Cannot upload local file with leading or trailing whitespace: "${nonCanonicalPath}"`)
-  }
-  const missingPendingPaths = [...pending].filter(relPath => !localPaths.includes(relPath))
-  if (missingPendingPaths.length > 0) {
-    throw new Error(`Cannot retry file upload because the local file is missing: ${missingPendingPaths.join(', ')}`)
-  }
-
-  // Plan first so one prompt covers every conflict.
-  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
-  const inventory = new Map(detail.files.map(entry => [entry.path, entry]))
-  const planned: PlannedFileUpload[] = []
-
-  for (const relPath of localPaths) {
-    if (!isSafeRelativeFilePath(relPath)) {
-      warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
-      continue
+  const planUploads = async (): Promise<PlannedFileUpload[]> => {
+    const localPaths = await listLocalFilesRecursive(filesDirAbsolute)
+    const nonCanonicalPath = localPaths.find(relPath => relPath !== relPath.trim())
+    if (nonCanonicalPath) {
+      throw new Error(`Cannot upload local file with leading or trailing whitespace: "${nonCanonicalPath}"`)
     }
-    await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${relPath}`)
-    const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
-    const stats = await fs.stat(absolute)
-    assertBufferedProjectFileSize(relPath, stats.size)
-    const prev = previous[relPath]
-    const isPending = pending.has(relPath)
-    // Hash catches same-size edits.
-    if (!isPending && prev && prev.size === stats.size && prev.hash === sha256(await fs.readFile(absolute))) {
-      continue
+    const missingPendingPaths = [...pending].filter(relPath => !localPaths.includes(relPath))
+    if (missingPendingPaths.length > 0) {
+      throw new Error(`Cannot retry file upload because the local file is missing: ${missingPendingPaths.join(', ')}`)
     }
-    // A pending replacement belongs to this sync, so retry it without a conflict — unless the
-    // cloud copy exists again, which disproves "our own unfinished delete": another writer (or a
-    // run interrupted after its upload) put it there, and overwriting that needs a choice.
-    const remote = inventory.get(relPath)
-    const conflict = isPending
-      ? remote !== undefined
-        ? 'was re-created in Deepnote after an interrupted upload'
-        : undefined
-      : describeCloudFileDivergence(prev, remote)
-    planned.push({ relPath, ...(conflict ? { conflict } : {}) })
+
+    // Plan first so one prompt covers every conflict.
+    const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
+    const inventory = new Map(detail.files.map(entry => [entry.path, entry]))
+    const planned: PlannedFileUpload[] = []
+
+    for (const relPath of localPaths) {
+      if (!isSafeRelativeFilePath(relPath)) {
+        warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
+        continue
+      }
+      await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${relPath}`)
+      const absolute = path.join(filesDirAbsolute, ...relPath.split('/'))
+      const stats = await fs.stat(absolute)
+      assertBufferedProjectFileSize(relPath, stats.size)
+      const prev = previous[relPath]
+      const isPending = pending.has(relPath)
+      // Hash catches same-size edits.
+      if (!isPending && prev && prev.size === stats.size && prev.hash === sha256(await fs.readFile(absolute))) {
+        continue
+      }
+      // A pending replacement belongs to this sync, so retry it without a conflict — unless the
+      // cloud copy exists again, which disproves "our own unfinished delete": another writer (or a
+      // run interrupted after its upload) put it there, and overwriting that needs a choice.
+      const remote = inventory.get(relPath)
+      const conflict = isPending
+        ? remote !== undefined
+          ? 'was re-created in Deepnote after an interrupted upload'
+          : undefined
+        : describeCloudFileDivergence(prev, remote)
+      planned.push({ relPath, ...(conflict ? { conflict } : {}) })
+    }
+    return planned
   }
 
-  const conflicted = planned.filter(file => file.conflict !== undefined)
-  let overrideConflicts = false
+  const conflictKey = (file: PlannedFileUpload) => `${file.relPath}\n${file.conflict}`
+  const describe = (files: PlannedFileUpload[]) => files.map(file => `${file.relPath} (${file.conflict})`).join(', ')
+  let planned = await planUploads()
+  let conflicted = planned.filter(file => file.conflict !== undefined)
+  // Conflicts the user chose to overwrite, exactly as they were shown.
+  const approved = new Set<string>()
+  let kept: PlannedFileUpload[] = []
   if (conflicted.length > 0) {
-    const summary = conflicted.map(file => `${file.relPath} (${file.conflict})`).join(', ')
-    overrideConflicts =
-      (await resolveConflict(
-        ctx,
-        `Working files of "${project.name}" changed in Deepnote since the last sync: ${summary}. ` +
-          'Overwrite the Deepnote copies with your local files?',
-        'Overwrite the Deepnote copies with the local files'
-      )) === 'override'
-    if (!overrideConflicts) {
+    const choice = await resolveConflict(
+      ctx,
+      `Working files of "${project.name}" changed in Deepnote since the last sync: ${describe(conflicted)}. ` +
+        'Overwrite the Deepnote copies with your local files?',
+      'Overwrite the Deepnote copies with the local files'
+    )
+    if (choice === 'override') {
+      for (const file of conflicted) {
+        approved.add(conflictKey(file))
+      }
+      if (ctx.askConflict) {
+        // The answer waited for the rest of the workspace, so plan again on fresh local files and a
+        // fresh inventory. Only conflicts the user was shown are overwritten; a new one is kept.
+        planned = await planUploads()
+        conflicted = planned.filter(file => file.conflict !== undefined)
+      }
+    }
+    kept = conflicted.filter(file => !approved.has(conflictKey(file)))
+    if (kept.length > 0) {
       warn(
-        `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
-          `"${project.name}": ${summary}. To accept the Deepnote versions, pull — this replaces your ` +
+        `Kept the Deepnote copy of ${kept.length} file${kept.length === 1 ? '' : 's'} in ` +
+          `"${project.name}": ${describe(kept)}. To accept the Deepnote versions, pull — this replaces your ` +
           'local copies. To keep yours, push again and choose to overwrite.'
       )
     }
@@ -722,7 +743,7 @@ async function uploadProjectFiles(
   }
 
   for (const { relPath, conflict } of planned) {
-    if (conflict !== undefined && !overrideConflicts) {
+    if (conflict !== undefined && !approved.has(conflictKey({ relPath, conflict }))) {
       // A kept re-created cloud copy is no longer ours to finish replacing. Dropping the retry turns
       // the path back into an ordinary diverged file: pull brings the cloud copy down, push asks again.
       if (!ctx.dryRun && pending.delete(relPath)) {
@@ -768,7 +789,7 @@ async function uploadProjectFiles(
   }
 
   record.files = next
-  return { uploaded, skipped: overrideConflicts ? 0 : conflicted.length }
+  return { uploaded, skipped: kept.length }
 }
 
 type OutcomeBase = Pick<ProjectSyncOutcome, 'projectId' | 'name' | 'path'>
@@ -836,9 +857,23 @@ async function syncPreparedProject(
 ): Promise<ProjectSyncOutcome> {
   const { project, plan, base, syncRecord, moveNote } = prepared
 
-  try {
-    // In a dry run moveTrackedProjectDirs did not move anything, so the directory is still at its manifest
-    // path.
+  // Answers that apply when a question comes up again on fresh data (see DeferredOverride).
+  const answers: Partial<Record<NotebookQuestion, ConflictChoice>> = {}
+  const ask: AskNotebookQuestion = async (kind, message, overrideLabel) => {
+    const earlier = answers[kind]
+    if (earlier !== undefined) {
+      return earlier
+    }
+    const choice = await resolveConflict(ctx, message, overrideLabel)
+    if (choice === 'override' && ctx.askConflict) {
+      throw new DeferredOverride(kind)
+    }
+    return choice
+  }
+
+  const syncNotebooks = async (): Promise<ProjectSyncOutcome> => {
+    // In a dry run moveTrackedProjectDirs did not move anything, so the directory is still at its
+    // manifest path.
     const localReadDir = ctx.dryRun && syncRecord ? syncRecord.dir : plan.projectDir
     const localFiles = await readLocalNotebookFiles(toAbsolute(ctx, localReadDir))
     const exportFiles = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
@@ -882,7 +917,7 @@ async function syncPreparedProject(
         // classifySyncStep only returns 'push' for tracked directories, so this is unreachable.
         outcome = { ...base, action: 'skipped-conflict', detail: 'no manifest record for a push' }
       } else {
-        const pushed = await pushProject(ctx, project, plan.projectDir, localFiles ?? [], syncRecord)
+        const pushed = await pushProject(ctx, project, localFiles ?? [], syncRecord, ask)
         if (pushed.kind === 'skipped') {
           outcome = { ...base, action: 'skipped-conflict', detail: pushed.reason }
         } else {
@@ -892,8 +927,8 @@ async function syncPreparedProject(
         }
       }
     } else {
-      const choice = await resolveConflict(
-        ctx,
+      const choice = await ask(
+        'both-changed',
         syncRecord
           ? `"${project.name}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`
           : `${plan.projectDir} exists locally but is not linked to "${project.name}" in Deepnote. Overwrite it with the cloud version?`,
@@ -913,6 +948,21 @@ async function syncPreparedProject(
             ? 'modified both locally and in the cloud'
             : 'untracked local directory differs from the cloud',
         }
+      }
+    }
+    return outcome
+  }
+
+  try {
+    let outcome: ProjectSyncOutcome | undefined
+    while (outcome === undefined) {
+      try {
+        outcome = await syncNotebooks()
+      } catch (error) {
+        if (!(error instanceof DeferredOverride)) {
+          throw error
+        }
+        answers[error.kind] = 'override'
       }
     }
 

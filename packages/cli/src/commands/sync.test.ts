@@ -1810,6 +1810,74 @@ describe('syncWorkspace', () => {
       expect(forced[0]?.documents['main.deepnote']).toContain('edited-while-waiting')
     })
 
+    it('does not delete cloud notebooks when an empty directory was refilled while its question waited', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      const alphaFile = path.join(tempDir, 'Alpha', 'main.deepnote')
+      const alphaContent = await fs.readFile(alphaFile, 'utf-8')
+      await fs.rm(alphaFile)
+
+      // The user restores the notebook before answering "push and delete everything".
+      vi.mocked(select).mockImplementation(async () => {
+        await fs.writeFile(alphaFile, alphaContent, 'utf-8')
+        return 'override'
+      })
+
+      const result = await withTtyResult(() =>
+        syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true, onConflict: 'ask' })
+      )
+
+      expect(select).toHaveBeenCalledTimes(1)
+      expect(cloud.importCalls).toEqual([])
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p1', action: 'unchanged' }),
+        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      ])
+    })
+
+    it('pulls the fresh export when the cloud changed again while an overwrite question waited', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+
+      const newest = singleNotebook('p1', '2026-01-08T00:00:00.000Z', 'cloud-edit-again')
+      vi.mocked(select).mockImplementation(async () => {
+        projects[0].notebooks = newest
+        return 'override'
+      })
+
+      const result = await withTtyResult(() => syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' }))
+
+      expect(select).toHaveBeenCalledTimes(1)
+      expect(result.projects).toEqual([
+        expect.objectContaining({
+          projectId: 'p1',
+          action: 'pulled',
+          detail: 'conflict resolved: local changes overwritten',
+        }),
+        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      ])
+      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('cloud-edit-again')
+      expect((await loadSyncManifest(tempDir)).projects.p1).toEqual(
+        expect.objectContaining({ contentHash: canonicalProjectHash(newest), modifiedAt: '2026-01-08T00:00:00.000Z' })
+      )
+    })
+
     it('asks one project two questions in turn when its push conflicts and its files do too', async () => {
       const { select } = await import('@inquirer/prompts')
       const projects: CloudProject[] = [
