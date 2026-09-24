@@ -2115,11 +2115,11 @@ describe('syncWorkspace', () => {
       await syncWorkspace(tempDir, baseOptions)
       await fs.writeFile(
         path.join(tempDir, 'Y', 'main.deepnote'),
-        notebookYaml('p-y', 'nb-main', '2026-01-02T00:00:00.000Z', 'unpushed-edit'),
+        notebookYaml('p-y', 'nb-main', '2026-01-02T00:00:00.000Z', 'pending-local-edit'),
         'utf-8'
       )
 
-      // X leaves `Foo` for `Zed`; Y, with an unpushed edit, moves into a new folder `Foo`. Y's move
+      // X leaves `Foo` for `Zed`; Y, with a local edit not yet pushed, moves into a new folder `Foo`. Y's move
       // sorts first by destination, but must wait until X has vacated `Foo`.
       projects[0].name = 'Zed'
       projects[1].folder = { id: 'f-foo', name: 'Foo', path: [{ id: 'f-foo', name: 'Foo' }] }
@@ -2132,7 +2132,7 @@ describe('syncWorkspace', () => {
       ])
       expect(cloud.importCalls).toHaveLength(1)
       expect(cloud.importCalls[0]?.projectId).toBe('p-y')
-      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('unpushed-edit')
+      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('pending-local-edit')
       await expect(fs.access(path.join(tempDir, 'Zed', 'Y'))).rejects.toThrow()
       expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
     })
@@ -2169,11 +2169,11 @@ describe('syncWorkspace', () => {
       const cloud = installCloud(projects)
       await syncWorkspace(tempDir, baseOptions)
 
-      // Beta has an unpushed edit and is renamed to Zed in the cloud. Alpha changed on both sides; its
+      // Beta has a local edit not yet pushed and is renamed to Zed in the cloud. Alpha changed on both sides; its
       // prompt comes first and is aborted, so the run stops after the move but before Zed syncs.
       await fs.writeFile(
         path.join(tempDir, 'Beta', 'main.deepnote'),
-        notebookYaml('p2', 'nb-main', '2026-01-02T00:00:00.000Z', 'unpushed-edit'),
+        notebookYaml('p2', 'nb-main', '2026-01-02T00:00:00.000Z', 'pending-local-edit'),
         'utf-8'
       )
       projects[1].name = 'Zed'
@@ -2196,7 +2196,7 @@ describe('syncWorkspace', () => {
 
       expect(result.projects).toContainEqual(expect.objectContaining({ projectId: 'p2', action: 'pushed' }))
       expect(cloud.importCalls.map(call => call.projectId)).toEqual(['p2'])
-      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('unpushed-edit')
+      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('pending-local-edit')
     })
 
     it('rejects a concurrency below 1 before contacting the API', async () => {

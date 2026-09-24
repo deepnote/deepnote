@@ -1128,7 +1128,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   }
   // Record the moves before anything else can fail: a run interrupted later must not leave a moved
   // directory that the manifest still expects at its old path, or the next run would treat it as
-  // untracked and could overwrite unpushed edits in it.
+  // untracked and could overwrite local edits not yet pushed.
   if (!ctx.dryRun && candidates.some(candidate => candidate.moveNote !== undefined)) {
     await persistManifest()
   }
