@@ -13,7 +13,6 @@ import {
   MAX_BUFFERED_PROJECT_FILE_BYTES,
   type ProjectFileEntry,
   type SyncProject,
-  type SyncRequestOptions,
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
@@ -59,13 +58,12 @@ export const CONFLICT_MODES = ['ask', 'skip', 'override'] as const
 export type ConflictMode = (typeof CONFLICT_MODES)[number]
 
 export const DEFAULT_SYNC_CONCURRENCY = 8
-const MAX_SYNC_CONCURRENCY = 32
 
-/** Commander parser for `--concurrency`: an integer from 1 to 32. */
+/** Commander parser for `--concurrency`: a positive integer. */
 export function parseSyncConcurrency(value: string): number {
-  const concurrency = /^\d+$/.test(value) ? Number(value) : Number.NaN
-  if (!(concurrency >= 1 && concurrency <= MAX_SYNC_CONCURRENCY)) {
-    throw new InvalidArgumentError(`Must be an integer from 1 to ${MAX_SYNC_CONCURRENCY}.`)
+  const concurrency = /^\d+$/.test(value) ? Number(value) : 0
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+    throw new InvalidArgumentError('Must be a positive integer.')
   }
   return concurrency
 }
@@ -119,8 +117,6 @@ interface SyncContext {
   /** `ask` degraded to `skip` when there is no interactive terminal to ask on. */
   conflictMode: ConflictMode
   dryRun: boolean
-  /** Options for every cloud request (logs rate-limit waits). */
-  api: SyncRequestOptions
   /** Settles when the open conflict prompt closes, so only one is on screen at a time. */
   promptQueue: Promise<unknown>
   /** Progress lines held back while a prompt is open; `undefined` when none is. */
@@ -372,7 +368,7 @@ async function syncProjectFiles(
   record: ManifestProjectRecord
 ): Promise<number> {
   await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.filesDir)
-  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id, ctx.api)
+  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
   const previous = record.files ?? {}
   const next: Record<string, ManifestFileRecord> = {}
   let downloaded = 0
@@ -401,7 +397,7 @@ async function syncProjectFiles(
 
     const base = { size: entry.size, updatedAt: entry.updatedAt }
     if (!ctx.dryRun) {
-      const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path, ctx.api)
+      const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
       await writeFileEnsuringDir(absolutePath, bytes)
       next[entry.path] = { ...base, hash: sha256(bytes) }
     } else {
@@ -489,7 +485,6 @@ async function pushProject(
     baseContentHash: record.contentHash,
     deleteMissingNotebooks,
     force: false,
-    ...ctx.api,
   }
 
   let notebooks: ImportedNotebook[]
@@ -511,7 +506,7 @@ async function pushProject(
       .notebooks
   }
 
-  const files = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.api)
+  const files = await exportProject(ctx.baseUrl, ctx.token, project.id)
   return { kind: 'pushed', files, notebooks }
 }
 
@@ -587,7 +582,7 @@ async function uploadProjectFiles(
   }
 
   // Plan first so one prompt covers every conflict.
-  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id, ctx.api)
+  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
   const inventory = new Map(detail.files.map(entry => [entry.path, entry]))
   const planned: PlannedFileUpload[] = []
 
@@ -668,10 +663,10 @@ async function uploadProjectFiles(
         commitPending()
         await persistManifest()
       }
-      await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, ctx.api)
-      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes, ctx.api)
+      await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
+      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
       if (stored.path !== relPath) {
-        await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, stored.path, ctx.api)
+        await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, stored.path)
         throw new Error(`Deepnote stored "${relPath}" at unexpected path "${stored.path}"`)
       }
       next[relPath] = {
@@ -727,7 +722,7 @@ async function syncOneProject(
     // In a dry run the move above did not happen, so the directory is still at its manifest path.
     const localReadDir = ctx.dryRun && syncRecord ? syncRecord.dir : plan.projectDir
     const localFiles = await readLocalNotebookFiles(toAbsolute(ctx, localReadDir))
-    const exportFiles = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.api)
+    const exportFiles = await exportProject(ctx.baseUrl, ctx.token, project.id)
     const exportHash = canonicalProjectHash(exportFiles)
     const localHash = localFiles ? canonicalProjectHash(localFiles) : null
 
@@ -902,9 +897,6 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     options,
     conflictMode,
     dryRun,
-    api: {
-      onRateLimited: waitMs => debug(`Rate limited by the Deepnote API; retrying in ${Math.ceil(waitMs / 1000)} s`),
-    },
     promptQueue: Promise.resolve(),
   }
   const progress = (message: string) => {
@@ -917,7 +909,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
 
   const manifest = await loadSyncManifest(rootDir)
   progress(getChalk().dim(`Listing projects from ${ctx.baseUrl}…`))
-  const cloudProjects = await listAllProjects(ctx.baseUrl, token, ctx.api)
+  const cloudProjects = await listAllProjects(ctx.baseUrl, token)
   const cloudIds = new Set(cloudProjects.map(project => project.id))
   const trackedProjectIds = Object.keys(manifest.projects)
   if (
