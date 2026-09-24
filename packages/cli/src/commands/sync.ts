@@ -363,7 +363,6 @@ async function writeProjectNotebooks(
 interface PendingMove {
   prepared: PreparedProject
   record: ManifestProjectRecord
-  /** Where the directory is now: its manifest path, or a temporary name while parked. */
   from: string
   to: string
 }
@@ -372,17 +371,20 @@ interface PendingMove {
  * Move tracked project directories whose planned path changed — the project or a folder was renamed
  * or moved in the cloud. A rename, not a delete: content (including the `.files` directory inside
  * it) is preserved, and a missing source just means there is nothing to move. Sets each moved
- * project's `moveNote` and manifest `dir`; returns the projects whose move failed.
+ * project's `moveNote` and manifest `dir`, saving the manifest after every rename so an interrupted
+ * run never leaves a moved directory the manifest still expects at its old path. Returns the
+ * projects whose move failed; their directory and manifest record are left as they were.
  *
  * Order matters because one project's old directory can contain (or be) another project's new one:
  * renaming into it first would carry the other project along when the old directory moves away. So a
- * move only runs once no other pending move still has to vacate a path overlapping its destination.
- * When every remaining move waits on another (two projects swapping paths), one directory is parked
- * under a temporary sibling name first, which breaks the cycle.
+ * move runs only once no other pending move still has to vacate a path overlapping its destination.
+ * When no order satisfies every move (two projects swapping paths), the rest run in path order and
+ * the blocked renames fail, exactly as they would one at a time.
  */
 async function moveTrackedProjectDirs(
   ctx: SyncContext,
-  projects: readonly PreparedProject[]
+  projects: readonly PreparedProject[],
+  persistManifest: () => Promise<void>
 ): Promise<Map<PreparedProject, unknown>> {
   const failed = new Map<PreparedProject, unknown>()
   let pending: PendingMove[] = []
@@ -402,49 +404,21 @@ async function moveTrackedProjectDirs(
     }
   }
 
-  // Sources of failed moves stay where they are, so nothing may move into them either.
-  const stuck: string[] = []
-  const fail = (move: PendingMove, error: unknown) => {
-    failed.set(move.prepared, error)
-    stuck.push(move.from, move.record.dir)
-    pending = pending.filter(other => other !== move)
-  }
-
   while (pending.length > 0) {
-    const ready = pending.find(move => !pending.some(other => other !== move && pathsOverlap(other.from, move.to)))
-    if (!ready) {
-      // Park a directory some move is waiting on. Its temporary name overlaps no destination, so
-      // nothing waits on it again: each directory is parked at most once.
-      const waiting = pending[0] as PendingMove
-      const parked = pending.find(other => other !== waiting && pathsOverlap(other.from, waiting.to)) as PendingMove
-      const temporary = `${parked.from}.deepnote-sync-move-${crypto.randomUUID().slice(0, 8)}`
-      try {
-        await fs.rename(toAbsolute(ctx, parked.from), toAbsolute(ctx, temporary))
-        parked.from = temporary
-      } catch (error) {
-        fail(parked, error)
-      }
-      continue
-    }
-
-    const blocker = stuck.find(from => pathsOverlap(from, ready.to))
-    if (blocker !== undefined) {
-      fail(ready, new Error(`Cannot move ${ready.record.dir} to ${ready.to}: ${blocker} could not be moved away.`))
-      continue
-    }
+    const next =
+      pending.find(move => !pending.some(other => other !== move && pathsOverlap(other.from, move.to))) ??
+      (pending[0] as PendingMove)
+    pending = pending.filter(move => move !== next)
     try {
-      const toAbsolutePath = toAbsolute(ctx, ready.to)
+      const toAbsolutePath = toAbsolute(ctx, next.to)
       await fs.mkdir(path.dirname(toAbsolutePath), { recursive: true })
-      await fs.rename(toAbsolute(ctx, ready.from), toAbsolutePath)
-      ready.record.dir = ready.to
-      pending = pending.filter(other => other !== ready)
+      await fs.rename(toAbsolute(ctx, next.from), toAbsolutePath)
     } catch (error) {
-      // Put a parked directory back where the manifest expects it, if that path is still free.
-      if (ready.from !== ready.record.dir && !(await pathExists(toAbsolute(ctx, ready.record.dir)))) {
-        await fs.rename(toAbsolute(ctx, ready.from), toAbsolute(ctx, ready.record.dir)).catch(() => undefined)
-      }
-      fail(ready, error)
+      failed.set(next.prepared, error)
+      continue
     }
+    next.record.dir = next.to
+    await persistManifest()
   }
   return failed
 }
@@ -1116,7 +1090,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
       candidates.push(result.prepared)
     }
   }
-  const failedMoves = await moveTrackedProjectDirs(ctx, candidates)
+  const failedMoves = await moveTrackedProjectDirs(ctx, candidates, persistManifest)
   const prepared: PreparedProject[] = []
   for (const candidate of candidates) {
     const error = failedMoves.get(candidate)
@@ -1126,13 +1100,6 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
       finish(projectErrorOutcome(candidate.base, error))
     }
   }
-  // Record the moves before anything else can fail: a run interrupted later must not leave a moved
-  // directory that the manifest still expects at its old path, or the next run would treat it as
-  // untracked and could overwrite local edits not yet pushed.
-  if (!ctx.dryRun && candidates.some(candidate => candidate.moveNote !== undefined)) {
-    await persistManifest()
-  }
-
   // Then the network-bound part, several projects at a time. A conflict prompt cannot share the
   // terminal with other projects' progress or with a second prompt, so while projects run in
   // parallel a project that needs an answer suspends, and its question is asked after every other
