@@ -1871,7 +1871,7 @@ describe('syncWorkspace', () => {
             notebooksAfterImport: singleNotebook('p2', '2026-01-09T00:00:00.000Z', 'canonical'),
           },
         ]
-        installCloud(projects)
+        const cloud = installCloud(projects)
         await syncWorkspace(tempDir, baseOptions)
 
         // Alpha: changed on both sides. Beta: a local edit whose push the server rejects with a 409
@@ -1890,6 +1890,22 @@ describe('syncWorkspace', () => {
         projects[1].importConflict = 'unless-forced'
         projects.push({ id: 'p3', name: 'Gamma', notebooks: singleNotebook('p3', '2026-01-02T00:00:00.000Z') })
 
+        // Hold Gamma's export until Alpha and Beta have both reached their questions.
+        const gammaGate = deferred()
+        let gammaRequested = false
+        let alphaExported = false
+        interceptExports(async (projectId, respond) => {
+          if (projectId === 'p3') {
+            gammaRequested = true
+            await gammaGate.promise
+          }
+          const response = await respond()
+          if (projectId === 'p1') {
+            alphaExported = true
+          }
+          return response
+        })
+
         const asked: { message: string; gammaSynced: boolean; openPrompts: number }[] = []
         let openPrompts = 0
         vi.mocked(select).mockImplementation(async config => {
@@ -1904,7 +1920,18 @@ describe('syncWorkspace', () => {
           return 'override'
         })
 
-        const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })
+        const run = syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })
+        await vi.waitFor(() => {
+          expect(gammaRequested).toBe(true)
+          expect(alphaExported).toBe(true)
+          expect(cloud.importCalls.map(call => call.projectId)).toContain('p2')
+        })
+        // Both questions are known now. Asking either while Gamma is still in flight would share the
+        // terminal with its progress, so nothing may be asked until Gamma finishes.
+        await new Promise(resolve => setTimeout(resolve, 20))
+        expect(select).not.toHaveBeenCalled()
+        gammaGate.resolve()
+        const result = await run
 
         // Both questions came after Gamma synced, one at a time, in path order.
         expect(asked).toEqual([
