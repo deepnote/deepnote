@@ -2,10 +2,10 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
-import { InvalidArgumentError } from 'commander'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
+import type * as syncManifest from '../utils/sync-manifest'
 import { loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
 import {
   canonicalProjectHash,
@@ -19,6 +19,11 @@ import {
 // `select` is mocked so a conflict prompt can be driven (e.g. simulate a Ctrl+C rejection). Tests
 // that resolve conflicts non-interactively (`--on-conflict skip|override`, or no TTY) never call it.
 vi.mock('@inquirer/prompts', () => ({ select: vi.fn() }))
+// Wrapped (still the real implementation) so a test can watch manifest saves overlap.
+vi.mock('../utils/sync-manifest', async importOriginal => {
+  const actual = await importOriginal<typeof syncManifest>()
+  return { ...actual, saveSyncManifest: vi.fn(actual.saveSyncManifest) }
+})
 
 const API_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
@@ -268,60 +273,11 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks()
-  // The module mock's `select` is not a spy, so restoreAllMocks leaves its calls and behavior.
-  vi.mocked((await import('@inquirer/prompts')).select).mockReset()
   resetOutputConfig()
   await fs.rm(tempDir, { recursive: true, force: true })
 })
 
 const baseOptions = { url: API_URL, token: TOKEN }
-
-/** Run `fn` as if stdin and stdout were a terminal, so `--on-conflict ask` really prompts. */
-async function withTty(fn: () => Promise<void>): Promise<void> {
-  const priorStdin = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
-  const priorStdout = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
-  Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
-  Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
-  try {
-    await fn()
-  } finally {
-    if (priorStdin) Object.defineProperty(process.stdin, 'isTTY', priorStdin)
-    else Reflect.deleteProperty(process.stdin, 'isTTY')
-    if (priorStdout) Object.defineProperty(process.stdout, 'isTTY', priorStdout)
-    else Reflect.deleteProperty(process.stdout, 'isTTY')
-  }
-}
-
-/** {@link withTty} for a call whose result the test needs. */
-async function withTtyResult<T>(fn: () => Promise<T>): Promise<T> {
-  let result: T | undefined
-  await withTty(async () => {
-    result = await fn()
-  })
-  return result as T
-}
-
-/** A promise the test settles by hand. */
-function deferred(): { promise: Promise<void>; resolve: () => void } {
-  let resolve!: () => void
-  const promise = new Promise<void>(r => {
-    resolve = r
-  })
-  return { promise, resolve }
-}
-
-/** Wrap the fake cloud's fetch so a test can intercept project exports before they are answered. */
-function interceptExports(intercept: (projectId: string, respond: () => Promise<Response>) => Promise<Response>): void {
-  const fetchMock = vi.mocked(global.fetch)
-  const inner = fetchMock.getMockImplementation()
-  if (!inner) {
-    throw new Error('installCloud must run first')
-  }
-  fetchMock.mockImplementation(async (rawUrl, init) => {
-    const match = new URL(String(rawUrl)).pathname.match(/^\/v2\/projects\/([^/]+)\/export$/)
-    return match ? intercept(match[1], () => inner(rawUrl, init)) : inner(rawUrl, init)
-  })
-}
 
 describe('syncWorkspace', () => {
   it('mirrors the workspace folder tree as a directory per project and records it in the manifest', async () => {
@@ -1352,8 +1308,15 @@ describe('syncWorkspace', () => {
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
   })
 
-  describe('Ctrl+C on a conflict prompt', () => {
-    async function setUpConflictAndNewProject(): Promise<void> {
+  it('re-throws ExitPromptError so Ctrl+C on a conflict prompt aborts the whole sync', async () => {
+    const { select } = await import('@inquirer/prompts')
+    const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+    vi.mocked(select).mockRejectedValueOnce(exitError)
+    const priorStdin = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
+    const priorStdout = Object.getOwnPropertyDescriptor(process.stdout, 'isTTY')
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+    try {
       const projects: CloudProject[] = [
         { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
       ]
@@ -1368,38 +1331,18 @@ describe('syncWorkspace', () => {
         'utf-8'
       )
       projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+
+      await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 1 })).rejects.toBe(
+        exitError
+      )
+      expect(select).toHaveBeenCalled()
+      await expect(fs.access(path.join(tempDir, 'Beta'))).rejects.toThrow()
+    } finally {
+      if (priorStdin) Object.defineProperty(process.stdin, 'isTTY', priorStdin)
+      else Reflect.deleteProperty(process.stdin, 'isTTY')
+      if (priorStdout) Object.defineProperty(process.stdout, 'isTTY', priorStdout)
+      else Reflect.deleteProperty(process.stdout, 'isTTY')
     }
-
-    it('re-throws ExitPromptError so it aborts the whole sync, prompting inline with --concurrency 1', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
-      vi.mocked(select).mockRejectedValueOnce(exitError)
-      await withTty(async () => {
-        await setUpConflictAndNewProject()
-
-        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 1 })).rejects.toBe(
-          exitError
-        )
-        expect(select).toHaveBeenCalled()
-        // Asked inline, in path order: Beta was never reached.
-        await expect(fs.access(path.join(tempDir, 'Beta'))).rejects.toThrow()
-      })
-    })
-
-    it('aborts after the parallel phase, keeping what already finished in the manifest', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
-      vi.mocked(select).mockRejectedValueOnce(exitError)
-      await withTty(async () => {
-        await setUpConflictAndNewProject()
-
-        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
-        expect(select).toHaveBeenCalledTimes(1)
-        expect(await fs.readFile(path.join(tempDir, 'Beta', 'main.deepnote'), 'utf-8')).toContain('p2')
-        expect((await loadSyncManifest(tempDir)).projects.p2).toEqual(expect.objectContaining({ dir: 'Beta' }))
-        expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('local-edit')
-      })
-    })
   })
 
   it('downloads working-directory files incrementally with --all-files', async () => {
@@ -1693,877 +1636,196 @@ describe('syncWorkspace', () => {
     ])
   })
 
-  describe('parallel sync', () => {
-    const manyProjects = (names: string[]): CloudProject[] =>
-      names.map((name, index) => ({
-        id: `p${index}`,
-        name,
-        notebooks: singleNotebook(`p${index}`, '2026-01-02T00:00:00.000Z'),
-      }))
+  describe('parallel projects', () => {
+    const projectsNamed = (...names: string[]): CloudProject[] =>
+      names.map(name => ({ id: `p-${name}`, name, notebooks: singleNotebook(`p-${name}`, '2026-01-02T00:00:00.000Z') }))
 
-    it('exports several projects at once, but never more than --concurrency', async () => {
-      installCloud(manyProjects(['A', 'B', 'C', 'D', 'E', 'F', 'G']))
-      const gate = deferred()
-      let inFlight = 0
-      let maxInFlight = 0
-      interceptExports(async (_projectId, respond) => {
-        inFlight++
-        maxInFlight = Math.max(maxInFlight, inFlight)
-        await gate.promise
-        inFlight--
-        return respond()
-      })
-
-      const run = syncWorkspace(tempDir, { ...baseOptions, concurrency: 3 })
-      await vi.waitFor(() => expect(inFlight).toBe(3))
-      // With three exports blocked, no fourth one may start.
-      await new Promise(resolve => setTimeout(resolve, 20))
-      expect(inFlight).toBe(3)
-      gate.resolve()
-      const result = await run
-
-      expect(maxInFlight).toBe(3)
-      expect(result.projects.map(outcome => outcome.action)).toEqual(Array(7).fill('pulled'))
-    })
-
-    it('syncs 8 projects at once by default', async () => {
-      installCloud(manyProjects(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J']))
-      const gate = deferred()
-      let inFlight = 0
-      interceptExports(async (_projectId, respond) => {
-        inFlight++
-        await gate.promise
-        return respond()
-      })
-
-      const run = syncWorkspace(tempDir, baseOptions)
-      await vi.waitFor(() => expect(inFlight).toBe(8))
-      gate.resolve()
-      await run
-    })
-
-    it('reports outcomes in path order whatever order the projects finish in', async () => {
-      installCloud(manyProjects(['Delta', 'Alpha', 'Gamma', 'Beta']))
-      const gates = new Map<string, ReturnType<typeof deferred>>()
-      interceptExports(async (projectId, respond) => {
-        const gate = deferred()
-        gates.set(projectId, gate)
-        await gate.promise
-        return respond()
-      })
-      const progress: string[] = []
-      vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
-        progress.push(String(line))
-      })
-      setOutputConfig({ quiet: false, color: false, debug: false })
-
-      const run = syncWorkspace(tempDir, { ...baseOptions, concurrency: 4 })
-      await vi.waitFor(() => expect(gates.size).toBe(4))
-      // Finish in reverse path order: Gamma (p2), Delta (p0), Beta (p3), Alpha (p1).
-      for (const [finished, projectId] of ['p2', 'p0', 'p3', 'p1'].entries()) {
-        gates.get(projectId)?.resolve()
-        await vi.waitFor(() => expect(progress.filter(line => line.includes('pulled'))).toHaveLength(finished + 1))
+    /** Runs `body` as if stdin and stdout were a terminal, so `ask` really prompts. */
+    async function withTty(body: () => Promise<void>): Promise<void> {
+      const prior = [process.stdin, process.stdout].map(stream => Object.getOwnPropertyDescriptor(stream, 'isTTY'))
+      for (const stream of [process.stdin, process.stdout]) {
+        Object.defineProperty(stream, 'isTTY', { value: true, configurable: true })
       }
-      const result = await run
+      try {
+        await body()
+      } finally {
+        ;[process.stdin, process.stdout].forEach((stream, index) => {
+          const descriptor = prior[index]
+          if (descriptor) Object.defineProperty(stream, 'isTTY', descriptor)
+          else Reflect.deleteProperty(stream, 'isTTY')
+        })
+      }
+    }
 
-      expect(result.projects.map(outcome => outcome.path)).toEqual(['Alpha', 'Beta', 'Delta', 'Gamma'])
-      // Progress lines stream as projects finish, so they follow completion order instead.
-      expect(progress.filter(line => line.includes('pulled')).map(line => line.trim().split(/\s+/).pop())).toEqual([
-        'Gamma',
-        'Delta',
-        'Beta',
-        'Alpha',
-      ])
-    })
-
-    it('pushes the files on disk when a deferred push conflict is overridden, not the ones read earlier', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      const alphaFile = path.join(tempDir, 'Alpha', 'main.deepnote')
-      await fs.writeFile(alphaFile, notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'first-edit'), 'utf-8')
-      projects[0].importConflict = 'unless-forced'
-      projects[1].notebooks = singleNotebook('p2', '2026-01-05T00:00:00.000Z', 'cloud-edit')
-
-      // While the question waits, the user keeps editing.
-      vi.mocked(select).mockImplementation(async () => {
-        await fs.writeFile(
-          alphaFile,
-          notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'edited-while-waiting'),
-          'utf-8'
-        )
-        return 'override'
-      })
-
-      const result = await withTtyResult(() => syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' }))
-
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p1', action: 'pushed' }),
-        expect.objectContaining({ projectId: 'p2', action: 'pulled' }),
-      ])
-      const forced = cloud.importCalls.filter(call => call.url.searchParams.get('force') === 'true')
-      expect(forced).toHaveLength(1)
-      expect(forced[0]?.documents['main.deepnote']).toContain('edited-while-waiting')
-    })
-
-    it('asks a follow-up push-conflict question after a confirmed empty push, then force-pushes', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      await fs.rm(path.join(tempDir, 'Alpha', 'main.deepnote'))
-      projects[0].importConflict = 'unless-forced'
-      projects[0].notebooksAfterImport = []
-
-      const messages: string[] = []
-      vi.mocked(select).mockImplementation(async config => {
-        messages.push(config.message)
-        return 'override'
-      })
-
-      const result = await withTtyResult(() =>
-        syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true, onConflict: 'ask', concurrency: 8 })
-      )
-
-      expect(messages).toEqual([
-        expect.stringContaining('The local directory for "Alpha" has no notebooks'),
-        expect.stringContaining('"Alpha" changed in Deepnote after your local edit'),
-      ])
-      const forced = cloud.importCalls.filter(call => call.url.searchParams.get('force') === 'true')
-      expect(forced).toHaveLength(1)
-      expect(forced[0]?.filenames).toEqual([])
-      expect(forced[0]?.url.searchParams.get('deleteMissingNotebooks')).toBe('true')
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p1', action: 'pushed' }),
-        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      ])
-    })
-
-    it('force-pushes after a deferred push conflict is overridden, even if the cloud changed again meanwhile', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      await fs.writeFile(
-        path.join(tempDir, 'Alpha', 'main.deepnote'),
-        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-        'utf-8'
-      )
-      projects[0].importConflict = 'unless-forced'
-      projects[0].notebooksAfterImport = singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'local-edit-imported')
-
-      // While the question waits, someone edits Alpha in Deepnote again.
-      vi.mocked(select).mockImplementation(async () => {
-        projects[0].notebooks = singleNotebook('p1', '2026-01-08T00:00:00.000Z', 'cloud-edit-meanwhile')
-        return 'override'
-      })
-
-      const result = await withTtyResult(() => syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' }))
-
-      expect(select).toHaveBeenCalledTimes(1)
-      const forced = cloud.importCalls.filter(call => call.url.searchParams.get('force') === 'true')
-      expect(forced).toHaveLength(1)
-      expect(forced[0]?.documents['main.deepnote']).toContain('local-edit')
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p1', action: 'pushed' }),
-        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('local-edit-imported')
-    })
-
-    it('does not delete cloud notebooks when an empty directory was refilled while its question waited', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      const alphaFile = path.join(tempDir, 'Alpha', 'main.deepnote')
-      const alphaContent = await fs.readFile(alphaFile, 'utf-8')
-      await fs.rm(alphaFile)
-
-      // The user restores the notebook before answering "push and delete everything".
-      vi.mocked(select).mockImplementation(async () => {
-        await fs.writeFile(alphaFile, alphaContent, 'utf-8')
-        return 'override'
-      })
-
-      const result = await withTtyResult(() =>
-        syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true, onConflict: 'ask' })
-      )
-
-      expect(select).toHaveBeenCalledTimes(1)
-      expect(cloud.importCalls).toEqual([])
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p1', action: 'unchanged' }),
-        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      ])
-    })
-
-    it('still discards local changes when the cloud edit was undone while an overwrite question waited', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const baseline = singleNotebook('p1', '2026-01-02T00:00:00.000Z')
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: baseline },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      await fs.writeFile(
-        path.join(tempDir, 'Alpha', 'main.deepnote'),
-        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-        'utf-8'
-      )
-      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
-
-      // While the question waits, the cloud edit is reverted to the last-synced version.
-      vi.mocked(select).mockImplementation(async () => {
-        projects[0].notebooks = baseline
-        return 'override'
-      })
-
-      const result = await withTtyResult(() =>
-        syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 8 })
-      )
-
-      expect(select).toHaveBeenCalledTimes(1)
-      expect(cloud.importCalls).toEqual([])
-      expect(result.projects).toEqual([
-        expect.objectContaining({
-          projectId: 'p1',
-          action: 'pulled',
-          detail: 'conflict resolved: local changes overwritten',
-        }),
-        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(baseline[0]?.content)
-      expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(canonicalProjectHash(baseline))
-    })
-
-    it('pulls the fresh export when the cloud changed again while an overwrite question waited', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
+    /** Leaves projects A and B edited both locally and in the cloud; C and D only in the cloud. */
+    async function setUpTwoConflicts(): Promise<void> {
+      const projects = projectsNamed('A', 'B', 'C', 'D')
       installCloud(projects)
       await syncWorkspace(tempDir, baseOptions)
-      await fs.writeFile(
-        path.join(tempDir, 'Alpha', 'main.deepnote'),
-        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-        'utf-8'
-      )
-      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      for (const project of projects) {
+        project.notebooks = singleNotebook(project.id, '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      }
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+      }
+    }
 
-      const newest = singleNotebook('p1', '2026-01-08T00:00:00.000Z', 'cloud-edit-again')
-      vi.mocked(select).mockImplementation(async () => {
-        projects[0].notebooks = newest
-        return 'override'
+    /** Wraps the installed cloud so each export waits (up to 50 ms) for `target` exports to be in
+     * flight together, and records the peak. */
+    function gateExports(target: number, delayMs: (projectId: string) => number = () => 0) {
+      const inner = vi.mocked(fetch).getMockImplementation()
+      const stats = { inFlight: 0, peak: 0, finished: [] as string[] }
+      const waiting: (() => void)[] = []
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        const projectId = String(url).match(/\/v2\/projects\/([^/]+)\/export$/)?.[1]
+        if (projectId) {
+          stats.inFlight++
+          stats.peak = Math.max(stats.peak, stats.inFlight)
+          if (stats.inFlight >= target) {
+            for (const release of waiting.splice(0)) release()
+          } else {
+            await new Promise<void>(resolve => {
+              waiting.push(resolve)
+              setTimeout(resolve, 50)
+            })
+          }
+          await new Promise(resolve => setTimeout(resolve, delayMs(projectId)))
+          stats.inFlight--
+          stats.finished.push(projectId)
+        }
+        return (inner as typeof fetch)(url, init)
       })
+      return stats
+    }
 
-      const result = await withTtyResult(() => syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' }))
+    it.each([
+      { concurrency: undefined, expected: 8 },
+      { concurrency: 3, expected: 3 },
+    ])('syncs at most $expected projects at once (--concurrency $concurrency)', async ({ concurrency, expected }) => {
+      installCloud(projectsNamed(...'ABCDEFGHIJKL'.split('')))
+      const stats = gateExports(expected)
 
-      expect(select).toHaveBeenCalledTimes(1)
-      expect(result.projects).toEqual([
-        expect.objectContaining({
-          projectId: 'p1',
-          action: 'pulled',
-          detail: 'conflict resolved: local changes overwritten',
-        }),
-        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('cloud-edit-again')
-      expect((await loadSyncManifest(tempDir)).projects.p1).toEqual(
-        expect.objectContaining({ contentHash: canonicalProjectHash(newest), modifiedAt: '2026-01-08T00:00:00.000Z' })
-      )
+      const result = await syncWorkspace(tempDir, { ...baseOptions, concurrency })
+
+      expect(stats.peak).toBe(expected)
+      expect(result.projects.map(outcome => outcome.action)).toEqual(Array(12).fill('pulled'))
     })
 
-    it('re-plans file uploads after a deferred "skip", keeping a file that changed in Deepnote meanwhile', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        {
-          id: 'p1',
-          name: 'Alpha',
-          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
-          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
-          files: [
-            { path: 'data.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a' },
-            { path: 'other.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'b' },
-          ],
-        },
-      ]
-      const cloud = installCloud(projects)
-      vi.spyOn(console, 'error').mockImplementation(() => {})
-      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+    it('syncs one project at a time when a tracked project directory moves', async () => {
+      const projects = projectsNamed('A', 'B', 'C')
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      projects[1].name = 'Renamed'
+      const stats = gateExports(2)
 
-      // Local edits to the notebook (so it pushes) and both files; data.csv also changed in Deepnote.
-      await fs.writeFile(
-        path.join(tempDir, 'Alpha', 'main.deepnote'),
-        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-        'utf-8'
-      )
-      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data.csv'), 'local-a', 'utf-8')
-      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'other.csv'), 'local-b', 'utf-8')
-      projects[0].files = [
-        { path: 'data.csv', size: 7, updatedAt: '2026-01-06T00:00:00.000Z', content: 'cloud-a' },
-        { path: 'other.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'b' },
-      ]
+      const result = await syncWorkspace(tempDir, baseOptions)
 
-      // Only data.csv is in conflict when asked; while the question waits, a colleague edits other.csv.
-      vi.mocked(select).mockImplementation(async config => {
-        expect(config.message).toContain('data.csv')
-        expect(config.message).not.toContain('other.csv')
-        projects[0].files = [
-          { path: 'data.csv', size: 7, updatedAt: '2026-01-06T00:00:00.000Z', content: 'cloud-a' },
-          { path: 'other.csv', size: 9, updatedAt: '2026-01-07T00:00:00.000Z', content: 'colleague' },
-        ]
-        return 'skip'
-      })
-
-      const result = await withTtyResult(() =>
-        syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })
-      )
-
-      expect(select).toHaveBeenCalledTimes(1)
-      expect(cloud.uploadedPaths).toEqual([])
-      expect(cloud.deletedPaths).toEqual([])
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p1', action: 'pushed', filesUploaded: 0, filesSkipped: 2 }),
-      ])
+      expect(stats.peak).toBe(1)
+      expect(result.projects).toContainEqual(expect.objectContaining({ path: 'Renamed', detail: 'moved from B' }))
     })
 
-    it('asks one project two questions in turn when its push conflicts and its files do too', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const projects: CloudProject[] = [
-        {
-          id: 'p1',
-          name: 'Alpha',
-          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
-          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
-          files: [{ path: 'data.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a' }],
-        },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z'), files: [] },
-      ]
-      const cloud = installCloud(projects)
-      vi.spyOn(console, 'error').mockImplementation(() => {})
-      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+    it('reports outcomes sorted by path regardless of completion order', async () => {
+      installCloud(projectsNamed('C', 'A', 'B'))
+      const stats = gateExports(3, projectId => (projectId === 'p-A' ? 30 : 0))
 
-      // Alpha: a local notebook and file edit, while Deepnote changed both the project (the import
-      // 409s until forced) and the same file.
-      await fs.writeFile(
-        path.join(tempDir, 'Alpha', 'main.deepnote'),
-        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-        'utf-8'
-      )
-      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data.csv'), 'local', 'utf-8')
-      projects[0].importConflict = 'unless-forced'
-      projects[0].files = [{ path: 'data.csv', size: 5, updatedAt: '2026-01-06T00:00:00.000Z', content: 'cloud' }]
-      projects[1].notebooks = singleNotebook('p2', '2026-01-05T00:00:00.000Z', 'cloud-edit')
+      const result = await syncWorkspace(tempDir, baseOptions)
 
-      const messages: string[] = []
-      vi.mocked(select).mockImplementation(async config => {
-        messages.push(config.message)
-        return 'override'
-      })
-
-      const result = await withTtyResult(() =>
-        syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })
-      )
-
-      expect(messages).toEqual([
-        expect.stringContaining('"Alpha" changed in Deepnote after your local edit'),
-        expect.stringContaining('Working files of "Alpha" changed in Deepnote since the last sync'),
-      ])
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p1', action: 'pushed', filesUploaded: 1 }),
-        expect.objectContaining({ projectId: 'p2', action: 'pulled' }),
-      ])
-      expect(cloud.uploadedPaths).toEqual(['p1:data.csv'])
+      expect(stats.finished.at(-1)).toBe('p-A')
+      expect(result.projects.map(outcome => outcome.path)).toEqual(['A', 'B', 'C'])
     })
 
-    it('asks conflict questions one at a time, only after every other project has finished', async () => {
+    it('opens one conflict prompt at a time and holds progress lines while it is open', async () => {
       const { select } = await import('@inquirer/prompts')
+      await setUpTwoConflicts()
+      setOutputConfig({ quiet: false, color: false, debug: false })
+      const printed: string[] = []
+      vi.spyOn(console, 'log').mockImplementation(line => printed.push(String(line)))
+      let open = 0
+      let peakOpen = 0
+      const printedWhileOpen: string[] = []
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          peakOpen = Math.max(peakOpen, ++open)
+          const before = printed.length
+          await new Promise(resolve => setTimeout(resolve, 20))
+          printedWhileOpen.push(...printed.slice(before))
+          open--
+          return 'skip'
+        })
+
       await withTty(async () => {
-        const projects: CloudProject[] = [
-          { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-          {
-            id: 'p2',
-            name: 'Beta',
-            notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z'),
-            notebooksAfterImport: singleNotebook('p2', '2026-01-09T00:00:00.000Z', 'canonical'),
-          },
-        ]
-        const cloud = installCloud(projects)
-        await syncWorkspace(tempDir, baseOptions)
+        const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })
 
-        // Alpha: changed on both sides. Beta: a local edit whose push the server rejects with a 409
-        // until forced. Gamma: new in the cloud, no question needed.
-        await fs.writeFile(
-          path.join(tempDir, 'Alpha', 'main.deepnote'),
-          notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-          'utf-8'
-        )
-        projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
-        await fs.writeFile(
-          path.join(tempDir, 'Beta', 'main.deepnote'),
-          notebookYaml('p2', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-          'utf-8'
-        )
-        projects[1].importConflict = 'unless-forced'
-        projects.push({ id: 'p3', name: 'Gamma', notebooks: singleNotebook('p3', '2026-01-02T00:00:00.000Z') })
-
-        // Hold Gamma's export until Alpha and Beta have both reached their questions.
-        const gammaGate = deferred()
-        let gammaRequested = false
-        let alphaExported = false
-        interceptExports(async (projectId, respond) => {
-          if (projectId === 'p3') {
-            gammaRequested = true
-            await gammaGate.promise
-          }
-          const response = await respond()
-          if (projectId === 'p1') {
-            alphaExported = true
-          }
-          return response
-        })
-
-        const asked: { message: string; gammaSynced: boolean; openPrompts: number }[] = []
-        let openPrompts = 0
-        vi.mocked(select).mockImplementation(async config => {
-          openPrompts++
-          const gammaSynced = await fs
-            .access(path.join(tempDir, 'Gamma', 'main.deepnote'))
-            .then(() => true)
-            .catch(() => false)
-          await new Promise(resolve => setTimeout(resolve, 5))
-          asked.push({ message: config.message, gammaSynced, openPrompts })
-          openPrompts--
-          return 'override'
-        })
-
-        const run = syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })
-        await vi.waitFor(() => {
-          expect(gammaRequested).toBe(true)
-          expect(alphaExported).toBe(true)
-          expect(cloud.importCalls.map(call => call.projectId)).toContain('p2')
-        })
-        // Both questions are known now. Asking either while Gamma is still in flight would share the
-        // terminal with its progress, so nothing may be asked until Gamma finishes.
-        await new Promise(resolve => setTimeout(resolve, 20))
-        expect(select).not.toHaveBeenCalled()
-        gammaGate.resolve()
-        const result = await run
-
-        // Both questions came after Gamma synced, one at a time, in path order.
-        expect(asked).toEqual([
-          {
-            message: expect.stringContaining('"Alpha" changed both locally and in Deepnote'),
-            gammaSynced: true,
-            openPrompts: 1,
-          },
-          {
-            message: expect.stringContaining('"Beta" changed in Deepnote after your local edit'),
-            gammaSynced: true,
-            openPrompts: 1,
-          },
+        expect(select).toHaveBeenCalledTimes(2)
+        expect(peakOpen).toBe(1)
+        expect(printedWhileOpen).toEqual([])
+        expect(printed.filter(line => line.includes('pulled'))).toHaveLength(2)
+        expect(result.projects.map(outcome => outcome.action)).toEqual([
+          'skipped-conflict',
+          'skipped-conflict',
+          'pulled',
+          'pulled',
         ])
-        expect(result.projects).toEqual([
-          expect.objectContaining({
-            projectId: 'p1',
-            action: 'pulled',
-            detail: 'conflict resolved: local changes overwritten',
-          }),
-          expect.objectContaining({ projectId: 'p2', action: 'pushed' }),
-          expect.objectContaining({ projectId: 'p3', action: 'pulled' }),
-        ])
-        expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('cloud-edit')
-        expect(await fs.readFile(path.join(tempDir, 'Beta', 'main.deepnote'), 'utf-8')).toContain('canonical')
       })
     })
 
-    it('never writes the manifest from two projects at once', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-      const projects: CloudProject[] = ['Alpha', 'Beta', 'Gamma'].map((name, index) => ({
-        id: `p${index}`,
-        name,
-        notebooks: singleNotebook(`p${index}`, '2026-01-02T00:00:00.000Z'),
-        notebooksAfterImport: singleNotebook(`p${index}`, '2026-01-09T00:00:00.000Z', 'canonical'),
+    it('opens no further prompt after Ctrl+C on the first one', async () => {
+      const { select } = await import('@inquirer/prompts')
+      await setUpTwoConflicts()
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select).mockReset().mockRejectedValue(exitError)
+
+      await withTty(async () => {
+        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
+      })
+      expect(select).toHaveBeenCalledTimes(1)
+      vi.mocked(select).mockReset()
+    })
+
+    it('never overlaps two manifest saves', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects = projectsNamed('A', 'B').map(project => ({
+        ...project,
+        notebooksAfterImport: singleNotebook(project.id, '2026-01-09T00:00:00.000Z', 'canonical'),
         files: [],
       }))
       installCloud(projects)
       await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
-      for (const [index, project] of projects.entries()) {
-        await fs.writeFile(
-          path.join(tempDir, project.name, 'main.deepnote'),
-          notebookYaml(`p${index}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-          'utf-8'
-        )
-        await fs.mkdir(path.join(tempDir, project.name, '.files'), { recursive: true })
-        await fs.writeFile(path.join(tempDir, project.name, '.files', 'a.csv'), 'a', 'utf-8')
-        await fs.writeFile(path.join(tempDir, project.name, '.files', 'b.csv'), 'b', 'utf-8')
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+        await fs.mkdir(path.join(tempDir, name, '.files'), { recursive: true })
+        await fs.writeFile(path.join(tempDir, name, '.files', 'one.csv'), 'a', 'utf-8')
+        await fs.writeFile(path.join(tempDir, name, '.files', 'two.csv'), 'b', 'utf-8')
       }
-
-      let writing = 0
-      let maxWriting = 0
-      let manifestWrites = 0
-      const realWriteFile = fs.writeFile
-      vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
-        if (!String(file).endsWith('.deepnote-sync.json')) {
-          return realWriteFile.call(fs, file, data, ...rest)
-        }
-        manifestWrites++
-        writing++
-        maxWriting = Math.max(maxWriting, writing)
-        try {
-          // Widen the window in which two saves that are not queued would overlap.
-          await new Promise(resolve => setTimeout(resolve, 2))
-          return await realWriteFile.call(fs, file, data, ...rest)
-        } finally {
-          writing--
-        }
+      const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
+      let saving = 0
+      let peakSaving = 0
+      vi.mocked(saveSyncManifest).mockImplementation(async (...args) => {
+        peakSaving = Math.max(peakSaving, ++saving)
+        await new Promise(resolve => setTimeout(resolve, 5))
+        await actual.saveSyncManifest(...args)
+        saving--
       })
+      try {
+        const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
 
-      const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, concurrency: 3 })
-
-      expect(result.projects.map(outcome => [outcome.action, outcome.filesUploaded])).toEqual([
-        ['pushed', 2],
-        ['pushed', 2],
-        ['pushed', 2],
-      ])
-      expect(manifestWrites).toBeGreaterThan(3)
-      expect(maxWriting).toBe(1)
-      const manifest = await loadSyncManifest(tempDir)
-      for (const projectId of ['p0', 'p1', 'p2']) {
-        expect(Object.keys(manifest.projects[projectId]?.files ?? {})).toEqual(['a.csv', 'b.csv'])
-        expect(manifest.projects[projectId]?.pendingFileUploads).toBeUndefined()
+        expect(result.projects).toEqual([
+          expect.objectContaining({ action: 'pushed', filesUploaded: 2 }),
+          expect.objectContaining({ action: 'pushed', filesUploaded: 2 }),
+        ])
+        expect(vi.mocked(saveSyncManifest).mock.calls.length).toBeGreaterThan(4)
+        expect(peakSaving).toBe(1)
+      } finally {
+        vi.mocked(saveSyncManifest).mockImplementation(actual.saveSyncManifest)
       }
-      consoleErrorSpy.mockRestore()
     })
 
-    /** The first export of each project answers 429 with `retryAfter` seconds. The 429s are held back
-     * until `together` projects have asked, then all delivered at once. */
-    function rateLimitFirstExports(retryAfter: string, together = 1): () => number {
-      const limited = new Set<string>()
-      const allAsked = deferred()
-      interceptExports(async (projectId, respond) => {
-        if (!limited.has(projectId)) {
-          limited.add(projectId)
-          if (limited.size >= together) {
-            allAsked.resolve()
-          }
-          await allAsked.promise
-          return {
-            ok: false,
-            status: 429,
-            statusText: 'Too Many Requests',
-            headers: new Headers({ 'Retry-After': retryAfter }),
-            text: () => Promise.resolve(JSON.stringify({ message: 'Rate limit exceeded. Please retry later.' })),
-          } as unknown as Response
-        }
-        return respond()
-      })
-      return () => limited.size
-    }
-
-    it('retries a rate-limited export instead of reporting the project as failed', async () => {
-      installCloud(manyProjects(['Alpha', 'Beta']))
-      const rateLimited = rateLimitFirstExports('0')
-
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      expect(rateLimited()).toBe(2)
-      expect(result.success).toBe(true)
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p0', action: 'pulled' }),
-        expect.objectContaining({ projectId: 'p1', action: 'pulled' }),
-      ])
+    it.each(['0', '33', 'x', '1.5'])('rejects --concurrency %s', value => {
+      expect(() => parseSyncConcurrency(value)).toThrow('Must be an integer from 1 to 32.')
     })
-
-    it('says once when parallel requests wait on the same rate limit', async () => {
-      installCloud(manyProjects(['Alpha', 'Beta', 'Gamma']))
-      // All three 429s arrive together, so the three one-second waits overlap on real timers.
-      const rateLimited = rateLimitFirstExports('1', 3)
-      const lines: string[] = []
-      vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
-        lines.push(String(line))
-      })
-      setOutputConfig({ quiet: false, color: false, debug: false })
-
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      expect(result.success).toBe(true)
-      expect(rateLimited()).toBe(3)
-      expect(lines.filter(line => line.includes('Rate limited'))).toEqual([
-        'Rate limited by the Deepnote API; waiting 1 s…',
-      ])
-    })
-
-    it('keeps rate-limit notices out of machine-readable output', async () => {
-      installCloud(manyProjects(['Alpha']))
-      rateLimitFirstExports('0')
-      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
-      setOutputConfig({ quiet: false, color: false, debug: false })
-
-      await syncWorkspace(tempDir, { ...baseOptions, output: 'json' })
-
-      expect(log).not.toHaveBeenCalled()
-    })
-
-    it('moves renamed directories before any project writes, so a new project inside an old path stays put', async () => {
-      const projects: CloudProject[] = [
-        { id: 'p-x', name: 'Foo', notebooks: singleNotebook('p-x', '2026-01-02T00:00:00.000Z') },
-      ]
-      installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-
-      // X is renamed away from `Foo`, and a new folder `Foo` now holds project Y.
-      projects[0].name = 'Zed'
-      projects.push({
-        id: 'p-y',
-        name: 'Y',
-        folder: { id: 'f-foo', name: 'Foo', path: [{ id: 'f-foo', name: 'Foo' }] },
-        notebooks: singleNotebook('p-y', '2026-01-03T00:00:00.000Z'),
-      })
-
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p-y', action: 'pulled', path: 'Foo/Y' }),
-        expect.objectContaining({ projectId: 'p-x', action: 'unchanged', path: 'Zed', detail: 'moved from Foo' }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'Foo', 'Y', 'main.deepnote'), 'utf-8')).toContain('p-y')
-      expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
-      await expect(fs.access(path.join(tempDir, 'Zed', 'Y'))).rejects.toThrow()
-    })
-
-    it("checks a new project's path only after a renamed project has moved out of it", async () => {
-      const projects: CloudProject[] = [
-        { id: 'p-a', name: 'Foo', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },
-      ]
-      installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-
-      // `Foo` is renamed to `Alpha`, and a new project is planned under `Foo/main.deepnote/`, which
-      // today runs through Foo's notebook file.
-      projects[0].name = 'Alpha'
-      projects.push({
-        id: 'p-child',
-        name: 'Child',
-        folder: {
-          id: 'f-nb',
-          name: 'main.deepnote',
-          path: [
-            { id: 'f-foo', name: 'Foo' },
-            { id: 'f-nb', name: 'main.deepnote' },
-          ],
-        },
-        notebooks: singleNotebook('p-child', '2026-01-03T00:00:00.000Z'),
-      })
-
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p-a', action: 'unchanged', path: 'Alpha', detail: 'moved from Foo' }),
-        expect.objectContaining({ projectId: 'p-child', action: 'pulled', path: 'Foo/main.deepnote/Child' }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('p-a')
-      expect(
-        await fs.readFile(path.join(tempDir, 'Foo', 'main.deepnote', 'Child', 'main.deepnote'), 'utf-8')
-      ).toContain('p-child')
-    })
-
-    it('moves a project out of a directory before another project moves into it', async () => {
-      const projects: CloudProject[] = [
-        { id: 'p-x', name: 'Foo', notebooks: singleNotebook('p-x', '2026-01-02T00:00:00.000Z') },
-        { id: 'p-y', name: 'Y', notebooks: singleNotebook('p-y', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      await fs.writeFile(
-        path.join(tempDir, 'Y', 'main.deepnote'),
-        notebookYaml('p-y', 'nb-main', '2026-01-02T00:00:00.000Z', 'pending-local-edit'),
-        'utf-8'
-      )
-
-      // X leaves `Foo` for `Zed`; Y, with a local edit not yet pushed, moves into a new folder `Foo`. Y's move
-      // sorts first by destination, but must wait until X has vacated `Foo`.
-      projects[0].name = 'Zed'
-      projects[1].folder = { id: 'f-foo', name: 'Foo', path: [{ id: 'f-foo', name: 'Foo' }] }
-      const manifestDirs: Record<string, string | undefined>[] = []
-      const realWriteFile = fs.writeFile
-      vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
-        if (String(file).endsWith('.deepnote-sync.json')) {
-          const saved = JSON.parse(String(data)).projects
-          manifestDirs.push({ x: saved['p-x']?.dir, y: saved['p-y']?.dir })
-        }
-        return realWriteFile.call(fs, file, data, ...rest)
-      })
-
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      // Each rename is on disk in the manifest before the next one starts.
-      expect(manifestDirs.slice(0, 2)).toEqual([
-        { x: 'Zed', y: 'Y' },
-        { x: 'Zed', y: 'Foo/Y' },
-      ])
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p-y', action: 'pushed', path: 'Foo/Y' }),
-        expect.objectContaining({ projectId: 'p-x', action: 'unchanged', path: 'Zed', detail: 'moved from Foo' }),
-      ])
-      expect(cloud.importCalls).toHaveLength(1)
-      expect(cloud.importCalls[0]?.projectId).toBe('p-y')
-      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('pending-local-edit')
-      await expect(fs.access(path.join(tempDir, 'Zed', 'Y'))).rejects.toThrow()
-      expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
-    })
-
-    it('reports a move whose manifest save failed as that project’s error and keeps syncing the rest', async () => {
-      const projects: CloudProject[] = [
-        { id: 'p-x', name: 'Foo', notebooks: singleNotebook('p-x', '2026-01-02T00:00:00.000Z') },
-        { id: 'p-y', name: 'Other', notebooks: singleNotebook('p-y', '2026-01-02T00:00:00.000Z') },
-      ]
-      installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      projects[0].name = 'Zed'
-      projects[1].notebooks = singleNotebook('p-y', '2026-01-05T00:00:00.000Z', 'cloud-edit')
-
-      const realWriteFile = fs.writeFile
-      let failedOnce = false
-      vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
-        if (String(file).endsWith('.deepnote-sync.json') && !failedOnce) {
-          failedOnce = true
-          throw new Error('disk full')
-        }
-        return realWriteFile.call(fs, file, data, ...rest)
-      })
-
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      expect(failedOnce).toBe(true)
-      expect(result.success).toBe(false)
-      expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p-y', action: 'pulled' }),
-        expect.objectContaining({
-          projectId: 'p-x',
-          action: 'error',
-          path: 'Zed',
-          detail: 'moved to Zed but the manifest could not be saved: disk full',
-        }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
-      expect((await loadSyncManifest(tempDir)).projects['p-x']?.dir).toBe('Zed')
-    })
-
-    it('fails both halves of a swap between two non-empty directories, moving nothing, as on main', async () => {
-      const projects: CloudProject[] = [
-        { id: 'p-a', name: 'A', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },
-        { id: 'p-b', name: 'B', notebooks: singleNotebook('p-b', '2026-01-02T00:00:00.000Z') },
-      ]
-      installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-      const manifestBefore = await fs.readFile(path.join(tempDir, '.deepnote-sync.json'), 'utf-8')
-
-      projects[0].name = 'B'
-      projects[1].name = 'A'
-      const result = await syncWorkspace(tempDir, baseOptions)
-
-      expect(result.success).toBe(false)
-      expect(result.projects).toEqual([
-        expect.objectContaining({
-          projectId: 'p-b',
-          action: 'error',
-          path: 'A',
-          detail: expect.stringMatching(/rename/),
-        }),
-        expect.objectContaining({
-          projectId: 'p-a',
-          action: 'error',
-          path: 'B',
-          detail: expect.stringMatching(/rename/),
-        }),
-      ])
-      expect(await fs.readFile(path.join(tempDir, 'A', 'main.deepnote'), 'utf-8')).toContain('p-a')
-      expect(await fs.readFile(path.join(tempDir, 'B', 'main.deepnote'), 'utf-8')).toContain('p-b')
-      expect((await fs.readdir(tempDir)).sort()).toEqual(['.deepnote-sync.json', 'A', 'B'])
-      expect(await fs.readFile(path.join(tempDir, '.deepnote-sync.json'), 'utf-8')).toBe(manifestBefore)
-    })
-
-    it('records directory moves before syncing, so an interrupted run cannot orphan a local edit', async () => {
-      const { select } = await import('@inquirer/prompts')
-      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
-      vi.mocked(select).mockRejectedValueOnce(exitError)
-      const projects: CloudProject[] = [
-        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
-        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
-      ]
-      const cloud = installCloud(projects)
-      await syncWorkspace(tempDir, baseOptions)
-
-      // Beta has a local edit not yet pushed and is renamed to Zed in the cloud. Alpha changed on both sides; its
-      // prompt comes first and is aborted, so the run stops after the move but before Zed syncs.
-      await fs.writeFile(
-        path.join(tempDir, 'Beta', 'main.deepnote'),
-        notebookYaml('p2', 'nb-main', '2026-01-02T00:00:00.000Z', 'pending-local-edit'),
-        'utf-8'
-      )
-      projects[1].name = 'Zed'
-      await fs.writeFile(
-        path.join(tempDir, 'Alpha', 'main.deepnote'),
-        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
-        'utf-8'
-      )
-      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
-      await withTty(async () => {
-        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 1 })).rejects.toBe(
-          exitError
-        )
-      })
-      expect((await loadSyncManifest(tempDir)).projects.p2?.dir).toBe('Zed')
-
-      // The next run still knows Zed is Beta's tracked directory, so the edit is pushed, not
-      // overwritten as an untracked directory.
-      const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'override' })
-
-      expect(result.projects).toContainEqual(expect.objectContaining({ projectId: 'p2', action: 'pushed' }))
-      expect(cloud.importCalls.map(call => call.projectId)).toEqual(['p2'])
-      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('pending-local-edit')
-    })
-
-    it('rejects a concurrency below 1 before contacting the API', async () => {
-      const fetchSpy = vi.spyOn(global, 'fetch')
-
-      await expect(syncWorkspace(tempDir, { ...baseOptions, concurrency: 0 })).rejects.toThrow(
-        'Concurrency must be an integer from 1 to 32. Got 0.'
-      )
-      expect(fetchSpy).not.toHaveBeenCalled()
-    })
-  })
-})
-
-describe('parseSyncConcurrency', () => {
-  it.each([
-    ['1', 1],
-    ['8', 8],
-    [' 16 ', 16],
-    ['32', 32],
-  ])('accepts %j', (value, expected) => {
-    expect(parseSyncConcurrency(value)).toBe(expected)
-  })
-
-  it.each(['0', '-1', '1.5', 'four', '', '1e3', '33'])('rejects %j', value => {
-    expect(() => parseSyncConcurrency(value)).toThrow(InvalidArgumentError)
   })
 })
 
