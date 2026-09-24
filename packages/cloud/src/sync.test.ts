@@ -642,6 +642,44 @@ describe('transient failure retries', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('retries an export whose connection drops while the body is still arriving', async () => {
+    const dropped = new TypeError('terminated', {
+      cause: Object.assign(new Error('other side closed'), { code: 'UND_ERR_SOCKET' }),
+    })
+    const droppedMidBody = {
+      ...response(''),
+      arrayBuffer: () => Promise.reject(dropped),
+    } as unknown as Response
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(droppedMidBody).mockResolvedValueOnce(exportOk())
+    const sleep = vi.fn(async (_ms: number) => {})
+
+    const files = await exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep } })
+
+    expect(files).toEqual([{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }])
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(sleep).toHaveBeenCalledTimes(1)
+  })
+
+  it('retries a project list whose body read times out, but does not retry invalid JSON', async () => {
+    const timedOutMidBody = {
+      ...response(''),
+      text: () => Promise.reject(new DOMException('The operation was aborted due to timeout', 'TimeoutError')),
+    } as unknown as Response
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(timedOutMidBody)
+      .mockResolvedValueOnce(response({ projects: [], pagination: { nextPageToken: null } }))
+    const sleep = vi.fn(async (_ms: number) => {})
+
+    expect(await listAllProjects(BASE_URL, TOKEN, { retry: { sleep } })).toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+
+    fetchSpy.mockReset()
+    fetchSpy.mockResolvedValueOnce(response('{not json'))
+    await expect(listAllProjects(BASE_URL, TOKEN, { retry: { sleep } })).rejects.toMatchObject({ statusCode: 502 })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('retries a timed-out GET only once, since every attempt waits out the full timeout', async () => {
     const timeout = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
     const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(timeout)

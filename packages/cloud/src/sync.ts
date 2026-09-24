@@ -245,8 +245,9 @@ export interface SyncRequestOptions extends RequestOptions {
    * Retry policy for transient failures. A 429 is retried for every request, honoring the
    * `Retry-After` header. 5xx responses and network errors are retried for GET and DELETE only,
    * and a timeout at most once (see {@link RetryOptions}): a POST that failed that way (import,
-   * file upload) may already have been applied, so it fails immediately. Pass `{ maxRetries: 0 }`
-   * to disable retries.
+   * file upload) may already have been applied, so it fails immediately. For the GETs, a network
+   * failure or timeout while the response body is still arriving counts the same as one before the
+   * headers. Pass `{ maxRetries: 0 }` to disable retries.
    */
   retry?: RetryOptions
 }
@@ -286,16 +287,46 @@ const IDEMPOTENT_METHODS = new Set(['GET', 'DELETE'])
  * expect, with the 401/403 wording the other modules use. Transient failures are retried first, per
  * {@link SyncRequestOptions.retry}.
  */
-async function requestOk(
+function requestOk(
   url: string,
   init: RequestInit,
   timeoutMs: number,
   fallback: string,
   retryOptions: RetryOptions | undefined
 ): Promise<Response> {
+  return requestAndRead(url, init, timeoutMs, fallback, retryOptions, async response => response)
+}
+
+/**
+ * {@link requestOk}, consuming a successful response's body with `read` inside the retry loop: a
+ * GET or DELETE whose connection drops, or whose timeout expires, while the body is still arriving
+ * is retried under the same rules as one that failed before the response headers.
+ */
+async function requestAndRead<T>(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  fallback: string,
+  retryOptions: RetryOptions | undefined,
+  read: (response: Response) => Promise<T>
+): Promise<T> {
   const policy = resolveRetryPolicy(retryOptions)
   const idempotent = IDEMPOTENT_METHODS.has((init.method ?? 'GET').toUpperCase())
   let timeoutRetries = 0
+  /** Waits and returns true when `error` (a network failure or timeout) earns another attempt. */
+  const retryAfterFailure = async (error: unknown, retry: number, backoffMs: number): Promise<boolean> => {
+    const timedOut = isTimeoutError(error)
+    const retryable = idempotent && (isNetworkError(error) || (timedOut && timeoutRetries < policy.maxTimeoutRetries))
+    if (retry > policy.maxRetries || !retryable) {
+      return false
+    }
+    if (timedOut) {
+      timeoutRetries++
+    }
+    policy.onRetry?.({ retry, delayMs: backoffMs, error, description: fallback })
+    await policy.sleep(backoffMs)
+    return true
+  }
 
   for (let retry = 1; ; retry++) {
     const canRetry = retry <= policy.maxRetries
@@ -305,20 +336,20 @@ async function requestOk(
     try {
       response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
     } catch (error) {
-      const timedOut = isTimeoutError(error)
-      const retryable = idempotent && (isNetworkError(error) || (timedOut && timeoutRetries < policy.maxTimeoutRetries))
-      if (canRetry && retryable) {
-        if (timedOut) {
-          timeoutRetries++
-        }
-        policy.onRetry?.({ retry, delayMs: backoffMs, error, description: fallback })
-        await policy.sleep(backoffMs)
+      if (await retryAfterFailure(error, retry, backoffMs)) {
         continue
       }
       throw error
     }
     if (response.ok) {
-      return response
+      try {
+        return await read(response)
+      } catch (error) {
+        if (await retryAfterFailure(error, retry, backoffMs)) {
+          continue
+        }
+        throw error
+      }
     }
 
     const bodyText = await response.text().catch(() => '')
@@ -345,12 +376,12 @@ function throwForFailedResponse(response: Response, bodyText: string, fallback: 
   throw new ApiError(response.status, message)
 }
 
-/** Parse a JSON response against `schema`, reporting invalid bodies as {@link ApiError} — a raw
- * `SyntaxError`/`ZodError` would escape this package's error contract. */
-async function parseJsonResponse<T>(response: Response, schema: z.ZodType<T>, what: string): Promise<T> {
+/** Parse a JSON response (or a body already read as text) against `schema`, reporting invalid bodies
+ * as {@link ApiError} — a raw `SyntaxError`/`ZodError` would escape this package's error contract. */
+async function parseJsonResponse<T>(body: Response | string, schema: z.ZodType<T>, what: string): Promise<T> {
   let json: unknown
   try {
-    json = await response.json()
+    json = typeof body === 'string' ? JSON.parse(body) : await body.json()
   } catch {
     throw new ApiError(502, `Invalid Deepnote response for ${what}: the body was not valid JSON.`)
   }
@@ -385,14 +416,15 @@ export async function listAllProjects(
       url.searchParams.set('pageToken', pageToken)
     }
 
-    const response = await requestOk(
+    const body = await requestAndRead(
       url.toString(),
       { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
       timeout,
       'Failed to list Deepnote projects',
-      options.retry
+      options.retry,
+      response => response.text()
     )
-    const parsed = await parseJsonResponse(response, listProjectsPageSchema, 'list projects')
+    const parsed = await parseJsonResponse(body, listProjectsPageSchema, 'list projects')
 
     projects.push(...parsed.projects)
     pageToken = parsed.pagination.nextPageToken ?? undefined
@@ -416,14 +448,15 @@ export async function getProjectDetail(
   projectId: string,
   options: SyncRequestOptions = {}
 ): Promise<ProjectDetail> {
-  const response = await requestOk(
+  const body = await requestAndRead(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
     'Failed to fetch Deepnote project',
-    options.retry
+    options.retry,
+    response => response.text()
   )
-  const parsed = await parseJsonResponse(response, projectDetailSchema, 'fetch project')
+  const parsed = await parseJsonResponse(body, projectDetailSchema, 'fetch project')
   return parsed.project
 }
 
@@ -481,15 +514,16 @@ export async function exportProject(
   projectId: string,
   options: SyncRequestOptions = {}
 ): Promise<ExportedNotebookFile[]> {
-  const response = await requestOk(
-    `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/export`,
-    { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
-    options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
-    'Failed to export Deepnote project',
-    options.retry
+  const archive = new Uint8Array(
+    await requestAndRead(
+      `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/export`,
+      { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
+      options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
+      'Failed to export Deepnote project',
+      options.retry,
+      response => response.arrayBuffer()
+    )
   )
-
-  const archive = new Uint8Array(await response.arrayBuffer())
   let entries: Record<string, Uint8Array>
   try {
     entries = unzipSync(archive)
@@ -605,14 +639,15 @@ export async function downloadProjectFile(
   url.searchParams.set('projectId', projectId)
   url.searchParams.set('path', filePath)
 
-  const response = await requestOk(
+  const maxBytes = projectFileTransferLimit(options)
+  return requestAndRead(
     url.toString(),
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
     `Failed to download "${filePath}"`,
-    options.retry
+    options.retry,
+    response => readProjectFileBytes(response, filePath, maxBytes)
   )
-  return readProjectFileBytes(response, filePath, projectFileTransferLimit(options))
 }
 
 /** A working-directory file after an upload, as the inventory reports it. */
