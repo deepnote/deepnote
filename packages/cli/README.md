@@ -733,9 +733,10 @@ ultimately bounded by your workspace plan's API rate limit. A rate-limited reque
 prints a line while it waits. Reads and deletes are also retried after a server error (5xx) or
 network failure, and once after a timeout. With `--all-files`, memory use grows with concurrency:
 each parallel project may buffer a file of up to 100 MiB. With `--on-conflict ask` and `--concurrency`
-above 1, conflict questions are asked one at a time after every other project has finished, and the
-project is checked again on fresh data before an overwrite is applied; with `--concurrency 1` they are
-asked inline, as each project comes up.
+above 1, conflict questions are asked one at a time after every other project has finished. Sync then
+re-reads the project (local files and a fresh export) before acting on the answer: an overwrite runs
+only if there is still something to overwrite, and working-file uploads are re-planned whichever way
+you answer. With `--concurrency 1` they are asked inline, as each project comes up.
 
 **Options:**
 

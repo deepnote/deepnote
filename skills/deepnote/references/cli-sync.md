@@ -31,8 +31,9 @@ rate-limited request (HTTP 429) waits for `Retry-After` (up to 60 s) and is retr
 before the project becomes an `error` outcome. Reads and deletes are also retried after 5xx or
 network failures, and once after a timeout; imports and uploads are not. With `--all-files`, each
 parallel project may buffer a file of up to 100 MiB. With `ask` and `--concurrency` above 1, conflict
-prompts come one at a time after every other project has finished, and an override is applied only
-after the project is re-read and re-exported; with `--concurrency 1` they come inline. In `-o json`, the synced-project entries are sorted by path,
+prompts come one at a time after every other project has finished; every answer is acted on only after
+the project is re-read (local files, fresh export, fresh file inventory), so an override runs only if
+there is still something to overwrite. With `--concurrency 1` they come inline. In `-o json`, the synced-project entries are sorted by path,
 and `missing-in-cloud` / `pruned` entries follow them.
 
 **Examples:**
