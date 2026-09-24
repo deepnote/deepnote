@@ -719,12 +719,13 @@ async function uploadProjectFiles(
       for (const file of conflicted) {
         approved.add(conflictKey(file))
       }
-      if (ctx.askConflict) {
-        // The answer waited for the rest of the workspace, so plan again on fresh local files and a
-        // fresh inventory. Only conflicts the user was shown are overwritten; a new one is kept.
-        planned = await planUploads()
-        conflicted = planned.filter(file => file.conflict !== undefined)
-      }
+    }
+    if (ctx.askConflict) {
+      // The answer waited for the rest of the workspace, so plan again on fresh local files and a
+      // fresh inventory, whatever the answer. Only conflicts the user was shown and chose to
+      // overwrite are overwritten; any file that conflicts now for another reason is kept.
+      planned = await planUploads()
+      conflicted = planned.filter(file => file.conflict !== undefined)
     }
     kept = conflicted.filter(file => !approved.has(conflictKey(file)))
     if (kept.length > 0) {

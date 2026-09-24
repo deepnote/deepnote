@@ -1913,6 +1913,60 @@ describe('syncWorkspace', () => {
       )
     })
 
+    it('re-plans file uploads after a deferred "skip", keeping a file that changed in Deepnote meanwhile', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+          files: [
+            { path: 'data.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'a' },
+            { path: 'other.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'b' },
+          ],
+        },
+      ]
+      const cloud = installCloud(projects)
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+      // Local edits to the notebook (so it pushes) and both files; data.csv also changed in Deepnote.
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'data.csv'), 'local-a', 'utf-8')
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'other.csv'), 'local-b', 'utf-8')
+      projects[0].files = [
+        { path: 'data.csv', size: 7, updatedAt: '2026-01-06T00:00:00.000Z', content: 'cloud-a' },
+        { path: 'other.csv', size: 1, updatedAt: '2026-01-01T00:00:00.000Z', content: 'b' },
+      ]
+
+      // Only data.csv is in conflict when asked; while the question waits, a colleague edits other.csv.
+      vi.mocked(select).mockImplementation(async config => {
+        expect(config.message).toContain('data.csv')
+        expect(config.message).not.toContain('other.csv')
+        projects[0].files = [
+          { path: 'data.csv', size: 7, updatedAt: '2026-01-06T00:00:00.000Z', content: 'cloud-a' },
+          { path: 'other.csv', size: 9, updatedAt: '2026-01-07T00:00:00.000Z', content: 'colleague' },
+        ]
+        return 'skip'
+      })
+
+      const result = await withTtyResult(() =>
+        syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })
+      )
+
+      expect(select).toHaveBeenCalledTimes(1)
+      expect(cloud.uploadedPaths).toEqual([])
+      expect(cloud.deletedPaths).toEqual([])
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p1', action: 'pushed', filesUploaded: 0, filesSkipped: 2 }),
+      ])
+    })
+
     it('asks one project two questions in turn when its push conflicts and its files do too', async () => {
       const { select } = await import('@inquirer/prompts')
       const projects: CloudProject[] = [
