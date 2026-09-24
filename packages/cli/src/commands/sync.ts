@@ -918,6 +918,10 @@ async function syncPreparedProject(
     // "Overwrite the cloud version with your local files" stays the answer on fresh data, even when
     // the cloud has changed again meanwhile (which now classifies as a both-sides conflict).
     const forcePush = answers['push-409'] === 'override' && (step === 'push' || step === 'conflict')
+    // Likewise "overwrite the local files with the cloud version" stays the answer: if the cloud edit
+    // was undone meanwhile, the fresh data classifies as a push, and pushing would upload the local
+    // changes the user chose to discard.
+    const forcePull = answers['both-changed'] === 'override' && (step === 'push' || step === 'conflict')
 
     let outcome: ProjectSyncOutcome
     if (forcePush && syncRecord && !ctx.dryRun) {
@@ -929,6 +933,12 @@ async function syncPreparedProject(
         commitRecord(pushed.files, syncRecord.files)
         outcome = { ...base, action: 'pushed', notebooks: pushed.notebooks }
       }
+    } else if (forcePull) {
+      outcome = await applyPull(
+        syncRecord
+          ? 'conflict resolved: local changes overwritten'
+          : 'untracked local files overwritten with the cloud version'
+      )
     } else if (step === 'noop') {
       commitRecord(exportFiles, syncRecord?.files)
       outcome = { ...base, action: 'unchanged', ...(moveNote ? { detail: moveNote } : {}) }

@@ -1911,6 +1911,46 @@ describe('syncWorkspace', () => {
       ])
     })
 
+    it('still discards local changes when the cloud edit was undone while an overwrite question waited', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const baseline = singleNotebook('p1', '2026-01-02T00:00:00.000Z')
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: baseline },
+        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+
+      // While the question waits, the cloud edit is reverted to the last-synced version.
+      vi.mocked(select).mockImplementation(async () => {
+        projects[0].notebooks = baseline
+        return 'override'
+      })
+
+      const result = await withTtyResult(() =>
+        syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 8 })
+      )
+
+      expect(select).toHaveBeenCalledTimes(1)
+      expect(cloud.importCalls).toEqual([])
+      expect(result.projects).toEqual([
+        expect.objectContaining({
+          projectId: 'p1',
+          action: 'pulled',
+          detail: 'conflict resolved: local changes overwritten',
+        }),
+        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      ])
+      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(baseline[0]?.content)
+      expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(canonicalProjectHash(baseline))
+    })
+
     it('pulls the fresh export when the cloud changed again while an overwrite question waited', async () => {
       const { select } = await import('@inquirer/prompts')
       const projects: CloudProject[] = [
