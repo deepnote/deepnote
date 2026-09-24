@@ -156,21 +156,15 @@ Use another transfer method for larger data files.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project              | `false`                    |
 | `--prune`                    | Delete local files for projects and files that no longer exist in the cloud | `false`                    |
 | `--dry-run`                  | Report what would be synced without writing anything                        | `false`                    |
-| `--concurrency <n>`          | Number of projects to sync in parallel (1–32)                               | `8`                        |
+| `--concurrency <n>`          | How many projects to sync at once (1–32)                                    | `8`                        |
 | `--token <token>`            | API token                                                                   | `DEEPNOTE_TOKEN`           |
 | `--url <url>`                | API base URL (for single-tenant instances)                                  | `https://api.deepnote.com` |
 | `-o, --output <format>`      | Machine-readable output: `json` or `llm`                                    | text                       |
 
-Projects sync in parallel, eight at a time by default and at most 32. How fast a large workspace
-syncs is ultimately bounded by your plan's API rate limit. When Deepnote rate-limits a request, sync
-prints a notice, waits for the time the API asks for (up to 60 seconds), and retries; after 5 retries
-the project fails. Reads and deletes are also retried after a server error or network failure, and
-once after a timeout. With `--all-files`, memory use grows with concurrency, because each parallel project may
-hold a file of up to 100 MiB in memory. With `--concurrency` above 1, conflict prompts are asked one
-at a time after every other project has finished. Sync then re-reads the project before acting on your
-answer: an overwrite happens only if there is still something to overwrite, and working files are
-re-planned whichever way you answer. With `--concurrency 1`, prompts are asked as each project comes
-up.
+Projects sync in parallel, 8 at a time by default (`--concurrency`, 1–32). Throughput is capped by the
+workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
+responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
+one project at a time.
 
 ## Ownership of the static site directory
 
