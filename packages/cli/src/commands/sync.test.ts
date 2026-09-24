@@ -2176,7 +2176,7 @@ describe('syncWorkspace', () => {
       const fetchSpy = vi.spyOn(global, 'fetch')
 
       await expect(syncWorkspace(tempDir, { ...baseOptions, concurrency: 0 })).rejects.toThrow(
-        'Concurrency must be a positive integer, got 0.'
+        'Concurrency must be an integer from 1 to 32. Got 0.'
       )
       expect(fetchSpy).not.toHaveBeenCalled()
     })
@@ -2188,11 +2188,12 @@ describe('parseSyncConcurrency', () => {
     ['1', 1],
     ['8', 8],
     [' 16 ', 16],
+    ['32', 32],
   ])('accepts %j', (value, expected) => {
     expect(parseSyncConcurrency(value)).toBe(expected)
   })
 
-  it.each(['0', '-1', '1.5', 'four', '', '1e3'])('rejects %j', value => {
+  it.each(['0', '-1', '1.5', 'four', '', '1e3', '33'])('rejects %j', value => {
     expect(() => parseSyncConcurrency(value)).toThrow(InvalidArgumentError)
   })
 })

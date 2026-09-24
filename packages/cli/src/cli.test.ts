@@ -317,7 +317,7 @@ describe('CLI', () => {
       }
     })
 
-    it('exits with code 2 when sync --concurrency is not a positive integer', async () => {
+    it.each(['0', '33'])('exits with code 2 when sync --concurrency is %s', async value => {
       const program = createProgram()
       const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(code => {
@@ -325,10 +325,10 @@ describe('CLI', () => {
       })
 
       try {
-        await expect(program.parseAsync(['sync', 'workspace', '--concurrency', '0'], { from: 'user' })).rejects.toThrow(
-          'process.exit called with 2'
-        )
-        expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Concurrency must be a positive integer.'))
+        await expect(
+          program.parseAsync(['sync', 'workspace', '--concurrency', value], { from: 'user' })
+        ).rejects.toThrow('process.exit called with 2')
+        expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Concurrency must be an integer from 1 to 32.'))
       } finally {
         exitSpy.mockRestore()
         stderrSpy.mockRestore()
