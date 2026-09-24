@@ -2348,6 +2348,42 @@ describe('syncWorkspace', () => {
       await expect(fs.access(path.join(tempDir, 'Zed', 'Y'))).rejects.toThrow()
     })
 
+    it("checks a new project's path only after a renamed project has moved out of it", async () => {
+      const projects: CloudProject[] = [
+        { id: 'p-a', name: 'Foo', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+
+      // `Foo` is renamed to `Alpha`, and a new project is planned under `Foo/main.deepnote/`, which
+      // today runs through Foo's notebook file.
+      projects[0].name = 'Alpha'
+      projects.push({
+        id: 'p-child',
+        name: 'Child',
+        folder: {
+          id: 'f-nb',
+          name: 'main.deepnote',
+          path: [
+            { id: 'f-foo', name: 'Foo' },
+            { id: 'f-nb', name: 'main.deepnote' },
+          ],
+        },
+        notebooks: singleNotebook('p-child', '2026-01-03T00:00:00.000Z'),
+      })
+
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p-a', action: 'unchanged', path: 'Alpha', detail: 'moved from Foo' }),
+        expect.objectContaining({ projectId: 'p-child', action: 'pulled', path: 'Foo/main.deepnote/Child' }),
+      ])
+      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('p-a')
+      expect(
+        await fs.readFile(path.join(tempDir, 'Foo', 'main.deepnote', 'Child', 'main.deepnote'), 'utf-8')
+      ).toContain('p-child')
+    })
+
     it('moves a project out of a directory before another project moves into it', async () => {
       const projects: CloudProject[] = [
         { id: 'p-x', name: 'Foo', notebooks: singleNotebook('p-x', '2026-01-02T00:00:00.000Z') },

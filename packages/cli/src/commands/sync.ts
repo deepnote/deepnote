@@ -428,6 +428,7 @@ async function moveTrackedProjectDirs(
       (pending[0] as PendingMove)
     pending = pending.filter(move => move !== next)
     try {
+      await assertNoSymbolicLinkAncestors(ctx.rootDir, next.to)
       const toAbsolutePath = toAbsolute(ctx, next.to)
       await fs.mkdir(path.dirname(toAbsolutePath), { recursive: true })
       await fs.rename(toAbsolute(ctx, next.from), toAbsolutePath)
@@ -842,7 +843,9 @@ async function prepareProject(
 ): Promise<{ prepared: PreparedProject } | { outcome: ProjectSyncOutcome }> {
   const base: OutcomeBase = { projectId: project.id, name: project.name, path: plan.projectDir }
   try {
-    await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.projectDir)
+    // The planned directory's ancestors are checked when the project syncs, after the moves: a
+    // pending move may still be vacating a path that currently runs through another project's file.
+    //
     // A missing tracked source does not make an occupied destination part of this project. Treat
     // it as untracked so unrelated local files cannot be pushed through the old manifest record.
     const destinationIsUntracked =
@@ -988,6 +991,7 @@ async function syncPreparedProject(
   }
 
   try {
+    await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.projectDir)
     let outcome: ProjectSyncOutcome | undefined
     while (outcome === undefined) {
       try {
