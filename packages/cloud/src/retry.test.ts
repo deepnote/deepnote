@@ -1,6 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { describe, expect, it } from 'vitest'
-import { isTransientError, parseRetryAfterMs, transientBackoffMs } from './retry'
+import { isNetworkError, isTransientError, parseRetryAfterMs, transientBackoffMs } from './retry'
 
 describe('parseRetryAfterMs', () => {
   it('reads Retry-After delta-seconds', () => {
@@ -33,6 +33,25 @@ describe('transientBackoffMs', () => {
     expect([1, 2, 3, 4, 5].map(retry => transientBackoffMs(retry, 500, 5_000))).toEqual([
       1_000, 2_000, 4_000, 5_000, 5_000,
     ])
+  })
+})
+
+describe('isNetworkError', () => {
+  const withCode = (code: string) => Object.assign(new Error(code), { code })
+
+  it('recognizes fetch network failures by message or by a system/undici error code', () => {
+    expect(isNetworkError(new TypeError('fetch failed', { cause: withCode('ECONNREFUSED') }))).toBe(true)
+    expect(isNetworkError(new TypeError('fetch failed'))).toBe(true)
+    expect(isNetworkError(new TypeError('terminated', { cause: withCode('UND_ERR_SOCKET') }))).toBe(true)
+    expect(isNetworkError(new TypeError('other side closed', { cause: withCode('ECONNRESET') }))).toBe(true)
+  })
+
+  it('rejects TypeErrors that report a caller mistake', () => {
+    expect(isNetworkError(new TypeError('Failed to parse URL from nope', { cause: withCode('ERR_INVALID_URL') }))).toBe(
+      false
+    )
+    expect(isNetworkError(new TypeError('Headers.append: "Bearer a\nb" is an invalid header value.'))).toBe(false)
+    expect(isNetworkError(new Error('fetch failed'))).toBe(false)
   })
 })
 

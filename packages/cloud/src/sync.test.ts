@@ -640,6 +640,39 @@ describe('transient failure retries', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('retries a timed-out GET only once, since every attempt waits out the full timeout', async () => {
+    const timeout = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(timeout)
+    const sleep = vi.fn(async (_ms: number) => {})
+
+    await expect(exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep } })).rejects.toBe(timeout)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not retry a TypeError that is a caller mistake rather than a network failure', async () => {
+    const invalidUrl = new TypeError('Failed to parse URL from not a url/v2/projects', {
+      cause: Object.assign(new TypeError('Invalid URL'), { code: 'ERR_INVALID_URL' }),
+    })
+    const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValueOnce(invalidUrl)
+    const sleep = vi.fn(async (_ms: number) => {})
+
+    await expect(listAllProjects(BASE_URL, TOKEN, { retry: { sleep } })).rejects.toBe(invalidUrl)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(sleep).not.toHaveBeenCalled()
+  })
+
+  it('retries a 5xx on an idempotent DELETE', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response('unavailable', { ok: false, status: 503 }))
+      .mockResolvedValueOnce(response('', { status: 204 }))
+    const sleep = vi.fn(async (_ms: number) => {})
+
+    expect(await deleteProjectFile(BASE_URL, TOKEN, 'p1', 'report.csv', { retry: { sleep } })).toBe(true)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(fetchSpy.mock.calls.every(([, init]) => init?.method === 'DELETE')).toBe(true)
+  })
+
   it('does not retry a network error on a file upload', async () => {
     const networkError = new TypeError('fetch failed')
     const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValueOnce(networkError)
