@@ -606,7 +606,9 @@ describe('transient failure retries', () => {
     const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(response('bad gateway', { ok: false, status: 502 }))
-      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockRejectedValueOnce(
+        new TypeError('fetch failed', { cause: Object.assign(new Error('connect ECONNRESET'), { code: 'ECONNRESET' }) })
+      )
       .mockResolvedValueOnce(exportOk())
     const sleep = vi.fn(async (_ms: number) => {})
 
@@ -674,7 +676,9 @@ describe('transient failure retries', () => {
   })
 
   it('does not retry a network error on a file upload', async () => {
-    const networkError = new TypeError('fetch failed')
+    const networkError = new TypeError('fetch failed', {
+      cause: Object.assign(new Error('connect ECONNRESET'), { code: 'ECONNRESET' }),
+    })
     const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValueOnce(networkError)
 
     await expect(
