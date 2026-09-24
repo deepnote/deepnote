@@ -72,14 +72,24 @@ export type ConflictMode = (typeof CONFLICT_MODES)[number]
  */
 export const DEFAULT_SYNC_CONCURRENCY = 8
 
-/** Commander parser for `--concurrency <n>`: a positive integer. */
+/** Upper bound for `--concurrency`. More parallel requests only hit the rate limit sooner, and with
+ * `--all-files` each worker may buffer a file of up to 100 MiB in memory. */
+export const MAX_SYNC_CONCURRENCY = 32
+
+const CONCURRENCY_RANGE_MESSAGE = `Concurrency must be an integer from 1 to ${MAX_SYNC_CONCURRENCY}.`
+
+/** Commander parser for `--concurrency <n>`: an integer from 1 to {@link MAX_SYNC_CONCURRENCY}. */
 export function parseSyncConcurrency(value: string): number {
   const normalized = value.trim()
   const parsed = Number(normalized)
-  if (!/^\d+$/.test(normalized) || !Number.isSafeInteger(parsed) || parsed < 1) {
-    throw new InvalidArgumentError('Concurrency must be a positive integer.')
+  if (!/^\d+$/.test(normalized) || !isValidConcurrency(parsed)) {
+    throw new InvalidArgumentError(CONCURRENCY_RANGE_MESSAGE)
   }
   return parsed
+}
+
+function isValidConcurrency(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 1 && value <= MAX_SYNC_CONCURRENCY
 }
 
 export interface SyncOptions {
@@ -1011,8 +1021,8 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   }
 
   const concurrency = options.concurrency ?? DEFAULT_SYNC_CONCURRENCY
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
-    throw new Error(`Concurrency must be a positive integer, got ${concurrency}.`)
+  if (!isValidConcurrency(concurrency)) {
+    throw new Error(`${CONCURRENCY_RANGE_MESSAGE} Got ${concurrency}.`)
   }
 
   const isMachineOutput = options.output !== undefined
