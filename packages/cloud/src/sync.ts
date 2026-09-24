@@ -3,7 +3,14 @@ import { unzipSync, zipSync } from 'fflate'
 import { z } from 'zod'
 import { parseApiErrorMessage } from './parse-api-error'
 import type { RequestOptions } from './projects'
-import { isTransientError, parseRetryAfterMs, type RetryOptions, resolveRetryPolicy, transientBackoffMs } from './retry'
+import {
+  isNetworkError,
+  isTimeoutError,
+  parseRetryAfterMs,
+  type RetryOptions,
+  resolveRetryPolicy,
+  transientBackoffMs,
+} from './retry'
 
 /**
  * Client for the Deepnote project-sync API surface — everything `deepnote sync` needs to mirror a
@@ -236,9 +243,10 @@ export interface ImportProjectResult {
 export interface SyncRequestOptions extends RequestOptions {
   /**
    * Retry policy for transient failures. A 429 is retried for every request, honoring the
-   * `Retry-After` header. 5xx responses, timeouts, and network errors are retried for GET and
-   * DELETE only: a POST that failed that way (import, file upload) may already have been applied,
-   * so it fails immediately. Pass `{ maxRetries: 0 }` to disable retries.
+   * `Retry-After` header. 5xx responses and network errors are retried for GET and DELETE only,
+   * and a timeout at most once (see {@link RetryOptions}): a POST that failed that way (import,
+   * file upload) may already have been applied, so it fails immediately. Pass `{ maxRetries: 0 }`
+   * to disable retries.
    */
   retry?: RetryOptions
 }
@@ -287,6 +295,7 @@ async function requestOk(
 ): Promise<Response> {
   const policy = resolveRetryPolicy(retryOptions)
   const idempotent = IDEMPOTENT_METHODS.has((init.method ?? 'GET').toUpperCase())
+  let timeoutRetries = 0
 
   for (let retry = 1; ; retry++) {
     const canRetry = retry <= policy.maxRetries
@@ -296,7 +305,12 @@ async function requestOk(
     try {
       response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
     } catch (error) {
-      if (canRetry && idempotent && isTransientError(error)) {
+      const timedOut = isTimeoutError(error)
+      const retryable = idempotent && (isNetworkError(error) || (timedOut && timeoutRetries < policy.maxTimeoutRetries))
+      if (canRetry && retryable) {
+        if (timedOut) {
+          timeoutRetries++
+        }
         policy.onRetry?.({ retry, delayMs: backoffMs, error, description: fallback })
         await policy.sleep(backoffMs)
         continue
