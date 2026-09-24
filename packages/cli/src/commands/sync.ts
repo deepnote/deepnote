@@ -541,6 +541,7 @@ type PushOutcome =
 async function pushProject(
   ctx: SyncContext,
   project: SyncProject,
+  projectDir: string,
   localFiles: readonly ExportedNotebookFile[],
   record: ManifestProjectRecord
 ): Promise<PushOutcome> {
@@ -583,8 +584,22 @@ async function pushProject(
     if (choice === 'skip') {
       return { kind: 'skipped', reason: 'cloud changed after the local edit' }
     }
-    notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, { ...importOptions, force: true }))
-      .notebooks
+    // The answer may have waited for the rest of the workspace to sync, so push what is on disk now:
+    // an edit made in the meantime is a fresh local edit, not something to overwrite with the copy
+    // read at the start of the run.
+    const currentFiles = await readLocalNotebookFiles(toAbsolute(ctx, projectDir))
+    if (currentFiles === null) {
+      return { kind: 'skipped', reason: 'local directory was removed before the push' }
+    }
+    if (deleteMissingNotebooks && currentFiles.length === 0 && localFiles.length > 0) {
+      return { kind: 'skipped', reason: 'local directory has no notebooks; refusing to delete every cloud notebook' }
+    }
+    if (canonicalProjectHash(currentFiles) !== canonicalProjectHash(localFiles)) {
+      debug(`"${project.name}" changed locally while waiting for an answer; pushing the current files`)
+    }
+    notebooks = (
+      await importProject(ctx.baseUrl, ctx.token, project.id, currentFiles, { ...importOptions, force: true })
+    ).notebooks
   }
 
   const files = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
@@ -883,7 +898,7 @@ async function syncPreparedProject(
         // classifySyncStep only returns 'push' for tracked directories, so this is unreachable.
         outcome = { ...base, action: 'skipped-conflict', detail: 'no manifest record for a push' }
       } else {
-        const pushed = await pushProject(ctx, project, localFiles ?? [], syncRecord)
+        const pushed = await pushProject(ctx, project, plan.projectDir, localFiles ?? [], syncRecord)
         if (pushed.kind === 'skipped') {
           outcome = { ...base, action: 'skipped-conflict', detail: pushed.reason }
         } else {
