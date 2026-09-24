@@ -732,8 +732,10 @@ ultimately bounded by your workspace plan's API rate limit. A rate-limited reque
 `Retry-After` (up to 60 s per wait) and is retried at most 5 times before the project fails; sync
 prints a line while it waits. Reads and deletes are also retried after a server error (5xx) or
 network failure, and once after a timeout. With `--all-files`, memory use grows with concurrency:
-each parallel project may buffer a file of up to 100 MiB. With `--on-conflict ask`, conflict
-questions are asked one at a time after every other project has finished.
+each parallel project may buffer a file of up to 100 MiB. With `--on-conflict ask` and `--concurrency`
+above 1, conflict questions are asked one at a time after every other project has finished, and the
+project is checked again on fresh data before an overwrite is applied; with `--concurrency 1` they are
+asked inline, as each project comes up.
 
 **Options:**
 

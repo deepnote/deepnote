@@ -562,8 +562,9 @@ ${c.bold('Conflicts:')}
   A project edited both locally and in the cloud is a conflict. By default
   sync asks per project whether to keep the cloud version (overwriting local
   changes) or skip; --on-conflict skip/override answers up front. Without a
-  terminal (CI, piped output), conflicts are skipped. While projects sync in
-  parallel, the questions are asked one at a time after the rest finish.
+  terminal (CI, piped output), conflicts are skipped. With --concurrency above
+  1, the questions are asked one at a time after the other projects finish;
+  with --concurrency 1, as each project comes up.
 
 ${c.bold('What sync does not do:')}
   - It never creates or deletes cloud projects; .deepnote files outside
