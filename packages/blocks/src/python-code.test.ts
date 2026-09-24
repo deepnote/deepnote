@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { UnsupportedBlockTypeError } from './blocks'
 import type { ButtonExecutionContext } from './blocks/button-blocks'
+import { isExecutableBlockType } from './blocks/executable-blocks'
 import type {
   AgentBlock,
   BigNumberBlock,
@@ -21,6 +22,7 @@ import type {
   SqlBlock,
   VisualizationBlock,
 } from './deepnote-file/deepnote-file-schema'
+import { deepnoteBlockSchema } from './deepnote-file/deepnote-file-schema'
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {
@@ -1174,26 +1176,24 @@ describe('createPythonCode', () => {
   })
 
   describe('Non-executable blocks', () => {
-    it.each([
-      'markdown',
-      'image',
-      'separator',
-      'text-cell-h1',
-      'text-cell-h2',
-      'text-cell-h3',
-      'text-cell-p',
-      'text-cell-bullet',
-      'text-cell-todo',
-      'text-cell-callout',
-    ] as const)('throws UnsupportedBlockTypeError for a %s block', type => {
-      const block: DeepnoteBlock = {
+    // Derived from the schema rather than from createPythonCode, so a new block type that nobody
+    // taught createPythonCode about shows up here as a failure.
+    const nonExecutableBlockTypes = deepnoteBlockSchema.options
+      .map(blockSchema => blockSchema.shape.type.value)
+      .filter(type => !isExecutableBlockType(type))
+
+    it('finds the non-executable block types in the schema', () => {
+      expect(nonExecutableBlockTypes.length).toBeGreaterThan(0)
+    })
+
+    it.each(nonExecutableBlockTypes)('throws UnsupportedBlockTypeError for a %s block', type => {
+      const block = deepnoteBlockSchema.parse({
         id: '123',
         type,
         content: '',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
-      }
+      })
 
       expect(() => createPythonCode(block)).toThrow(UnsupportedBlockTypeError)
       expect(() => createPythonCode(block)).toThrow(
