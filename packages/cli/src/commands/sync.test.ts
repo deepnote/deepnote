@@ -1810,6 +1810,41 @@ describe('syncWorkspace', () => {
       expect(forced[0]?.documents['main.deepnote']).toContain('edited-while-waiting')
     })
 
+    it('force-pushes after a deferred push conflict is overridden, even if the cloud changed again meanwhile', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      projects[0].importConflict = 'unless-forced'
+      projects[0].notebooksAfterImport = singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'local-edit-imported')
+
+      // While the question waits, someone edits Alpha in Deepnote again.
+      vi.mocked(select).mockImplementation(async () => {
+        projects[0].notebooks = singleNotebook('p1', '2026-01-08T00:00:00.000Z', 'cloud-edit-meanwhile')
+        return 'override'
+      })
+
+      const result = await withTtyResult(() => syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' }))
+
+      expect(select).toHaveBeenCalledTimes(1)
+      const forced = cloud.importCalls.filter(call => call.url.searchParams.get('force') === 'true')
+      expect(forced).toHaveLength(1)
+      expect(forced[0]?.documents['main.deepnote']).toContain('local-edit')
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p1', action: 'pushed' }),
+        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      ])
+      expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('local-edit-imported')
+    })
+
     it('does not delete cloud notebooks when an empty directory was refilled while its question waited', async () => {
       const { select } = await import('@inquirer/prompts')
       const projects: CloudProject[] = [
