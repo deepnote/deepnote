@@ -544,7 +544,8 @@ async function pushProject(
   project: SyncProject,
   localFiles: readonly ExportedNotebookFile[],
   record: ManifestProjectRecord,
-  ask: AskNotebookQuestion
+  ask: AskNotebookQuestion,
+  { force = false }: { force?: boolean } = {}
 ): Promise<PushOutcome> {
   const deleteMissingNotebooks = ctx.options.deleteMissingNotebooks ?? false
 
@@ -572,7 +573,8 @@ async function pushProject(
 
   let notebooks: ImportedNotebook[]
   try {
-    notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, importOptions)).notebooks
+    notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, { ...importOptions, force }))
+      .notebooks
   } catch (error) {
     if (!(error instanceof ApiError) || error.statusCode !== 409 || error.message === 'Project is suspended') {
       throw error
@@ -864,6 +866,11 @@ async function syncPreparedProject(
     if (earlier !== undefined) {
       return earlier
     }
+    if (Object.keys(answers).length > 0) {
+      // The user already answered a different question for this project; never follow it with a
+      // question about something else. Take the path that changes nothing.
+      return 'skip'
+    }
     const choice = await resolveConflict(ctx, message, overrideLabel)
     if (choice === 'override' && ctx.askConflict) {
       throw new DeferredOverride(kind)
@@ -904,8 +911,21 @@ async function syncPreparedProject(
       return { ...base, action: 'pulled', ...(detail ? { detail } : moveNote ? { detail: moveNote } : {}) }
     }
 
+    // "Overwrite the cloud version with your local files" stays the answer on fresh data, even when
+    // the cloud has changed again meanwhile (which now classifies as a both-sides conflict).
+    const forcePush = answers['push-409'] === 'override' && (step === 'push' || step === 'conflict')
+
     let outcome: ProjectSyncOutcome
-    if (step === 'noop') {
+    if (forcePush && syncRecord && !ctx.dryRun) {
+      const pushed = await pushProject(ctx, project, localFiles ?? [], syncRecord, ask, { force: true })
+      if (pushed.kind === 'skipped') {
+        outcome = { ...base, action: 'skipped-conflict', detail: pushed.reason }
+      } else {
+        await writeProjectNotebooks(ctx, plan.projectDir, pushed.files)
+        commitRecord(pushed.files, syncRecord.files)
+        outcome = { ...base, action: 'pushed', notebooks: pushed.notebooks }
+      }
+    } else if (step === 'noop') {
       commitRecord(exportFiles, syncRecord?.files)
       outcome = { ...base, action: 'unchanged', ...(moveNote ? { detail: moveNote } : {}) }
     } else if (step === 'pull') {
