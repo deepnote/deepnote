@@ -49,19 +49,12 @@ function projectDocument(notebook: { id: string; name: string }): string {
 
 function response(
   body: unknown,
-  init: {
-    ok?: boolean
-    status?: number
-    statusText?: string
-    bytes?: Uint8Array
-    headers?: Record<string, string>
-  } = {}
+  init: { ok?: boolean; status?: number; statusText?: string; bytes?: Uint8Array } = {}
 ): Response {
   return {
     ok: init.ok ?? true,
     status: init.status ?? 200,
     statusText: init.statusText ?? 'OK',
-    headers: new Headers(init.headers),
     json: () => (typeof body === 'string' ? Promise.resolve(JSON.parse(body)) : Promise.resolve(body)),
     text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
     arrayBuffer: () => Promise.resolve((init.bytes ?? new Uint8Array()).buffer),
@@ -520,210 +513,75 @@ describe('downloadProjectFile', () => {
   })
 })
 
-describe('transient failure retries', () => {
-  const rateLimited = (headers: Record<string, string> = {}) =>
-    response(JSON.stringify({ message: 'Rate limit exceeded. Please retry later.' }), {
+describe('rate limiting (HTTP 429)', () => {
+  const listed = () => response({ projects: [], pagination: { nextPageToken: null } })
+  const tooManyRequests = (headers: Record<string, string> = {}) =>
+    ({
       ok: false,
       status: 429,
       statusText: 'Too Many Requests',
-      headers,
-    })
-  const exportOk = () => response('', { bytes: zipArchive({ 'main.deepnote': 'version: 1.0.0\n' }) })
+      headers: new Headers(headers),
+      body: null,
+      text: () => Promise.resolve(JSON.stringify({ message: 'Too many requests, please try again later.' })),
+    }) as unknown as Response
 
-  it('retries a rate-limited export after the Retry-After delay', async () => {
+  it.each<{ headers: Record<string, string>; waitMs: number }>([
+    { headers: { 'Retry-After': '7', 'RateLimit-Reset': '30' }, waitMs: 7_000 },
+    { headers: { 'Retry-After': new Date(Date.now() + 120_000).toUTCString() }, waitMs: 60_000 },
+    { headers: { 'RateLimit-Reset': '3' }, waitMs: 3_000 },
+    { headers: {}, waitMs: 1_000 },
+  ])('waits $waitMs ms for $headers, then retries', async ({ headers, waitMs }) => {
     const fetchSpy = vi
       .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(rateLimited({ 'Retry-After': '7', 'RateLimit-Reset': '30' }))
-      .mockResolvedValueOnce(exportOk())
-    const sleep = vi.fn(async (_ms: number) => {})
-    const onRetry = vi.fn()
+      .mockResolvedValueOnce(tooManyRequests(headers))
+      .mockResolvedValueOnce(listed())
+    const sleep = vi.fn((_ms: number) => Promise.resolve())
+    const onRateLimited = vi.fn()
 
-    const files = await exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep, onRetry } })
+    await expect(listAllProjects(BASE_URL, TOKEN, { sleep, onRateLimited })).resolves.toEqual([])
 
-    expect(files).toEqual([{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }])
     expect(fetchSpy).toHaveBeenCalledTimes(2)
-    expect(sleep).toHaveBeenCalledWith(7_000, expect.objectContaining({ retry: 1, status: 429 }))
-    expect(onRetry).toHaveBeenCalledWith(
-      expect.objectContaining({
-        retry: 1,
-        delayMs: 7_000,
-        status: 429,
-        description: 'Failed to export Deepnote project',
-      })
+    expect(sleep).toHaveBeenCalledWith(waitMs)
+    expect(onRateLimited).toHaveBeenCalledWith(waitMs)
+  })
+
+  it('gives up after 5 retries with the same error as any other failure', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(tooManyRequests()))
+    const sleep = vi.fn((_ms: number) => Promise.resolve())
+
+    await expect(listAllProjects(BASE_URL, TOKEN, { sleep })).rejects.toEqual(
+      new ApiError(429, 'Too many requests, please try again later.')
     )
+    expect(fetchSpy).toHaveBeenCalledTimes(6)
+    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([1_000, 2_000, 4_000, 8_000, 16_000])
   })
 
-  it('falls back to RateLimit-Reset, then to capped exponential backoff, when Retry-After is absent', async () => {
-    vi.spyOn(global, 'fetch')
-      .mockResolvedValueOnce(rateLimited({ 'RateLimit-Reset': '3' }))
-      .mockResolvedValueOnce(rateLimited())
-      .mockResolvedValueOnce(rateLimited())
-      .mockResolvedValueOnce(response({ projects: [{ id: 'p1', name: 'One' }], pagination: { nextPageToken: null } }))
-    const sleep = vi.fn(async (_ms: number) => {})
+  it('does not retry a server error', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(response('boom', { ok: false, status: 500 }))
+    const sleep = vi.fn((_ms: number) => Promise.resolve())
 
-    const projects = await listAllProjects(BASE_URL, TOKEN, {
-      retry: { sleep, baseDelayMs: 1_000, maxDelayMs: 5_000 },
-    })
-
-    expect(projects).toEqual([{ id: 'p1', name: 'One' }])
-    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([3_000, 4_000, 5_000])
-  })
-
-  it('gives up after the configured number of retries and surfaces the 429', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async () => rateLimited({ 'Retry-After': '0' }))
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    await expect(exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep, maxRetries: 2 } })).rejects.toEqual(
-      new ApiError(429, 'Rate limit exceeded. Please retry later.')
-    )
-    expect(fetchSpy).toHaveBeenCalledTimes(3)
-    expect(sleep).toHaveBeenCalledTimes(2)
-  })
-
-  it('fails immediately when retries are disabled', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(rateLimited({ 'Retry-After': '0' }))
-
-    await expect(exportProject(BASE_URL, TOKEN, 'p1', { retry: { maxRetries: 0 } })).rejects.toMatchObject({
-      statusCode: 429,
-    })
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-  })
-
-  it.each([400, 401, 403, 404, 409, 422])('does not retry a %i', async status => {
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(response(JSON.stringify({ message: 'Nope' }), { ok: false, status }))
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    await expect(exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep } })).rejects.toMatchObject({
-      statusCode: status,
-    })
+    await expect(listAllProjects(BASE_URL, TOKEN, { sleep })).rejects.toBeInstanceOf(ApiError)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
     expect(sleep).not.toHaveBeenCalled()
   })
 
-  it('retries a 5xx and a network error for an idempotent GET', async () => {
+  it('re-sends the import body after a 429', async () => {
     const fetchSpy = vi
       .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(response('bad gateway', { ok: false, status: 502 }))
-      .mockRejectedValueOnce(
-        new TypeError('fetch failed', { cause: Object.assign(new Error('connect ECONNRESET'), { code: 'ECONNRESET' }) })
+      .mockResolvedValueOnce(tooManyRequests({ 'Retry-After': '0' }))
+      .mockResolvedValueOnce(
+        response({
+          project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: '0'.repeat(64) },
+          notebooks: [],
+        })
       )
-      .mockResolvedValueOnce(exportOk())
-    const sleep = vi.fn(async (_ms: number) => {})
+    const main = projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' })
 
-    await exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep } })
+    await importProject(BASE_URL, TOKEN, PROJECT_ID, [{ filename: 'main.deepnote', content: main }])
 
-    expect(fetchSpy).toHaveBeenCalledTimes(3)
-    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([1_000, 2_000])
-  })
-
-  it('retries a rate-limited import but not a 5xx one, which may already have been applied', async () => {
-    const importOk = () =>
-      response({
-        project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: 'a'.repeat(64) },
-        notebooks: [],
-      })
-    const files = [{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }]
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(rateLimited({ 'Retry-After': '1' }))
-      .mockResolvedValueOnce(importOk())
-    await importProject(BASE_URL, TOKEN, PROJECT_ID, files, { retry: { sleep } })
     expect(fetchSpy).toHaveBeenCalledTimes(2)
-
-    fetchSpy.mockReset()
-    fetchSpy.mockResolvedValueOnce(response('oops', { ok: false, status: 500 }))
-    await expect(importProject(BASE_URL, TOKEN, PROJECT_ID, files, { retry: { sleep } })).rejects.toMatchObject({
-      statusCode: 500,
-    })
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-  })
-
-  it('retries an export whose connection drops while the body is still arriving', async () => {
-    const dropped = new TypeError('terminated', {
-      cause: Object.assign(new Error('other side closed'), { code: 'UND_ERR_SOCKET' }),
-    })
-    const droppedMidBody = {
-      ...response(''),
-      arrayBuffer: () => Promise.reject(dropped),
-    } as unknown as Response
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(droppedMidBody).mockResolvedValueOnce(exportOk())
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    const files = await exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep } })
-
-    expect(files).toEqual([{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }])
-    expect(fetchSpy).toHaveBeenCalledTimes(2)
-    expect(sleep).toHaveBeenCalledTimes(1)
-  })
-
-  it('retries a project list whose body read times out, but does not retry invalid JSON', async () => {
-    const timedOutMidBody = {
-      ...response(''),
-      text: () => Promise.reject(new DOMException('The operation was aborted due to timeout', 'TimeoutError')),
-    } as unknown as Response
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(timedOutMidBody)
-      .mockResolvedValueOnce(response({ projects: [], pagination: { nextPageToken: null } }))
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    expect(await listAllProjects(BASE_URL, TOKEN, { retry: { sleep } })).toEqual([])
-    expect(fetchSpy).toHaveBeenCalledTimes(2)
-
-    fetchSpy.mockReset()
-    fetchSpy.mockResolvedValueOnce(response('{not json'))
-    await expect(listAllProjects(BASE_URL, TOKEN, { retry: { sleep } })).rejects.toMatchObject({ statusCode: 502 })
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-  })
-
-  it('retries a timed-out GET only once, since every attempt waits out the full timeout', async () => {
-    const timeout = new DOMException('The operation was aborted due to timeout', 'TimeoutError')
-    const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValue(timeout)
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    await expect(exportProject(BASE_URL, TOKEN, 'p1', { retry: { sleep } })).rejects.toBe(timeout)
-    expect(fetchSpy).toHaveBeenCalledTimes(2)
-  })
-
-  it('does not retry a TypeError that is a caller mistake rather than a network failure', async () => {
-    const invalidUrl = new TypeError('Failed to parse URL from not a url/v2/projects', {
-      cause: Object.assign(new TypeError('Invalid URL'), { code: 'ERR_INVALID_URL' }),
-    })
-    const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValueOnce(invalidUrl)
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    await expect(listAllProjects(BASE_URL, TOKEN, { retry: { sleep } })).rejects.toBe(invalidUrl)
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(sleep).not.toHaveBeenCalled()
-  })
-
-  it('retries a 5xx on an idempotent DELETE', async () => {
-    const fetchSpy = vi
-      .spyOn(global, 'fetch')
-      .mockResolvedValueOnce(response('unavailable', { ok: false, status: 503 }))
-      .mockResolvedValueOnce(response('', { status: 204 }))
-    const sleep = vi.fn(async (_ms: number) => {})
-
-    expect(await deleteProjectFile(BASE_URL, TOKEN, 'p1', 'report.csv', { retry: { sleep } })).toBe(true)
-    expect(fetchSpy).toHaveBeenCalledTimes(2)
-    expect(fetchSpy.mock.calls.every(([, init]) => init?.method === 'DELETE')).toBe(true)
-  })
-
-  it('does not retry a network error on a file upload', async () => {
-    const networkError = new TypeError('fetch failed', {
-      cause: Object.assign(new Error('connect ECONNRESET'), { code: 'ECONNRESET' }),
-    })
-    const fetchSpy = vi.spyOn(global, 'fetch').mockRejectedValueOnce(networkError)
-
-    await expect(
-      uploadProjectFile(BASE_URL, TOKEN, 'p1', 'data/input.csv', new TextEncoder().encode('a,b'), {
-        retry: { sleep: async () => {} },
-      })
-    ).rejects.toBe(networkError)
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [first, second] = fetchSpy.mock.calls.map(([, init]) => init?.body as Uint8Array)
+    expect(second).toBe(first)
+    expect(new TextDecoder().decode(unzipSync(second)['main.deepnote'])).toBe(main)
   })
 })

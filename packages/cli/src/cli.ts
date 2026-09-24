@@ -22,13 +22,7 @@ import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
-import {
-  CONFLICT_MODES,
-  createSyncAction,
-  DEFAULT_SYNC_CONCURRENCY,
-  MAX_SYNC_CONCURRENCY,
-  parseSyncConcurrency,
-} from './commands/sync'
+import { CONFLICT_MODES, createSyncAction, DEFAULT_SYNC_CONCURRENCY, parseSyncConcurrency } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -534,8 +528,9 @@ ${c.bold('Exit Codes:')}
     .option('--dry-run', 'Show what would be synced without writing anything')
     .option(
       '--concurrency <n>',
-      `Number of projects to sync in parallel, 1 to ${MAX_SYNC_CONCURRENCY} (default: ${DEFAULT_SYNC_CONCURRENCY})`,
-      parseSyncConcurrency
+      'How many projects to sync at once (1-32); a run that moves a renamed project syncs one at a time',
+      parseSyncConcurrency,
+      DEFAULT_SYNC_CONCURRENCY
     )
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .addHelpText('after', () => {
@@ -552,19 +547,16 @@ ${c.bold('Description:')}
   exact inverse — a project changed only locally is re-uploaded as the same
   documents, with lost-update protection.
 
-  Projects sync in parallel (--concurrency, default ${DEFAULT_SYNC_CONCURRENCY}, at most ${MAX_SYNC_CONCURRENCY}).
-  Throughput is capped by your workspace's API rate limit: a rate-limited
-  request waits for Retry-After (up to 60 s, at most 5 retries) before the
-  project fails. With --all-files each parallel project may hold a file of up
-  to 100 MiB in memory.
-
 ${c.bold('Conflicts:')}
   A project edited both locally and in the cloud is a conflict. By default
   sync asks per project whether to keep the cloud version (overwriting local
   changes) or skip; --on-conflict skip/override answers up front. Without a
-  terminal (CI, piped output), conflicts are skipped. With --concurrency above
-  1, the questions are asked one at a time after the other projects finish;
-  with --concurrency 1, as each project comes up.
+  terminal (CI, piped output), conflicts are skipped.
+
+${c.bold('Rate limits:')}
+  Projects sync in parallel (--concurrency, default 8), so throughput is capped
+  by your workspace tier's API read limit (200, 600, or 2,000 requests per
+  minute). Sync waits out HTTP 429 responses and retries them up to 5 times.
 
 ${c.bold('What sync does not do:')}
   - It never creates or deletes cloud projects; .deepnote files outside
