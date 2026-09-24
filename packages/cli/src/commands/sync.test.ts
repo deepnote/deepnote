@@ -2323,6 +2323,43 @@ describe('syncWorkspace', () => {
       expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
     })
 
+    it('reports a move whose manifest save failed as that project’s error and keeps syncing the rest', async () => {
+      const projects: CloudProject[] = [
+        { id: 'p-x', name: 'Foo', notebooks: singleNotebook('p-x', '2026-01-02T00:00:00.000Z') },
+        { id: 'p-y', name: 'Other', notebooks: singleNotebook('p-y', '2026-01-02T00:00:00.000Z') },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      projects[0].name = 'Zed'
+      projects[1].notebooks = singleNotebook('p-y', '2026-01-05T00:00:00.000Z', 'cloud-edit')
+
+      const realWriteFile = fs.writeFile
+      let failedOnce = false
+      vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
+        if (String(file).endsWith('.deepnote-sync.json') && !failedOnce) {
+          failedOnce = true
+          throw new Error('disk full')
+        }
+        return realWriteFile.call(fs, file, data, ...rest)
+      })
+
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(failedOnce).toBe(true)
+      expect(result.success).toBe(false)
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p-y', action: 'pulled' }),
+        expect.objectContaining({
+          projectId: 'p-x',
+          action: 'error',
+          path: 'Zed',
+          detail: 'moved to Zed but the manifest could not be saved: disk full',
+        }),
+      ])
+      expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
+      expect((await loadSyncManifest(tempDir)).projects['p-x']?.dir).toBe('Zed')
+    })
+
     it('fails both halves of a directory swap without moving anything, as a one-at-a-time sync would', async () => {
       const projects: CloudProject[] = [
         { id: 'p-a', name: 'A', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },

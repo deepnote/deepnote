@@ -435,7 +435,14 @@ async function moveTrackedProjectDirs(
       continue
     }
     next.record.dir = next.to
-    await persistManifest()
+    try {
+      await persistManifest()
+    } catch (error) {
+      // The rename happened and the record says so in memory (the end-of-run save may still record
+      // it), but this project must not sync on a manifest that may not know where it is.
+      const message = error instanceof Error ? error.message : String(error)
+      failed.set(next.prepared, new Error(`moved to ${next.to} but the manifest could not be saved: ${message}`))
+    }
   }
   return failed
 }
