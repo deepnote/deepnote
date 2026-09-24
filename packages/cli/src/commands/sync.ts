@@ -25,10 +25,10 @@ import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import {
+  type ResumableTask,
+  type ResumableTaskStep,
   runWithConcurrency,
-  type SuspendableTask,
-  type SuspendableTaskStep,
-  startSuspendableTask,
+  startResumableTask,
 } from '../utils/concurrency'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import {
@@ -149,8 +149,8 @@ interface ConflictQuestion {
 }
 
 /** One project's sync, able to pause on a conflict question (see `syncWorkspace`). */
-type ProjectTask = SuspendableTask<ProjectSyncOutcome, ConflictQuestion, ConflictChoice>
-type ProjectTaskStep = SuspendableTaskStep<ProjectSyncOutcome, ConflictQuestion, ConflictChoice>
+type ProjectTask = ResumableTask<ProjectSyncOutcome, ConflictQuestion, ConflictChoice>
+type ProjectTaskStep = ResumableTaskStep<ProjectSyncOutcome, ConflictQuestion, ConflictChoice>
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
   if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
@@ -1026,7 +1026,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
       finish(await syncPreparedProject(ctx, item, manifest.projects, persistManifest))
       return
     }
-    const task: ProjectTask = startSuspendableTask(askConflict =>
+    const task: ProjectTask = startResumableTask(askConflict =>
       syncPreparedProject({ ...ctx, askConflict }, item, manifest.projects, persistManifest)
     )
     const step = await task.next()

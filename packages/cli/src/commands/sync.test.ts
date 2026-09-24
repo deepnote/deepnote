@@ -1875,7 +1875,7 @@ describe('syncWorkspace', () => {
         writing++
         maxWriting = Math.max(maxWriting, writing)
         try {
-          // Widen the window in which an unserialized save would overlap another one.
+          // Widen the window in which two saves that are not queued would overlap.
           await new Promise(resolve => setTimeout(resolve, 2))
           return await realWriteFile.call(fs, file, data, ...rest)
         } finally {

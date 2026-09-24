@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { runWithConcurrency, startSuspendableTask } from './concurrency'
+import { runWithConcurrency, startResumableTask } from './concurrency'
 
 /** A promise the test resolves by hand. */
 function deferred<T = void>(): { promise: Promise<T>; resolve: (value: T) => void } {
@@ -70,15 +70,15 @@ describe('runWithConcurrency', () => {
   })
 })
 
-describe('startSuspendableTask', () => {
+describe('startResumableTask', () => {
   it('reports the result of a task that never asks', async () => {
-    const task = startSuspendableTask<string, string, boolean>(async () => 'finished')
+    const task = startResumableTask<string, string, boolean>(async () => 'finished')
     expect(await task.next()).toEqual({ kind: 'done', value: 'finished' })
   })
 
   it('suspends on each question until the driver answers it', async () => {
     const log: string[] = []
-    const task = startSuspendableTask<string, string, number>(async ask => {
+    const task = startResumableTask<string, string, number>(async ask => {
       log.push('start')
       const first = await ask('first?')
       log.push(`got ${first}`)
@@ -105,7 +105,7 @@ describe('startSuspendableTask', () => {
 
   it('rejects next() when the task throws', async () => {
     const boom = new Error('boom')
-    const task = startSuspendableTask(async () => {
+    const task = startResumableTask(async () => {
       throw boom
     })
     await expect(task.next()).rejects.toBe(boom)
