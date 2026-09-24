@@ -167,8 +167,10 @@ prints a notice, waits for the time the API asks for (up to 60 seconds), and ret
 the project fails. Reads and deletes are also retried after a server error or network failure, and
 once after a timeout. With `--all-files`, memory use grows with concurrency, because each parallel project may
 hold a file of up to 100 MiB in memory. With `--concurrency` above 1, conflict prompts are asked one
-at a time after every other project has finished, and a project is checked again before your answer is
-applied; with `--concurrency 1`, they are asked as each project comes up.
+at a time after every other project has finished. Sync then re-reads the project before acting on your
+answer: an overwrite happens only if there is still something to overwrite, and working files are
+re-planned whichever way you answer. With `--concurrency 1`, prompts are asked as each project comes
+up.
 
 ## Ownership of the static site directory
 
