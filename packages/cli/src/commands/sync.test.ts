@@ -2212,12 +2212,18 @@ describe('syncWorkspace', () => {
       consoleErrorSpy.mockRestore()
     })
 
-    /** The first export of each project answers 429 with `retryAfter` seconds. */
-    function rateLimitFirstExports(retryAfter: string): () => number {
+    /** The first export of each project answers 429 with `retryAfter` seconds. The 429s are held back
+     * until `together` projects have asked, then all delivered at once. */
+    function rateLimitFirstExports(retryAfter: string, together = 1): () => number {
       const limited = new Set<string>()
+      const allAsked = deferred()
       interceptExports(async (projectId, respond) => {
         if (!limited.has(projectId)) {
           limited.add(projectId)
+          if (limited.size >= together) {
+            allAsked.resolve()
+          }
+          await allAsked.promise
           return {
             ok: false,
             status: 429,
@@ -2247,38 +2253,20 @@ describe('syncWorkspace', () => {
 
     it('says once when parallel requests wait on the same rate limit', async () => {
       installCloud(manyProjects(['Alpha', 'Beta', 'Gamma']))
-      const rateLimited = rateLimitFirstExports('30')
+      // All three 429s arrive together, so the three one-second waits overlap on real timers.
+      const rateLimited = rateLimitFirstExports('1', 3)
       const lines: string[] = []
       vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
         lines.push(String(line))
       })
       setOutputConfig({ quiet: false, color: false, debug: false })
-      // Fake the clock and the retry sleep: the wait is instant, and all three 429s land at the same
-      // instant, so "once per wait" does not depend on how fast the machine is.
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
-      try {
-        let done = false
-        const run = syncWorkspace(tempDir, baseOptions).finally(() => {
-          done = true
-        })
-        // Surfaced by `await run` below; this only keeps an early bail-out from leaving it unhandled.
-        run.catch(() => undefined)
-        // Bounded, so a sync that never finishes fails the test instead of spinning forever.
-        for (let tick = 0; !done; tick++) {
-          if (tick >= 200) {
-            throw new Error('sync did not finish within 200 fake seconds')
-          }
-          await vi.advanceTimersByTimeAsync(1_000)
-          await new Promise(resolve => setImmediate(resolve))
-        }
-        await run
-      } finally {
-        vi.useRealTimers()
-      }
 
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(result.success).toBe(true)
       expect(rateLimited()).toBe(3)
       expect(lines.filter(line => line.includes('Rate limited'))).toEqual([
-        'Rate limited by the Deepnote API; waiting 30 s…',
+        'Rate limited by the Deepnote API; waiting 1 s…',
       ])
     })
 

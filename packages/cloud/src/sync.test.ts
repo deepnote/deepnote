@@ -542,7 +542,7 @@ describe('transient failure retries', () => {
 
     expect(files).toEqual([{ filename: 'main.deepnote', content: 'version: 1.0.0\n' }])
     expect(fetchSpy).toHaveBeenCalledTimes(2)
-    expect(sleep).toHaveBeenCalledWith(7_000)
+    expect(sleep).toHaveBeenCalledWith(7_000, expect.objectContaining({ retry: 1, status: 429 }))
     expect(onRetry).toHaveBeenCalledWith(
       expect.objectContaining({
         retry: 1,

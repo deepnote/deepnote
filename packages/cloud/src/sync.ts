@@ -323,8 +323,9 @@ async function requestAndRead<T>(
     if (timedOut) {
       timeoutRetries++
     }
-    policy.onRetry?.({ retry, delayMs: backoffMs, error, description: fallback })
-    await policy.sleep(backoffMs)
+    const attempt = { retry, delayMs: backoffMs, error, description: fallback }
+    policy.onRetry?.(attempt)
+    await policy.sleep(backoffMs, attempt)
     return true
   }
 
@@ -357,8 +358,9 @@ async function requestAndRead<T>(
     if (canRetry && retryable) {
       const requestedMs = response.status === 429 ? parseRetryAfterMs(response.headers) : undefined
       const delayMs = Math.min(requestedMs ?? backoffMs, policy.maxDelayMs)
-      policy.onRetry?.({ retry, delayMs, status: response.status, description: fallback })
-      await policy.sleep(delayMs)
+      const attempt = { retry, delayMs, status: response.status, description: fallback }
+      policy.onRetry?.(attempt)
+      await policy.sleep(delayMs, attempt)
       continue
     }
     throwForFailedResponse(response, bodyText, fallback)

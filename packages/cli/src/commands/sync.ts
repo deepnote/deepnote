@@ -1088,18 +1088,26 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   }
 
   // A rate-limit wait can last up to a minute, so say so instead of looking stuck — once per wait,
-  // not once for each of the parallel requests that hit the same limit.
-  let rateLimitedUntil = 0
+  // not once for each of the parallel requests that hit the same limit: the notice prints only when
+  // the first request starts waiting on a 429 while no other request is.
+  let waitingOnRateLimit = 0
   const onRetry = (attempt: RetryAttempt) => {
     if (attempt.status !== 429) {
       logRetry(attempt)
-      return
     }
-    const now = Date.now()
-    if (now >= rateLimitedUntil) {
-      progress(getChalk().yellow(`Rate limited by the Deepnote API; waiting ${Math.ceil(attempt.delayMs / 1000)} s…`))
+  }
+  const sleep = async (ms: number, attempt: RetryAttempt): Promise<void> => {
+    const rateLimited = attempt.status === 429
+    if (rateLimited && waitingOnRateLimit++ === 0) {
+      progress(getChalk().yellow(`Rate limited by the Deepnote API; waiting ${Math.ceil(ms / 1000)} s…`))
     }
-    rateLimitedUntil = Math.max(rateLimitedUntil, now + attempt.delayMs)
+    try {
+      await new Promise<void>(resolve => setTimeout(resolve, ms))
+    } finally {
+      if (rateLimited) {
+        waitingOnRateLimit--
+      }
+    }
   }
 
   const ctx: SyncContext = {
@@ -1109,7 +1117,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     options,
     conflictMode,
     dryRun,
-    requestOptions: { retry: { onRetry } },
+    requestOptions: { retry: { onRetry, sleep } },
   }
 
   const manifest = await loadSyncManifest(rootDir)
