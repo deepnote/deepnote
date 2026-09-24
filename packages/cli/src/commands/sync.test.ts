@@ -1954,6 +1954,99 @@ describe('syncWorkspace', () => {
       await expect(fs.access(path.join(tempDir, 'Zed', 'Y'))).rejects.toThrow()
     })
 
+    it('moves a project out of a directory before another project moves into it', async () => {
+      const projects: CloudProject[] = [
+        { id: 'p-x', name: 'Foo', notebooks: singleNotebook('p-x', '2026-01-02T00:00:00.000Z') },
+        { id: 'p-y', name: 'Y', notebooks: singleNotebook('p-y', '2026-01-02T00:00:00.000Z') },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      await fs.writeFile(
+        path.join(tempDir, 'Y', 'main.deepnote'),
+        notebookYaml('p-y', 'nb-main', '2026-01-02T00:00:00.000Z', 'unpushed-edit'),
+        'utf-8'
+      )
+
+      // X leaves `Foo` for `Zed`; Y, with an unpushed edit, moves into a new folder `Foo`. Y's move
+      // sorts first by destination, but must wait until X has vacated `Foo`.
+      projects[0].name = 'Zed'
+      projects[1].folder = { id: 'f-foo', name: 'Foo', path: [{ id: 'f-foo', name: 'Foo' }] }
+
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p-y', action: 'pushed', path: 'Foo/Y' }),
+        expect.objectContaining({ projectId: 'p-x', action: 'unchanged', path: 'Zed', detail: 'moved from Foo' }),
+      ])
+      expect(cloud.importCalls).toHaveLength(1)
+      expect(cloud.importCalls[0]?.projectId).toBe('p-y')
+      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('unpushed-edit')
+      await expect(fs.access(path.join(tempDir, 'Zed', 'Y'))).rejects.toThrow()
+      expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
+    })
+
+    it('swaps two project directories without either landing inside the other', async () => {
+      const projects: CloudProject[] = [
+        { id: 'p-a', name: 'A', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },
+        { id: 'p-b', name: 'B', notebooks: singleNotebook('p-b', '2026-01-02T00:00:00.000Z') },
+      ]
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+
+      projects[0].name = 'B'
+      projects[1].name = 'A'
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p-b', action: 'unchanged', path: 'A', detail: 'moved from B' }),
+        expect.objectContaining({ projectId: 'p-a', action: 'unchanged', path: 'B', detail: 'moved from A' }),
+      ])
+      expect(await fs.readFile(path.join(tempDir, 'A', 'main.deepnote'), 'utf-8')).toContain('p-b')
+      expect(await fs.readFile(path.join(tempDir, 'B', 'main.deepnote'), 'utf-8')).toContain('p-a')
+      expect((await fs.readdir(tempDir)).sort()).toEqual(['.deepnote-sync.json', 'A', 'B'])
+    })
+
+    it('records directory moves before syncing, so an interrupted run cannot orphan a local edit', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select).mockRejectedValueOnce(exitError)
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+
+      // Beta has an unpushed edit and is renamed to Zed in the cloud. Alpha changed on both sides; its
+      // prompt comes first and is aborted, so the run stops after the move but before Zed syncs.
+      await fs.writeFile(
+        path.join(tempDir, 'Beta', 'main.deepnote'),
+        notebookYaml('p2', 'nb-main', '2026-01-02T00:00:00.000Z', 'unpushed-edit'),
+        'utf-8'
+      )
+      projects[1].name = 'Zed'
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      await withTty(async () => {
+        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 1 })).rejects.toBe(
+          exitError
+        )
+      })
+      expect((await loadSyncManifest(tempDir)).projects.p2?.dir).toBe('Zed')
+
+      // The next run still knows Zed is Beta's tracked directory, so the edit is pushed, not
+      // overwritten as an untracked directory.
+      const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'override' })
+
+      expect(result.projects).toContainEqual(expect.objectContaining({ projectId: 'p2', action: 'pushed' }))
+      expect(cloud.importCalls.map(call => call.projectId)).toEqual(['p2'])
+      expect(cloud.importCalls[0]?.documents['main.deepnote']).toContain('unpushed-edit')
+    })
+
     it('rejects a concurrency below 1 before contacting the API', async () => {
       const fetchSpy = vi.spyOn(global, 'fetch')
 
