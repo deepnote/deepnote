@@ -33,15 +33,15 @@ export async function runWithConcurrency<T>(
   }
 }
 
-/** What a {@link SuspendableTask} did next: finished, or stopped to wait for an answer. */
-export type SuspendableTaskStep<TResult, TQuestion, TAnswer> =
+/** What a {@link ResumableTask} did next: finished, or stopped to wait for an answer. */
+export type ResumableTaskStep<TResult, TQuestion, TAnswer> =
   | { kind: 'done'; value: TResult }
   | { kind: 'question'; question: TQuestion; answer: (value: TAnswer) => void }
 
 /** A running task that can pause itself on a question until its driver answers it. */
-export interface SuspendableTask<TResult, TQuestion, TAnswer> {
+export interface ResumableTask<TResult, TQuestion, TAnswer> {
   /** Resolves when the task finishes or asks a question; rejects if the task throws. */
-  next(): Promise<SuspendableTaskStep<TResult, TQuestion, TAnswer>>
+  next(): Promise<ResumableTaskStep<TResult, TQuestion, TAnswer>>
 }
 
 /**
@@ -52,10 +52,10 @@ export interface SuspendableTask<TResult, TQuestion, TAnswer> {
  * `run` receives an `ask` function. Each call suspends the task until the driver passes an answer to
  * the step's `answer` callback.
  */
-export function startSuspendableTask<TResult, TQuestion, TAnswer>(
+export function startResumableTask<TResult, TQuestion, TAnswer>(
   run: (ask: (question: TQuestion) => Promise<TAnswer>) => Promise<TResult>
-): SuspendableTask<TResult, TQuestion, TAnswer> {
-  type Step = SuspendableTaskStep<TResult, TQuestion, TAnswer> | { kind: 'failed'; error: unknown }
+): ResumableTask<TResult, TQuestion, TAnswer> {
+  type Step = ResumableTaskStep<TResult, TQuestion, TAnswer> | { kind: 'failed'; error: unknown }
   const steps: Step[] = []
   let wake: (() => void) | undefined
 
