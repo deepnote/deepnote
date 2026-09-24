@@ -1,6 +1,7 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
 import { authHeaders, DEFAULT_REQUEST_TIMEOUT_MS, request, requestText } from './http'
+import { DEFAULT_MAX_TRANSIENT_RETRIES, isTransientError, transientBackoffMs } from './retry'
 
 /**
  * Client for the Deepnote public "runs" API (preview).
@@ -40,7 +41,6 @@ export function isSuccessStatus(status: string): boolean {
 
 const DEFAULT_POLL_INTERVAL_MS = 2_000
 const DEFAULT_POLL_TIMEOUT_MS = 600_000
-const DEFAULT_MAX_TRANSIENT_RETRIES = 5
 const DEFAULT_SNAPSHOT_SETTLE_ATTEMPTS = 3
 const DEFAULT_SNAPSHOT_SETTLE_INTERVAL_MS = 1_500
 
@@ -346,15 +346,6 @@ export async function listNotebookRuns(
   }
 }
 
-/** Transient = worth retrying: rate limits, server errors, per-request timeouts, network failures. */
-function isTransientError(err: unknown): boolean {
-  if (err instanceof ApiError) {
-    return err.statusCode === 429 || err.statusCode >= 500
-  }
-  const name = (err as { name?: string } | null | undefined)?.name
-  return name === 'TimeoutError' || name === 'AbortError' || name === 'TypeError'
-}
-
 export interface PollOptions {
   intervalMs?: number
   timeoutMs?: number
@@ -412,7 +403,7 @@ export async function pollRunUntilComplete(
         if (now() >= deadline) {
           throw new RunTimeoutError(runId, lastStatus)
         }
-        const backoffMs = Math.min(intervalMs * 2 ** transientFailures, 30_000)
+        const backoffMs = transientBackoffMs(transientFailures, intervalMs, 30_000)
         await sleep(Math.min(backoffMs, Math.max(0, deadline - now())))
         continue
       }

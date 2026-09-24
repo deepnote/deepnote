@@ -68,6 +68,7 @@ export {
   type RequestOptions,
   type Workspace,
 } from './projects'
+export type { RetryAttempt, RetryOptions } from './retry'
 export {
   type NotebookSchedule,
   type ScheduleRequestOptions,
@@ -95,6 +96,7 @@ export {
   type ProjectStaticFilesSettings,
   type ProjectStaticFilesUpdate,
   type SyncProject,
+  type SyncRequestOptions,
   type UploadedFile,
   updateProjectStaticFiles,
   uploadProjectFile,
