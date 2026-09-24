@@ -349,31 +349,94 @@ async function writeProjectNotebooks(
   }
 }
 
+/** A tracked project directory that has to be renamed to its newly planned path. */
+interface PendingMove {
+  prepared: PreparedProject
+  record: ManifestProjectRecord
+  /** Where the directory is now: its manifest path, or a temporary name while parked. */
+  from: string
+  to: string
+}
+
 /**
- * Move a tracked project's directory when its planned path changed — the project or a folder was
- * renamed or moved in the cloud. A rename, not a delete: content (including the `.files` directory
- * inside it) is preserved, and a missing source just means there is nothing to move.
+ * Move tracked project directories whose planned path changed — the project or a folder was renamed
+ * or moved in the cloud. A rename, not a delete: content (including the `.files` directory inside
+ * it) is preserved, and a missing source just means there is nothing to move. Sets each moved
+ * project's `moveNote` and manifest `dir`; returns the projects whose move failed.
+ *
+ * Order matters because one project's old directory can contain (or be) another project's new one:
+ * renaming into it first would carry the other project along when the old directory moves away. So a
+ * move only runs once no other pending move still has to vacate a path overlapping its destination.
+ * When every remaining move waits on another (two projects swapping paths), one directory is parked
+ * under a temporary sibling name first, which breaks the cycle.
  */
-async function moveTrackedProjectDir(
+async function moveTrackedProjectDirs(
   ctx: SyncContext,
-  record: ManifestProjectRecord,
-  plan: PlannedProjectPaths
-): Promise<string | undefined> {
-  if (record.dir === plan.projectDir) {
-    return undefined
+  projects: readonly PreparedProject[]
+): Promise<Map<PreparedProject, unknown>> {
+  const failed = new Map<PreparedProject, unknown>()
+  let pending: PendingMove[] = []
+  for (const prepared of projects) {
+    const record = prepared.syncRecord
+    if (!record || record.dir === prepared.plan.projectDir) {
+      continue
+    }
+    prepared.moveNote = `moved from ${record.dir}`
+    if (ctx.dryRun) {
+      continue
+    }
+    if (await pathExists(toAbsolute(ctx, record.dir))) {
+      pending.push({ prepared, record, from: record.dir, to: prepared.plan.projectDir })
+    } else {
+      record.dir = prepared.plan.projectDir
+    }
   }
-  const note = `moved from ${record.dir}`
-  if (ctx.dryRun) {
-    return note
+
+  // Sources of failed moves stay where they are, so nothing may move into them either.
+  const stuck: string[] = []
+  const fail = (move: PendingMove, error: unknown) => {
+    failed.set(move.prepared, error)
+    stuck.push(move.from, move.record.dir)
+    pending = pending.filter(other => other !== move)
   }
-  const fromAbsolute = toAbsolute(ctx, record.dir)
-  const toAbsolutePath = toAbsolute(ctx, plan.projectDir)
-  if (await pathExists(fromAbsolute)) {
-    await fs.mkdir(path.dirname(toAbsolutePath), { recursive: true })
-    await fs.rename(fromAbsolute, toAbsolutePath)
+
+  while (pending.length > 0) {
+    const ready = pending.find(move => !pending.some(other => other !== move && pathsOverlap(other.from, move.to)))
+    if (!ready) {
+      // Park a directory some move is waiting on. Its temporary name overlaps no destination, so
+      // nothing waits on it again: each directory is parked at most once.
+      const waiting = pending[0] as PendingMove
+      const parked = pending.find(other => other !== waiting && pathsOverlap(other.from, waiting.to)) as PendingMove
+      const temporary = `${parked.from}.deepnote-sync-move-${crypto.randomUUID().slice(0, 8)}`
+      try {
+        await fs.rename(toAbsolute(ctx, parked.from), toAbsolute(ctx, temporary))
+        parked.from = temporary
+      } catch (error) {
+        fail(parked, error)
+      }
+      continue
+    }
+
+    const blocker = stuck.find(from => pathsOverlap(from, ready.to))
+    if (blocker !== undefined) {
+      fail(ready, new Error(`Cannot move ${ready.record.dir} to ${ready.to}: ${blocker} could not be moved away.`))
+      continue
+    }
+    try {
+      const toAbsolutePath = toAbsolute(ctx, ready.to)
+      await fs.mkdir(path.dirname(toAbsolutePath), { recursive: true })
+      await fs.rename(toAbsolute(ctx, ready.from), toAbsolutePath)
+      ready.record.dir = ready.to
+      pending = pending.filter(other => other !== ready)
+    } catch (error) {
+      // Put a parked directory back where the manifest expects it, if that path is still free.
+      if (ready.from !== ready.record.dir && !(await pathExists(toAbsolute(ctx, ready.record.dir)))) {
+        await fs.rename(toAbsolute(ctx, ready.from), toAbsolute(ctx, ready.record.dir)).catch(() => undefined)
+      }
+      fail(ready, error)
+    }
   }
-  record.dir = plan.projectDir
-  return note
+  return failed
 }
 
 /** Download changed working-directory files for one project (`--all-files`). Incremental: a file
@@ -735,9 +798,9 @@ function projectErrorOutcome(base: OutcomeBase, error: unknown): ProjectSyncOutc
 }
 
 /**
- * The local-only first step of a project's sync: pick the manifest record that applies and move the
- * directory when the project or a folder was renamed. Every project is prepared, one at a time,
- * before any project syncs: a move renames a whole directory tree, and a project's old directory can
+ * The local-only first step of a project's sync: pick the manifest record that applies. Every
+ * project is prepared, and every directory move made (see {@link moveTrackedProjectDirs}), before
+ * any project syncs: a move renames a whole directory tree, and a project's old directory can
  * contain another project's new one, so a move must never race another project's writes.
  */
 async function prepareProject(
@@ -757,8 +820,7 @@ async function prepareProject(
       !(await pathExists(toAbsolute(ctx, record.dir))) &&
       (await pathExists(toAbsolute(ctx, plan.projectDir)))
     const syncRecord = destinationIsUntracked ? undefined : record
-    const moveNote = syncRecord ? await moveTrackedProjectDir(ctx, syncRecord, plan) : undefined
-    return { prepared: { project, plan, base, syncRecord, moveNote } }
+    return { prepared: { project, plan, base, syncRecord, moveNote: undefined } }
   } catch (error) {
     return { outcome: projectErrorOutcome(base, error) }
   }
@@ -776,7 +838,7 @@ async function syncPreparedProject(
   const { project, plan, base, syncRecord, moveNote } = prepared
 
   try {
-    // In a dry run prepareProject did not move anything, so the directory is still at its manifest
+    // In a dry run moveTrackedProjectDirs did not move anything, so the directory is still at its manifest
     // path.
     const localReadDir = ctx.dryRun && syncRecord ? syncRecord.dir : plan.projectDir
     const localFiles = await readLocalNotebookFiles(toAbsolute(ctx, localReadDir))
@@ -1000,7 +1062,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   }
 
   // Directory moves first, one at a time (see prepareProject).
-  const prepared: PreparedProject[] = []
+  const candidates: PreparedProject[] = []
   for (const project of sortedProjects) {
     const plan = plans.get(project.id)
     if (!plan) {
@@ -1010,8 +1072,24 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     if ('outcome' in result) {
       finish(result.outcome)
     } else {
-      prepared.push(result.prepared)
+      candidates.push(result.prepared)
     }
+  }
+  const failedMoves = await moveTrackedProjectDirs(ctx, candidates)
+  const prepared: PreparedProject[] = []
+  for (const candidate of candidates) {
+    const error = failedMoves.get(candidate)
+    if (error === undefined) {
+      prepared.push(candidate)
+    } else {
+      finish(projectErrorOutcome(candidate.base, error))
+    }
+  }
+  // Record the moves before anything else can fail: a run interrupted later must not leave a moved
+  // directory that the manifest still expects at its old path, or the next run would treat it as
+  // untracked and could overwrite unpushed edits in it.
+  if (!ctx.dryRun && candidates.some(candidate => candidate.moveNote !== undefined)) {
+    await persistManifest()
   }
 
   // Then the network-bound part, several projects at a time. A conflict prompt cannot share the
