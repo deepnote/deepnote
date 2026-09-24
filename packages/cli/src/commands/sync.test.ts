@@ -2225,7 +2225,13 @@ describe('syncWorkspace', () => {
         const run = syncWorkspace(tempDir, baseOptions).finally(() => {
           done = true
         })
-        while (!done) {
+        // Surfaced by `await run` below; this only keeps an early bail-out from leaving it unhandled.
+        run.catch(() => undefined)
+        // Bounded, so a sync that never finishes fails the test instead of spinning forever.
+        for (let tick = 0; !done; tick++) {
+          if (tick >= 200) {
+            throw new Error('sync did not finish within 200 fake seconds')
+          }
           await vi.advanceTimersByTimeAsync(1_000)
           await new Promise(resolve => setImmediate(resolve))
         }
@@ -2360,7 +2366,7 @@ describe('syncWorkspace', () => {
       expect((await loadSyncManifest(tempDir)).projects['p-x']?.dir).toBe('Zed')
     })
 
-    it('fails both halves of a directory swap without moving anything, as a one-at-a-time sync would', async () => {
+    it('fails both halves of a swap between two non-empty directories, moving nothing, as on main', async () => {
       const projects: CloudProject[] = [
         { id: 'p-a', name: 'A', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },
         { id: 'p-b', name: 'B', notebooks: singleNotebook('p-b', '2026-01-02T00:00:00.000Z') },
