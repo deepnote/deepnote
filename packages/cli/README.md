@@ -727,16 +727,10 @@ push yourself. Even with `--prune`, a stale manifest entry cannot delete a direc
 used by a current cloud project. Sync also refuses to prune when none of the tracked project IDs match
 the listed workspace; verify the API token and `--url` before retrying.
 
-Projects sync in parallel, 8 at a time by default (`--concurrency`, at most 32). Throughput is
-ultimately bounded by your workspace plan's API rate limit. A rate-limited request (HTTP 429) waits for
-`Retry-After` (up to 60 s per wait) and is retried at most 5 times before the project fails; sync
-prints a line while it waits. Reads and deletes are also retried after a server error (5xx) or
-network failure, and once after a timeout. With `--all-files`, memory use grows with concurrency:
-each parallel project may buffer a file of up to 100 MiB. With `--on-conflict ask` and `--concurrency`
-above 1, conflict questions are asked one at a time after every other project has finished. Sync then
-re-reads the project (local files and a fresh export) before acting on the answer: an overwrite runs
-only if there is still something to overwrite, and working-file uploads are re-planned whichever way
-you answer. With `--concurrency 1` they are asked inline, as each project comes up.
+Projects sync in parallel, 8 at a time by default (`--concurrency`, 1–32). Throughput is capped by the
+workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
+responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
+one project at a time.
 
 **Options:**
 
@@ -749,7 +743,7 @@ you answer. With `--concurrency 1` they are asked inline, as each project comes 
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
-| `--concurrency <n>`          | Number of projects to sync in parallel (1–32)                           | `8`          |
+| `--concurrency <n>`          | How many projects to sync at once (1–32)                                | `8`          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
 
 **Examples:**

@@ -23,19 +23,8 @@ document metadata. `--all-files` also uploads changed working-directory files on
 | `--delete-missing-notebooks` | On push, delete cloud notebooks that were removed from the local project            |
 | `--prune`                    | Delete local directories/files for projects that no longer exist                    |
 | `--dry-run`                  | Show what would be synced without writing or uploading anything                     |
-| `--concurrency <n>`          | Number of projects to sync in parallel (default `8`, integer from 1 to 32)          |
+| `--concurrency <n>`          | Projects to sync at once, 1–32 (default 8); invalid values exit 2                   |
 | `-o, --output <format>`      | Output format: `json`, `llm`                                                        |
-
-Projects sync in parallel. Throughput is bounded by the workspace plan's API rate limit. A
-rate-limited request (HTTP 429) waits for `Retry-After` (up to 60 s) and is retried at most 5 times
-before the project becomes an `error` outcome. Reads and deletes are also retried after 5xx or
-network failures, and once after a timeout; imports and uploads are not. With `--all-files`, each
-parallel project may buffer a file of up to 100 MiB. With `ask` and `--concurrency` above 1, conflict
-prompts come one at a time after every other project has finished. An override runs only after the
-project is re-read (local files and a fresh export), and only if there is still something to overwrite;
-working-file uploads are re-planned on a fresh inventory whichever way you answer. A notebook-level skip
-changes nothing, so it is not re-checked. With `--concurrency 1` they come inline. In `-o json`, the synced-project entries are sorted by path,
-and `missing-in-cloud` / `pruned` entries follow them.
 
 **Examples:**
 
@@ -55,6 +44,11 @@ deepnote sync workspace --dry-run
 # Machine-readable summary
 deepnote sync workspace -o json
 ```
+
+Projects sync in parallel, 8 at a time by default (`--concurrency`, 1–32). Throughput is capped by the
+workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
+responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
+one project at a time.
 
 ## How sync decides
 
