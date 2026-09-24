@@ -39,19 +39,21 @@ describe('transientBackoffMs', () => {
 describe('isNetworkError', () => {
   const withCode = (code: string) => Object.assign(new Error(code), { code })
 
-  it('recognizes fetch network failures by message or by a system/undici error code', () => {
+  it('recognizes a fetch failure caused by a connection error', () => {
     expect(isNetworkError(new TypeError('fetch failed', { cause: withCode('ECONNREFUSED') }))).toBe(true)
-    expect(isNetworkError(new TypeError('fetch failed'))).toBe(true)
     expect(isNetworkError(new TypeError('terminated', { cause: withCode('UND_ERR_SOCKET') }))).toBe(true)
-    expect(isNetworkError(new TypeError('other side closed', { cause: withCode('ECONNRESET') }))).toBe(true)
   })
 
-  it('rejects TypeErrors that report a caller mistake', () => {
+  it('rejects fetch failures that would fail the same way on every attempt', () => {
+    expect(isNetworkError(new TypeError('fetch failed', { cause: withCode('ERR_SSL_WRONG_VERSION_NUMBER') }))).toBe(
+      false
+    )
+    expect(isNetworkError(new TypeError('fetch failed', { cause: new Error('redirect count exceeded') }))).toBe(false)
+    expect(isNetworkError(new TypeError('fetch failed'))).toBe(false)
     expect(isNetworkError(new TypeError('Failed to parse URL from nope', { cause: withCode('ERR_INVALID_URL') }))).toBe(
       false
     )
-    expect(isNetworkError(new TypeError('Headers.append: "Bearer a\nb" is an invalid header value.'))).toBe(false)
-    expect(isNetworkError(new Error('fetch failed'))).toBe(false)
+    expect(isNetworkError(Object.assign(new Error('fetch failed'), { cause: withCode('ECONNRESET') }))).toBe(false)
   })
 })
 

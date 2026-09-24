@@ -29,26 +29,32 @@ export function isTimeoutError(err: unknown): boolean {
   return name === 'TimeoutError' || name === 'AbortError'
 }
 
-const NETWORK_FAILURE_MESSAGE = /fetch failed|network|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|socket hang up/i
-/** System (`ECONNRESET`, …) and undici (`UND_ERR_SOCKET`, …) error codes — not Node's `ERR_*` codes,
- * which report caller mistakes such as an invalid URL. */
-const NETWORK_FAILURE_CODE = /^(E[A-Z]+|UND_ERR_[A-Z_]+)$/
+/** Cause codes of connection-level failures worth retrying. Undici wraps every fetch failure in
+ * `TypeError('fetch failed')` — including TLS errors, redirect loops, bad ports, and HTTP parser
+ * errors, which fail identically on every attempt — so only these codes count. */
+const RETRYABLE_NETWORK_CODES = new Set([
+  'ECONNRESET',
+  'ECONNREFUSED',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'EPIPE',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'UND_ERR_SOCKET',
+  'UND_ERR_CONNECT_TIMEOUT',
+])
 
 /**
- * A fetch that failed on the network (connection refused or reset, DNS failure, dropped socket).
- * `fetch` reports these as a `TypeError`, but it also throws `TypeError` for caller mistakes (an
- * invalid URL, a header value with a newline) that fail identically on every attempt, so a
- * `TypeError` only counts when its message or its cause's error code says it was the network.
+ * A fetch that failed on the network (connection refused or reset, DNS failure, dropped socket):
+ * a `TypeError` whose cause carries one of the allow-listed connection error codes.
  */
 export function isNetworkError(err: unknown): boolean {
   if (!(err instanceof TypeError)) {
     return false
   }
-  if (NETWORK_FAILURE_MESSAGE.test(err.message)) {
-    return true
-  }
   const code = (err.cause as { code?: unknown } | undefined)?.code
-  return err.cause instanceof Error && typeof code === 'string' && NETWORK_FAILURE_CODE.test(code)
+  return typeof code === 'string' && RETRYABLE_NETWORK_CODES.has(code)
 }
 
 /** Capped exponential backoff: `baseMs * 2^retry`, never above `maxMs`. `retry` counts from 1. */
