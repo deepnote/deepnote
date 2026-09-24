@@ -2123,9 +2123,23 @@ describe('syncWorkspace', () => {
       // sorts first by destination, but must wait until X has vacated `Foo`.
       projects[0].name = 'Zed'
       projects[1].folder = { id: 'f-foo', name: 'Foo', path: [{ id: 'f-foo', name: 'Foo' }] }
+      const manifestDirs: Record<string, string | undefined>[] = []
+      const realWriteFile = fs.writeFile
+      vi.spyOn(fs, 'writeFile').mockImplementation(async (file, data, ...rest) => {
+        if (String(file).endsWith('.deepnote-sync.json')) {
+          const saved = JSON.parse(String(data)).projects
+          manifestDirs.push({ x: saved['p-x']?.dir, y: saved['p-y']?.dir })
+        }
+        return realWriteFile.call(fs, file, data, ...rest)
+      })
 
       const result = await syncWorkspace(tempDir, baseOptions)
 
+      // Each rename is on disk in the manifest before the next one starts.
+      expect(manifestDirs.slice(0, 2)).toEqual([
+        { x: 'Zed', y: 'Y' },
+        { x: 'Zed', y: 'Foo/Y' },
+      ])
       expect(result.projects).toEqual([
         expect.objectContaining({ projectId: 'p-y', action: 'pushed', path: 'Foo/Y' }),
         expect.objectContaining({ projectId: 'p-x', action: 'unchanged', path: 'Zed', detail: 'moved from Foo' }),
@@ -2137,25 +2151,38 @@ describe('syncWorkspace', () => {
       expect(await fs.readFile(path.join(tempDir, 'Zed', 'main.deepnote'), 'utf-8')).toContain('p-x')
     })
 
-    it('swaps two project directories without either landing inside the other', async () => {
+    it('fails both halves of a directory swap without moving anything, as a one-at-a-time sync would', async () => {
       const projects: CloudProject[] = [
         { id: 'p-a', name: 'A', notebooks: singleNotebook('p-a', '2026-01-02T00:00:00.000Z') },
         { id: 'p-b', name: 'B', notebooks: singleNotebook('p-b', '2026-01-02T00:00:00.000Z') },
       ]
       installCloud(projects)
       await syncWorkspace(tempDir, baseOptions)
+      const manifestBefore = await fs.readFile(path.join(tempDir, '.deepnote-sync.json'), 'utf-8')
 
       projects[0].name = 'B'
       projects[1].name = 'A'
       const result = await syncWorkspace(tempDir, baseOptions)
 
+      expect(result.success).toBe(false)
       expect(result.projects).toEqual([
-        expect.objectContaining({ projectId: 'p-b', action: 'unchanged', path: 'A', detail: 'moved from B' }),
-        expect.objectContaining({ projectId: 'p-a', action: 'unchanged', path: 'B', detail: 'moved from A' }),
+        expect.objectContaining({
+          projectId: 'p-b',
+          action: 'error',
+          path: 'A',
+          detail: expect.stringMatching(/rename/),
+        }),
+        expect.objectContaining({
+          projectId: 'p-a',
+          action: 'error',
+          path: 'B',
+          detail: expect.stringMatching(/rename/),
+        }),
       ])
-      expect(await fs.readFile(path.join(tempDir, 'A', 'main.deepnote'), 'utf-8')).toContain('p-b')
-      expect(await fs.readFile(path.join(tempDir, 'B', 'main.deepnote'), 'utf-8')).toContain('p-a')
+      expect(await fs.readFile(path.join(tempDir, 'A', 'main.deepnote'), 'utf-8')).toContain('p-a')
+      expect(await fs.readFile(path.join(tempDir, 'B', 'main.deepnote'), 'utf-8')).toContain('p-b')
       expect((await fs.readdir(tempDir)).sort()).toEqual(['.deepnote-sync.json', 'A', 'B'])
+      expect(await fs.readFile(path.join(tempDir, '.deepnote-sync.json'), 'utf-8')).toBe(manifestBefore)
     })
 
     it('records directory moves before syncing, so an interrupted run cannot orphan a local edit', async () => {
