@@ -123,8 +123,9 @@ export interface RetryOptions {
   maxDelayMs?: number
   /** Called before each retry's wait, e.g. to log that the client is being throttled. */
   onRetry?: (attempt: RetryAttempt) => void
-  /** Injectable for tests. */
-  sleep?: (ms: number) => Promise<void>
+  /** Performs the wait before a retry, given that retry's details (the same object `onRetry`
+   * receives). Replace it to track how many requests are waiting, or in tests. Default: a timer. */
+  sleep?: (ms: number, attempt: RetryAttempt) => Promise<void>
 }
 
 export interface ResolvedRetryPolicy {
@@ -133,7 +134,7 @@ export interface ResolvedRetryPolicy {
   baseDelayMs: number
   maxDelayMs: number
   onRetry?: (attempt: RetryAttempt) => void
-  sleep: (ms: number) => Promise<void>
+  sleep: (ms: number, attempt: RetryAttempt) => Promise<void>
 }
 
 export function resolveRetryPolicy(options: RetryOptions | undefined): ResolvedRetryPolicy {
