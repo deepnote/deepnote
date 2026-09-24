@@ -317,7 +317,7 @@ describe('CLI', () => {
       }
     })
 
-    it.each(['0', '33', 'x'])('exits with code 2 for sync --concurrency %s', async value => {
+    it.each(['0', '-1', '1.5'])('exits with code 2 for sync --concurrency %s', async value => {
       const program = createProgram()
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(code => {
         throw new Error(`process.exit called with ${code}`)

@@ -231,15 +231,7 @@ export interface ImportProjectResult {
   contentHash: string
 }
 
-/** Request options for this module's calls. */
-export interface SyncRequestOptions extends RequestOptions {
-  /** Called before waiting out an HTTP 429, with the wait in milliseconds. */
-  onRateLimited?: (waitMs: number) => void
-  /** Waits between 429 retries; injectable for tests. */
-  sleep?: (ms: number) => Promise<void>
-}
-
-export interface ImportProjectOptions extends SyncRequestOptions {
+export interface ImportProjectOptions extends RequestOptions {
   /**
    * The `metadata.modifiedAt` of the export this import was edited from. When set, the server
    * rejects the import with a 409 if the project changed *structurally* after that point —
@@ -290,20 +282,13 @@ function rateLimitWaitMs(headers: Headers, retry: number): number {
  * expect, with the 401/403 wording the other modules use. An HTTP 429 is waited out and retried up
  * to {@link MAX_RATE_LIMIT_RETRIES} times; every other failure surfaces immediately.
  */
-async function requestOk(
-  url: string,
-  init: RequestInit,
-  timeoutMs: number,
-  fallback: string,
-  options: SyncRequestOptions = {}
-): Promise<Response> {
+async function requestOk(url: string, init: RequestInit, timeoutMs: number, fallback: string): Promise<Response> {
   const send = () => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
   let response = await send()
   for (let retry = 1; response.status === 429 && retry <= MAX_RATE_LIMIT_RETRIES; retry++) {
     const waitMs = rateLimitWaitMs(response.headers, retry)
     await response.body?.cancel().catch(() => undefined)
-    options.onRateLimited?.(waitMs)
-    await (options.sleep ?? (ms => new Promise<void>(resolve => setTimeout(resolve, ms))))(waitMs)
+    await new Promise(resolve => setTimeout(resolve, waitMs))
     response = await send()
   }
   if (response.ok) {
@@ -347,7 +332,7 @@ async function parseJsonResponse<T>(response: Response, schema: z.ZodType<T>, wh
 export async function listAllProjects(
   baseUrl: string,
   token: string,
-  options: SyncRequestOptions = {}
+  options: RequestOptions = {}
 ): Promise<SyncProject[]> {
   const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
   const projects: SyncProject[] = []
@@ -364,8 +349,7 @@ export async function listAllProjects(
       url.toString(),
       { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
       timeout,
-      'Failed to list Deepnote projects',
-      options
+      'Failed to list Deepnote projects'
     )
     const parsed = await parseJsonResponse(response, listProjectsPageSchema, 'list projects')
 
@@ -389,14 +373,13 @@ export async function getProjectDetail(
   baseUrl: string,
   token: string,
   projectId: string,
-  options: SyncRequestOptions = {}
+  options: RequestOptions = {}
 ): Promise<ProjectDetail> {
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-    'Failed to fetch Deepnote project',
-    options
+    'Failed to fetch Deepnote project'
   )
   const parsed = await parseJsonResponse(response, projectDetailSchema, 'fetch project')
   return parsed.project
@@ -413,7 +396,7 @@ export async function updateProjectStaticFiles(
   token: string,
   projectId: string,
   update: ProjectStaticFilesUpdate,
-  options: SyncRequestOptions = {}
+  options: RequestOptions = {}
 ): Promise<ProjectStaticFilesSettings> {
   const uncheckedUpdate = update as { sharingEnabled?: boolean; apiAccessEnabled?: boolean }
   if (uncheckedUpdate.sharingEnabled === false && uncheckedUpdate.apiAccessEnabled === true) {
@@ -428,8 +411,7 @@ export async function updateProjectStaticFiles(
       body: JSON.stringify({ staticFiles: update }),
     },
     options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-    'Failed to update Deepnote project',
-    options
+    'Failed to update Deepnote project'
   )
   const parsed = await parseJsonResponse(response, updateProjectStaticFilesResponseSchema, 'update project')
   return parsed.project.staticFiles
@@ -454,14 +436,13 @@ export async function exportProject(
   baseUrl: string,
   token: string,
   projectId: string,
-  options: SyncRequestOptions = {}
+  options: RequestOptions = {}
 ): Promise<ExportedNotebookFile[]> {
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/export`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
-    'Failed to export Deepnote project',
-    options
+    'Failed to export Deepnote project'
   )
 
   const archive = new Uint8Array(await response.arrayBuffer())
@@ -549,8 +530,7 @@ export async function importProject(
       body: archive,
     },
     options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
-    'Failed to import Deepnote project',
-    options
+    'Failed to import Deepnote project'
   )
   const parsed = await parseJsonResponse(response, importProjectResponseSchema, 'import project')
   return {
@@ -584,8 +564,7 @@ export async function downloadProjectFile(
     url.toString(),
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
-    `Failed to download "${filePath}"`,
-    options
+    `Failed to download "${filePath}"`
   )
   return readProjectFileBytes(response, filePath, projectFileTransferLimit(options))
 }
@@ -597,7 +576,7 @@ export interface UploadedFile {
   updatedAt?: string
 }
 
-export interface ProjectFileTransferOptions extends SyncRequestOptions {
+export interface ProjectFileTransferOptions extends RequestOptions {
   /** Optional lower buffered-byte ceiling for this transfer. The hard limit is 100 MiB. */
   maxBytes?: number
 }
@@ -688,8 +667,7 @@ export async function uploadProjectFile(
     `${trimTrailingSlash(baseUrl)}/v2/files`,
     { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form },
     options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
-    `Failed to upload "${filePath}"`,
-    options
+    `Failed to upload "${filePath}"`
   )
   const parsed = await parseJsonResponse(response, uploadFileResponseSchema, 'upload file')
   return parsed.file
@@ -706,7 +684,7 @@ export async function deleteProjectFile(
   token: string,
   projectId: string,
   filePath: string,
-  options: SyncRequestOptions = {}
+  options: RequestOptions = {}
 ): Promise<boolean> {
   const url = new URL(`${trimTrailingSlash(baseUrl)}/v2/files`)
   url.searchParams.set('projectId', projectId)
@@ -717,8 +695,7 @@ export async function deleteProjectFile(
       url.toString(),
       { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
       options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-      `Failed to delete "${filePath}"`,
-      options
+      `Failed to delete "${filePath}"`
     )
     return true
   } catch (error) {

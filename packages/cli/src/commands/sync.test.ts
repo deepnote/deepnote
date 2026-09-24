@@ -1823,8 +1823,12 @@ describe('syncWorkspace', () => {
       }
     })
 
-    it.each(['0', '33', 'x', '1.5'])('rejects --concurrency %s', value => {
-      expect(() => parseSyncConcurrency(value)).toThrow('Must be an integer from 1 to 32.')
+    it.each(['0', '-1', 'x', '1.5'])('rejects --concurrency %s', value => {
+      expect(() => parseSyncConcurrency(value)).toThrow('Must be a positive integer.')
+    })
+
+    it('accepts any positive integer for --concurrency', () => {
+      expect(parseSyncConcurrency('100')).toBe(100)
     })
   })
 })

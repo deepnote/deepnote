@@ -525,44 +525,50 @@ describe('rate limiting (HTTP 429)', () => {
       text: () => Promise.resolve(JSON.stringify({ message: 'Too many requests, please try again later.' })),
     }) as unknown as Response
 
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it.each<{ headers: Record<string, string>; waitMs: number }>([
     { headers: { 'Retry-After': '7', 'RateLimit-Reset': '30' }, waitMs: 7_000 },
     { headers: { 'Retry-After': new Date(Date.now() + 120_000).toUTCString() }, waitMs: 60_000 },
     { headers: { 'RateLimit-Reset': '3' }, waitMs: 3_000 },
     { headers: {}, waitMs: 1_000 },
   ])('waits $waitMs ms for $headers, then retries', async ({ headers, waitMs }) => {
+    vi.useFakeTimers()
     const fetchSpy = vi
       .spyOn(global, 'fetch')
       .mockResolvedValueOnce(tooManyRequests(headers))
       .mockResolvedValueOnce(listed())
-    const sleep = vi.fn((_ms: number) => Promise.resolve())
-    const onRateLimited = vi.fn()
 
-    await expect(listAllProjects(BASE_URL, TOKEN, { sleep, onRateLimited })).resolves.toEqual([])
+    const projects = listAllProjects(BASE_URL, TOKEN)
+    await vi.advanceTimersByTimeAsync(waitMs - 1)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
 
+    await expect(projects).resolves.toEqual([])
     expect(fetchSpy).toHaveBeenCalledTimes(2)
-    expect(sleep).toHaveBeenCalledWith(waitMs)
-    expect(onRateLimited).toHaveBeenCalledWith(waitMs)
   })
 
   it('gives up after 5 retries with the same error as any other failure', async () => {
+    vi.useFakeTimers()
     const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(tooManyRequests()))
-    const sleep = vi.fn((_ms: number) => Promise.resolve())
 
-    await expect(listAllProjects(BASE_URL, TOKEN, { sleep })).rejects.toEqual(
+    const failed = expect(listAllProjects(BASE_URL, TOKEN)).rejects.toEqual(
       new ApiError(429, 'Too many requests, please try again later.')
     )
+    // Backoff without headers: 1 + 2 + 4 + 8 + 16 seconds.
+    await vi.advanceTimersByTimeAsync(31_000)
+
+    await failed
     expect(fetchSpy).toHaveBeenCalledTimes(6)
-    expect(sleep.mock.calls.map(([ms]) => ms)).toEqual([1_000, 2_000, 4_000, 8_000, 16_000])
   })
 
   it('does not retry a server error', async () => {
     const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(response('boom', { ok: false, status: 500 }))
-    const sleep = vi.fn((_ms: number) => Promise.resolve())
 
-    await expect(listAllProjects(BASE_URL, TOKEN, { sleep })).rejects.toBeInstanceOf(ApiError)
+    await expect(listAllProjects(BASE_URL, TOKEN)).rejects.toBeInstanceOf(ApiError)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
-    expect(sleep).not.toHaveBeenCalled()
   })
 
   it('re-sends the import body after a 429', async () => {

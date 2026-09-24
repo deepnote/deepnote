@@ -95,7 +95,6 @@ export {
   type ProjectStaticFilesSettings,
   type ProjectStaticFilesUpdate,
   type SyncProject,
-  type SyncRequestOptions,
   type UploadedFile,
   updateProjectStaticFiles,
   uploadProjectFile,

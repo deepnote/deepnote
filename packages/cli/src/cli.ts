@@ -528,7 +528,7 @@ ${c.bold('Exit Codes:')}
     .option('--dry-run', 'Show what would be synced without writing anything')
     .option(
       '--concurrency <n>',
-      'How many projects to sync at once (1-32); a run that moves a renamed project syncs one at a time',
+      'How many projects to sync at once; a run that moves a renamed project syncs one at a time',
       parseSyncConcurrency,
       DEFAULT_SYNC_CONCURRENCY
     )
