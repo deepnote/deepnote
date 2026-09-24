@@ -1023,6 +1023,27 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     debug('No interactive terminal; conflicts will be skipped. Use --on-conflict to decide up front.')
   }
 
+  const progress = (message: string) => {
+    if (!isMachineOutput) {
+      log(message)
+    }
+  }
+
+  // A rate-limit wait can last up to a minute, so say so instead of looking stuck — once per wait,
+  // not once for each of the parallel requests that hit the same limit.
+  let rateLimitedUntil = 0
+  const onRetry = (attempt: RetryAttempt) => {
+    if (attempt.status !== 429) {
+      logRetry(attempt)
+      return
+    }
+    const now = Date.now()
+    if (now >= rateLimitedUntil) {
+      progress(getChalk().yellow(`Rate limited by the Deepnote API; waiting ${Math.ceil(attempt.delayMs / 1000)} s…`))
+    }
+    rateLimitedUntil = Math.max(rateLimitedUntil, now + attempt.delayMs)
+  }
+
   const ctx: SyncContext = {
     rootDir,
     baseUrl: options.url ?? DEFAULT_API_URL,
@@ -1030,12 +1051,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     options,
     conflictMode,
     dryRun,
-    requestOptions: { retry: { onRetry: logRetry } },
-  }
-  const progress = (message: string) => {
-    if (!isMachineOutput) {
-      log(message)
-    }
+    requestOptions: { retry: { onRetry } },
   }
 
   const manifest = await loadSyncManifest(rootDir)
@@ -1207,15 +1223,14 @@ function compareOutcomes(a: OutcomeBase, b: OutcomeBase): number {
   return a.path.localeCompare(b.path) || a.projectId.localeCompare(b.projectId)
 }
 
+/** Debug line for a retried server error, timeout, or network failure. */
 function logRetry(attempt: RetryAttempt): void {
   const reason =
-    attempt.status === 429
-      ? 'rate limited by the Deepnote API'
-      : attempt.status !== undefined
-        ? `HTTP ${attempt.status}`
-        : attempt.error instanceof Error
-          ? attempt.error.message
-          : String(attempt.error)
+    attempt.status !== undefined
+      ? `HTTP ${attempt.status}`
+      : attempt.error instanceof Error
+        ? attempt.error.message
+        : String(attempt.error)
   debug(`${attempt.description}: ${reason}; retry ${attempt.retry} in ${(attempt.delayMs / 1000).toFixed(1)}s`)
 }
 

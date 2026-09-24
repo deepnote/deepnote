@@ -1992,31 +1992,64 @@ describe('syncWorkspace', () => {
       consoleErrorSpy.mockRestore()
     })
 
-    it('retries a rate-limited export instead of reporting the project as failed', async () => {
-      installCloud(manyProjects(['Alpha', 'Beta']))
-      let rateLimited = 0
+    /** The first export of each project answers 429 with `retryAfter` seconds. */
+    function rateLimitFirstExports(retryAfter: string): () => number {
+      const limited = new Set<string>()
       interceptExports(async (projectId, respond) => {
-        if (projectId === 'p0' && rateLimited === 0) {
-          rateLimited++
+        if (!limited.has(projectId)) {
+          limited.add(projectId)
           return {
             ok: false,
             status: 429,
             statusText: 'Too Many Requests',
-            headers: new Headers({ 'Retry-After': '0' }),
+            headers: new Headers({ 'Retry-After': retryAfter }),
             text: () => Promise.resolve(JSON.stringify({ message: 'Rate limit exceeded. Please retry later.' })),
           } as unknown as Response
         }
         return respond()
       })
+      return () => limited.size
+    }
+
+    it('retries a rate-limited export instead of reporting the project as failed', async () => {
+      installCloud(manyProjects(['Alpha', 'Beta']))
+      const rateLimited = rateLimitFirstExports('0')
 
       const result = await syncWorkspace(tempDir, baseOptions)
 
-      expect(rateLimited).toBe(1)
+      expect(rateLimited()).toBe(2)
       expect(result.success).toBe(true)
       expect(result.projects).toEqual([
         expect.objectContaining({ projectId: 'p0', action: 'pulled' }),
         expect.objectContaining({ projectId: 'p1', action: 'pulled' }),
       ])
+    })
+
+    it('says once when parallel requests wait on the same rate limit', async () => {
+      installCloud(manyProjects(['Alpha', 'Beta', 'Gamma']))
+      rateLimitFirstExports('1')
+      const lines: string[] = []
+      vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
+        lines.push(String(line))
+      })
+      setOutputConfig({ quiet: false, color: false, debug: false })
+
+      await syncWorkspace(tempDir, baseOptions)
+
+      expect(lines.filter(line => line.includes('Rate limited'))).toEqual([
+        'Rate limited by the Deepnote API; waiting 1 s…',
+      ])
+    })
+
+    it('keeps rate-limit notices out of machine-readable output', async () => {
+      installCloud(manyProjects(['Alpha']))
+      rateLimitFirstExports('0')
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+      setOutputConfig({ quiet: false, color: false, debug: false })
+
+      await syncWorkspace(tempDir, { ...baseOptions, output: 'json' })
+
+      expect(log).not.toHaveBeenCalled()
     })
 
     it('moves renamed directories before any project writes, so a new project inside an old path stays put', async () => {
