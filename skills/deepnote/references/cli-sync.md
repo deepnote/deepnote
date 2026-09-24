@@ -23,7 +23,7 @@ document metadata. `--all-files` also uploads changed working-directory files on
 | `--delete-missing-notebooks` | On push, delete cloud notebooks that were removed from the local project            |
 | `--prune`                    | Delete local directories/files for projects that no longer exist                    |
 | `--dry-run`                  | Show what would be synced without writing or uploading anything                     |
-| `--concurrency <n>`          | Projects to sync at once, 1–32 (default 8); invalid values exit 2                   |
+| `--concurrency <n>`          | Projects to sync at once, a positive integer (default 8); invalid values exit 2     |
 | `-o, --output <format>`      | Output format: `json`, `llm`                                                        |
 
 **Examples:**
@@ -45,7 +45,7 @@ deepnote sync workspace --dry-run
 deepnote sync workspace -o json
 ```
 
-Projects sync in parallel, 8 at a time by default (`--concurrency`, 1–32). Throughput is capped by the
+Projects sync in parallel, 8 at a time by default (`--concurrency`). Throughput is capped by the
 workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
 responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
 one project at a time.
