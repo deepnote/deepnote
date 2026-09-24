@@ -1810,6 +1810,42 @@ describe('syncWorkspace', () => {
       expect(forced[0]?.documents['main.deepnote']).toContain('edited-while-waiting')
     })
 
+    it('asks a follow-up push-conflict question after a confirmed empty push, then force-pushes', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects: CloudProject[] = [
+        { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z') },
+        { id: 'p2', name: 'Beta', notebooks: singleNotebook('p2', '2026-01-02T00:00:00.000Z') },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      await fs.rm(path.join(tempDir, 'Alpha', 'main.deepnote'))
+      projects[0].importConflict = 'unless-forced'
+      projects[0].notebooksAfterImport = []
+
+      const messages: string[] = []
+      vi.mocked(select).mockImplementation(async config => {
+        messages.push(config.message)
+        return 'override'
+      })
+
+      const result = await withTtyResult(() =>
+        syncWorkspace(tempDir, { ...baseOptions, deleteMissingNotebooks: true, onConflict: 'ask', concurrency: 8 })
+      )
+
+      expect(messages).toEqual([
+        expect.stringContaining('The local directory for "Alpha" has no notebooks'),
+        expect.stringContaining('"Alpha" changed in Deepnote after your local edit'),
+      ])
+      const forced = cloud.importCalls.filter(call => call.url.searchParams.get('force') === 'true')
+      expect(forced).toHaveLength(1)
+      expect(forced[0]?.filenames).toEqual([])
+      expect(forced[0]?.url.searchParams.get('deleteMissingNotebooks')).toBe('true')
+      expect(result.projects).toEqual([
+        expect.objectContaining({ projectId: 'p1', action: 'pushed' }),
+        expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
+      ])
+    })
+
     it('force-pushes after a deferred push conflict is overridden, even if the cloud changed again meanwhile', async () => {
       const { select } = await import('@inquirer/prompts')
       const projects: CloudProject[] = [

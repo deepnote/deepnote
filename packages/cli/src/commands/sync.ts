@@ -390,7 +390,8 @@ interface PendingMove {
  * it) is preserved, and a missing source just means there is nothing to move. Sets each moved
  * project's `moveNote` and manifest `dir`, saving the manifest after every rename so an interrupted
  * run never leaves a moved directory the manifest still expects at its old path. Returns the
- * projects whose move failed; their directory and manifest record are left as they were.
+ * projects that must not sync, with the reason: a failed rename (directory and record left as they
+ * were), or a rename whose manifest save failed (directory moved, record updated in memory only).
  *
  * Order matters because one project's old directory can contain (or be) another project's new one:
  * renaming into it first would carry the other project along when the old directory moves away. So a
@@ -873,11 +874,6 @@ async function syncPreparedProject(
     const earlier = answers[kind]
     if (earlier !== undefined) {
       return earlier
-    }
-    if (Object.keys(answers).length > 0) {
-      // The user already answered a different question for this project; never follow it with a
-      // question about something else. Take the path that changes nothing.
-      return 'skip'
     }
     const choice = await resolveConflict(ctx, message, overrideLabel)
     if (choice === 'override' && ctx.askConflict) {
