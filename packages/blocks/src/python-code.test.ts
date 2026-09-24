@@ -1116,31 +1116,17 @@ describe('createPythonCode', () => {
       `)
     })
 
-    it('returns empty string for pivot table block without variable name', () => {
+    it.each([
+      ['without variable name', {}],
+      ['whose variable name sanitizes to nothing', { deepnote_variable_name: '123' }],
+    ])('returns empty string for pivot table block %s', (_case, metadata) => {
       const block: PivotTableBlock = {
         id: '123',
         type: 'pivot-table',
         content: '',
         blockGroup: 'abc',
         sortingKey: 'a0',
-        metadata: {},
-      }
-
-      const result = createPythonCode(block)
-
-      expect(result).toEqual('')
-    })
-
-    it('returns empty string for pivot table block whose variable name sanitizes to nothing', () => {
-      const block: PivotTableBlock = {
-        id: '123',
-        type: 'pivot-table',
-        content: '',
-        blockGroup: 'abc',
-        sortingKey: 'a0',
-        metadata: {
-          deepnote_variable_name: '123',
-        },
+        metadata,
       }
 
       const result = createPythonCode(block)
