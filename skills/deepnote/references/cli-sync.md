@@ -23,13 +23,16 @@ document metadata. `--all-files` also uploads changed working-directory files on
 | `--delete-missing-notebooks` | On push, delete cloud notebooks that were removed from the local project            |
 | `--prune`                    | Delete local directories/files for projects that no longer exist                    |
 | `--dry-run`                  | Show what would be synced without writing or uploading anything                     |
-| `--concurrency <n>`          | Number of projects to sync in parallel (default `8`, positive integer)              |
+| `--concurrency <n>`          | Number of projects to sync in parallel (default `8`, integer from 1 to 32)          |
 | `-o, --output <format>`      | Output format: `json`, `llm`                                                        |
 
-Projects sync in parallel. Throughput is bounded by the workspace plan's API rate limit; a
-rate-limited request (HTTP 429) waits for `Retry-After` and is retried, not reported as a project
-error. With `ask`, conflict prompts come one at a time after every other project has finished. The
-`-o json` project list is sorted by path.
+Projects sync in parallel. Throughput is bounded by the workspace plan's API rate limit. A
+rate-limited request (HTTP 429) waits for `Retry-After` (up to 60 s) and is retried at most 5 times
+before the project becomes an `error` outcome. Reads and deletes are also retried after 5xx or
+network failures, and once after a timeout; imports and uploads are not. With `--all-files`, each
+parallel project may buffer a file of up to 100 MiB. With `ask`, conflict prompts come one at a time
+after every other project has finished. In `-o json`, the synced-project entries are sorted by path,
+and `missing-in-cloud` / `pruned` entries follow them.
 
 **Examples:**
 

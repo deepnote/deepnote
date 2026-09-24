@@ -156,15 +156,18 @@ Use another transfer method for larger data files.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project              | `false`                    |
 | `--prune`                    | Delete local files for projects and files that no longer exist in the cloud | `false`                    |
 | `--dry-run`                  | Report what would be synced without writing anything                        | `false`                    |
-| `--concurrency <n>`          | Number of projects to sync in parallel                                      | `8`                        |
+| `--concurrency <n>`          | Number of projects to sync in parallel (1–32)                               | `8`                        |
 | `--token <token>`            | API token                                                                   | `DEEPNOTE_TOKEN`           |
 | `--url <url>`                | API base URL (for single-tenant instances)                                  | `https://api.deepnote.com` |
 | `-o, --output <format>`      | Machine-readable output: `json` or `llm`                                    | text                       |
 
-Projects sync in parallel, eight at a time by default. How fast a large workspace syncs is ultimately
-bounded by your plan's API rate limit: when Deepnote rate-limits a request, sync waits as long as the
-API asks and retries it instead of failing the project. Conflict prompts are asked one at a time,
-after every other project has finished.
+Projects sync in parallel, eight at a time by default and at most 32. How fast a large workspace
+syncs is ultimately bounded by your plan's API rate limit. When Deepnote rate-limits a request, sync
+prints a notice, waits for the time the API asks for (up to 60 seconds), and retries; after 5 retries
+the project fails. Reads are also retried after a server error or network failure, and once after a
+timeout. With `--all-files`, memory use grows with concurrency, because each parallel project may
+hold a file of up to 100 MiB in memory. Conflict prompts are asked one at a time, after every other
+project has finished.
 
 ## Ownership of the static site directory
 
