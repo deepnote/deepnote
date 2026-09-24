@@ -727,10 +727,13 @@ push yourself. Even with `--prune`, a stale manifest entry cannot delete a direc
 used by a current cloud project. Sync also refuses to prune when none of the tracked project IDs match
 the listed workspace; verify the API token and `--url` before retrying.
 
-Projects sync in parallel, 8 at a time by default (`--concurrency`). Throughput is ultimately bounded
-by your workspace plan's API rate limit: a rate-limited request (HTTP 429) waits for `Retry-After` and
-is retried instead of failing the project. With `--on-conflict ask`, conflict questions are asked one
-at a time after every other project has finished.
+Projects sync in parallel, 8 at a time by default (`--concurrency`, at most 32). Throughput is
+ultimately bounded by your workspace plan's API rate limit. A rate-limited request (HTTP 429) waits for
+`Retry-After` (up to 60 s per wait) and is retried at most 5 times before the project fails; sync
+prints a line while it waits. Reads and deletes are also retried after a server error (5xx) or
+network failure, and once after a timeout. With `--all-files`, memory use grows with concurrency:
+each parallel project may buffer a file of up to 100 MiB. With `--on-conflict ask`, conflict
+questions are asked one at a time after every other project has finished.
 
 **Options:**
 
@@ -743,7 +746,7 @@ at a time after every other project has finished.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
-| `--concurrency <n>`          | Number of projects to sync in parallel                                  | `8`          |
+| `--concurrency <n>`          | Number of projects to sync in parallel (1–32)                           | `8`          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
 
 **Examples:**
