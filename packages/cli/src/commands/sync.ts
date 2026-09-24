@@ -12,16 +12,24 @@ import {
   listAllProjects,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
   type ProjectFileEntry,
+  type RetryAttempt,
   type SyncProject,
+  type SyncRequestOptions,
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
-import type { Command } from 'commander'
+import { type Command, InvalidArgumentError } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import {
+  runWithConcurrency,
+  type SuspendableTask,
+  type SuspendableTaskStep,
+  startSuspendableTask,
+} from '../utils/concurrency'
 import { isErrnoENOENT } from '../utils/file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
@@ -57,6 +65,23 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planPro
 export const CONFLICT_MODES = ['ask', 'skip', 'override'] as const
 export type ConflictMode = (typeof CONFLICT_MODES)[number]
 
+/**
+ * Projects synced in parallel by default. Each project costs at least one export request, so a
+ * workspace's API rate limit (200 reads per minute on the standard tier) caps throughput well before
+ * this does; requests over the limit are retried after `Retry-After` rather than failing.
+ */
+export const DEFAULT_SYNC_CONCURRENCY = 8
+
+/** Commander parser for `--concurrency <n>`: a positive integer. */
+export function parseSyncConcurrency(value: string): number {
+  const normalized = value.trim()
+  const parsed = Number(normalized)
+  if (!/^\d+$/.test(normalized) || !Number.isSafeInteger(parsed) || parsed < 1) {
+    throw new InvalidArgumentError('Concurrency must be a positive integer.')
+  }
+  return parsed
+}
+
 export interface SyncOptions {
   url?: string
   token?: string
@@ -66,6 +91,8 @@ export interface SyncOptions {
   prune?: boolean
   dryRun?: boolean
   output?: 'json'
+  /** How many projects to sync in parallel. Default {@link DEFAULT_SYNC_CONCURRENCY}. */
+  concurrency?: number
 }
 
 /** What happened to one project during the sync (also the `-o json` shape). */
@@ -104,7 +131,26 @@ interface SyncContext {
   /** `ask` degraded to `skip` when there is no interactive terminal to ask on. */
   conflictMode: ConflictMode
   dryRun: boolean
+  /** Passed to every API call (retry policy for rate limits and transient failures). */
+  requestOptions: SyncRequestOptions
+  /**
+   * Set while projects sync in parallel: hands a conflict question to the orchestrator, which asks
+   * it once no other project is running, so two prompts never share the terminal. Unset means ask
+   * right away.
+   */
+  askConflict?: (question: ConflictQuestion) => Promise<ConflictChoice>
 }
+
+type ConflictChoice = 'override' | 'skip'
+
+interface ConflictQuestion {
+  message: string
+  overrideLabel: string
+}
+
+/** One project's sync, able to pause on a conflict question (see `syncWorkspace`). */
+type ProjectTask = SuspendableTask<ProjectSyncOutcome, ConflictQuestion, ConflictChoice>
+type ProjectTaskStep = SuspendableTaskStep<ProjectSyncOutcome, ConflictQuestion, ConflictChoice>
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
   if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
@@ -189,19 +235,20 @@ export function classifySyncStep(args: {
  * degrades to `skip` (with a warning) when there is not — a cron job must never hang on a prompt,
  * and machine output must never have a prompt drawn into it.
  */
-async function resolveConflict(
-  ctx: SyncContext,
-  question: string,
-  overrideLabel: string
-): Promise<'override' | 'skip'> {
+async function resolveConflict(ctx: SyncContext, message: string, overrideLabel: string): Promise<ConflictChoice> {
   if (ctx.conflictMode !== 'ask') {
     return ctx.conflictMode
   }
+  const question = { message, overrideLabel }
+  return ctx.askConflict ? ctx.askConflict(question) : promptConflict(question)
+}
+
+function promptConflict(question: ConflictQuestion): Promise<ConflictChoice> {
   return select({
-    message: question,
+    message: question.message,
     choices: [
       { name: 'Skip this project for now', value: 'skip' as const },
-      { name: overrideLabel, value: 'override' as const },
+      { name: question.overrideLabel, value: 'override' as const },
     ],
   })
 }
@@ -338,7 +385,7 @@ async function syncProjectFiles(
   record: ManifestProjectRecord
 ): Promise<number> {
   await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.filesDir)
-  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
+  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
   const previous = record.files ?? {}
   const next: Record<string, ManifestFileRecord> = {}
   let downloaded = 0
@@ -367,7 +414,7 @@ async function syncProjectFiles(
 
     const base = { size: entry.size, updatedAt: entry.updatedAt }
     if (!ctx.dryRun) {
-      const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
+      const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path, ctx.requestOptions)
       await writeFileEnsuringDir(absolutePath, bytes)
       next[entry.path] = { ...base, hash: sha256(bytes) }
     } else {
@@ -451,6 +498,7 @@ async function pushProject(
   }
 
   const importOptions = {
+    ...ctx.requestOptions,
     baseModifiedAt: record.modifiedAt,
     baseContentHash: record.contentHash,
     deleteMissingNotebooks,
@@ -476,7 +524,7 @@ async function pushProject(
       .notebooks
   }
 
-  const files = await exportProject(ctx.baseUrl, ctx.token, project.id)
+  const files = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
   return { kind: 'pushed', files, notebooks }
 }
 
@@ -552,7 +600,7 @@ async function uploadProjectFiles(
   }
 
   // Plan first so one prompt covers every conflict.
-  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
+  const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
   const inventory = new Map(detail.files.map(entry => [entry.path, entry]))
   const planned: PlannedFileUpload[] = []
 
@@ -633,10 +681,10 @@ async function uploadProjectFiles(
         commitPending()
         await persistManifest()
       }
-      await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
-      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
+      await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, ctx.requestOptions)
+      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes, ctx.requestOptions)
       if (stored.path !== relPath) {
-        await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, stored.path)
+        await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, stored.path, ctx.requestOptions)
         throw new Error(`Deepnote stored "${relPath}" at unexpected path "${stored.path}"`)
       }
       next[relPath] = {
@@ -661,22 +709,44 @@ async function uploadProjectFiles(
   return { uploaded, skipped: overrideConflicts ? 0 : conflicted.length }
 }
 
-/** Sync one project end to end. Never throws for per-project problems — an error becomes an
- * `error` outcome so one broken project cannot abort the rest of the workspace. */
-async function syncOneProject(
+type OutcomeBase = Pick<ProjectSyncOutcome, 'projectId' | 'name' | 'path'>
+
+/** A project whose local directory is in place, ready to be compared with its cloud export. */
+interface PreparedProject {
+  project: SyncProject
+  plan: PlannedProjectPaths
+  base: OutcomeBase
+  /** The manifest record to sync against; `undefined` when the local directory is untracked. */
+  syncRecord: ManifestProjectRecord | undefined
+  moveNote: string | undefined
+}
+
+/** Turn a per-project failure into an `error` outcome, so one broken project cannot abort the rest
+ * of the workspace. */
+function projectErrorOutcome(base: OutcomeBase, error: unknown): ProjectSyncOutcome {
+  // A Ctrl+C on a conflict prompt rejects with `@inquirer/prompts`' ExitPromptError. That is the
+  // user aborting the whole run, not this project failing — let it stop the sync instead of
+  // becoming a per-project `error` outcome the loop swallows.
+  if (error instanceof Error && error.name === 'ExitPromptError') {
+    throw error
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  return { ...base, action: 'error', detail: message }
+}
+
+/**
+ * The local-only first step of a project's sync: pick the manifest record that applies and move the
+ * directory when the project or a folder was renamed. Every project is prepared, one at a time,
+ * before any project syncs: a move renames a whole directory tree, and a project's old directory can
+ * contain another project's new one, so a move must never race another project's writes.
+ */
+async function prepareProject(
   ctx: SyncContext,
   project: SyncProject,
   plan: PlannedProjectPaths,
-  record: ManifestProjectRecord | undefined,
-  manifestProjects: Record<string, ManifestProjectRecord>,
-  persistManifest: () => Promise<void>
-): Promise<ProjectSyncOutcome> {
-  const base: Pick<ProjectSyncOutcome, 'projectId' | 'name' | 'path'> = {
-    projectId: project.id,
-    name: project.name,
-    path: plan.projectDir,
-  }
-
+  record: ManifestProjectRecord | undefined
+): Promise<{ prepared: PreparedProject } | { outcome: ProjectSyncOutcome }> {
+  const base: OutcomeBase = { projectId: project.id, name: project.name, path: plan.projectDir }
   try {
     await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.projectDir)
     // A missing tracked source does not make an occupied destination part of this project. Treat
@@ -688,11 +758,29 @@ async function syncOneProject(
       (await pathExists(toAbsolute(ctx, plan.projectDir)))
     const syncRecord = destinationIsUntracked ? undefined : record
     const moveNote = syncRecord ? await moveTrackedProjectDir(ctx, syncRecord, plan) : undefined
+    return { prepared: { project, plan, base, syncRecord, moveNote } }
+  } catch (error) {
+    return { outcome: projectErrorOutcome(base, error) }
+  }
+}
 
-    // In a dry run the move above did not happen, so the directory is still at its manifest path.
+/** Sync one prepared project: compare, then pull, push, or resolve a conflict. Never throws for
+ * per-project problems — an error becomes an `error` outcome. Safe to run for several projects at
+ * once: planned project directories never overlap, and manifest saves go through one queue. */
+async function syncPreparedProject(
+  ctx: SyncContext,
+  prepared: PreparedProject,
+  manifestProjects: Record<string, ManifestProjectRecord>,
+  persistManifest: () => Promise<void>
+): Promise<ProjectSyncOutcome> {
+  const { project, plan, base, syncRecord, moveNote } = prepared
+
+  try {
+    // In a dry run prepareProject did not move anything, so the directory is still at its manifest
+    // path.
     const localReadDir = ctx.dryRun && syncRecord ? syncRecord.dir : plan.projectDir
     const localFiles = await readLocalNotebookFiles(toAbsolute(ctx, localReadDir))
-    const exportFiles = await exportProject(ctx.baseUrl, ctx.token, project.id)
+    const exportFiles = await exportProject(ctx.baseUrl, ctx.token, project.id, ctx.requestOptions)
     const exportHash = canonicalProjectHash(exportFiles)
     const localHash = localFiles ? canonicalProjectHash(localFiles) : null
 
@@ -786,14 +874,7 @@ async function syncOneProject(
 
     return outcome
   } catch (error) {
-    // A Ctrl+C on a conflict prompt rejects with `@inquirer/prompts`' ExitPromptError. That is the
-    // user aborting the whole run, not this project failing — let it stop the sync instead of
-    // becoming a per-project `error` outcome the loop swallows.
-    if (error instanceof Error && error.name === 'ExitPromptError') {
-      throw error
-    }
-    const message = error instanceof Error ? error.message : String(error)
-    return { ...base, action: 'error', detail: message }
+    return projectErrorOutcome(base, error)
   }
 }
 
@@ -852,6 +933,11 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     throw new MissingTokenError()
   }
 
+  const concurrency = options.concurrency ?? DEFAULT_SYNC_CONCURRENCY
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+    throw new Error(`Concurrency must be a positive integer, got ${concurrency}.`)
+  }
+
   const isMachineOutput = options.output !== undefined
   const requestedMode = options.onConflict ?? 'ask'
   const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !isMachineOutput
@@ -867,6 +953,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     options,
     conflictMode,
     dryRun,
+    requestOptions: { retry: { onRetry: logRetry } },
   }
   const progress = (message: string) => {
     if (!isMachineOutput) {
@@ -876,7 +963,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
 
   const manifest = await loadSyncManifest(rootDir)
   progress(getChalk().dim(`Listing projects from ${ctx.baseUrl}…`))
-  const cloudProjects = await listAllProjects(ctx.baseUrl, token)
+  const cloudProjects = await listAllProjects(ctx.baseUrl, token, ctx.requestOptions)
   const cloudIds = new Set(cloudProjects.map(project => project.id))
   const trackedProjectIds = Object.keys(manifest.projects)
   if (
@@ -898,17 +985,78 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     return pathA.localeCompare(pathB)
   })
 
+  const finish = (outcome: ProjectSyncOutcome) => {
+    outcomes.push(outcome)
+    progress(renderOutcomeLine(outcome))
+  }
+
+  // Every project writes into the one shared manifest file, and a save rewrites the whole file, so
+  // saves from parallel projects must never overlap.
+  let manifestSaves: Promise<void> = Promise.resolve()
+  const persistManifest = (): Promise<void> => {
+    const save = manifestSaves.then(() => saveSyncManifest(rootDir, manifest))
+    manifestSaves = save.catch(() => undefined)
+    return save
+  }
+
+  // Directory moves first, one at a time (see prepareProject).
+  const prepared: PreparedProject[] = []
   for (const project of sortedProjects) {
     const plan = plans.get(project.id)
     if (!plan) {
       continue
     }
-    const outcome = await syncOneProject(ctx, project, plan, manifest.projects[project.id], manifest.projects, () =>
-      saveSyncManifest(rootDir, manifest)
-    )
-    outcomes.push(outcome)
-    progress(renderOutcomeLine(outcome))
+    const result = await prepareProject(ctx, project, plan, manifest.projects[project.id])
+    if ('outcome' in result) {
+      finish(result.outcome)
+    } else {
+      prepared.push(result.prepared)
+    }
   }
+
+  // Then the network-bound part, several projects at a time. A conflict prompt cannot share the
+  // terminal with other projects' progress or with a second prompt, so while projects run in
+  // parallel a project that needs an answer suspends, and its question is asked after every other
+  // project has finished. `--concurrency 1` keeps asking inline, in order.
+  const deferPrompts = ctx.conflictMode === 'ask' && concurrency > 1
+  const waiting: { base: OutcomeBase; task: ProjectTask; step: ProjectTaskStep }[] = []
+
+  await runWithConcurrency(prepared, concurrency, async item => {
+    if (!deferPrompts) {
+      finish(await syncPreparedProject(ctx, item, manifest.projects, persistManifest))
+      return
+    }
+    const task: ProjectTask = startSuspendableTask(askConflict =>
+      syncPreparedProject({ ...ctx, askConflict }, item, manifest.projects, persistManifest)
+    )
+    const step = await task.next()
+    if (step.kind === 'done') {
+      finish(step.value)
+    } else {
+      waiting.push({ base: item.base, task, step })
+    }
+  })
+
+  if (waiting.length > 0) {
+    // Record everything that already finished before blocking on the user: a Ctrl+C on a prompt
+    // must not throw away the baselines of an otherwise complete run.
+    if (!ctx.dryRun) {
+      await persistManifest()
+    }
+    waiting.sort((a, b) => compareOutcomes(a.base, b.base))
+    for (const { task, step: firstStep } of waiting) {
+      let step = firstStep
+      while (step.kind === 'question') {
+        // An ExitPromptError (Ctrl+C) propagates from here and aborts the whole run.
+        step.answer(await promptConflict(step.question))
+        step = await task.next()
+      }
+      finish(step.value)
+    }
+  }
+
+  // Projects finish in whatever order the network returns them; report them in path order.
+  outcomes.sort(compareOutcomes)
 
   // Projects the manifest knows but the cloud no longer lists: deleted (or access lost). Local
   // copies are kept unless the user opted into --prune. A stale record may share its path with a
@@ -959,6 +1107,23 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     projects: outcomes,
     untrackedFiles,
   }
+}
+
+/** Path order, the order projects are planned in; the id breaks ties so the order is total. */
+function compareOutcomes(a: OutcomeBase, b: OutcomeBase): number {
+  return a.path.localeCompare(b.path) || a.projectId.localeCompare(b.projectId)
+}
+
+function logRetry(attempt: RetryAttempt): void {
+  const reason =
+    attempt.status === 429
+      ? 'rate limited by the Deepnote API'
+      : attempt.status !== undefined
+        ? `HTTP ${attempt.status}`
+        : attempt.error instanceof Error
+          ? attempt.error.message
+          : String(attempt.error)
+  debug(`${attempt.description}: ${reason}; retry ${attempt.retry} in ${(attempt.delayMs / 1000).toFixed(1)}s`)
 }
 
 function renderOutcomeLine(outcome: ProjectSyncOutcome): string {

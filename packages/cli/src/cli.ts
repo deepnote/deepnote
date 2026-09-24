@@ -22,7 +22,7 @@ import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
-import { CONFLICT_MODES, createSyncAction } from './commands/sync'
+import { CONFLICT_MODES, createSyncAction, DEFAULT_SYNC_CONCURRENCY, parseSyncConcurrency } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -526,6 +526,11 @@ ${c.bold('Exit Codes:')}
     .option('--delete-missing-notebooks', 'When pushing, delete cloud notebooks that were removed from the local file')
     .option('--prune', 'Delete local files for projects (and files) that no longer exist in the cloud')
     .option('--dry-run', 'Show what would be synced without writing anything')
+    .option(
+      '--concurrency <n>',
+      `Number of projects to sync in parallel (default: ${DEFAULT_SYNC_CONCURRENCY})`,
+      parseSyncConcurrency
+    )
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .addHelpText('after', () => {
       const c = getChalk()
@@ -541,11 +546,16 @@ ${c.bold('Description:')}
   exact inverse — a project changed only locally is re-uploaded as the same
   documents, with lost-update protection.
 
+  Projects sync in parallel (--concurrency, default ${DEFAULT_SYNC_CONCURRENCY}). Throughput is
+  capped by your workspace's API rate limit; rate-limited requests wait and
+  retry instead of failing.
+
 ${c.bold('Conflicts:')}
   A project edited both locally and in the cloud is a conflict. By default
   sync asks per project whether to keep the cloud version (overwriting local
   changes) or skip; --on-conflict skip/override answers up front. Without a
-  terminal (CI, piped output), conflicts are skipped.
+  terminal (CI, piped output), conflicts are skipped. While projects sync in
+  parallel, the questions are asked one at a time after the rest finish.
 
 ${c.bold('What sync does not do:')}
   - It never creates or deletes cloud projects; .deepnote files outside

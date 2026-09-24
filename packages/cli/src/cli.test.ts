@@ -316,5 +316,23 @@ describe('CLI', () => {
         exitSpy.mockRestore()
       }
     })
+
+    it('exits with code 2 when sync --concurrency is not a positive integer', async () => {
+      const program = createProgram()
+      const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit called with ${code}`)
+      })
+
+      try {
+        await expect(program.parseAsync(['sync', 'workspace', '--concurrency', '0'], { from: 'user' })).rejects.toThrow(
+          'process.exit called with 2'
+        )
+        expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Concurrency must be a positive integer.'))
+      } finally {
+        exitSpy.mockRestore()
+        stderrSpy.mockRestore()
+      }
+    })
   })
 })

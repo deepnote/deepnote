@@ -156,9 +156,15 @@ Use another transfer method for larger data files.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project              | `false`                    |
 | `--prune`                    | Delete local files for projects and files that no longer exist in the cloud | `false`                    |
 | `--dry-run`                  | Report what would be synced without writing anything                        | `false`                    |
+| `--concurrency <n>`          | Number of projects to sync in parallel                                      | `8`                        |
 | `--token <token>`            | API token                                                                   | `DEEPNOTE_TOKEN`           |
 | `--url <url>`                | API base URL (for single-tenant instances)                                  | `https://api.deepnote.com` |
 | `-o, --output <format>`      | Machine-readable output: `json` or `llm`                                    | text                       |
+
+Projects sync in parallel, eight at a time by default. How fast a large workspace syncs is ultimately
+bounded by your plan's API rate limit: when Deepnote rate-limits a request, sync waits as long as the
+API asks and retries it instead of failing the project. Conflict prompts are asked one at a time,
+after every other project has finished.
 
 ## Ownership of the static site directory
 
