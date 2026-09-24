@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { isTransientError } from './cloud-runs'
 import { DEFAULT_REQUEST_TIMEOUT_MS, request } from './http'
+import { isTransientError } from './retry'
 
 const DEFAULT_STATUS_POLL_INTERVAL_MS = 5_000
 const DEFAULT_MAX_TRANSIENT_RETRIES = 5

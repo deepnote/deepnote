@@ -3,6 +3,7 @@ import { unzipSync, zipSync } from 'fflate'
 import { z } from 'zod'
 import { parseApiErrorMessage } from './parse-api-error'
 import type { RequestOptions } from './projects'
+import { isTransientError, parseRetryAfterMs, type RetryOptions, resolveRetryPolicy, transientBackoffMs } from './retry'
 
 /**
  * Client for the Deepnote project-sync API surface — everything `deepnote sync` needs to mirror a
@@ -23,6 +24,10 @@ import type { RequestOptions } from './projects'
  * - `GET  {baseUrl}/v2/files/download`          — raw bytes of one working-directory file
  * - `POST {baseUrl}/v2/files`                   — upload one working-directory file (multipart)
  * - `DELETE {baseUrl}/v2/files`                 — delete one working-directory file
+ *
+ * Every request retries transient failures (see {@link SyncRequestOptions.retry}): a rate-limited
+ * 429 waits for `Retry-After` and tries again, so a caller running several requests in parallel
+ * slows down to the workspace's API rate limit instead of failing.
  */
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
@@ -227,7 +232,18 @@ export interface ImportProjectResult {
   contentHash: string
 }
 
-export interface ImportProjectOptions extends RequestOptions {
+/** Options every sync-client request accepts. */
+export interface SyncRequestOptions extends RequestOptions {
+  /**
+   * Retry policy for transient failures. A 429 is retried for every request, honoring the
+   * `Retry-After` header. 5xx responses, timeouts, and network errors are retried for GET and
+   * DELETE only: a POST that failed that way (import, file upload) may already have been applied,
+   * so it fails immediately. Pass `{ maxRetries: 0 }` to disable retries.
+   */
+  retry?: RetryOptions
+}
+
+export interface ImportProjectOptions extends SyncRequestOptions {
   /**
    * The `metadata.modifiedAt` of the export this import was edited from. When set, the server
    * rejects the import with a 409 if the project changed *structurally* after that point —
@@ -254,16 +270,57 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '')
 }
 
+/** Methods that are safe to repeat after a failure whose effect is unknown (5xx, timeout, reset). */
+const IDEMPOTENT_METHODS = new Set(['GET', 'DELETE'])
+
 /**
  * Perform a request and reject non-2xx responses as the {@link ApiError} callers of this package
- * expect, with the 401/403 wording the other modules use.
+ * expect, with the 401/403 wording the other modules use. Transient failures are retried first, per
+ * {@link SyncRequestOptions.retry}.
  */
-async function requestOk(url: string, init: RequestInit, timeoutMs: number, fallback: string): Promise<Response> {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
-  if (response.ok) {
-    return response
+async function requestOk(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  fallback: string,
+  retryOptions: RetryOptions | undefined
+): Promise<Response> {
+  const policy = resolveRetryPolicy(retryOptions)
+  const idempotent = IDEMPOTENT_METHODS.has((init.method ?? 'GET').toUpperCase())
+
+  for (let retry = 1; ; retry++) {
+    const canRetry = retry <= policy.maxRetries
+    const backoffMs = transientBackoffMs(retry, policy.baseDelayMs, policy.maxDelayMs)
+
+    let response: Response
+    try {
+      response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+    } catch (error) {
+      if (canRetry && idempotent && isTransientError(error)) {
+        policy.onRetry?.({ retry, delayMs: backoffMs, error, description: fallback })
+        await policy.sleep(backoffMs)
+        continue
+      }
+      throw error
+    }
+    if (response.ok) {
+      return response
+    }
+
+    const bodyText = await response.text().catch(() => '')
+    const retryable = response.status === 429 || (idempotent && response.status >= 500)
+    if (canRetry && retryable) {
+      const requestedMs = response.status === 429 ? parseRetryAfterMs(response.headers) : undefined
+      const delayMs = Math.min(requestedMs ?? backoffMs, policy.maxDelayMs)
+      policy.onRetry?.({ retry, delayMs, status: response.status, description: fallback })
+      await policy.sleep(delayMs)
+      continue
+    }
+    throwForFailedResponse(response, bodyText, fallback)
   }
-  const bodyText = await response.text().catch(() => '')
+}
+
+function throwForFailedResponse(response: Response, bodyText: string, fallback: string): never {
   const message = parseApiErrorMessage(bodyText, `${fallback}: HTTP ${response.status} ${response.statusText}`)
   if (response.status === 401) {
     throw new ApiError(401, 'Authentication failed. Please check your API token.')
@@ -301,7 +358,7 @@ async function parseJsonResponse<T>(response: Response, schema: z.ZodType<T>, wh
 export async function listAllProjects(
   baseUrl: string,
   token: string,
-  options: RequestOptions = {}
+  options: SyncRequestOptions = {}
 ): Promise<SyncProject[]> {
   const timeout = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
   const projects: SyncProject[] = []
@@ -318,7 +375,8 @@ export async function listAllProjects(
       url.toString(),
       { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
       timeout,
-      'Failed to list Deepnote projects'
+      'Failed to list Deepnote projects',
+      options.retry
     )
     const parsed = await parseJsonResponse(response, listProjectsPageSchema, 'list projects')
 
@@ -342,13 +400,14 @@ export async function getProjectDetail(
   baseUrl: string,
   token: string,
   projectId: string,
-  options: RequestOptions = {}
+  options: SyncRequestOptions = {}
 ): Promise<ProjectDetail> {
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-    'Failed to fetch Deepnote project'
+    'Failed to fetch Deepnote project',
+    options.retry
   )
   const parsed = await parseJsonResponse(response, projectDetailSchema, 'fetch project')
   return parsed.project
@@ -365,7 +424,7 @@ export async function updateProjectStaticFiles(
   token: string,
   projectId: string,
   update: ProjectStaticFilesUpdate,
-  options: RequestOptions = {}
+  options: SyncRequestOptions = {}
 ): Promise<ProjectStaticFilesSettings> {
   const uncheckedUpdate = update as { sharingEnabled?: boolean; apiAccessEnabled?: boolean }
   if (uncheckedUpdate.sharingEnabled === false && uncheckedUpdate.apiAccessEnabled === true) {
@@ -380,7 +439,8 @@ export async function updateProjectStaticFiles(
       body: JSON.stringify({ staticFiles: update }),
     },
     options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-    'Failed to update Deepnote project'
+    'Failed to update Deepnote project',
+    options.retry
   )
   const parsed = await parseJsonResponse(response, updateProjectStaticFilesResponseSchema, 'update project')
   return parsed.project.staticFiles
@@ -405,13 +465,14 @@ export async function exportProject(
   baseUrl: string,
   token: string,
   projectId: string,
-  options: RequestOptions = {}
+  options: SyncRequestOptions = {}
 ): Promise<ExportedNotebookFile[]> {
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}/export`,
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
-    'Failed to export Deepnote project'
+    'Failed to export Deepnote project',
+    options.retry
   )
 
   const archive = new Uint8Array(await response.arrayBuffer())
@@ -499,7 +560,8 @@ export async function importProject(
       body: archive,
     },
     options.requestTimeoutMs ?? DEFAULT_TRANSFER_TIMEOUT_MS,
-    'Failed to import Deepnote project'
+    'Failed to import Deepnote project',
+    options.retry
   )
   const parsed = await parseJsonResponse(response, importProjectResponseSchema, 'import project')
   return {
@@ -533,7 +595,8 @@ export async function downloadProjectFile(
     url.toString(),
     { method: 'GET', headers: { Authorization: `Bearer ${token}` } },
     options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
-    `Failed to download "${filePath}"`
+    `Failed to download "${filePath}"`,
+    options.retry
   )
   return readProjectFileBytes(response, filePath, projectFileTransferLimit(options))
 }
@@ -545,7 +608,7 @@ export interface UploadedFile {
   updatedAt?: string
 }
 
-export interface ProjectFileTransferOptions extends RequestOptions {
+export interface ProjectFileTransferOptions extends SyncRequestOptions {
   /** Optional lower buffered-byte ceiling for this transfer. The hard limit is 100 MiB. */
   maxBytes?: number
 }
@@ -636,7 +699,8 @@ export async function uploadProjectFile(
     `${trimTrailingSlash(baseUrl)}/v2/files`,
     { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form },
     options.requestTimeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS,
-    `Failed to upload "${filePath}"`
+    `Failed to upload "${filePath}"`,
+    options.retry
   )
   const parsed = await parseJsonResponse(response, uploadFileResponseSchema, 'upload file')
   return parsed.file
@@ -653,7 +717,7 @@ export async function deleteProjectFile(
   token: string,
   projectId: string,
   filePath: string,
-  options: RequestOptions = {}
+  options: SyncRequestOptions = {}
 ): Promise<boolean> {
   const url = new URL(`${trimTrailingSlash(baseUrl)}/v2/files`)
   url.searchParams.set('projectId', projectId)
@@ -664,7 +728,8 @@ export async function deleteProjectFile(
       url.toString(),
       { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } },
       options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
-      `Failed to delete "${filePath}"`
+      `Failed to delete "${filePath}"`,
+      options.retry
     )
     return true
   } catch (error) {
