@@ -1,12 +1,14 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
+import { UnsupportedBlockTypeError } from './blocks'
 import type { ButtonExecutionContext } from './blocks/button-blocks'
 import type {
   AgentBlock,
   BigNumberBlock,
   ButtonBlock,
   CodeBlock,
+  DeepnoteBlock,
   InputCheckboxBlock,
   InputDateBlock,
   InputDateRangeBlock,
@@ -1168,6 +1170,49 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual('# [agent block] System prompt:\n# Analyze the data')
+    })
+  })
+
+  describe('Non-executable blocks', () => {
+    it.each([
+      'markdown',
+      'image',
+      'separator',
+      'text-cell-h1',
+      'text-cell-h2',
+      'text-cell-h3',
+      'text-cell-p',
+      'text-cell-bullet',
+      'text-cell-todo',
+      'text-cell-callout',
+    ] as const)('throws UnsupportedBlockTypeError for a %s block', type => {
+      const block: DeepnoteBlock = {
+        id: '123',
+        type,
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      expect(() => createPythonCode(block)).toThrow(UnsupportedBlockTypeError)
+      expect(() => createPythonCode(block)).toThrow(
+        `Creating python code from block type ${type} is not supported yet.`
+      )
+    })
+
+    it('throws UnsupportedBlockTypeError for a block type the schema does not know', () => {
+      const block = {
+        id: '123',
+        type: 'crystal-ball',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      } as unknown as DeepnoteBlock
+
+      expect(() => createPythonCode(block)).toThrow(UnsupportedBlockTypeError)
+      expect(() => createPythonCode(block)).toThrow('Unexpected block type encountered')
     })
   })
 })
