@@ -305,7 +305,7 @@ UI. Start with [Build and publish apps and Streamlit apps](references/apps.md):
 
 - [Run command](references/cli-run.md)
 - [Schedule command](references/cli-schedule.md)
-- [Publish command](references/cli-publish.md)
+- [Publish commands](references/cli-publish.md)
 - [Convert command](references/cli-convert.md)
 - [Sync command](references/cli-sync.md)
 - [Analysis commands](references/cli-analysis.md)

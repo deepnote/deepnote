@@ -38,7 +38,7 @@ deepnote publish ./dist --project-id <project-id>
 
 Prefer the environment variable to keep the token out of command history and process arguments.
 In CI, expose it from the provider's secret store. Keep tokens out of the build directory and revoke
-any exposed token from the settings page. Without a token, both commands exit with code `2`.
+any exposed token from the settings page. Without a token, all three commands exit with code `2`.
 
 ## Finding a project ID
 
@@ -235,8 +235,13 @@ to check its status again.
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.
 
+For `static-site access`, exit codes are `0` for success, `1` for a request failure, and `2` for
+invalid arguments, a missing token, or missing/contradictory settings.
+
 ## Related
 
-- [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync)
-- [Deepnote file sync](/docs/deepnote-file-sync)
-- [Data apps](/docs/data-apps)
+- [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync) — mirror projects to a local
+  directory and push notebook edits back
+- [Deepnote file sync](/docs/deepnote-file-sync) — the in-product feature that keeps a project synced
+  with a `.deepnote` file in a Git repository
+- [Data apps](/docs/data-apps) — building interactive apps on Deepnote
