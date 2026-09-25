@@ -22,7 +22,7 @@ import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
-import { CONFLICT_MODES, createSyncAction } from './commands/sync'
+import { CONFLICT_MODES, createSyncAction, DEFAULT_SYNC_CONCURRENCY, parseSyncConcurrency } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -526,6 +526,12 @@ ${c.bold('Exit Codes:')}
     .option('--delete-missing-notebooks', 'When pushing, delete cloud notebooks that were removed from the local file')
     .option('--prune', 'Delete local files for projects (and files) that no longer exist in the cloud')
     .option('--dry-run', 'Show what would be synced without writing anything')
+    .option(
+      '--concurrency <n>',
+      'How many projects to sync at once; a run that moves a renamed project syncs one at a time',
+      parseSyncConcurrency,
+      DEFAULT_SYNC_CONCURRENCY
+    )
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .addHelpText('after', () => {
       const c = getChalk()
@@ -546,6 +552,11 @@ ${c.bold('Conflicts:')}
   sync asks per project whether to keep the cloud version (overwriting local
   changes) or skip; --on-conflict skip/override answers up front. Without a
   terminal (CI, piped output), conflicts are skipped.
+
+${c.bold('Rate limits:')}
+  Projects sync in parallel (--concurrency, default 8), so throughput is capped
+  by your workspace tier's API read limit (200, 600, or 2,000 requests per
+  minute). Sync waits out HTTP 429 responses and retries them up to 5 times.
 
 ${c.bold('What sync does not do:')}
   - It never creates or deletes cloud projects; .deepnote files outside

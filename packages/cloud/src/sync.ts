@@ -37,6 +37,10 @@ const DEFAULT_DOWNLOAD_TIMEOUT_MS = 600_000
  * public API's multi-gigabyte storage limit. Callers that need larger files should stream them. */
 export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
 
+/** An HTTP 429 is retried this many times before it surfaces as an {@link ApiError}. */
+const MAX_RATE_LIMIT_RETRIES = 5
+const MAX_RATE_LIMIT_WAIT_MS = 60_000
+
 /** Reserved project-file directory for static-site content. */
 export const PROJECT_STATIC_ROOT = '_deepnote_static'
 
@@ -254,12 +258,39 @@ function trimTrailingSlash(url: string): string {
   return url.replace(/\/+$/, '')
 }
 
+/** A header holding a non-negative number of seconds, in milliseconds. */
+function headerSecondsMs(value: string | null): number | undefined {
+  const seconds = value === null || value.trim() === '' ? Number.NaN : Number(value)
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined
+}
+
+/** How long to wait before retry number `retry` of a 429: `Retry-After` (delta-seconds or an HTTP
+ * date), else `RateLimit-Reset` (seconds until the window resets), else exponential backoff. */
+function rateLimitWaitMs(headers: Headers, retry: number): number {
+  const retryAfter = headers.get('retry-after')
+  const retryAfterDate = retryAfter ? Date.parse(retryAfter) : Number.NaN
+  const waitMs =
+    headerSecondsMs(retryAfter) ??
+    (Number.isNaN(retryAfterDate) ? undefined : retryAfterDate - Date.now()) ??
+    headerSecondsMs(headers.get('ratelimit-reset')) ??
+    1000 * 2 ** (retry - 1)
+  return Math.min(Math.max(waitMs, 0), MAX_RATE_LIMIT_WAIT_MS)
+}
+
 /**
  * Perform a request and reject non-2xx responses as the {@link ApiError} callers of this package
- * expect, with the 401/403 wording the other modules use.
+ * expect, with the 401/403 wording the other modules use. An HTTP 429 is waited out and retried up
+ * to {@link MAX_RATE_LIMIT_RETRIES} times; every other failure surfaces immediately.
  */
 async function requestOk(url: string, init: RequestInit, timeoutMs: number, fallback: string): Promise<Response> {
-  const response = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+  const send = () => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+  let response = await send()
+  for (let retry = 1; response.status === 429 && retry <= MAX_RATE_LIMIT_RETRIES; retry++) {
+    const waitMs = rateLimitWaitMs(response.headers, retry)
+    await response.body?.cancel().catch(() => undefined)
+    await new Promise(resolve => setTimeout(resolve, waitMs))
+    response = await send()
+  }
   if (response.ok) {
     return response
   }

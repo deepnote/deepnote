@@ -17,7 +17,7 @@ import {
 } from '@deepnote/cloud'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
-import type { Command } from 'commander'
+import { type Command, InvalidArgumentError } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
@@ -57,6 +57,17 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planPro
 export const CONFLICT_MODES = ['ask', 'skip', 'override'] as const
 export type ConflictMode = (typeof CONFLICT_MODES)[number]
 
+export const DEFAULT_SYNC_CONCURRENCY = 8
+
+/** Commander parser for `--concurrency`: a positive integer. */
+export function parseSyncConcurrency(value: string): number {
+  const concurrency = /^\d+$/.test(value) ? Number(value) : 0
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+    throw new InvalidArgumentError('Must be a positive integer.')
+  }
+  return concurrency
+}
+
 export interface SyncOptions {
   url?: string
   token?: string
@@ -66,6 +77,8 @@ export interface SyncOptions {
   prune?: boolean
   dryRun?: boolean
   output?: 'json'
+  /** How many projects sync at once (default 8). */
+  concurrency?: number
 }
 
 /** What happened to one project during the sync (also the `-o json` shape). */
@@ -104,6 +117,10 @@ interface SyncContext {
   /** `ask` degraded to `skip` when there is no interactive terminal to ask on. */
   conflictMode: ConflictMode
   dryRun: boolean
+  /** Settles when the open conflict prompt closes, so only one is on screen at a time. */
+  promptQueue: Promise<unknown>
+  /** Progress lines held back while a prompt is open; `undefined` when none is. */
+  heldProgress?: string[]
 }
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
@@ -197,13 +214,26 @@ async function resolveConflict(
   if (ctx.conflictMode !== 'ask') {
     return ctx.conflictMode
   }
-  return select({
-    message: question,
-    choices: [
-      { name: 'Skip this project for now', value: 'skip' as const },
-      { name: overrideLabel, value: 'override' as const },
-    ],
+  const answer = ctx.promptQueue.then(async () => {
+    ctx.heldProgress = []
+    try {
+      return await select({
+        message: question,
+        choices: [
+          { name: 'Skip this project for now', value: 'skip' as const },
+          { name: overrideLabel, value: 'override' as const },
+        ],
+      })
+    } finally {
+      for (const line of ctx.heldProgress ?? []) {
+        log(line)
+      }
+      ctx.heldProgress = undefined
+    }
   })
+  // Not caught: after a Ctrl+C, prompts still queued reject with the same ExitPromptError unseen.
+  ctx.promptQueue = answer
+  return answer
 }
 
 async function writeFileEnsuringDir(absolutePath: string, content: string | Uint8Array): Promise<void> {
@@ -867,9 +897,12 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     options,
     conflictMode,
     dryRun,
+    promptQueue: Promise.resolve(),
   }
   const progress = (message: string) => {
-    if (!isMachineOutput) {
+    if (ctx.heldProgress) {
+      ctx.heldProgress.push(message)
+    } else if (!isMachineOutput) {
       log(message)
     }
   }
@@ -898,17 +931,47 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     return pathA.localeCompare(pathB)
   })
 
-  for (const project of sortedProjects) {
-    const plan = plans.get(project.id)
-    if (!plan) {
-      continue
-    }
-    const outcome = await syncOneProject(ctx, project, plan, manifest.projects[project.id], manifest.projects, () =>
-      saveSyncManifest(rootDir, manifest)
-    )
-    outcomes.push(outcome)
-    progress(renderOutcomeLine(outcome))
+  // Saves run one after another so two writes of the manifest never overlap.
+  let manifestSave: Promise<void> = Promise.resolve()
+  const persistManifest = (): Promise<void> => {
+    manifestSave = manifestSave.catch(() => undefined).then(() => saveSyncManifest(rootDir, manifest))
+    return manifestSave
   }
+  // A directory move can free or take a path another project uses, so a run with one stays sequential.
+  const movesDirectory = sortedProjects.some(project => {
+    const record = manifest.projects[project.id]
+    return record !== undefined && record.dir !== plans.get(project.id)?.projectDir
+  })
+  const queue = [...sortedProjects]
+  let aborted = false
+  const worker = async (): Promise<void> => {
+    for (let project = queue.shift(); project && !aborted; project = queue.shift()) {
+      const plan = plans.get(project.id)
+      if (!plan) {
+        continue
+      }
+      const outcome = await syncOneProject(
+        ctx,
+        project,
+        plan,
+        manifest.projects[project.id],
+        manifest.projects,
+        persistManifest
+      ).catch((error: unknown) => {
+        aborted = true // Only a Ctrl+C on a prompt escapes syncOneProject: start nothing new.
+        throw error
+      })
+      outcomes.push(outcome)
+      progress(renderOutcomeLine(outcome))
+    }
+  }
+  const workerCount = movesDirectory ? 1 : (options.concurrency ?? DEFAULT_SYNC_CONCURRENCY)
+  for (const settled of await Promise.allSettled(Array.from({ length: workerCount }, worker))) {
+    if (settled.status === 'rejected') {
+      throw settled.reason
+    }
+  }
+  outcomes.sort((a, b) => a.path.localeCompare(b.path) || a.projectId.localeCompare(b.projectId))
 
   // Projects the manifest knows but the cloud no longer lists: deleted (or access lost). Local
   // copies are kept unless the user opted into --prune. A stale record may share its path with a

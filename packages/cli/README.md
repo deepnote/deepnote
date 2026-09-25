@@ -727,6 +727,11 @@ push yourself. Even with `--prune`, a stale manifest entry cannot delete a direc
 used by a current cloud project. Sync also refuses to prune when none of the tracked project IDs match
 the listed workspace; verify the API token and `--url` before retrying.
 
+Projects sync in parallel, 8 at a time by default (`--concurrency`). Throughput is capped by the
+workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
+responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
+one project at a time.
+
 **Options:**
 
 | Option                       | Description                                                             | Default      |
@@ -738,6 +743,7 @@ the listed workspace; verify the API token and `--url` before retrying.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
+| `--concurrency <n>`          | How many projects to sync at once                                       | `8`          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
 
 **Examples:**

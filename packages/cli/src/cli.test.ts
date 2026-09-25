@@ -316,5 +316,20 @@ describe('CLI', () => {
         exitSpy.mockRestore()
       }
     })
+
+    it.each(['0', '-1', '1.5'])('exits with code 2 for sync --concurrency %s', async value => {
+      const program = createProgram()
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(code => {
+        throw new Error(`process.exit called with ${code}`)
+      })
+
+      try {
+        await expect(program.parseAsync(['sync', '--concurrency', value], { from: 'user' })).rejects.toThrow(
+          'process.exit called with 2'
+        )
+      } finally {
+        exitSpy.mockRestore()
+      }
+    })
   })
 })
