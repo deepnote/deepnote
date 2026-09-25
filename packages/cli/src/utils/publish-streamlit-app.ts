@@ -124,7 +124,7 @@ async function waitUntilAppRuns(baseUrl: string, token: string, appId: string): 
 function describeStreamlitAppError(error: unknown): string {
   const message = errorMessage(error)
   if (error instanceof ApiError && error.statusCode === 404 && /entrypoint/i.test(message)) {
-    return `${message}. The file must already exist in the project's Files: upload it in Deepnote or push it with \`deepnote sync --all-files\` first.`
+    return `${message}. The file must already exist in the project's Files: upload it in Deepnote, or push it with \`deepnote sync --all-files\` alongside a notebook push.`
   }
   return message
 }
