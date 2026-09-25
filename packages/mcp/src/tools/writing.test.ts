@@ -86,6 +86,25 @@ describe('writing tools handlers', () => {
     expect('outputs' in block).toBe(true)
   })
 
+  it('deepnote_create with pivot table block includes execution fields', async () => {
+    await handleWritingTool('deepnote_create', {
+      outputPath: testNotebookPath,
+      projectName: 'Test Project',
+      notebooks: [
+        {
+          name: 'Notebook',
+          blocks: [{ type: 'pivot-table', metadata: { deepnote_variable_name: 'df' } }],
+        },
+      ],
+    })
+
+    const file = await loadDeepnoteFile(testNotebookPath)
+    const block = file.project.notebooks[0].blocks[0]
+    expect(block.type).toBe('pivot-table')
+    expect('executionCount' in block).toBe(true)
+    expect('outputs' in block).toBe(true)
+  })
+
   it('deepnote_add_notebook assigns unique blockGroup per block in new notebook', async () => {
     await handleWritingTool('deepnote_create', {
       outputPath: testNotebookPath,
