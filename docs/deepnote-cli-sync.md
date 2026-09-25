@@ -248,7 +248,7 @@ run continues.
 
 ## Related
 
-- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish)
+- [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
 - [How to set up Deepnote locally](/docs/local-setup) — editors and other local tooling
