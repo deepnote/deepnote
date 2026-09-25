@@ -22,6 +22,7 @@ import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
+import { createStreamlitPublishAction } from './commands/streamlit-publish'
 import { CONFLICT_MODES, createSyncAction } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
@@ -581,7 +582,6 @@ ${c.bold('Exit Codes:')}
     })
     .action(createSyncAction(program))
 
-  // Publish command - publish a local app directory to Deepnote
   program
     .command('publish')
     .description('Publish a local app directory to a Deepnote project')
@@ -603,16 +603,20 @@ ${c.bold('Exit Codes:')}
     .addHelpText('after', () => {
       const c = getChalk()
       return `
-${c.bold('Description:')}
-  Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
-  after every upload succeeds. API access is left unchanged unless explicitly set.
+${c.bold('Apps:')}
+  Apps are HTML, CSS, and JavaScript hosted by Deepnote and run in the browser. They can be
+  interactive and call Deepnote APIs. The command uploads a local build directory to
+  ${c.dim('_deepnote_static/')}, replaces matching files, and enables sharing after every upload
+  succeeds. API access is left unchanged unless explicitly set. To serve a Python file already
+  in the project as a Streamlit app, use ${c.dim('deepnote streamlit publish')} instead.
 
-${c.bold('Embedded API access:')}
-  With API access enabled, the embedded app calls Deepnote with a viewer-scoped token that
-  expires after 15 minutes — never your personal token. It covers one run loop: read the
-  configured notebook (inputs and block metadata, no source), start a detached run, and poll
-  that run for its outputs as ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so a
-  feature built against a local preview with a personal token can break only once embedded.
+${c.bold('App viewer API access:')}
+  With API access enabled, the embedded app uses a viewer token that expires after
+  15 minutes. It can read notebook inputs and block metadata (no source) and start detached
+  runs in the hosting project or other projects in the same workspace where the viewer has
+  direct access. Runs in other projects also require execute permission. It can poll the
+  viewer's own runs for ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so features
+  built against a local preview with a personal token can fail when embedded.
   Gate those paths on an ${c.dim('isEmbedded')} check (${c.dim('window !== window.parent')}): skip or hide them
   when embedded, and surface a 403 instead of swallowing it.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
@@ -651,32 +655,26 @@ ${c.bold('Examples:')}
   $ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Files uploaded and website sharing enabled
+  ${c.dim('0')}  Files uploaded and app sharing enabled
   ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
   ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root)
 `
     })
     .action(createPublishAction(program))
 
-  const staticSite = program.command('static-site').description('Manage a published static site')
+  const staticSite = program.command('static-site').description('Manage a published app')
 
   staticSite
     .command('access')
-    .description('Change static-site sharing and viewer API access without changing files')
+    .description('Change app sharing and viewer API access without changing files')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .addOption(
-      new Option('--sharing <state>', 'Make the published site available to project viewers').choices([
-        'enabled',
-        'disabled',
-      ])
+      new Option('--sharing <state>', 'Make the app available to project viewers').choices(['enabled', 'disabled'])
     )
     .addOption(
-      new Option('--api-access <state>', 'Allow the published site to call Deepnote APIs').choices([
-        'enabled',
-        'disabled',
-      ])
+      new Option('--api-access <state>', 'Allow the app to call Deepnote APIs').choices(['enabled', 'disabled'])
     )
     .addHelpText('after', () => {
       const c = getChalk()
@@ -687,10 +685,10 @@ ${c.bold('Description:')}
   sharing later serves the files already stored in the project.
 
 ${c.bold('Examples:')}
-  ${c.dim('# Stop serving the site without deleting its files')}
+  ${c.dim('# Stop serving the app without deleting its files')}
   $ deepnote static-site access --project-id <uuid> --sharing disabled
 
-  ${c.dim('# Share the existing site and allow viewer-scoped API calls')}
+  ${c.dim('# Share the existing app and allow viewer-scoped API calls')}
   $ deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
 
   ${c.dim('# Revoke viewer API access while preserving the current sharing setting')}
@@ -703,6 +701,43 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createStaticSiteAccessAction(program))
+
+  const streamlit = program.command('streamlit').description('Manage Streamlit apps')
+
+  streamlit
+    .command('publish')
+    .description('Serve a file already in the project as a Streamlit app')
+    .argument('<entrypoint>', 'Project-relative path of the Python file to serve')
+    .requiredOption('--project-id <uuid>', 'Deepnote project ID')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--no-wait', 'Exit without waiting for the app to start')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Streamlit apps are Python UIs that run on project hardware. <entrypoint> is a Python file
+  already in the project's Files. Upload it in Deepnote, or push it with
+  ${c.dim('deepnote sync --all-files')} alongside a notebook push. Nothing is uploaded and no app
+  setting changes.
+  Creating a Streamlit app restarts the project machine and interrupts active work. The command
+  waits up to 10 minutes for readiness, including when it finds an existing Streamlit app.
+  Use --no-wait to return without checking readiness.
+
+${c.bold('Examples:')}
+  ${c.dim('# Serve a file already in the project as a Streamlit app and wait for it to start')}
+  $ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+
+  ${c.dim('# Create the Streamlit app without waiting for the machine to restart')}
+  $ deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Streamlit app running, or created/found with --no-wait
+  ${c.dim('1')}  A Streamlit app request failed, or the app did not start in time
+  ${c.dim('2')}  Invalid usage (bad entrypoint, missing token)
+`
+    })
+    .action(createStreamlitPublishAction(program))
 
   // Convert command - convert between notebook formats
   program

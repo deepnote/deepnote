@@ -244,11 +244,11 @@ run continues.
 | ----------------------------------------------------------------------- | ------------------------------------------------ |
 | Keep one project in a Git repo, synced automatically by Deepnote        | [Deepnote file sync](/docs/deepnote-file-sync)   |
 | Mirror many projects to your machine on demand, and push notebook edits | `deepnote sync`                                  |
-| Deploy a built static site or app to a project                          | [`deepnote publish`](/docs/deepnote-cli-publish) |
+| Deploy a built app to a project                                         | [`deepnote publish`](/docs/deepnote-cli-publish) |
 
 ## Related
 
-- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish)
+- [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
 - [How to set up Deepnote locally](/docs/local-setup) — editors and other local tooling

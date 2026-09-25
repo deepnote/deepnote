@@ -29,6 +29,7 @@ describe('CLI', () => {
 
       expect(commandNames).toContain('inspect')
       expect(commandNames).toContain('run')
+      expect(commandNames).toContain('publish')
       expect(commandNames).toContain('schedule')
       expect(commandNames).toContain('convert')
       expect(commandNames).toContain('validate')

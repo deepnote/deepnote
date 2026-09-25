@@ -88,7 +88,7 @@ function preparePublishFiles(targetPrefix: string, localDir: string, files: stri
   return prepared
 }
 
-function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
+function appUrlWithPath(canonicalUrl: string, targetPrefix: string): string {
   const base = new URL(canonicalUrl)
   const origin = base.origin
   if (!base.pathname.endsWith('/')) {
@@ -104,7 +104,7 @@ function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
     .join('/')
   base.pathname += `${suffix}/`
   if (base.origin !== origin) {
-    throw new Error('Static site URL changed origin')
+    throw new Error('App URL changed origin')
   }
   return base.toString()
 }
@@ -298,7 +298,7 @@ export function createPublishAction(program: Command) {
       )
     }
 
-    let siteUrl: string | undefined
+    let appUrl: string | undefined
     let apiAccessEnabled: boolean | undefined
     if (errors.length === 0) {
       const requestedApiAccess = options.apiAccess === undefined ? undefined : options.apiAccess === 'enabled'
@@ -315,12 +315,12 @@ export function createPublishAction(program: Command) {
           }
           settings = await updateProjectStaticFiles(baseUrl, token, options.projectId, update)
         }
-        siteUrl = staticSiteUrl(settings.url, targetPrefix)
+        appUrl = appUrlWithPath(settings.url, targetPrefix)
         apiAccessEnabled = settings.apiAccessEnabled
       } catch (error) {
         const message = errorMessage(error)
         errors.push({ file: 'project settings', error: message })
-        logError(`  ✗ enable static website sharing — ${message}`)
+        logError(`  ✗ enable app sharing — ${message}`)
       }
     }
 
@@ -337,8 +337,8 @@ export function createPublishAction(program: Command) {
       }
       if (errors.length > 0) {
         log(`${c.red('✗')} Publish failed with ${errors.length} error${errors.length === 1 ? '' : 's'}`)
-      } else if (siteUrl !== undefined) {
-        log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
+      } else if (appUrl !== undefined) {
+        log(`\n${c.bold('App URL:')} ${c.underline(appUrl)}`)
         log(`${c.dim(`API access: ${apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
         if (apiAccessEnabled) {
           log(`\n${embeddedApiAccessNote(c)}`)
