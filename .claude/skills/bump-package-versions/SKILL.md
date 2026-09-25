@@ -35,19 +35,21 @@ Use the Node version from `.nvmrc` and run `pnpm install --frozen-lockfile`; ste
 A package's previous version is its highest **stable** release tag, `@deepnote/<name>@X.Y.Z`, the format `cd.yml` publishes from. Drop prerelease tags before picking the highest: `git tag --sort=-v:refname` ranks `@deepnote/cli@0.1.0-rc.4` above `@deepnote/cli@0.1.0`.
 
 ```bash
+npm_err=$(mktemp)
 for dir in $(git ls-tree --name-only origin/main packages/); do
   json=$(git show "origin/main:$dir/package.json" 2>/dev/null) || continue
   node -e 'process.exit(JSON.parse(process.argv[1]).private ? 0 : 1)' "$json" && continue
   name=$(node -p 'JSON.parse(process.argv[1]).name' "$json")
   version=$(node -p 'JSON.parse(process.argv[1]).version' "$json")
   tag=$(git tag --list "$name@*" --sort=-v:refname | grep -E '@[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-  npm_latest=$(npm view "$name" dist-tags.latest 2>/dev/null)
+  npm_latest=$(npm view "$name" dist-tags.latest 2>"$npm_err")
+  grep -q 'code E404' "$npm_err" && npm_latest=none
   on_remote=no; on_main=no
   if [ -n "$tag" ]; then
     git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null && on_remote=yes
     git merge-base --is-ancestor "$tag" origin/main && on_main=yes
   fi
-  echo "$name dir=$dir package.json=$version tag=${tag:-none} npm=${npm_latest:-none} tag-on-remote=$on_remote tag-on-main=$on_main"
+  echo "$name dir=$dir package.json=$version tag=${tag:-none} npm=${npm_latest:-ERROR} tag-on-remote=$on_remote tag-on-main=$on_main"
 done
 ```
 
@@ -55,9 +57,10 @@ The tag is the baseline only when `package.json`, the tag, and `npm` agree, and 
 
 | Observation                                            | Meaning                                                               | Action                                                                                                                                                           |
 | ------------------------------------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm=ERROR`                                            | Lookup failed (network, auth, registry); only a 404 prints `npm=none` | Re-run this loop; if it persists, **stop**.                                                                                                                      |
 | `tag=none`, `npm=none`                                 | Never released                                                        | First publish at the current version, no bump. Ask whether to release it now (#444 first shipped `cloud` and `local-runner` at 0.1.0). Its whole history counts. |
 | `package.json` above the tag and `npm`                 | A bump merged but was never released                                  | **Stop** and ask: cut that release first, or keep its version as this PR's target (raised only if the changes need more). Never bump twice.                      |
-| Tag exists, `npm` lower or `none`                      | Release created but publish failed, or `npm view` hit a network error | Re-run `npm view`; if it persists, **stop**.                                                                                                                     |
+| Tag exists, `npm` lower or `none`                      | Release created but publish failed or is still running                | Re-run `npm view`; if it persists, **stop**.                                                                                                                     |
 | `npm` above the tag                                    | Published outside the release flow                                    | **Stop**.                                                                                                                                                        |
 | `tag-on-remote=no`                                     | Local-only tag                                                        | **Stop**.                                                                                                                                                        |
 | `tag-on-main=no`                                       | Released from another branch                                          | **Stop**: `<tag>..origin/main` would list the wrong commits.                                                                                                     |
@@ -83,9 +86,9 @@ For a never-released package, run the same `git log` without `"$tag"..`.
 
 Sort each PR's files by whether they reach users:
 
-- **Ships**: `src/**` except tests (`*.test.ts`) and helpers only tests import; `package.json` fields consumers see (`dependencies`, `engines`, `exports`, `bin`, `files`, `type`); `README.md`; build inputs (`tsdown.config.ts`, build scripts under `scripts/`); for the CLI, `pypi/**` and `skills/deepnote/**`. `@deepnote/local-runner`'s `dist/snapshot-reader.iife.js` bundles its dependencies (blocks, yaml, zod), so `pnpm-lock.yaml` changes to those ship in it.
+- **Ships**: `src/**` except tests (`*.test.ts`) and helpers only tests import; `package.json` fields consumers see (`dependencies`, `engines`, `exports`, `bin`, `files`, `type`); `README.md`; build inputs (`tsdown.config.ts`, build scripts under `scripts/`); for the CLI, `pypi/**` and `skills/deepnote/**`. `@deepnote/local-runner`'s `dist/snapshot-reader.iife.js` bundles blocks and its third-party dependencies, so a PR that changes only the root `package.json` and `pnpm-lock.yaml` (a `pnpm.overrides` bump) can change what it ships; step 4 diffs the bundled versions.
 - **Shared build inputs** outside these paths (root `tsconfig.json`, the `tsdown` and `typescript` versions in the root `package.json`) change every package's built output without changing its file names. They don't require a release on their own; a released package ships their effect, so rate any difference consumers can see (module format, syntax target, `.d.ts` syntax older TypeScript can't read) with the step 5 table.
-- **Doesn't ship**: tests, `devDependencies` and `scripts` in `package.json`, and everything outside the paths above (`docs/`, `test-fixtures/`, `examples/`, CI).
+- **Doesn't ship**: tests, `devDependencies` and `scripts` in `package.json`, and everything else outside the paths above (`docs/`, `test-fixtures/`, `examples/`, CI).
 
 A package without shipped changes is released only when step 5's dependency rules require it. Classify every PR with shipped changes from its description and its own diff, not its title:
 
@@ -96,7 +99,7 @@ git show <sha> -- <paths> ':!*.test.ts'
 
 ## 4. Diff the public surface against the published release
 
-Build, then compare every package that has a baseline tag with that release's tarball from npm: the exported names in `dist/index.d.ts`, the `package.json` fields consumers see, and the packed file list with content-hashed chunk names normalized. The directory is derived from the package name the same way `cd.yml` does it.
+Build, then compare every package that has a baseline tag with that release's tarball from npm: the exported names in `dist/index.d.ts`, the `package.json` fields consumers see, the packed file list with content-hashed chunk names normalized, and the third-party package versions inlined into the bundles. The directory is derived from the package name the same way `cd.yml` does it.
 
 ```bash
 pnpm build
@@ -104,6 +107,7 @@ work=$(mktemp -d); echo "tarballs in $work"
 exports_of() { grep -h '^export {' "$1" | sed -E 's/^export \{ //; s/ \};?$//' | tr ',' '\n' | sed -E 's/^ +//; s/^type //; s/^.* as //' | sort -u; }
 manifest_of() { tar -xOzf "$1" package/package.json | node -e 'const { exports, bin, main, module, types, type, engines, dependencies, peerDependencies, files } = JSON.parse(require("fs").readFileSync(0, "utf8")); console.log(JSON.stringify({ exports, bin, main, module, types, type, engines, dependencies, peerDependencies, files }, null, 2))'; }
 files_of() { tar -tzf "$1" | sed -E 's/-[A-Za-z0-9_-]{8}\.(c?js|d\.c?ts)$/-[hash].\1/' | sort -u; }
+bundled_of() { tar -xOzf "$1" | grep -aoE '//#region [^ ]*node_modules/\.pnpm/[^/]+' | sed -E 's#.*/\.pnpm/##' | sort -u; }
 for tag in <baseline tags from step 2>; do
   name=${tag%@*}; dir=packages/${name#@deepnote/}
   mkdir -p "$work/prev/$name" "$work/next/$name"
@@ -115,6 +119,8 @@ for tag in <baseline tags from step 2>; do
   diff <(manifest_of "$work/prev/$name"/*.tgz) <(manifest_of "$work/next/$name"/*.tgz)
   echo "== $name: packed files (< removed, > added)"
   diff <(files_of "$work/prev/$name"/*.tgz) <(files_of "$work/next/$name"/*.tgz)
+  echo "== $name: bundled third-party packages (< removed, > added)"
+  diff <(bundled_of "$work/prev/$name"/*.tgz) <(bundled_of "$work/next/$name"/*.tgz)
 done
 ```
 
@@ -138,6 +144,7 @@ Reading the output:
 - Unchanged names don't prove compatibility: #524 added a block type inside existing unions and schemas without adding an export name.
 - In the `package.json` diff, a removed `exports` or `bin` entry or a raised `engines` is breaking; a new dependency or a raised dependency floor is a fix unless it changes public types.
 - A packed file that disappears (e.g. `dist/index.d.cts`) is breaking. New `dist/skills/**` files in the CLI are the bundled agent skill.
+- A changed bundled package ships even when step 3 listed no PR for the package: its path filter skips PRs that change only root files. Rate it as a dependency update, and find its PR from the `>` line: `git log --first-parent --format='%h %s' -S'<package>@<version>' <tag>..origin/main -- pnpm-lock.yaml`.
 - If `exports_of` prints nothing on either side, the `.d.ts` layout changed. Compare by hand; silence is not "no change".
 
 ## 5. Decide the bump
