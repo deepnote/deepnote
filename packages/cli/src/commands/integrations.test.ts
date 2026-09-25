@@ -53,7 +53,9 @@ describe('integrations command', () => {
         expect(error.name).toBe('MissingTokenError')
         expect(error.message).toContain('--token')
         expect(error.message).toContain('DEEPNOTE_TOKEN')
-        expect(error.message).toContain('api-tokens')
+        expect(error.message).toContain('.env file')
+        expect(error.message).toContain('Settings & members > Security > API keys')
+        expect(error.message).toContain('https://deepnote.com/docs/deepnote-api')
       })
     })
 
@@ -893,6 +895,19 @@ integrations:
 
       expect(yamlFileExists).toBe(false)
       expect(envFileExists).toBe(false)
+    })
+
+    it('reads DEEPNOTE_TOKEN from the --env-file when neither flag nor env var provides one', async () => {
+      vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
+      mockFetchIntegrations.mockResolvedValueOnce([])
+
+      const filePath = join(tempDir, 'test-dotenv-token.yaml')
+      const envFilePath = join(tempDir, 'test-dotenv-token.env')
+      await writeFile(envFilePath, 'DEEPNOTE_TOKEN=dotenv-token\n')
+
+      await runPullCommand(['--file', filePath, '--env-file', envFilePath])
+
+      expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'dotenv-token')
     })
 
     it('uses token from --token flag', async () => {

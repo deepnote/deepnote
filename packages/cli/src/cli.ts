@@ -137,8 +137,10 @@ ${c.bold('Global Options:')}
   ${c.dim('-q, --quiet')}   Suppress non-essential output
 
 ${c.bold('Environment Variables:')}
-  ${c.dim('NO_COLOR')}      Set to any value to disable colored output
-  ${c.dim('FORCE_COLOR')}   Set to 1 to force colors, 0 to disable
+  ${c.dim(DEEPNOTE_TOKEN_ENV)}  API token for cloud commands (sync, publish, schedule, run --cloud, ...);
+                  also read from a .env file. Create one under Settings & members > Security > API keys
+  ${c.dim('NO_COLOR')}        Set to any value to disable colored output
+  ${c.dim('FORCE_COLOR')}     Set to 1 to force colors, 0 to disable
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
