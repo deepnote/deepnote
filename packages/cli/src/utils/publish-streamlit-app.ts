@@ -94,7 +94,10 @@ async function createOrFindStreamlitApp(
 }
 
 async function waitUntilAppRuns(baseUrl: string, token: string, appId: string): Promise<void> {
-  const spinner = !getOutputConfig().quiet && process.stderr.isTTY ? ora('Waiting for the app to start…').start() : null
+  const spinner =
+    !getOutputConfig().quiet && process.stderr.isTTY
+      ? ora({ text: 'Waiting for the app to start…', discardStdin: false }).start()
+      : null
   let lastStatus: string | undefined
   try {
     await waitForStreamlitApp(baseUrl, token, appId, {
