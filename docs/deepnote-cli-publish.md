@@ -233,6 +233,7 @@ lookup is pointless.
 
 ## Related
 
+- [Deepnote CLI](/docs/deepnote-cli) — install the CLI and see every command
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync) — mirror projects to a local
   directory and push notebook edits back
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product feature that keeps a project synced
