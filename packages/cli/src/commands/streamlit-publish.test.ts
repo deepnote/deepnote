@@ -240,6 +240,7 @@ describe('deepnote streamlit publish', () => {
   it.each(['../app.py', 'apps/../app.py', 'apps\\app.py', ' app.py', 'app.py ', 'apps/'])(
     'rejects invalid entrypoint %s before calling the API',
     async entrypoint => {
+      vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('exit')
       })
@@ -253,6 +254,7 @@ describe('deepnote streamlit publish', () => {
 
   it('exits with code 2 when no token is available', async () => {
     vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit')
     })
