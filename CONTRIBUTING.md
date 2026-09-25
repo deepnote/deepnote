@@ -142,6 +142,8 @@ Biome is available as a first-party extension in your favorite editors.
 
 This repository supports publishing multiple packages independently. Each package release must use a **package-scoped tag** in the format `@deepnote/package-name@version` (e.g., `@deepnote/blocks@1.2.0`).
 
+To release several packages at once, maintainers using Claude Code can run the [`/bump-package-versions`](.claude/skills/bump-package-versions/SKILL.md) skill. It picks each package's bump from what merged since that package's last release tag and opens the version-bump PR (steps 1–3 below); releases are still created as in step 4.
+
 To publish a new version of a package (using `@deepnote/blocks` as an example):
 
 1. **Update the version** in the package's `package.json`:
