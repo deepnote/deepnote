@@ -22,6 +22,7 @@ import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
+import { createStreamlitPublishAction } from './commands/streamlit-publish'
 import { CONFLICT_MODES, createSyncAction } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
@@ -583,43 +584,31 @@ ${c.bold('Exit Codes:')}
 
   program
     .command('publish')
-    .description('Publish an app or Streamlit app to a Deepnote project')
-    .argument('<path>', 'Local HTML/JS build directory, or project-relative Python entrypoint with --streamlit')
+    .description('Publish a local app directory to a Deepnote project')
+    .argument('<dir>', 'Directory containing the app files to publish')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--path <prefix>', 'App only: target directory under _deepnote_static', '_deepnote_static')
+    .option('--path <prefix>', 'Target directory under _deepnote_static', '_deepnote_static')
     .addOption(
-      new Option('--api-access <state>', 'App only: allow the published app to call Deepnote APIs').choices([
+      new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
         'enabled',
         'disabled',
       ])
     )
-    .option('--prune', 'App only: delete remote files below --path that are absent locally')
-    .option(
-      '--sync-root <dir>',
-      'App only: sync workspace whose mirror to update (default: search upwards from the published directory)'
-    )
-    .option('--no-sync-root', 'App only: publish without looking for or updating a sync workspace')
-    .option('--force', 'App only: publish even when files changed in Deepnote since the sync workspace last synced')
-    .option('--streamlit', 'Serve an existing project file as a Streamlit app')
-    .option('--no-wait', 'Streamlit only: exit without waiting for the app to start')
+    .option('--prune', 'Delete remote files below --path that are absent locally')
+    .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
+    .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
+    .option('--force', 'Publish even when files changed in Deepnote since the sync workspace last synced')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Apps:')}
   Apps are HTML, CSS, and JavaScript hosted by Deepnote and run in the browser. They can be
-  interactive and call Deepnote APIs. By default, publish uploads a local build directory to
+  interactive and call Deepnote APIs. The command uploads a local build directory to
   ${c.dim('_deepnote_static/')}, replaces matching files, and enables sharing after every upload
-  succeeds. API access is left unchanged unless explicitly set.
-
-${c.bold('Streamlit apps:')}
-  Streamlit apps are Python UIs that run on project hardware. With ${c.dim('--streamlit')}, <path>
-  is a Python file already in the project's Files. Upload it in Deepnote or push it with
-  ${c.dim('deepnote sync --all-files')} first. Nothing is uploaded and no app setting changes.
-  Creating a Streamlit app restarts the project machine and interrupts active work. The command
-  waits up to 10 minutes for readiness, including when it finds an existing Streamlit app.
-  Use --no-wait to return without checking readiness.
+  succeeds. API access is left unchanged unless explicitly set. To serve a Python file already
+  in the project as a Streamlit app, use ${c.dim('deepnote streamlit publish')} instead.
 
 ${c.bold('App viewer API access:')}
   With API access enabled, the embedded app uses a viewer token that expires after
@@ -665,18 +654,10 @@ ${c.bold('Examples:')}
   ${c.dim('# CI deploy: never touch a sync workspace')}
   $ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
-  ${c.dim('# Serve a file already in the project as a Streamlit app and wait for it to start')}
-  $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
-
-  ${c.dim('# Create the Streamlit app without waiting for the machine to restart')}
-  $ deepnote publish apps/dashboard.py --project-id <uuid> --streamlit --no-wait
-
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  App published, or Streamlit app running or created/found with --no-wait
-  ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes,
-     a Streamlit app request failed, or the app did not start in time
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root,
-     options that do not apply to the chosen mode)
+  ${c.dim('0')}  Files uploaded and app sharing enabled
+  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root)
 `
     })
     .action(createPublishAction(program))
@@ -720,6 +701,42 @@ ${c.bold('Exit Codes:')}
 `
     })
     .action(createStaticSiteAccessAction(program))
+
+  const streamlit = program.command('streamlit').description('Manage Streamlit apps')
+
+  streamlit
+    .command('publish')
+    .description('Serve a file already in the project as a Streamlit app')
+    .argument('<entrypoint>', 'Project-relative path of the Python file to serve')
+    .requiredOption('--project-id <uuid>', 'Deepnote project ID')
+    .option('--url <url>', 'API base URL', DEFAULT_API_URL)
+    .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--no-wait', 'Exit without waiting for the app to start')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Streamlit apps are Python UIs that run on project hardware. <entrypoint> is a Python file
+  already in the project's Files. Upload it in Deepnote or push it with
+  ${c.dim('deepnote sync --all-files')} first. Nothing is uploaded and no app setting changes.
+  Creating a Streamlit app restarts the project machine and interrupts active work. The command
+  waits up to 10 minutes for readiness, including when it finds an existing Streamlit app.
+  Use --no-wait to return without checking readiness.
+
+${c.bold('Examples:')}
+  ${c.dim('# Serve a file already in the project as a Streamlit app and wait for it to start')}
+  $ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+
+  ${c.dim('# Create the Streamlit app without waiting for the machine to restart')}
+  $ deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Streamlit app running, or created/found with --no-wait
+  ${c.dim('1')}  A Streamlit app request failed, or the app did not start in time
+  ${c.dim('2')}  Invalid usage (bad entrypoint, missing token)
+`
+    })
+    .action(createStreamlitPublishAction(program))
 
   // Convert command - convert between notebook formats
   program

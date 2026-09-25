@@ -12,7 +12,7 @@ import { ExitCode } from '../exit-codes'
 import { getChalk, getOutputConfig, log, error as logError, warn } from '../output'
 import { isSafeRelativeFilePath } from './sync-paths'
 
-export interface StreamlitPublishOptions {
+export interface PublishStreamlitAppOptions {
   url: string
   projectId: string
   wait: boolean
@@ -34,7 +34,7 @@ export function normalizeStreamlitEntrypoint(path: string): string | null {
 export async function publishStreamlitApp(
   token: string,
   entrypoint: string,
-  options: StreamlitPublishOptions
+  options: PublishStreamlitAppOptions
 ): Promise<void> {
   const c = getChalk()
   const { url: baseUrl, projectId } = options
