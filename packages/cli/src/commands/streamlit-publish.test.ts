@@ -13,6 +13,7 @@ vi.mock('@deepnote/cloud', async importOriginal => {
 import { createStreamlitApp, listStreamlitApps, StreamlitAppTimeoutError, waitForStreamlitApp } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
 import { createProgram } from '../cli'
+import { DEEPNOTE_TOKEN_ENV } from '../constants'
 
 const STREAMLIT_APP = {
   id: '7a2f0c1e-0f5f-4a67-9a2c-4a0b7bb0f0a1',
@@ -38,6 +39,7 @@ beforeEach(() => {
 afterEach(() => {
   process.exitCode = undefined
   vi.restoreAllMocks()
+  vi.unstubAllEnvs()
 })
 
 function run(...args: string[]) {
@@ -250,8 +252,7 @@ describe('deepnote streamlit publish', () => {
   )
 
   it('exits with code 2 when no token is available', async () => {
-    const previous = process.env.DEEPNOTE_TOKEN
-    process.env.DEEPNOTE_TOKEN = ''
+    vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit')
     })
@@ -259,10 +260,5 @@ describe('deepnote streamlit publish', () => {
     await expect(run('apps/dashboard.py', '--project-id', 'p1')).rejects.toThrow('exit')
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
-    if (previous === undefined) {
-      delete process.env.DEEPNOTE_TOKEN
-    } else {
-      process.env.DEEPNOTE_TOKEN = previous
-    }
   })
 })
