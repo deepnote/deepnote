@@ -11,7 +11,7 @@ If the workflow is undecided, start with [Build and publish apps and Streamlit a
 
 ## Before publishing
 
-1. Confirm the target project ID and the files to publish. The command does not create projects.
+1. Confirm the target project ID and the files to publish. Neither command creates projects.
 2. Set `DEEPNOTE_TOKEN` or pass `--token`. Use `--url` only to override the default API origin,
    `https://api.deepnote.com`. Keep the token out of app files.
 3. For an app, build into a dedicated directory and inspect its contents. Everything in that

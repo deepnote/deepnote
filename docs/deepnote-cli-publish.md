@@ -38,7 +38,7 @@ deepnote publish ./dist --project-id <project-id>
 
 Prefer the environment variable to keep the token out of command history and process arguments.
 In CI, expose it from the provider's secret store. Keep tokens out of the build directory and revoke
-any exposed token from the settings page. Without a token, the command exits with code `2`.
+any exposed token from the settings page. Without a token, both commands exit with code `2`.
 
 ## Finding a project ID
 
@@ -232,7 +232,8 @@ to check its status again.
 | `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes | A request failed or startup timed out          |
 | `2`  | Invalid arguments, missing token/directory, or unusable sync workspace          | Invalid arguments or missing token             |
 
-Without `--no-wait`, an app that remains unavailable exits with code `1` after the startup timeout.
+Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
+timeout.
 
 ## Related
 
