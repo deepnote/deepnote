@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import type { SnapshotView } from './snapshot-view'
-import { parseSnapshot, toSnapshotView } from './snapshot-view'
+import type { SnapshotView } from '@deepnote/pipelines'
+import { parseSnapshot, toSnapshotView } from '@deepnote/pipelines'
 
 /**
  * Read a `.deepnote` snapshot from a path, raw YAML, or an already-parsed file.

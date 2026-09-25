@@ -7,7 +7,7 @@ import { inputInfoFor } from './input-info'
 /**
  * Reading a snapshot is pure parsing — no Python, no kernel, no filesystem. This module has no
  * Node dependencies so it also runs in a browser, which is what lets a static page render a
- * `.deepnote` snapshot on its own (see `snapshot-viewer.ts`).
+ * `.deepnote` snapshot on its own (see `examples/local-runner/snapshot-viewer`).
  */
 
 /** One block of a snapshot, with whatever outputs the run produced. */

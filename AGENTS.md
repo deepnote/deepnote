@@ -13,6 +13,7 @@ This is a TypeScript monorepo for Deepnote's open-source packages, managed with 
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
 - **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
 - **packages/mcp** - MCP server for AI-assisted Deepnote notebook creation and manipulation
+- **packages/pipelines** - Compose Deepnote notebook runs into pipelines, with no server and no orchestration engine
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
 - **packages/runtime-core** - Core runtime for executing Deepnote projects
 
@@ -28,6 +29,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | MCP tools and resources                                        | `packages/mcp/`                                       |
 | Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
+| Composing several notebook runs into one pipeline              | `packages/pipelines/`                                 |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
 | Database integration definitions                               | `packages/database-integrations/`                     |
 | Shared test data                                               | `test-fixtures/`                                      |
