@@ -213,7 +213,7 @@ describe('deepnote streamlit publish', () => {
     await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok')
 
     expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('Entrypoint file not found. The file must already exist')
-    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('deepnote sync --all-files')
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('`deepnote sync --all-files` alongside a notebook push')
     expect(process.exitCode).toBe(1)
   })
 

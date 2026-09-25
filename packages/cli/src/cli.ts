@@ -717,8 +717,9 @@ ${c.bold('Exit Codes:')}
       return `
 ${c.bold('Description:')}
   Streamlit apps are Python UIs that run on project hardware. <entrypoint> is a Python file
-  already in the project's Files. Upload it in Deepnote or push it with
-  ${c.dim('deepnote sync --all-files')} first. Nothing is uploaded and no app setting changes.
+  already in the project's Files. Upload it in Deepnote, or push it with
+  ${c.dim('deepnote sync --all-files')} alongside a notebook push. Nothing is uploaded and no app
+  setting changes.
   Creating a Streamlit app restarts the project machine and interrupts active work. The command
   waits up to 10 minutes for readiness, including when it finds an existing Streamlit app.
   Use --no-wait to return without checking readiness.
