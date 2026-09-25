@@ -1,11 +1,11 @@
 # Publish apps and Streamlit apps
 
-Use `deepnote publish <path> --project-id <uuid>` to publish to an existing Deepnote project.
-Choose the mode from the source:
+Two commands publish to an existing Deepnote project. Choose the command from the source:
 
-- **App:** a local directory of HTML, CSS, JavaScript, and assets, uploaded for Deepnote to host.
-- **Streamlit app:** a project-relative `.py` entrypoint already in the project's Files; add
-  `--streamlit`.
+- **App:** a local directory of HTML, CSS, JavaScript, and assets, uploaded for Deepnote to host:
+  `deepnote publish <dir> --project-id <uuid>`.
+- **Streamlit app:** a project-relative `.py` entrypoint already in the project's Files:
+  `deepnote streamlit publish <entrypoint> --project-id <uuid>`.
 
 If the workflow is undecided, start with [Build and publish apps and Streamlit apps](apps.md).
 
@@ -76,7 +76,7 @@ files absent from Deepnote.
 3. Publish using the project-relative path:
 
    ```bash
-   deepnote publish apps/dashboard.py --project-id <uuid> --streamlit
+   deepnote streamlit publish apps/dashboard.py --project-id <uuid>
    ```
 
 4. Open the printed URL and check the UI and any notebook runs as the intended viewer. API calls
@@ -101,23 +101,32 @@ publish again and use the returned URL, which may change.
 
 ## Options
 
-| Option                           | Use                                                                        |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `--project-id <uuid>`            | Required target project                                                    |
-| `--streamlit`                    | Publish an existing project entrypoint as a Streamlit app                  |
-| `--no-wait`                      | Streamlit apps only: return without checking readiness                     |
-| `--path <prefix>`                | Apps only: target directory at or below `_deepnote_static`                 |
-| `--api-access enabled\|disabled` | Apps only: change viewer API access; omitted preserves it                  |
-| `--prune`                        | Apps only: delete remote files absent from the local build                 |
-| `--sync-root <dir>`              | Apps only: use this sync workspace; default searches upward from the build |
-| `--no-sync-root`                 | Apps only: skip sync workspace discovery and updates                       |
-| `--force`                        | Apps only: overwrite changes not yet pulled into the sync workspace        |
-| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                                    |
-| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`                         |
-| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr                   |
+`deepnote publish <dir>`:
 
-Options for one app type are rejected with the other. Streamlit publishing does not update app
-settings or a sync workspace.
+| Option                           | Use                                                             |
+| -------------------------------- | --------------------------------------------------------------- |
+| `--project-id <uuid>`            | Required target project                                         |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                 |
+| `--api-access enabled\|disabled` | Change viewer API access; omitted preserves it                  |
+| `--prune`                        | Delete remote files absent from the local build                 |
+| `--sync-root <dir>`              | Use this sync workspace; default searches upward from the build |
+| `--no-sync-root`                 | Skip sync workspace discovery and updates                       |
+| `--force`                        | Overwrite changes not yet pulled into the sync workspace        |
+| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                         |
+| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`              |
+| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr        |
+
+`deepnote streamlit publish <entrypoint>`:
+
+| Option                | Use                                                      |
+| --------------------- | -------------------------------------------------------- |
+| `--project-id <uuid>` | Required target project                                  |
+| `--no-wait`           | Return without checking readiness                        |
+| `--token <token>`     | API token; defaults to `DEEPNOTE_TOKEN`                  |
+| `--url <url>`         | API origin; defaults to `https://api.deepnote.com`       |
+| `-q, --quiet`         | Suppress progress and results; errors still go to stderr |
+
+Streamlit publishing does not update app settings or a sync workspace.
 
 ## Change app access
 
@@ -139,11 +148,11 @@ serves the retained files at the returned URL. Authentication and the API origin
 
 ## Interpret the result
 
-| Exit code | App                                                                             | Streamlit app                                             |
-| --------- | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `0`       | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait`            |
-| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes         | Request failure or startup timeout                        |
-| `2`       | Invalid arguments, missing token/directory, or unusable sync manifest/workspace | Invalid arguments, missing token, or incompatible options |
+| Exit code | `deepnote publish`                                                              | `deepnote streamlit publish`                   |
+| --------- | ------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`       | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait` |
+| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes         | Request failure or startup timeout             |
+| `2`       | Invalid arguments, missing token/directory, or unusable sync manifest/workspace | Invalid arguments or missing token             |
 
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. Sharing is not changed and remaining stale files are not
