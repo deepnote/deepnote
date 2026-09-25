@@ -45,6 +45,7 @@ export const executableBlockTypes: ExecutableBlock['type'][] = [
   'sql',
   'notebook-function',
   'visualization',
+  'pivot-table',
   'button',
   'big-number',
   'input-text',

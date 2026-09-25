@@ -21,6 +21,7 @@ const executableBlockTypes = new Set([
   'sql',
   'notebook-function',
   'visualization',
+  'pivot-table',
   'button',
   'big-number',
   ...INPUT_BLOCK_TYPES,
