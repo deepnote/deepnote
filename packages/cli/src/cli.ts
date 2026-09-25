@@ -89,6 +89,9 @@ export function createProgram(): Command {
       const c = getChalk()
       return `
 ${c.bold('Examples:')}
+  ${c.dim('# Sync your Deepnote workspace to a local directory (and push edits back)')}
+  $ deepnote sync workspace
+
   ${c.dim('# Run the first .deepnote file in current directory')}
   $ deepnote run
 
@@ -106,9 +109,6 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Compare two .deepnote files')}
   $ deepnote diff file1.deepnote file2.deepnote
-
-  ${c.dim('# Run with TOON output (for LLMs)')}
-  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
   $ deepnote open my-project.deepnote
