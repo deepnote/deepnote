@@ -926,10 +926,18 @@ These options work with all commands:
 | `NO_COLOR`       | Set to any value to disable colored output                                                             |
 | `FORCE_COLOR`    | Set to `1` to force colors, `0` to disable                                                             |
 
-`DEEPNOTE_TOKEN` can also live in a `.env` file: next to the notebook for `run` and `schedule`, in the sync
-root for `sync`, or in the current directory for `publish` and `static-site access`. A value already set in
-the shell takes precedence. Create an API key in Deepnote under **Settings & members > Security > API keys**
-(see the [Deepnote API docs](https://deepnote.com/docs/deepnote-api)).
+`DEEPNOTE_TOKEN` can also live in a `.env` file. Which one depends on the command:
+
+- `run`: the run's working directory (`--cwd`, otherwise the notebook's directory). With `--cloud`: next to
+  the local `.deepnote` file, or the current directory when only `--notebook-id` is given
+- `schedule`: next to the `.deepnote` file
+- `sync`: the sync root
+- `publish` and `static-site access`: the current directory
+- `integrations pull`: the file given by `--env-file` (default `.env`)
+
+`--token` wins over everything, and a value already set in the shell wins over `.env`.
+
+Create an API key in Deepnote under **Settings & members > Security > API keys** (see the [Deepnote API docs](https://deepnote.com/docs/deepnote-api)).
 
 The CLI follows the [NO_COLOR](https://no-color.org/) and [FORCE_COLOR](https://force-color.org/) standards.
 
