@@ -13,6 +13,7 @@ Rules for the whole run:
 - Decide each package's level separately, from the evidence gathered below; never apply one level to every package by default.
 - Read versions and history from `origin/main` and the fetched tags, not from memory or the checked-out branch.
 - `<angle-bracket>` values in commands are placeholders to fill in. Shell variables don't survive between separate commands, so run each loop below as one script.
+- Every `npm view` and `npm pack` pins `--@deepnote:registry=https://registry.npmjs.org/`, the registry `cd.yml` publishes to. A plain `--registry` doesn't override a scoped registry set in someone's `.npmrc`.
 - **Stop** means: report what you found and wait for the user.
 - Never create tags or GitHub releases. Don't commit or push before the user approves the proposal in step 6.
 
@@ -42,12 +43,12 @@ for dir in $(git ls-tree --name-only origin/main packages/); do
   name=$(node -p 'JSON.parse(process.argv[1]).name' "$json")
   version=$(node -p 'JSON.parse(process.argv[1]).version' "$json")
   tag=$(git tag --list "$name@*" --sort=-v:refname | grep -E '@[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-  npm_latest=$(npm view "$name" dist-tags.latest 2>"$npm_err")
+  npm_latest=$(npm view "$name" dist-tags.latest --@deepnote:registry=https://registry.npmjs.org/ 2>"$npm_err")
   grep -q 'code E404' "$npm_err" && npm_latest=none
-  on_remote=no; on_main=no
+  on_remote=-; on_main=-
   if [ -n "$tag" ]; then
-    git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null && on_remote=yes
-    git merge-base --is-ancestor "$tag" origin/main && on_main=yes
+    git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null && on_remote=yes || on_remote=no
+    git merge-base --is-ancestor "$tag" origin/main && on_main=yes || on_main=no
   fi
   echo "$name dir=$dir package.json=$version tag=${tag:-none} npm=${npm_latest:-ERROR} tag-on-remote=$on_remote tag-on-main=$on_main"
 done
@@ -99,19 +100,19 @@ git show <sha> -- <paths> ':!*.test.ts'
 
 ## 4. Diff the public surface against the published release
 
-Build, then compare every package that has a baseline tag with that release's tarball from npm: the exported names in `dist/index.d.ts`, the `package.json` fields consumers see, the packed file list with content-hashed chunk names normalized, and the third-party package versions inlined into the bundles. The directory is derived from the package name the same way `cd.yml` does it.
+Build, then compare every package that has a baseline tag with that release's tarball from npm: the exported names in `dist/index.d.ts`, the `package.json` fields consumers see (dependency keys sorted, because `pnpm pack` writes them in varying order), the packed file list with content-hashed chunk names normalized, and the third-party package versions inlined into the bundles. The directory is derived from the package name the same way `cd.yml` does it.
 
 ```bash
 pnpm build
 work=$(mktemp -d); echo "tarballs in $work"
 exports_of() { grep -h '^export {' "$1" | sed -E 's/^export \{ //; s/ \};?$//' | tr ',' '\n' | sed -E 's/^ +//; s/^type //; s/^.* as //' | sort -u; }
-manifest_of() { tar -xOzf "$1" package/package.json | node -e 'const { exports, bin, main, module, types, type, engines, dependencies, peerDependencies, files } = JSON.parse(require("fs").readFileSync(0, "utf8")); console.log(JSON.stringify({ exports, bin, main, module, types, type, engines, dependencies, peerDependencies, files }, null, 2))'; }
+manifest_of() { tar -xOzf "$1" package/package.json | node -e 'const sorted = o => o && Object.fromEntries(Object.keys(o).sort().map(k => [k, o[k]])); const { exports, bin, main, module, types, type, engines, dependencies, peerDependencies, files } = JSON.parse(require("fs").readFileSync(0, "utf8")); console.log(JSON.stringify({ exports, bin, main, module, types, type, engines, dependencies: sorted(dependencies), peerDependencies: sorted(peerDependencies), files }, null, 2))'; }
 files_of() { tar -tzf "$1" | sed -E 's/-[A-Za-z0-9_-]{8}\.(c?js|d\.c?ts)$/-[hash].\1/' | sort -u; }
 bundled_of() { tar -xOzf "$1" | grep -aoE '//#region [^ ]*node_modules/\.pnpm/[^/]+' | sed -E 's#.*/\.pnpm/##' | sort -u; }
 for tag in <baseline tags from step 2>; do
   name=${tag%@*}; dir=packages/${name#@deepnote/}
   mkdir -p "$work/prev/$name" "$work/next/$name"
-  (cd "$work/prev/$name" && npm pack "$tag" --silent | xargs tar -xzf)
+  (cd "$work/prev/$name" && npm pack "$tag" --silent --@deepnote:registry=https://registry.npmjs.org/ | xargs tar -xzf)
   (cd "$dir" && pnpm pack --pack-destination "$work/next/$name" >/dev/null)
   echo "== $name: exports (< removed, > added)"
   diff <(exports_of "$work/prev/$name/package/dist/index.d.ts") <(exports_of "$dir/dist/index.d.ts")
@@ -202,11 +203,12 @@ Show the user the following, then stop until they approve or correct it:
 For each package being released (skip a never-released package, which keeps its version, and one already at the target on an existing release PR):
 
 ```bash
-npm view <name> versions --json | grep -F '"<new>"'  # must print nothing
-git ls-remote --tags origin 'refs/tags/<name>@<new>' # must print nothing
+npm view <name>@<new> version --@deepnote:registry=https://registry.npmjs.org/ 2>&1 | grep 'code E404'  # must print the E404 line
+git ls-remote --tags origin 'refs/tags/<name>@<new>'  # must print nothing
 (cd <dir> && pnpm version <new> --no-git-tag-version)
 ```
 
+- Only an E404 proves `<new>` is unpublished. No output means npm found the version or the lookup failed; stop in both cases.
 - Always pass `--no-git-tag-version`; without it the command commits and tags locally, and release tags come only from GitHub releases. Pass the explicit version, not `patch`, `minor`, or `major`.
 - `git diff --stat` must list only `packages/*/package.json`, one changed line each. `pnpm-lock.yaml` must not change, because workspace dependencies are `link:` entries without versions. The PyPI package `deepnote-cli` takes its version from `packages/cli/package.json` at publish time.
 
