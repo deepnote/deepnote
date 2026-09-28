@@ -105,6 +105,7 @@ describe('CLI', () => {
           '--url <url>',
           '--no-create',
           '--open',
+          '--remove',
           '-o, --output <format>',
         ])
       )
@@ -176,6 +177,7 @@ describe('CLI', () => {
         return 0
     fi`)
       expect(output).toContain('--storage-mode --timeout --push --yes --url')
+      expect(output).toContain('--no-create --open --remove -o --output')
       consoleSpy.mockRestore()
     })
 
@@ -196,6 +198,7 @@ describe('CLI', () => {
       )
       expect(output).toContain("'--push[Push the local .deepnote blocks to the Deepnote notebook before running]'")
       expect(output).toContain("'--yes[Skip the --push confirmation prompt]'")
+      expect(output).toContain("'--remove[Remove the notebook schedule]'")
       consoleSpy.mockRestore()
     })
 
@@ -218,6 +221,9 @@ describe('CLI', () => {
       )
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from run' -l yes -d 'Skip the --push confirmation prompt'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l remove -d 'Remove the notebook schedule'"
       )
       consoleSpy.mockRestore()
     })

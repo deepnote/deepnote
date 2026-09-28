@@ -144,7 +144,7 @@ _deepnote_completions() {
         schedule)
             # Complete .deepnote files and scheduling flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--hourly --daily --weekly --monthly --cron --at --timezone --notebook --token --url --no-create --open -o --output" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--hourly --daily --weekly --monthly --cron --at --timezone --notebook --token --url --no-create --open --remove -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -391,6 +391,7 @@ ${commandEntries}
                         '--url[API base URL]:url:' \\
                         '--no-create[Do not create a missing cloud project]' \\
                         '--open[Open the scheduled notebook in a browser]' \\
+                        '--remove[Remove the notebook schedule]' \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
@@ -617,6 +618,7 @@ complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l token -d 'Bear
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l url -d 'API base URL'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l no-create -d 'Do not create a missing cloud project'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l open -d 'Open the scheduled notebook in a browser'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l remove -d 'Remove the notebook schedule'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -F -a '*.deepnote'
 

@@ -472,14 +472,16 @@ ${c.bold('Exit Codes:')}
     .option('--url <url>', 'Deepnote API base URL', DEFAULT_API_URL)
     .option('--no-create', 'Do not create the project in Deepnote Cloud when it is missing')
     .option('--open', 'Open the scheduled notebook in your default browser')
+    .option('--remove', "Remove the notebook's schedule")
     .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  Creates or updates the recurring Deepnote Cloud schedule for this project.
+  Creates or updates the recurring Deepnote Cloud schedule for the selected notebook.
+  Other notebooks' schedules are not affected.
   If the local project is not in Deepnote yet, it is created without running it.
-  A project has one schedule, so scheduling another notebook updates that schedule.
+  Use --remove to delete the schedule instead.
 
 ${c.bold('Examples:')}
   ${c.dim('# Run every day at 09:00 in your local timezone')}
@@ -497,12 +499,16 @@ ${c.bold('Examples:')}
   ${c.dim('# Schedule and open the cloud notebook')}
   $ deepnote schedule report.deepnote --daily --open
 
+  ${c.dim("# Remove one notebook's schedule")}
+  $ deepnote schedule project.deepnote --notebook "Daily report" --remove
+
 ${c.bold('Authentication:')}
   Set ${c.dim(DEEPNOTE_TOKEN_ENV)} in your environment or in a .env file next to the notebook.
-  You can also pass ${c.dim('--token')}. Scheduling availability depends on your Deepnote plan.
+  You can also pass ${c.dim('--token')}. Scheduling availability depends on your Deepnote plan;
+  --remove works on any plan.
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Success
+  ${c.dim('0')}  Success, including --remove with nothing to remove
   ${c.dim('1')}  API or network failure
   ${c.dim('2')}  Invalid usage, authentication, or plan permissions
 `

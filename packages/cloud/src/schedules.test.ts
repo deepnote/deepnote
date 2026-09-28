@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { upsertNotebookSchedule } from './schedules'
+import { deleteNotebookSchedule, upsertNotebookSchedule } from './schedules'
 
 const BASE_URL = 'https://api.deepnote.com'
 const TOKEN = 'token'
@@ -109,6 +109,100 @@ describe('upsertNotebookSchedule', () => {
     await expect(upsertNotebookSchedule(BASE_URL, TOKEN, 'nb-1', { cron: '0 * * * *', timezone: ' ' })).rejects.toThrow(
       /timezone/
     )
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleteNotebookSchedule', () => {
+  it('removes the schedule and encodes the notebook id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const removed = await deleteNotebookSchedule(BASE_URL, TOKEN, 'notebook/with spaces', { requestTimeoutMs: 1_000 })
+
+    expect(removed).toBe(true)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepnote.com/v2/notebooks/notebook%2Fwith%20spaces/schedule',
+      expect.objectContaining({ method: 'DELETE', headers: { Authorization: `Bearer ${TOKEN}` } })
+    )
+  })
+
+  it('reports a 404 as nothing to remove rather than an error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: 'Notebook has no schedule' }), { status: 404 }))
+    )
+
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, 'nb-1')).resolves.toBe(false)
+  })
+
+  it('reports authentication and permission errors clearly, without blaming the plan', async () => {
+    // Deleting is not plan-gated, so a 403 must not blame the plan.
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response('{}', { status: 401 }))
+        .mockResolvedValueOnce(new Response('', { status: 403, statusText: 'Forbidden' }))
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ message: 'Insufficient permissions to access notebook schedule' }), {
+            status: 403,
+          })
+        )
+    )
+
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, 'nb-1')).rejects.toEqual(
+      expect.objectContaining({ statusCode: 401, message: expect.stringMatching(/API token/) })
+    )
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, 'nb-1')).rejects.toEqual(
+      expect.objectContaining({
+        statusCode: 403,
+        message: expect.stringMatching(/permission to change this notebook's schedule/),
+      })
+    )
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, 'nb-1')).rejects.toEqual(
+      expect.objectContaining({ statusCode: 403, message: 'Insufficient permissions to access notebook schedule' })
+    )
+  })
+
+  it('surfaces API error messages for other failures', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(JSON.stringify({ message: 'Project is suspended' }), { status: 409, statusText: 'Conflict' })
+        )
+    )
+
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, 'nb-1')).rejects.toEqual(
+      expect.objectContaining({ statusCode: 409, message: 'Project is suspended' })
+    )
+  })
+
+  it('gives up on a request that outlives its timeout', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => reject(init.signal?.reason))
+          })
+      )
+    )
+
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, 'nb-1', { requestTimeoutMs: 5 })).rejects.toHaveProperty(
+      'name',
+      'TimeoutError'
+    )
+  })
+
+  it('validates an empty notebook id before making a request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteNotebookSchedule(BASE_URL, TOKEN, ' ')).rejects.toThrow(/notebookId/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

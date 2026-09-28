@@ -69,6 +69,7 @@ export {
   type Workspace,
 } from './projects'
 export {
+  deleteNotebookSchedule,
   type NotebookSchedule,
   type ScheduleRequestOptions,
   type UpsertNotebookScheduleBody,

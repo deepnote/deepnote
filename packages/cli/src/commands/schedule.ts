@@ -3,7 +3,12 @@ import { dirname, join } from 'node:path'
 import { type DeepnoteFile, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
-import { type ScheduleInCloudResult, scheduleInCloud } from '@deepnote/local-runner'
+import {
+  type ScheduleInCloudResult,
+  scheduleInCloud,
+  type UnscheduleInCloudResult,
+  unscheduleInCloud,
+} from '@deepnote/local-runner'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
@@ -23,6 +28,7 @@ export interface ScheduleOptions extends ScheduleExpressionOptions {
   url?: string
   create: boolean
   open?: boolean
+  remove?: boolean
   output?: 'json'
 }
 
@@ -32,7 +38,11 @@ export function createScheduleAction(
 ): (path: string | undefined, options: ScheduleOptions) => Promise<void> {
   return async (path, options) => {
     try {
-      await scheduleDeepnoteFile(path, options)
+      if (options.remove) {
+        await removeDeepnoteFileSchedule(path, options)
+      } else {
+        await scheduleDeepnoteFile(path, options)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const isUsageApiError =
@@ -99,6 +109,46 @@ async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleO
   renderResult(absolutePath, schedule.description, result, options)
 }
 
+/** Resolve a file and remove its selected notebook's schedule from Deepnote Cloud. */
+async function removeDeepnoteFileSchedule(path: string | undefined, options: ScheduleOptions): Promise<void> {
+  const conflicting = scheduleOnlyFlags(options)
+  if (conflicting.length > 0) {
+    throw new ScheduleExpressionError(`--remove cannot be combined with ${conflicting.join(', ')}.`)
+  }
+
+  const { absolutePath } = await resolvePathToDeepnoteFile(path)
+  const file = deserializeDeepnoteFile(await fs.readFile(absolutePath, 'utf8'))
+  const notebookId = resolveNotebookId(file, options.notebook)
+
+  dotenv.config({ path: join(dirname(absolutePath), DEFAULT_ENV_FILE), quiet: true })
+  const token = resolveToken(options.token)
+  if (!token) {
+    throw new MissingTokenError()
+  }
+
+  debug(`Removing schedule for file: ${absolutePath}`)
+  const result = await unscheduleInCloud(absolutePath, {
+    token,
+    baseUrl: options.url ?? DEFAULT_API_URL,
+    notebookId,
+  })
+  renderRemoval(absolutePath, result, options)
+}
+
+/** Flags that only apply when setting a schedule. */
+function scheduleOnlyFlags(options: ScheduleOptions): string[] {
+  return [
+    options.hourly ? '--hourly' : null,
+    options.daily ? '--daily' : null,
+    options.weekly !== undefined ? '--weekly' : null,
+    options.monthly !== undefined ? '--monthly' : null,
+    options.cron !== undefined ? '--cron' : null,
+    options.at !== undefined ? '--at' : null,
+    options.timezone !== undefined ? '--timezone' : null,
+    options.open ? '--open' : null,
+  ].filter((flag): flag is string => flag !== null)
+}
+
 /**
  * Match an optional notebook name to its local id, refusing genuinely ambiguous files.
  *
@@ -162,5 +212,24 @@ function renderResult(
   if (result.viewUrl) {
     output(`${c.dim('URL:')} ${result.viewUrl}`)
   }
-  output(c.dim('Deepnote supports one scheduled notebook per project; this updates that project schedule.'))
+  output(c.dim("Other notebooks' schedules are not affected."))
+}
+
+/** Render the removal result as JSON or text. */
+function renderRemoval(path: string, result: UnscheduleInCloudResult, options: ScheduleOptions): void {
+  if (options.output === 'json') {
+    outputJson({ success: true, path, notebookId: result.notebookId, removed: result.removed })
+    return
+  }
+
+  if (result.notebookId === null) {
+    output('Nothing removed: this notebook was not found in Deepnote Cloud.')
+    return
+  }
+  if (!result.removed) {
+    output('Nothing to remove: this notebook has no schedule.')
+    return
+  }
+  const c = getChalk()
+  output(`${c.green('✓')} Schedule removed from Deepnote Cloud`)
 }

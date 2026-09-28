@@ -1,13 +1,15 @@
 # Schedule Command
 
-Use `deepnote schedule` to create or update recurring notebook runs in Deepnote Cloud:
+Use `deepnote schedule` to create, update, or remove recurring notebook runs in Deepnote Cloud:
 
 ```bash
 deepnote schedule <path> --daily [options]
+deepnote schedule <path> --remove [options]
 ```
 
 The command configures a cloud schedule; it does not execute the notebook immediately. If the
-project is not in Deepnote Cloud, it is created first unless `--no-create` is passed.
+project is not in Deepnote Cloud, it is created first unless `--no-create` is passed. `--remove`
+never creates anything.
 
 ## Frequencies
 
@@ -46,6 +48,7 @@ timezone.
 | `--url <url>`           | API base URL; defaults to `https://api.deepnote.com`              |
 | `--no-create`           | Require the notebook to exist in Deepnote Cloud                   |
 | `--open`                | Open the scheduled notebook after configuration                   |
+| `--remove`              | Remove the notebook's schedule                                    |
 | `-o, --output json`     | Machine-readable result                                           |
 
 `--at` is invalid with `--cron`. With `--hourly` it sets the minute, so it takes `:15`, `15`, or an
@@ -53,8 +56,9 @@ timezone.
 
 ## Cloud Semantics
 
-Deepnote has one scheduled notebook per project. Calling the command again updates the existing
-project schedule; selecting another notebook re-points it. Scheduling availability depends on the
+Each notebook has its own schedule. Running the command again updates that notebook's schedule;
+scheduling another notebook adds a schedule rather than moving the existing one. To move a schedule,
+schedule the new notebook and `--remove` the old one. Scheduling availability depends on the
 workspace plan.
 
 The public schedule contract (`POST /v2/notebooks/{id}/schedule`) accepts `cron` and `timezone` and
@@ -68,11 +72,25 @@ project instead of failing with HTTP 409. A project of any other type — `stand
 has not heard of, or one the workspace did not report — stays eligible, since refusing what cannot
 be read would reintroduce the duplicate projects the lookup exists to prevent.
 
+## Removing a Schedule
+
+```bash
+deepnote schedule report.deepnote --remove
+deepnote schedule project.deepnote --notebook "Weekly review" --remove
+```
+
+`--remove` deletes only the selected notebook's schedule. It never creates anything, works on any
+plan, and cannot be combined with a frequency, `--at`, `--timezone`, or `--open`. If there is
+nothing to remove, it says so and exits `0`.
+
 ## Output and Exit Codes
 
 Text output includes the frequency, timezone, next run, and cloud URL when available. JSON output
 contains `success`, `path`, `notebookId`, `created`, `schedule`, and `url`.
 
-- `0`: schedule created or updated
+With `--remove`, JSON output contains `success`, `path`, `notebookId` (`null` if the notebook is not
+in Deepnote Cloud), and `removed` (`false` if there was nothing to remove).
+
+- `0`: schedule created, updated, or removed, or nothing to remove
 - `1`: API, network, or other runtime error
 - `2`: invalid flags/file/notebook, missing token, authentication failure, or unavailable plan
