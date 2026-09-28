@@ -17,7 +17,7 @@ AI-generated code and text can contain errors or inaccuracies. Review suggestion
 
 ## Enable Agent
 
-If AI features are disabled in your workspace, ask an admin to enable them in **Settings & Members** → **AI**. Workspace admins can also manage what notebook data Agent may use. See [Data privacy](/docs/ai-data-privacy) for details about data shared with AI providers such as Anthropic and OpenAI.
+If Agent is disabled in your workspace, ask an admin to turn on **Deepnote Agent** in **Settings & members** → **AI**. Admins can use **Provide access to block outputs** to choose whether Agent can read block outputs, including row-level data. For details about data shared with AI providers such as Anthropic and OpenAI, see [Data privacy](/docs/ai-data-privacy).
 
 ![Agent settings](../assets/docs/kkhgsstdTiSqqTyIyJT2.webp)
 
