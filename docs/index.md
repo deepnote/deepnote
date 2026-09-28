@@ -29,11 +29,9 @@ Explainable and transparent AI assistant — Deepnote has a deep understanding 
 
 ![AI.png](../assets/docs/GXT55Lu8RKuMoFygbDPN.webp)
 
-- [**Speak naturally, code flawlessly:**](https://deepnote.com/docs/deepnote-ai) Picture this: you ask your data questions just like you'd chat with a colleague, and watch as the code materializes. Deepnote AI goes beyond writing code—it explains and corrects it, enabling your team to achieve wonders, even those new to coding. Deepnote AI is multi-provider (Anthropic Claude and OpenAI GPT families), letting you pick a model or use the Automatic option.
+- [**Deepnote AI and Agent:**](https://deepnote.com/docs/deepnote-ai) Generate, edit, and explain code with Deepnote AI, or ask Agent to work across your notebook.
 
 - [**AI Code completion:**](https://deepnote.com/docs/ai-code-completion) Context-aware suggestions as you type, reducing repetition and accelerating your projects.
-
-- [**Deepnote Agent:**](https://deepnote.com/docs/deepnote-agent) A sidebar chat agent that can create and edit blocks, run code, and inspect outputs, with access to your Deepnote MCP integrations.
 
 ### 3. From notebooks to data apps in seconds
 

@@ -1,37 +1,61 @@
 ---
-title: Deepnote AI
-description: Use the power of Deepnote AI to generate, edit and explain code.
+title: Deepnote AI and Agent
+description: Generate, edit, and explain code with Deepnote AI, or use Agent to work across a notebook.
 noIndex: false
 noContent: false
 ---
 
-Deepnote AI is designed to make your data work more efficient and productive. Ask questions in plain language, and Deepnote AI will craft or revise code according to your instructions. It can also provide concise explanations for complex pieces of code, enhancing your understanding. Whether you’re a Python pro or a coding beginner, Deepnote AI assists you every step of the way to gain the insights you need.
-
-Deepnote AI is multi-provider. You can choose from a range of models — including Anthropic's Claude and OpenAI's GPT families — using the model selector, or select **Automatic** to let Deepnote pick the best model for your task.
+Deepnote AI helps you generate, edit, explain, and complete code. Deepnote Agent is a chat assistant that can make changes across your notebook, run blocks, and inspect results.
 
 <Callout status="info">
-Deepnote AI is available on **Pro**, **Team** and **Enterprise** plans.
+Deepnote AI and Agent are available on Free, Team, and Enterprise plans. Free includes limited AI requests. See [Pricing](https://deepnote.com/pricing) for current limits.
 </Callout>
 
 <Callout status="warning">
-Deepnote AI utilizes generative AI technology (powered by providers such as Anthropic and OpenAI) to provide answers based on your instructions and offer code completion suggestions. The generated outputs such as code and text can include errors, biases and inaccuracies. Please always review code before running it.
+AI-generated code and text can contain errors or inaccuracies. Review suggestions before running them.
 </Callout>
 
 ## Enabling Deepnote AI
 
-To make use of Deepnote AI, you must enable this feature in your workspace. Navigate to **Settings & Members** and click on **AI**. With Deepnote AI turned on, every editor and admin user in your workspace will gain access to features like code generation, editing, and explanation.
+If AI is disabled in your workspace, ask an admin to enable it in **Settings & Members** → **AI**. Workspace admins can also manage what notebook data Deepnote AI may use. See [Data privacy](/docs/ai-data-privacy) for details about data shared with AI providers such as Anthropic and OpenAI.
 
-<Callout status="info">Deepnote AI utilizes third-party providers (such as Anthropic and OpenAI) to process the content of your notebook. Refer to our [Data Privacy](/docs/ai-data-privacy) section for more information about data usage.</Callout>
+![Deepnote AI settings](../assets/docs/kkhgsstdTiSqqTyIyJT2.webp)
 
-![deepnote ai main settings.png](../assets/docs/kkhgsstdTiSqqTyIyJT2.webp)
+## Deepnote Agent
+
+Agent can create, edit, and remove blocks across your notebook. In Edit mode, it can also run code, inspect outputs, and adjust its work based on the results.
+
+Open Agent from the **Agent button** in the project top bar or the **Agent button** in the notebook toolbar. You can use the full sidebar, minimize the chat to a smaller window, or hide it.
+
+![Ways to open Deepnote Agent](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetys7tox3op07n0w8o7ddfp.webp)
+
+<Embed url='https://www.loom.com/share/ecdb03ba6ae34a10acc2f23e1383c441?sid=ed3de2f5-746b-4fa7-a62f-29132b351796'/>
+
+### Using Agent
+
+Choose a mode in the chat input:
+
+- **Edit** lets Agent change notebook content, run blocks, and inspect results.
+- **Ask** lets you discuss your data or Deepnote features without changing the notebook.
+
+You can ask Agent to fix one block or work across the notebook. For tasks that need several steps, Agent may show a plan. As it works, the chat shows its actions, and you can select an action to jump to the relevant block.
+
+When Agent finishes, it shows a summary and a list of changes. Code edits can include a before-and-after diff. Use the bin icon on a run to discard its changes, or send a follow-up request to continue working.
+
+![Agent changes and review controls](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetz4wckxctz07n07wkxakss.webp)
+
+<VideoLoop src="../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
+
+Deepnote supports models from providers such as Anthropic and OpenAI. Where a model selector is available, you can choose a model or select **Automatic**. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations and access Deepnote's documentation.
+
+## Generate, edit, and explain code
+
+Use the AI prompt bar below your notebook to generate blocks. To work on an existing code or SQL block, open its menu and select **Open Deepnote AI**. You can request an edit or an explanation, review the result, and accept or discard suggested changes.
+
+Learn more about [generating code](/docs/ai-analysis), [editing code](/docs/ai-code-editing), [explaining code](/docs/ai-explaining-code), and [code completion](/docs/ai-code-completion).
 
 ## Feedback
 
-We're always looking to improve Deepnote AI, and your feedback is invaluable!
-The easiest way to leave feedback on the quality of Deepnote AI's outputs is by giving a thumbs up/down when you're reviewing the AI-generated blocks. If a particular output didn't work for you, just press 👎 and you will be able to share more context about it in a survey window. The more details you put in here, the better we can act upon it to make it better for you!
+Use the thumbs-up or thumbs-down controls on an Agent response or an inline AI suggestion to rate it. A downvote may give you a chance to add details. You can also share ideas on the [Product Portal](https://portal.productboard.com/deepnote/1-deepnote-product-portal/c/110-deepnote-ai?utm_medium=social&utm_source=portal_share).
 
-![CleanShot 2024-10-24 at 09.54.55.png](../assets/docs/Gto2HcFgTOC7q8vCKm3U.webp)
-
-You can also share your ideas and suggestions about Deepnote AI on our [Product Portal](https://portal.productboard.com/deepnote/1-deepnote-product-portal/c/110-deepnote-ai?utm_medium=social&utm_source=portal_share).
-
-If you want to be directly involved in shaping the future of Deepnote AI, we're seeking research partners for our upcoming AI projects. To chat more, please book a time with our product team via this [link](https://calendly.com/gabor-deepnote/30min-1).
+![Inline AI feedback controls](../assets/docs/Gto2HcFgTOC7q8vCKm3U.webp)
