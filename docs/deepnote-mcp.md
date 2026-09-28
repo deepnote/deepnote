@@ -188,7 +188,7 @@ Because the assistant can chain tools together, a single natural-language reques
 ## Related
 
 - [Deepnote API](/docs/deepnote-api) — run notebooks programmatically over REST.
-- [Deepnote Agent](/docs/deepnote-ai#deepnote-agent) — Deepnote's built-in AI collaborator inside the notebook.
+- [Deepnote Agent](/docs/deepnote-agent) — Deepnote's built-in AI collaborator inside the notebook.
 - [Deepnote plugin in Codex](https://chatgpt.com/plugins/share/449d4e5659914849bfdf87e5c6d51960)
 - [OpenAI launch post](https://openai.com/index/codex-for-every-role-tool-workflow/)
 - [openai/plugins](https://github.com/openai/plugins)

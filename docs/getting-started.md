@@ -14,7 +14,7 @@ Deepnote is the AI workspace for data professionals, designed to simplify data e
 ### 🤖 Analyze with AI
 
 - [**Describe and visualize:**](https://deepnote.com/docs/ai-data-visualization) Generate visualizations and code simply by describing your goal.
-- [**Deepnote AI and Agent:**](https://deepnote.com/docs/deepnote-ai) Generate and edit code, or ask Agent to work across your notebook.
+- [**Deepnote Agent:**](https://deepnote.com/docs/deepnote-agent) Use Agent to generate and edit code or work across your notebook.
 - **Code faster:** Use our AI data copilot’s context-aware code suggestions to ship faster.
 
 ### 🔗 Unify
