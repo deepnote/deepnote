@@ -1693,7 +1693,7 @@ describe('syncWorkspace', () => {
 
     /** Resolves after the microtasks queued so far have run: an unchanged project's work after its
      * export response is all microtasks, so this lets it finish. */
-    const nextMacrotask = () => new Promise<void>(resolve => setImmediate(resolve))
+    const afterQueuedMicrotasks = () => new Promise<void>(resolve => setImmediate(resolve))
 
     /** Collects printed progress lines; `quiet` would drop them. */
     function capturePrinted(): string[] {
@@ -1793,7 +1793,7 @@ describe('syncWorkspace', () => {
           const before = printed.length
           promptOpen.resolve()
           await Promise.all([exported['p-C'].promise, exported['p-D'].promise])
-          await nextMacrotask()
+          await afterQueuedMicrotasks()
           printedWhileOpen.push(...printed.slice(before))
           open--
           return 'skip'
@@ -1899,7 +1899,7 @@ describe('syncWorkspace', () => {
         .mockReset()
         .mockImplementation(async () => {
           await bExporting.promise
-          // B's export returns on the next macrotask, after the rejection below has settled.
+          // B's export returns from `setImmediate`, after the rejection below has settled.
           setImmediate(releaseB.resolve)
           throw exitError
         })
