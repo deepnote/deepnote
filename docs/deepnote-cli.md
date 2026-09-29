@@ -26,7 +26,8 @@ Use the CLI when you want to:
 
 <Callout status="info">
 The CLI is under active development. Commands and output formats may change between minor
-versions; check the [changelog on npm](https://www.npmjs.com/package/@deepnote/cli) when upgrading.
+versions; check the [release notes on GitHub](https://github.com/deepnote/deepnote/releases) when
+upgrading.
 </Callout>
 
 ## Installation
