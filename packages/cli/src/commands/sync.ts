@@ -121,6 +121,28 @@ interface SyncContext {
   promptQueue: Promise<unknown>
   /** Output held back while a prompt is open; `undefined` when none is. */
   heldOutput?: (() => void)[]
+  /** Set by a Ctrl+C on a conflict prompt; project work still running stops before its next write. */
+  cancelled?: boolean
+}
+
+/** A Ctrl+C on a conflict prompt: `@inquirer/prompts` rejects with an `ExitPromptError`. */
+function isPromptExit(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ExitPromptError'
+}
+
+/** Stops a project's work after the user cancelled the run from another project's prompt. */
+class SyncCancelledError extends Error {
+  constructor() {
+    super('Sync cancelled')
+    this.name = 'SyncCancelledError'
+  }
+}
+
+/** Call before each write to disk or to Deepnote, so a cancelled run starts no new ones. */
+function throwIfCancelled(ctx: SyncContext): void {
+  if (ctx.cancelled) {
+    throw new SyncCancelledError()
+  }
 }
 
 /** Print `message` now, or once the open conflict prompt closes so it is not drawn over the prompt. */
@@ -240,6 +262,11 @@ async function resolveConflict(
       ctx.heldOutput = undefined
     }
   })
+  answer.catch((error: unknown) => {
+    if (isPromptExit(error)) {
+      ctx.cancelled = true
+    }
+  })
   // Not caught: after a Ctrl+C, prompts still queued reject with the same ExitPromptError unseen.
   ctx.promptQueue = answer
   return answer
@@ -303,6 +330,7 @@ async function writeProjectNotebooks(
   projectDir: string,
   files: readonly ExportedNotebookFile[]
 ): Promise<void> {
+  throwIfCancelled(ctx)
   const dirAbsolute = toAbsolute(ctx, projectDir)
   await fs.mkdir(dirAbsolute, { recursive: true })
 
@@ -358,6 +386,7 @@ async function moveTrackedProjectDir(
   if (ctx.dryRun) {
     return note
   }
+  throwIfCancelled(ctx)
   const fromAbsolute = toAbsolute(ctx, record.dir)
   const toAbsolutePath = toAbsolute(ctx, plan.projectDir)
   if (await pathExists(fromAbsolute)) {
@@ -406,6 +435,7 @@ async function syncProjectFiles(
 
     const base = { size: entry.size, updatedAt: entry.updatedAt }
     if (!ctx.dryRun) {
+      throwIfCancelled(ctx)
       const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
       await writeFileEnsuringDir(absolutePath, bytes)
       next[entry.path] = { ...base, hash: sha256(bytes) }
@@ -428,6 +458,7 @@ async function syncProjectFiles(
     const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/'))
     if (ctx.options.prune) {
       if (!ctx.dryRun) {
+        throwIfCancelled(ctx)
         await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
         await fs.rm(absolutePath, { force: true })
       }
@@ -500,6 +531,7 @@ async function pushProject(
 
   let notebooks: ImportedNotebook[]
   try {
+    throwIfCancelled(ctx)
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, importOptions)).notebooks
   } catch (error) {
     if (!(error instanceof ApiError) || error.statusCode !== 409 || error.message === 'Project is suspended') {
@@ -513,6 +545,7 @@ async function pushProject(
     if (choice === 'skip') {
       return { kind: 'skipped', reason: 'cloud changed after the local edit' }
     }
+    throwIfCancelled(ctx)
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, { ...importOptions, force: true }))
       .notebooks
   }
@@ -671,6 +704,7 @@ async function uploadProjectFiles(
     const hash = sha256(bytes)
 
     if (!ctx.dryRun) {
+      throwIfCancelled(ctx)
       if (!pending.has(relPath)) {
         pending.add(relPath)
         commitPending()
@@ -832,7 +866,7 @@ async function syncOneProject(
     // A Ctrl+C on a conflict prompt rejects with `@inquirer/prompts`' ExitPromptError. That is the
     // user aborting the whole run, not this project failing — let it stop the sync instead of
     // becoming a per-project `error` outcome the loop swallows.
-    if (error instanceof Error && error.name === 'ExitPromptError') {
+    if (isPromptExit(error) || error instanceof SyncCancelledError) {
       throw error
     }
     const message = error instanceof Error ? error.message : String(error)
@@ -954,9 +988,8 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     return record !== undefined && record.dir !== plans.get(project.id)?.projectDir
   })
   const queue = [...sortedProjects]
-  let aborted = false
   const worker = async (): Promise<void> => {
-    for (let project = queue.shift(); project && !aborted; project = queue.shift()) {
+    for (let project = queue.shift(); project && !ctx.cancelled; project = queue.shift()) {
       const plan = plans.get(project.id)
       if (!plan) {
         continue
@@ -969,9 +1002,14 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
         manifest.projects,
         persistManifest
       ).catch((error: unknown) => {
-        aborted = true // Only a Ctrl+C on a prompt escapes syncOneProject: start nothing new.
+        if (error instanceof SyncCancelledError) {
+          return undefined
+        }
         throw error
       })
+      if (!outcome) {
+        return
+      }
       outcomes.push(outcome)
       progress(renderOutcomeLine(outcome))
     }
@@ -979,6 +1017,10 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
   const workerCount = Math.min(queue.length, movesDirectory ? 1 : (options.concurrency ?? DEFAULT_SYNC_CONCURRENCY))
   for (const settled of await Promise.allSettled(Array.from({ length: workerCount }, worker))) {
     if (settled.status === 'rejected') {
+      // Keep what the other workers finished before the Ctrl+C, then stop the run.
+      if (!ctx.dryRun) {
+        await persistManifest().catch(() => undefined)
+      }
       throw settled.reason
     }
   }

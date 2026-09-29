@@ -1841,6 +1841,54 @@ describe('syncWorkspace', () => {
       vi.mocked(select).mockReset()
     })
 
+    it('starts no cloud write after Ctrl+C and keeps the manifest of finished projects', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const [a, b, c] = projectsNamed('A', 'B', 'C')
+      const installed = installCloud([a, b, c])
+      await syncWorkspace(tempDir, baseOptions)
+      // A conflicts, B has only a local edit (a push), C has only a cloud edit (a pull).
+      for (const project of [a, c]) {
+        project.notebooks = singleNotebook(project.id, '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      }
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+      }
+      const cPulled = deferred()
+      const bExporting = deferred()
+      const releaseB = deferred()
+      holdRequests(url => {
+        if (url.pathname === '/v2/projects/p-A/export') return cPulled.promise
+        if (url.pathname === '/v2/projects/p-B/export') {
+          bExporting.resolve()
+          return releaseB.promise
+        }
+      })
+      setOutputConfig({ quiet: false, color: false, debug: false })
+      vi.spyOn(console, 'log').mockImplementation(line => {
+        if (/pulled\s+C$/.test(String(line))) cPulled.resolve()
+      })
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          await bExporting.promise
+          // B's export returns on the next macrotask, after the rejection below has settled.
+          setImmediate(releaseB.resolve)
+          throw exitError
+        })
+
+      await withTty(async () => {
+        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
+      })
+
+      expect(installed.importCalls).toEqual([])
+      const manifest = await loadSyncManifest(tempDir)
+      expect(manifest.projects['p-C'].modifiedAt).toBe('2026-01-07T00:00:00.000Z')
+      expect(manifest.projects['p-B'].modifiedAt).toBe('2026-01-02T00:00:00.000Z')
+      vi.mocked(select).mockReset()
+    })
+
     it('never overlaps two manifest saves', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {})
       const projects = projectsNamed('A', 'B').map(project => ({
