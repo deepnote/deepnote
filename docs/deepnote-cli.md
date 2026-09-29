@@ -17,8 +17,8 @@ Use the CLI when you want to:
   editor.
 - **Keep notebooks in Git** and inspect, diff, lint or validate `.deepnote` files in pull requests.
 - **Convert** between `.ipynb`, `.py`, `.qmd` and `.deepnote`.
-- **Mirror your workspace locally** with [`deepnote sync`](/docs/deepnote-cli-sync) and push edits
-  back.
+- **Mirror your Deepnote Cloud workspace locally** with [`deepnote sync`](/docs/deepnote-cli-sync)
+  and push edits back.
 - **Deploy a built static site** to a project with [`deepnote publish`](/docs/deepnote-cli-publish).
 - **Give AI coding agents the Deepnote skill.** `deepnote install-skills` gives Claude Code, Codex,
   Cursor, Gemini CLI and other agents the `.deepnote` format and CLI reference, so they can write
