@@ -6,7 +6,7 @@ import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import type * as syncManifest from '../utils/sync-manifest'
-import { loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
+import { assertNoSymbolicLinkAncestors, loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
 import {
   canonicalProjectHash,
   classifySyncStep,
@@ -19,10 +19,15 @@ import {
 // `select` is mocked so a conflict prompt can be driven (e.g. simulate a Ctrl+C rejection). Tests
 // that resolve conflicts non-interactively (`--on-conflict skip|override`, or no TTY) never call it.
 vi.mock('@inquirer/prompts', () => ({ select: vi.fn() }))
-// Wrapped (still the real implementation) so a test can watch manifest saves overlap.
+// Wrapped (still the real implementations) so a test can watch manifest saves overlap and see
+// when each project starts.
 vi.mock('../utils/sync-manifest', async importOriginal => {
   const actual = await importOriginal<typeof syncManifest>()
-  return { ...actual, saveSyncManifest: vi.fn(actual.saveSyncManifest) }
+  return {
+    ...actual,
+    saveSyncManifest: vi.fn(actual.saveSyncManifest),
+    assertNoSymbolicLinkAncestors: vi.fn(actual.assertNoSymbolicLinkAncestors),
+  }
 })
 
 const API_URL = 'https://api.example.com'
@@ -1646,11 +1651,11 @@ describe('syncWorkspace', () => {
       return { promise, resolve }
     }
 
-    /** Wraps the installed cloud fetch so `hold` can pause matching requests until it resolves. */
-    function holdRequests(hold: (url: URL, init?: RequestInit) => Promise<void> | undefined): void {
+    /** Wraps the installed cloud fetch so `hold` can see each request and pause it on a promise. */
+    function holdRequests(hold: (url: URL) => unknown): void {
       const inner = vi.mocked(fetch).getMockImplementation() as typeof fetch
       vi.mocked(fetch).mockImplementation(async (url, init) => {
-        await hold(new URL(String(url)), init)
+        await hold(new URL(String(url)))
         return inner(url, init)
       })
     }
@@ -1675,59 +1680,62 @@ describe('syncWorkspace', () => {
       }
     }
 
-    /** Leaves projects A and B edited both locally and in the cloud; C and D only in the cloud. */
+    /** Leaves projects A and B edited both locally and in the cloud; C and D unchanged. */
     async function setUpTwoConflicts(): Promise<void> {
       const projects = projectsNamed('A', 'B', 'C', 'D')
       installCloud(projects)
       await syncWorkspace(tempDir, baseOptions)
-      for (const project of projects) {
+      for (const project of projects.slice(0, 2)) {
         project.notebooks = singleNotebook(project.id, '2026-01-07T00:00:00.000Z', 'cloud-edit')
-      }
-      for (const name of ['A', 'B']) {
-        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
-        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+        const localEdit = notebookYaml(project.id, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, project.name, 'main.deepnote'), localEdit, 'utf-8')
       }
     }
 
-    /** Wraps the installed cloud so each export waits (up to 50 ms) for `target` exports to be in
-     * flight together, and records the peak. */
-    function gateExports(target: number, delayMs: (projectId: string) => number = () => 0) {
-      const inner = vi.mocked(fetch).getMockImplementation()
-      const stats = { inFlight: 0, peak: 0, finished: [] as string[] }
-      const waiting: (() => void)[] = []
-      vi.mocked(fetch).mockImplementation(async (url, init) => {
-        const projectId = String(url).match(/\/v2\/projects\/([^/]+)\/export$/)?.[1]
-        if (projectId) {
-          stats.inFlight++
-          stats.peak = Math.max(stats.peak, stats.inFlight)
-          if (stats.inFlight >= target) {
-            for (const release of waiting.splice(0)) release()
-          } else {
-            await new Promise<void>(resolve => {
-              waiting.push(resolve)
-              setTimeout(resolve, 50)
-            })
-          }
-          await new Promise(resolve => setTimeout(resolve, delayMs(projectId)))
-          stats.inFlight--
-          stats.finished.push(projectId)
-        }
-        return (inner as typeof fetch)(url, init)
+    /** Resolves after the microtasks queued so far have run: an unchanged project's work after its
+     * export response is all microtasks, so this lets it finish. */
+    const nextMacrotask = () => new Promise<void>(resolve => setImmediate(resolve))
+
+    /** Collects printed progress lines; `quiet` would drop them. */
+    function capturePrinted(): string[] {
+      setOutputConfig({ quiet: false, color: false, debug: false })
+      const printed: string[] = []
+      vi.spyOn(console, 'log').mockImplementation(line => printed.push(String(line)))
+      return printed
+    }
+
+    /** Records how many projects are in progress each time one's export starts. A project starts
+     * with a symbolic-link check of its directory and ends when its outcome line prints. */
+    function sampleProjectsInProgress(dirs: readonly string[]): number[] {
+      vi.mocked(assertNoSymbolicLinkAncestors).mockClear()
+      capturePrinted()
+      let finished = 0
+      vi.mocked(console.log).mockImplementation(line => {
+        if (/pulled|unchanged/.test(String(line))) finished++
       })
-      return stats
+      const samples: number[] = []
+      holdRequests(url => {
+        if (!url.pathname.endsWith('/export')) return
+        const started = vi
+          .mocked(assertNoSymbolicLinkAncestors)
+          .mock.calls.filter(([, relativePath]) => dirs.includes(relativePath)).length
+        samples.push(started - finished)
+      })
+      return samples
     }
 
     it.each([
       { concurrency: undefined, expected: 8 },
       { concurrency: 3, expected: 3 },
     ])('syncs at most $expected projects at once (--concurrency $concurrency)', async ({ concurrency, expected }) => {
-      installCloud(projectsNamed(...'ABCDEFGHIJKL'.split('')))
-      const stats = gateExports(expected)
+      const names = 'ABCDEFGHIJKL'.split('')
+      installCloud(projectsNamed(...names))
+      const inProgress = sampleProjectsInProgress(names)
 
       const result = await syncWorkspace(tempDir, { ...baseOptions, concurrency })
 
-      expect(stats.peak).toBe(expected)
-      expect(result.projects.map(outcome => outcome.action)).toEqual(Array(12).fill('pulled'))
+      expect(Math.max(...inProgress)).toBe(expected)
+      expect(result.projects.map(outcome => outcome.action)).toEqual(Array(names.length).fill('pulled'))
     })
 
     it('syncs one project at a time when a tracked project directory moves', async () => {
@@ -1735,30 +1743,47 @@ describe('syncWorkspace', () => {
       installCloud(projects)
       await syncWorkspace(tempDir, baseOptions)
       projects[1].name = 'Renamed'
-      const stats = gateExports(2)
+      const inProgress = sampleProjectsInProgress(['A', 'C', 'Renamed'])
 
       const result = await syncWorkspace(tempDir, baseOptions)
 
-      expect(stats.peak).toBe(1)
+      expect(inProgress).toEqual([1, 1, 1])
       expect(result.projects).toContainEqual(expect.objectContaining({ path: 'Renamed', detail: 'moved from B' }))
     })
 
     it('reports outcomes sorted by path regardless of completion order', async () => {
       installCloud(projectsNamed('C', 'A', 'B'))
-      const stats = gateExports(3, projectId => (projectId === 'p-A' ? 30 : 0))
+      const printed = capturePrinted()
+      const othersDone = deferred()
+      vi.mocked(console.log).mockImplementation(line => {
+        printed.push(String(line))
+        if (printed.filter(entry => /pulled\s+[BC]$/.test(entry)).length === 2) othersDone.resolve()
+      })
+      // A finishes last: its export waits until B and C have reported their outcomes.
+      holdRequests(url => (url.pathname === '/v2/projects/p-A/export' ? othersDone.promise : undefined))
 
       const result = await syncWorkspace(tempDir, baseOptions)
 
-      expect(stats.finished.at(-1)).toBe('p-A')
+      expect(printed.filter(line => line.includes('pulled')).at(-1)).toMatch(/pulled\s+A$/)
       expect(result.projects.map(outcome => outcome.path)).toEqual(['A', 'B', 'C'])
     })
 
     it('opens one conflict prompt at a time and holds progress lines while it is open', async () => {
       const { select } = await import('@inquirer/prompts')
       await setUpTwoConflicts()
-      setOutputConfig({ quiet: false, color: false, debug: false })
-      const printed: string[] = []
-      vi.spyOn(console, 'log').mockImplementation(line => printed.push(String(line)))
+      const printed = capturePrinted()
+      // C and D export only once the first prompt is open, so they finish while it is.
+      const promptOpen = deferred()
+      const exported = { 'p-C': deferred(), 'p-D': deferred() }
+      const inner = vi.mocked(fetch).getMockImplementation() as typeof fetch
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        const projectId = String(url).match(/\/v2\/projects\/(p-[CD])\/export$/)?.[1] as keyof typeof exported
+        if (!projectId) return inner(url, init)
+        await promptOpen.promise
+        const response = await inner(url, init)
+        exported[projectId].resolve()
+        return response
+      })
       let open = 0
       let peakOpen = 0
       const printedWhileOpen: string[] = []
@@ -1767,7 +1792,9 @@ describe('syncWorkspace', () => {
         .mockImplementation(async () => {
           peakOpen = Math.max(peakOpen, ++open)
           const before = printed.length
-          await new Promise(resolve => setTimeout(resolve, 20))
+          promptOpen.resolve()
+          await Promise.all([exported['p-C'].promise, exported['p-D'].promise])
+          await nextMacrotask()
           printedWhileOpen.push(...printed.slice(before))
           open--
           return 'skip'
@@ -1779,12 +1806,12 @@ describe('syncWorkspace', () => {
         expect(select).toHaveBeenCalledTimes(2)
         expect(peakOpen).toBe(1)
         expect(printedWhileOpen).toEqual([])
-        expect(printed.filter(line => line.includes('pulled'))).toHaveLength(2)
+        expect(printed.filter(line => line.includes('unchanged'))).toHaveLength(2)
         expect(result.projects.map(outcome => outcome.action)).toEqual([
           'skipped-conflict',
           'skipped-conflict',
-          'pulled',
-          'pulled',
+          'unchanged',
+          'unchanged',
         ])
       })
     })
