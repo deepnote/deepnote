@@ -11,11 +11,6 @@ or in Deepnote Cloud, mirrors a whole workspace to your machine, and deploys sta
 project. It is open source and lives in the
 [deepnote/deepnote](https://github.com/deepnote/deepnote/tree/main/packages/cli) repository.
 
-```bash
-npm install -g @deepnote/cli
-deepnote --help
-```
-
 Use the CLI when you want to:
 
 - **Run notebooks from scripts, cron jobs or CI** instead of clicking Run in the editor.
