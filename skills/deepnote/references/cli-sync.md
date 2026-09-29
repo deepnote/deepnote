@@ -45,11 +45,6 @@ deepnote sync workspace --dry-run
 deepnote sync workspace -o json
 ```
 
-Projects sync in parallel, 8 at a time by default (`--concurrency`). Throughput is capped by the
-workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
-responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
-one project at a time.
-
 ## How sync decides
 
 State lives in `.deepnote-sync.json` in the synced directory: a map of project id → local directory,

@@ -161,11 +161,6 @@ Use another transfer method for larger data files.
 | `--url <url>`                | API base URL (for single-tenant instances)                                  | `https://api.deepnote.com` |
 | `-o, --output <format>`      | Machine-readable output: `json` or `llm`                                    | text                       |
 
-Projects sync in parallel, 8 at a time by default (`--concurrency`). Throughput is capped by the
-workspace tier's API read limit (200, 600, or 2,000 requests per minute): sync waits out HTTP 429
-responses and retries each up to 5 times, and a run that moves a renamed project's directory syncs
-one project at a time.
-
 ## Ownership of the static site directory
 
 A project's published static website lives under `_deepnote_static` in the same file store that
