@@ -14,7 +14,7 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
 | **VS Code and Cursor extensions**             | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
-| **Deepnote CLI**                              | Scripting, CI, automation | ✅ Yes    | ❌ No   | Easy       |
+| **Deepnote CLI**                              | Scripting, CI, AI agents  | ✅ Yes    | ❌ No   | Easy       |
 | **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
@@ -100,7 +100,9 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 
 ## Deepnote CLI
 
-The **Deepnote CLI** runs, inspects, converts and validates `.deepnote` files from the terminal, mirrors a whole workspace to a local directory, and deploys static sites to a project. It is the right tool when you want notebooks in scripts, cron jobs or CI rather than in an editor.
+The **Deepnote CLI** runs, inspects, converts and validates `.deepnote` files from the terminal, mirrors a whole workspace to a local directory, and deploys static sites to a project. It is the right tool when you want notebooks in scripts, cron jobs, CI or AI agent workflows rather than in an editor.
+
+It also pairs well with terminal AI agents such as Claude Code or Codex CLI. Run `deepnote install-skills` to give the agent the `.deepnote` format and CLI reference; the agent then edits `.deepnote` files directly and uses `deepnote lint`, `deepnote run` and `-o llm` output to check its work.
 
 ```bash
 npm install -g @deepnote/cli
