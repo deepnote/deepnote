@@ -1915,6 +1915,56 @@ describe('syncWorkspace', () => {
       vi.mocked(select).mockReset()
     })
 
+    it('starts no file replacement when Ctrl+C lands while its pending mark is saved', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const [a, b] = projectsNamed('A', 'B').map(project => ({
+        ...project,
+        notebooksAfterImport: singleNotebook(project.id, '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [] as CloudFile[],
+      }))
+      const installed = installCloud([a, b])
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      // A conflicts; B pushes, then replaces one working file.
+      a.notebooks = singleNotebook('p-A', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+      }
+      await fs.mkdir(path.join(tempDir, 'B', '.files'), { recursive: true })
+      await fs.writeFile(path.join(tempDir, 'B', '.files', 'one.csv'), 'a', 'utf-8')
+      const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
+      const bSaving = deferred()
+      const releaseSave = deferred()
+      vi.mocked(saveSyncManifest).mockImplementation(async (...args) => {
+        bSaving.resolve()
+        await releaseSave.promise
+        await actual.saveSyncManifest(...args)
+      })
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          await bSaving.promise
+          // B's save finishes from `setImmediate`, after the rejection below has settled.
+          setImmediate(releaseSave.resolve)
+          throw exitError
+        })
+
+      try {
+        await withTty(async () => {
+          await expect(syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })).rejects.toBe(
+            exitError
+          )
+        })
+
+        expect(installed.deletedPaths).toEqual([])
+        expect(installed.uploadedPaths).toEqual([])
+      } finally {
+        vi.mocked(saveSyncManifest).mockImplementation(actual.saveSyncManifest)
+        vi.mocked(select).mockReset()
+      }
+    })
+
     it('never overlaps two manifest saves', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {})
       const projects = projectsNamed('A', 'B').map(project => ({
