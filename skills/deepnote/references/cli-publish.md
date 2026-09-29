@@ -8,7 +8,8 @@ only after all file operations succeed.
 deepnote publish ./dist --project-id <uuid>
 ```
 
-Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origin and defaults to
+Authentication uses `--token`, the `DEEPNOTE_TOKEN` env var, or `DEEPNOTE_TOKEN` in a `.env` file in
+the current directory (same for `static-site access`). `--url` selects the API origin and defaults to
 `https://api.deepnote.com`.
 
 ## Options
@@ -28,7 +29,9 @@ Authentication uses `--token` or `DEEPNOTE_TOKEN`. `--url` selects the API origi
 
 Publishing reads the project inventory, then replaces each matching file with a delete followed by
 an upload. Before any remote mutation, it rejects local paths the file API would normalize
-differently or that collide at the destination. If an upload fails, the command reports exit code 1
+differently or that collide at the destination, and refuses the whole publish (exit code 2) when the
+directory contains a `.env` or `.env.*` file at any depth, since every published file is world-readable.
+If an upload fails, the command reports exit code 1
 and does not prune remaining stale files or change project settings. With `--prune`, stale files that
 block required directories are deleted before uploading; remaining stale files are deleted only
 after all uploads succeed. Finally, the command enables sharing through `PATCH /v2/projects/{id}`
@@ -38,6 +41,15 @@ target path segments are percent-encoded in that URL.
 API access is security-sensitive and is not enabled by default. Pass `--api-access enabled` when the
 website needs a static-app viewer token to call allowed Deepnote endpoints. Pass
 `--api-access disabled` to turn it off explicitly.
+
+## The embedded token is narrower than a personal token
+
+A published app runs embedded in Deepnote with a viewer-scoped token that expires after 15 minutes,
+never the personal token a local preview uses. `references/apps.md` section 4 is the authoritative
+description of what that token may and may not do: one run loop, every other endpoint answers 403,
+and features built against a personal token can break only once embedded. After a successful publish
+that leaves API access enabled, and after `deepnote static-site access` enables it, the CLI prints a
+short reminder to that effect; `-q` suppresses it for publish.
 
 ## Change access without republishing
 
@@ -117,12 +129,12 @@ deepnote publish ./dist --project-id <uuid> --no-sync-root
 deepnote static-site access --project-id <uuid> --sharing disabled
 ```
 
-Exit code 0 means uploads and the sharing update succeeded. Exit code 1 means a project lookup,
-upload, optional prune, or sharing update failed, or that Deepnote holds changes the sync workspace
-has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid local directory, or
-a `--sync-root` that has no manifest, does not track the project, or whose tracked project
-directory is missing, or a sync manifest that exists but cannot be read (pass `--no-sync-root` to
-publish without it).
+Exit code 0 means uploads and the project settings update succeeded. Exit code 1 means a project
+lookup, upload, optional prune, or project settings update failed, or that Deepnote holds changes
+the sync workspace has not pulled. Exit code 2 means invalid arguments, a missing token, an invalid
+local directory, or a `--sync-root` that has no manifest, does not track the project, or whose
+tracked project directory is missing, or a sync manifest that exists but cannot be read (pass
+`--no-sync-root` to publish without it).
 
 For `static-site access`, exit code 0 means the settings update succeeded, exit code 1 means the
 project settings request failed, and exit code 2 means invalid arguments, a missing token, no

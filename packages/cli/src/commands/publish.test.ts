@@ -16,6 +16,8 @@ vi.mock('@deepnote/cloud', async importOriginal => {
 
 import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
 import { createProgram } from '../cli'
+import { getChalk } from '../output'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
@@ -191,15 +193,51 @@ describe('deepnote publish', () => {
   it.each([
     ['enabled', true],
     ['disabled', false],
-  ] as const)('sets API access to %s when explicitly requested', async (state, enabled) => {
+  ] as const)(
+    'sets API access to %s when explicitly requested and notes the embedded token only when enabled',
+    async (state, enabled) => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      mockedUpdateProject.mockResolvedValue({
+        sharingEnabled: true,
+        apiAccessEnabled: enabled,
+        url: 'https://static-p1.example.com/',
+      })
+      const logged: string[] = []
+      const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', state)
+      spy.mockRestore()
+
+      expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', {
+        sharingEnabled: true,
+        apiAccessEnabled: enabled,
+      })
+      const output = logged.join('\n')
+      expect(output).toContain(`API access: ${state}`)
+      expect(output.includes(embeddedApiAccessNote(getChalk()))).toBe(enabled)
+    }
+  )
+
+  it('notes the embedded token when stored settings already have API access enabled', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-
-    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', state, '-q')
-
-    expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', {
-      sharingEnabled: true,
-      apiAccessEnabled: enabled,
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [],
+      staticFiles: {
+        sharingEnabled: true,
+        apiAccessEnabled: true,
+        url: 'https://static-p1.example.com/',
+      },
     })
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok')
+    spy.mockRestore()
+
+    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(logged.join('\n')).toContain(embeddedApiAccessNote(getChalk()))
   })
 
   it('prunes only stale files below the selected target', async () => {
@@ -654,5 +692,79 @@ describe('deepnote publish', () => {
       expect(process.exitCode).toBeUndefined()
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('deepnote sync --all-files'))
     })
+  })
+
+  describe('token from .env', () => {
+    let previousCwd: string
+    let previousToken: string | undefined
+
+    beforeEach(() => {
+      previousCwd = process.cwd()
+      previousToken = process.env.DEEPNOTE_TOKEN
+      delete process.env.DEEPNOTE_TOKEN
+    })
+
+    afterEach(() => {
+      process.chdir(previousCwd)
+      if (previousToken === undefined) {
+        delete process.env.DEEPNOTE_TOKEN
+      } else {
+        process.env.DEEPNOTE_TOKEN = previousToken
+      }
+    })
+
+    it('reads DEEPNOTE_TOKEN from a .env file in the current directory', async () => {
+      const siteDir = join(tempDir, 'dist')
+      await fs.mkdir(siteDir)
+      await fs.writeFile(join(siteDir, 'index.html'), 'hi')
+      await fs.writeFile(join(tempDir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      process.chdir(tempDir)
+
+      await run(siteDir, '--project-id', 'p1', '-q')
+
+      expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'dotenv-token', 'p1')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('refuses to publish a directory that contains a .env file, before any remote work', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      await fs.writeFile(join(tempDir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      process.chdir(tempDir)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+      const stderr: string[] = []
+      vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+        stderr.push(String(chunk))
+        return true
+      })
+
+      await expect(run(tempDir, '--project-id', 'p1')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain('Refusing to publish ".env"')
+      expect(mockedGetProject).not.toHaveBeenCalled()
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+  })
+
+  it('refuses nested .env.* files even when the token comes from --token', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    await fs.mkdir(join(tempDir, 'config'))
+    await fs.writeFile(join(tempDir, 'config', '.env.production'), 'SECRET=1\n')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    const stderr: string[] = []
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      stderr.push(String(chunk))
+      return true
+    })
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderr.join('')).toContain('"config/.env.production"')
+    expect(mockedUpload).not.toHaveBeenCalled()
   })
 })

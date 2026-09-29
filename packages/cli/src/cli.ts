@@ -90,6 +90,9 @@ export function createProgram(): Command {
       const c = getChalk()
       return `
 ${c.bold('Examples:')}
+  ${c.dim('# Sync your Deepnote workspace to a local directory (and push edits back)')}
+  $ deepnote sync workspace
+
   ${c.dim('# Run the first .deepnote file in current directory')}
   $ deepnote run
 
@@ -107,9 +110,6 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Compare two .deepnote files')}
   $ deepnote diff file1.deepnote file2.deepnote
-
-  ${c.dim('# Run with TOON output (for LLMs)')}
-  $ deepnote run my-project.deepnote -o toon
 
   ${c.dim('# Open a .deepnote file in Deepnote Cloud')}
   $ deepnote open my-project.deepnote
@@ -138,8 +138,10 @@ ${c.bold('Global Options:')}
   ${c.dim('-q, --quiet')}   Suppress non-essential output
 
 ${c.bold('Environment Variables:')}
-  ${c.dim('NO_COLOR')}      Set to any value to disable colored output
-  ${c.dim('FORCE_COLOR')}   Set to 1 to force colors, 0 to disable
+  ${c.dim(DEEPNOTE_TOKEN_ENV)}  API token for cloud commands (sync, publish, schedule, run --cloud, ...);
+                  also read from a .env file. Create one under Settings & members > Security > API keys
+  ${c.dim('NO_COLOR')}        Set to any value to disable colored output
+  ${c.dim('FORCE_COLOR')}     Set to 1 to force colors, 0 to disable
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success
@@ -284,6 +286,16 @@ ${c.bold('Examples:')}
     .argument('[path]', 'Path to a notebook file (.deepnote, .ipynb, .py, .qmd)')
     .option('--python <path>', 'Path to Python (executable, bin directory, or venv root)')
     .option('--cwd <path>', 'Working directory for execution (defaults to file directory)')
+    .option(
+      '--startup-timeout <seconds>',
+      'Seconds to allow each of the toolkit server and the kernel to become ready (defaults 120 and 30)',
+      parseTimeoutSeconds
+    )
+    .option(
+      '--block-timeout <seconds>',
+      'Interrupt a block and fail the run if it executes longer than this (local runs only)',
+      parseTimeoutSeconds
+    )
     .option('--notebook <name>', 'Run only the specified notebook')
     .option('--block <id>', 'Run only the specified block')
     .option(
@@ -364,6 +376,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Run with a specific Python virtual environment')}
   $ deepnote run my-project.deepnote --python path/to/venv
+
+  ${c.dim('# Fail fast in CI: 60s for the runtime to start, 5 minutes per block, machine-readable result')}
+  $ deepnote run my-project.deepnote --startup-timeout 60 --block-timeout 300 -o json
+
+  ${c.dim('# Show the toolkit server log while running')}
+  $ deepnote --debug run my-project.deepnote
 
   ${c.dim('# Run only a specific notebook')}
   $ deepnote run my-project.deepnote --notebook "Data Analysis"
@@ -591,6 +609,16 @@ ${c.bold('Exit Codes:')}
 ${c.bold('Description:')}
   Replaces matching files in ${c.dim('_deepnote_static/')} and enables static website sharing
   after every upload succeeds. API access is left unchanged unless explicitly set.
+
+${c.bold('Embedded API access:')}
+  With API access enabled, the embedded app calls Deepnote with a viewer-scoped token that
+  expires after 15 minutes — never your personal token. It covers one run loop: read the
+  configured notebook (inputs and block metadata, no source), start a detached run, and poll
+  that run for its outputs as ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so a
+  feature built against a local preview with a personal token can break only once embedded.
+  Gate those paths on an ${c.dim('isEmbedded')} check (${c.dim('window !== window.parent')}): skip or hide them
+  when embedded, and surface a 403 instead of swallowing it.
+  Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}
   ${c.dim('_deepnote_static/')} is part of the same project file store that

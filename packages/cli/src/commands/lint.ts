@@ -8,7 +8,6 @@ import {
   getEnvironmentVariablesForIntegrations,
   type ValidationIssue,
 } from '@deepnote/database-integrations'
-import { resolvePythonExecutable } from '@deepnote/runtime-core'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
@@ -17,6 +16,7 @@ import { debug, getChalk, error as logError, output, outputJson, warn } from '..
 import { checkForIssues, type LintIssue, type LintResult } from '../utils/analysis'
 import { FileResolutionError, isErrnoENOENT, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import { emitInitResolverWarnings, loadAndResolveDeepnoteFile } from '../utils/load-and-resolve-init'
+import { resolveAnalysisPython } from '../utils/python-resolution'
 
 export interface LintOptions {
   output?: 'json'
@@ -216,7 +216,9 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
     }
 
     debug(`Analyzing blocks...`)
-    const pythonInterpreter = options.python ? await resolvePythonExecutable(options.python) : undefined
+    const pythonInterpreter = await resolveAnalysisPython(deepnoteFile, absolutePath, options.python, {
+      isMachineOutput: options.output === 'json',
+    })
     const { lint } = await checkForIssues(deepnoteFile, {
       notebook: options.notebook,
       pythonInterpreter,

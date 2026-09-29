@@ -1,8 +1,12 @@
+import { join } from 'node:path'
 import { type ProjectStaticFilesUpdate, updateProjectStaticFiles } from '@deepnote/cloud'
+import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 export interface StaticSiteAccessOptions {
   projectId: string
@@ -33,6 +37,8 @@ function requestedUpdate(options: StaticSiteAccessOptions): ProjectStaticFilesUp
 
 export function createStaticSiteAccessAction(program: Command) {
   return async (options: StaticSiteAccessOptions) => {
+    // Load .env from the current directory before reading the token — mirrors `sync` and `publish`.
+    dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
     const token = resolveToken(options.token)
     if (!token) {
       program.error(new MissingTokenError().message, { exitCode: ExitCode.InvalidUsage })
@@ -61,6 +67,9 @@ export function createStaticSiteAccessAction(program: Command) {
         log(`${c.dim('URL:')} ${settings.url}`)
       } else {
         log(c.dim('Published files remain stored and can be shared again later.'))
+      }
+      if (settings.apiAccessEnabled) {
+        log(`\n${embeddedApiAccessNote(c)}`)
       }
     } catch (error) {
       logError(error instanceof Error ? error.message : String(error))

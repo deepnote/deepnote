@@ -82,6 +82,14 @@ Run tests with coverage:
 pnpm test:coverage
 ```
 
+Run the integration tests, which start a real `deepnote-toolkit` server (they are excluded from
+`pnpm test`; install the toolkit with `pip install "deepnote-toolkit[server]"` and point
+`DEEPNOTE_PYTHON` at that interpreter):
+
+```bash
+pnpm test:integration
+```
+
 Run tests in watch mode (in a specific package):
 
 ```bash

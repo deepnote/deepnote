@@ -32,9 +32,9 @@ access model differs from [data apps](/docs/data-apps), which do offer public an
 
 ## Authentication
 
-The CLI reads your token from the `DEEPNOTE_TOKEN` environment variable, or from an explicit
-`--token` flag. Create a token in your workspace under
-[Settings & members → API tokens](https://deepnote.com/workspace/settings/api-tokens).
+The CLI reads your token from the `DEEPNOTE_TOKEN` environment variable, from a `.env` file in the
+current directory, or from an explicit `--token` flag. Create an API key in your workspace under
+**Settings & members → Security → API keys** (see the [Deepnote API docs](/docs/deepnote-api)).
 
 ```bash
 export DEEPNOTE_TOKEN="<your-token>"
@@ -55,8 +55,10 @@ An API token carries your access to the workspace. Treat it like a password.
   `DEEPNOTE_TOKEN` for the publish step only. Never commit it to the repository you are deploying.
 - **Rotate and revoke** from the same settings page if a token is ever exposed.
 - **Keep it out of the build directory.** Everything under the directory you publish becomes readable
-  at the site URL by anyone who can view the site — including dotfiles, source maps, and stray `.env`
-  files. Publish a clean build output directory, not a project root.
+  at the site URL by anyone who can view the site — including dotfiles and source maps. Publish a
+  clean build output directory, not a project root. As a safeguard, the CLI refuses to publish a
+  directory that contains a `.env` or `.env.*` file anywhere inside it (exit code `2`, nothing is
+  uploaded).
 
 ## Finding a project ID
 
@@ -136,10 +138,18 @@ data app is the model that supports it — not a published static site.
 By default a published site is a plain static website: it can serve HTML, CSS, JavaScript, and
 assets, but it cannot call the Deepnote API.
 
-Passing `--api-access enabled` lets the page acquire a short-lived, project- and viewer-scoped token
-from the Deepnote shell that embeds it. That token has a deliberately narrow surface — read the
-configured notebook, start a run, poll that run — which is what makes an interactive page possible
-without a server of your own.
+Passing `--api-access enabled` lets the page acquire a project- and viewer-scoped token from the
+Deepnote shell that embeds it. The token expires 15 minutes after it is minted and has a deliberately
+narrow surface — read the configured notebook's inputs and block metadata (no block source), start a
+detached run, and poll that run for its outputs as `snapshotBlocks` — which is what makes an
+interactive page possible without a server of your own. Every other endpoint answers 403, so a
+feature that works in a local preview with a personal token can break only once embedded.
+
+The page obtains the token by posting a `deepnote-static-files-api-token-request` message to the
+shell origin, which replies with the token, the API origin to send it to, and its expiry. Expiry is
+not a permanent failure: repeat that request to receive a fresh token, ideally shortly before the
+current one expires and again on a 401. `examples/local-runner/cloud-app` implements the handshake
+and the refresh.
 
 This is a second opt-in layered on top of site sharing, and it can only ever narrow the audience, not
 widen it: a viewer who cannot see the site cannot obtain a token for it. Because every viewer is a
