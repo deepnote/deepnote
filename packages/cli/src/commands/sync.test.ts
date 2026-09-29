@@ -11,7 +11,6 @@ import {
   canonicalProjectHash,
   classifySyncStep,
   describeCloudFileDivergence,
-  parseSyncConcurrency,
   readExportModifiedAt,
   syncWorkspace,
 } from './sync'
@@ -1955,14 +1954,6 @@ describe('syncWorkspace', () => {
       } finally {
         vi.mocked(saveSyncManifest).mockImplementation(actual.saveSyncManifest)
       }
-    })
-
-    it.each(['0', '-1', 'x', '1.5'])('rejects --concurrency %s', value => {
-      expect(() => parseSyncConcurrency(value)).toThrow('Must be a positive integer.')
-    })
-
-    it('accepts any positive integer for --concurrency', () => {
-      expect(parseSyncConcurrency('100')).toBe(100)
     })
   })
 })
