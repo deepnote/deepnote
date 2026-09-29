@@ -5,7 +5,11 @@ from pathlib import Path
 
 import streamlit as st
 from _sales_dashboard import render_sales_dashboard
-from deepnote_toolkit.notebooks import DeepnoteDocument, DeepnoteRunner, RunnerError
+from deepnote_toolkit.notebooks import (
+    DeepnoteDocument,
+    DeepnoteLocalRunner,
+    RunnerError,
+)
 from deepnote_toolkit.streamlit import StreamlitCloudRunner, render_inputs
 
 HERE = Path(__file__).resolve().parent
@@ -19,9 +23,11 @@ st.set_page_config(
 
 notebook = DeepnoteDocument.load(NOTEBOOK)
 if RUNNER_URL:
-    runner = DeepnoteRunner(RUNNER_URL)
+    runner = DeepnoteLocalRunner(RUNNER_URL)
 elif NOTEBOOK_ID:
-    runner = StreamlitCloudRunner(NOTEBOOK_ID)
+    runner = StreamlitCloudRunner(
+        NOTEBOOK_ID, local=True, token=os.environ.get("DEEPNOTE_TOKEN")
+    )
 else:
     runner = None
 
@@ -49,7 +55,7 @@ with st.sidebar:
             target_label = (
                 "Deepnote Cloud" if info.run_target == "cloud" else "a local kernel"
             )
-            input_contract_matches = info.accepts_inputs(notebook.inputs)
+            input_contract_matches = info.matches_inputs(notebook.inputs)
             if input_contract_matches:
                 st.success(f"Runner connected · {target_label}")
             else:
@@ -76,6 +82,7 @@ if run_clicked:
             st.session_state.deepnote_inputs = values
     except RunnerError as error:
         st.session_state.pop("deepnote_result", None)
+        st.session_state.pop("deepnote_inputs", None)
         st.error(str(error))
 
 result = st.session_state.get("deepnote_result")

@@ -29,7 +29,6 @@ First synchronize the local source into the cloud notebook as an explicit deploy
 
 ```bash
 export DEEPNOTE_NOTEBOOK_ID=...
-export DEEPNOTE_PROJECT_ID=...
 export DEEPNOTE_TOKEN=...
 
 deepnote run examples/local-runner-showcase.deepnote \
@@ -49,50 +48,44 @@ A hosted app does not inherit your shell's environment. Before pushing the app f
 `os.environ.get("DEEPNOTE_NOTEBOOK_ID", "your-notebook-id")`, which keeps the variable working for
 local runs.
 
-Push first, then publish. `deepnote publish --streamlit` uploads nothing: the entrypoint and every
-local module it imports must already be in the project's Files, pushed with
-`deepnote sync --all-files` (files upload together with a notebook push) or uploaded in Deepnote.
-Then register the entrypoint through the same CLI and API-key authentication used for other cloud
-operations:
+Push first, then publish. `deepnote streamlit publish` uploads nothing: the entrypoint and every
+local module it imports must already be in the project's Files. Upload them in Deepnote. If a
+notebook push is already pending in a sync workspace, `deepnote sync --all-files` can upload them
+with it; a `.py`-only edit does not trigger sync. Then register the entrypoint through the same CLI
+and API-key authentication used for other cloud operations:
 
 ```bash
-deepnote publish examples/streamlit/dynamic_app.py \
-  --project-id "$DEEPNOTE_PROJECT_ID" \
-  --streamlit
+deepnote streamlit publish examples/streamlit/dynamic_app.py --project-id <project-uuid>
 ```
 
 The positional path is project-relative, not a local upload. For this example, the project must
 contain `examples/streamlit/dynamic_app.py`, `examples/streamlit/_sales_dashboard.py`, and
 `examples/local-runner-showcase.deepnote` at those paths; a 404 for the entrypoint means the file
 is not there yet. Creating the app restarts the project machine, which takes a few minutes and
-interrupts anyone working in the project. The command prints the hosted app URL, then waits for the
-app to report `running` (`--no-wait` skips the wait). Publishing a file that is already served
-reports the existing app instead of creating a second one.
+interrupts anyone working in the project. The command prints the hosted app URL, then waits up to
+10 minutes for the app to report `running` (`--no-wait` skips the wait). Publishing a file that is
+already served reports the existing app without restarting the machine.
 
-The app belongs to its entrypoint file. Deleting that file removes the app, and publishing it again
-creates a new app with a new URL and restarts the machine. `deepnote sync --all-files` replaces a
-changed file by deleting it and uploading it again, so pushing an edited entrypoint currently
-removes its app too.
+Deleting the entrypoint can remove its app registration. Sync replaces a changed file by deleting it
+and uploading it again, so after syncing an edited entrypoint, publish again and use the returned
+URL, which may change.
 
-In a hosted Deepnote app, start only Streamlit for normal app runs:
-
-```bash
-pnpm example:streamlit:dynamic
-```
-
-The app parses its local `.deepnote` file for the UI contract and sends input values to the public
-runs API. `StreamlitCloudRunner` uses the hosted Streamlit session to obtain a short-lived API token
-scoped to the current viewer, matching the CLI and public API authentication model. The token is
+When Deepnote hosts the app, it starts Streamlit on the published entrypoint itself. The app parses
+its local `.deepnote` file for the UI contract and sends input values to the public runs API.
+`StreamlitCloudRunner` uses the hosted Streamlit session to obtain a short-lived API token scoped
+to the current viewer, matching the CLI and public API authentication model. The token is
 reused within the current Streamlit session until shortly before it expires, and never shared
 between sessions. The runner does not send the Streamlit cookie to the public API or fall back to a
 shared project-owner credential. The app disables the run button if the deployed notebook's input
-names or types differ from the local file.
+names or types differ from the local file. Runs use read-only project storage by default, so the
+notebook cannot change the project's files; pass `storage_mode=None` to allow writes.
 
 API calls from a hosted app work only when the project owner has enabled Streamlit app API access,
-and only for signed-in viewers with direct access to the project. Anonymous visitors and viewers who
-only have a share link can open the page but cannot get an API token, so the run button does
-nothing useful for them; an app meant for that audience should render a committed snapshot, as
-`static_app.py` does, or explain that signing in is required.
+and only for signed-in viewers with direct access to the project. The token can reach notebooks only
+in the hosting project. Anonymous visitors and viewers who only have a share link can open the page
+but cannot get an API token, so the app shows the error and disables the run button. An app meant
+for that audience should render a committed snapshot, as `static_app.py` does, or explain that
+signing in is required.
 
 For local development against an existing cloud notebook, supply the same API token used by the
 CLI:
@@ -101,9 +94,11 @@ CLI:
 DEEPNOTE_NOTEBOOK_ID=... DEEPNOTE_TOKEN=... pnpm example:streamlit:dynamic
 ```
 
-Application code may also pass an explicit `token=` or `token_provider=` to
-`StreamlitCloudRunner`. The default remains preferable in hosted apps because it is scoped to the
-current viewer.
+Outside Deepnote, `StreamlitCloudRunner` uses a token only with `local=True` and an explicit
+`token=` or `token_provider=`, which is why the example passes `DEEPNOTE_TOKEN` that way. A hosted
+app ignores both and always uses the current viewer's token. Do not export `DEEPNOTE_PROJECT_ID` in
+the shell that runs the app: the runner reads it as a sign of hosting and then asks for a viewer
+token that a local process cannot get.
 
 For sidecar-based local development, start the runner and Streamlit in separate terminals. The
 sidecar can create a missing cloud notebook, but updates to an existing one still use the explicit
@@ -137,7 +132,7 @@ An agent creating a new app needs three decisions:
 
 1. Point `DeepnoteDocument.load(...)` at the local source or snapshot.
 2. For a dynamic app, render `document.inputs` and send the returned values to either
-   `StreamlitCloudRunner.run(...)` or `DeepnoteRunner.run(...)`.
+   `StreamlitCloudRunner.run(...)` or `DeepnoteLocalRunner.run(...)`.
 3. Query outputs by meaning (`first_dataframe()`, `images()`, `agent_text()`) and write normal
    Streamlit presentation code.
 

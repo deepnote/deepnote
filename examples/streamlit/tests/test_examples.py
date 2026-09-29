@@ -41,7 +41,7 @@ def test_dynamic_example_disables_run_for_mismatched_input_names(
     monkeypatch,
 ) -> None:
     class MismatchedCloudRunner:
-        def __init__(self, _notebook_id: str):
+        def __init__(self, _notebook_id: str, **_options):
             pass
 
         def info(self) -> RunnerInfo:
