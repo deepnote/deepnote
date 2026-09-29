@@ -13,14 +13,16 @@ project. It is open source and lives in the
 
 Use the CLI when you want to:
 
-- **Run notebooks from scripts, cron jobs or CI** instead of clicking Run in the editor.
+- **Run notebooks from scripts, cron jobs, CI or AI coding agents** instead of clicking Run in the
+  editor.
 - **Keep notebooks in Git** and inspect, diff, lint or validate `.deepnote` files in pull requests.
 - **Convert** between `.ipynb`, `.py`, `.qmd` and `.deepnote`.
 - **Mirror your workspace locally** with [`deepnote sync`](/docs/deepnote-cli-sync) and push edits
   back.
 - **Deploy a built static site** to a project with [`deepnote publish`](/docs/deepnote-cli-publish).
-- **Give AI coding assistants** the Deepnote file format and CLI reference with
-  `deepnote install-skills`.
+- **Give AI coding agents the Deepnote skill.** `deepnote install-skills` gives Claude Code, Codex,
+  Cursor, Gemini CLI and other agents the `.deepnote` format and CLI reference, so they can write
+  notebooks and check their work with `deepnote lint` and `deepnote run -o llm`.
 
 <Callout status="info">
 The CLI is under active development. Commands and output formats may change between minor
