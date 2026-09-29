@@ -25,6 +25,9 @@ deepnote --help
 # Show version
 deepnote --version
 
+# Sync your Deepnote workspace to a local directory (and push edits back)
+deepnote sync workspace
+
 # Run a project/notebook file (.deepnote, .ipynb, .py, .qmd)
 deepnote run path/to/file.deepnote
 
