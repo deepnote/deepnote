@@ -119,8 +119,17 @@ interface SyncContext {
   dryRun: boolean
   /** Settles when the open conflict prompt closes, so only one is on screen at a time. */
   promptQueue: Promise<unknown>
-  /** Progress lines held back while a prompt is open; `undefined` when none is. */
-  heldProgress?: string[]
+  /** Output held back while a prompt is open; `undefined` when none is. */
+  heldOutput?: (() => void)[]
+}
+
+/** Print `message` now, or once the open conflict prompt closes so it is not drawn over the prompt. */
+function emit(ctx: SyncContext, print: (message: string) => void, message: string): void {
+  if (ctx.heldOutput) {
+    ctx.heldOutput.push(() => print(message))
+  } else {
+    print(message)
+  }
 }
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
@@ -215,7 +224,7 @@ async function resolveConflict(
     return ctx.conflictMode
   }
   const answer = ctx.promptQueue.then(async () => {
-    ctx.heldProgress = []
+    ctx.heldOutput = []
     try {
       return await select({
         message: question,
@@ -225,10 +234,10 @@ async function resolveConflict(
         ],
       })
     } finally {
-      for (const line of ctx.heldProgress ?? []) {
-        log(line)
+      for (const print of ctx.heldOutput ?? []) {
+        print()
       }
-      ctx.heldProgress = undefined
+      ctx.heldOutput = undefined
     }
   })
   // Not caught: after a Ctrl+C, prompts still queued reject with the same ExitPromptError unseen.
@@ -307,7 +316,7 @@ async function writeProjectNotebooks(
     // Filenames come from the server export and are already slug-safe, but a hostile archive path
     // must never escape the project directory — validate, and skip (reporting) anything unsafe.
     if (!isSafeRelativeFilePath(file.filename)) {
-      warn(`Skipping notebook with unsafe filename in ${projectDir}: ${file.filename}`)
+      emit(ctx, warn, `Skipping notebook with unsafe filename in ${projectDir}: ${file.filename}`)
       continue
     }
     const caseVariant = [...existingNotebookNames].find(
@@ -375,7 +384,7 @@ async function syncProjectFiles(
 
   for (const entry of detail.files) {
     if (!isSafeRelativeFilePath(entry.path)) {
-      warn(`Skipping file with unsafe path in "${project.name}": ${entry.path}`)
+      emit(ctx, warn, `Skipping file with unsafe path in "${project.name}": ${entry.path}`)
       continue
     }
 
@@ -404,7 +413,7 @@ async function syncProjectFiles(
       next[entry.path] = base
     }
     downloaded++
-    debug(`Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
+    emit(ctx, debug, `Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
   }
 
   // Files that disappeared from the cloud stay on disk unless the user opted into --prune. A copy
@@ -430,7 +439,9 @@ async function syncProjectFiles(
     }
   }
   if (keptDeleted.length > 0) {
-    warn(
+    emit(
+      ctx,
+      warn,
       `${keptDeleted.length} file${keptDeleted.length === 1 ? '' : 's'} in "${project.name}" ` +
         `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}. ` +
         'Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.'
@@ -588,7 +599,7 @@ async function uploadProjectFiles(
 
   for (const relPath of localPaths) {
     if (!isSafeRelativeFilePath(relPath)) {
-      warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
+      emit(ctx, warn, `Skipping local file with unsafe path in "${project.name}": ${relPath}`)
       continue
     }
     await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${relPath}`)
@@ -625,7 +636,9 @@ async function uploadProjectFiles(
         'Overwrite the Deepnote copies with the local files'
       )) === 'override'
     if (!overrideConflicts) {
-      warn(
+      emit(
+        ctx,
+        warn,
         `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
           `"${project.name}": ${summary}. To accept the Deepnote versions, pull — this replaces your ` +
           'local copies. To keep yours, push again and choose to overwrite.'
@@ -684,7 +697,7 @@ async function uploadProjectFiles(
       next[relPath] = { size: bytes.length, hash }
     }
     uploaded++
-    debug(`Uploaded ${project.name}: ${relPath} (${bytes.length} bytes)`)
+    emit(ctx, debug, `Uploaded ${project.name}: ${relPath} (${bytes.length} bytes)`)
   }
 
   record.files = next
@@ -900,10 +913,8 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     promptQueue: Promise.resolve(),
   }
   const progress = (message: string) => {
-    if (ctx.heldProgress) {
-      ctx.heldProgress.push(message)
-    } else if (!isMachineOutput) {
-      log(message)
+    if (!isMachineOutput) {
+      emit(ctx, log, message)
     }
   }
 

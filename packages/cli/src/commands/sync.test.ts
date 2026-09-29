@@ -1637,6 +1637,24 @@ describe('syncWorkspace', () => {
   })
 
   describe('parallel projects', () => {
+    /** A promise the test settles by hand, to order concurrent work without timers. */
+    function deferred(): { promise: Promise<void>; resolve: () => void } {
+      let resolve = () => {}
+      const promise = new Promise<void>(settle => {
+        resolve = settle
+      })
+      return { promise, resolve }
+    }
+
+    /** Wraps the installed cloud fetch so `hold` can pause matching requests until it resolves. */
+    function holdRequests(hold: (url: URL, init?: RequestInit) => Promise<void> | undefined): void {
+      const inner = vi.mocked(fetch).getMockImplementation() as typeof fetch
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        await hold(new URL(String(url)), init)
+        return inner(url, init)
+      })
+    }
+
     const projectsNamed = (...names: string[]): CloudProject[] =>
       names.map(name => ({ id: `p-${name}`, name, notebooks: singleNotebook(`p-${name}`, '2026-01-02T00:00:00.000Z') }))
 
@@ -1769,6 +1787,45 @@ describe('syncWorkspace', () => {
           'pulled',
         ])
       })
+    })
+
+    it('holds warnings from other projects while a conflict prompt is open', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects = projectsNamed('A', 'C').map(project => ({ ...project, files: [] as CloudFile[] }))
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      projects[0].notebooks = singleNotebook('p-A', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      const localEdit = notebookYaml('p-A', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+      await fs.writeFile(path.join(tempDir, 'A', 'main.deepnote'), localEdit, 'utf-8')
+      // C warns about the unsafe path, then downloads the safe file after it.
+      projects[1].files = [
+        { path: '../evil.csv', size: 1, updatedAt: '2026-01-07T00:00:00.000Z', content: 'x' },
+        { path: 'data.csv', size: 1, updatedAt: '2026-01-07T00:00:00.000Z', content: 'y' },
+      ]
+      const promptOpen = deferred()
+      const cWarned = deferred()
+      holdRequests(url => {
+        if (url.pathname === '/v2/projects/p-C') return promptOpen.promise
+        if (url.searchParams.get('path') === 'data.csv') cWarned.resolve()
+      })
+      const warnings: string[] = []
+      vi.spyOn(console, 'error').mockImplementation(line => warnings.push(String(line)))
+      const warnedWhileOpen: string[] = []
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          promptOpen.resolve()
+          await cWarned.promise
+          warnedWhileOpen.push(...warnings)
+          return 'skip'
+        })
+
+      await withTty(async () => {
+        await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })
+      })
+
+      expect(warnedWhileOpen).toEqual([])
+      expect(warnings).toEqual(['Skipping file with unsafe path in "C": ../evil.csv'])
     })
 
     it('opens no further prompt after Ctrl+C on the first one', async () => {
