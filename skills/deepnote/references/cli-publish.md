@@ -12,10 +12,12 @@ If the workflow is undecided, start with [Build and publish apps and Streamlit a
 ## Before publishing
 
 1. Confirm the target project ID and the files to publish. Neither command creates projects.
-2. Set `DEEPNOTE_TOKEN` or pass `--token`. Use `--url` only to override the default API origin,
-   `https://api.deepnote.com`. Keep the token out of app files.
+2. Set `DEEPNOTE_TOKEN` in the environment or in a `.env` file in the current directory, or pass
+   `--token`. Use `--url` only to override the default API origin, `https://api.deepnote.com`.
+   Keep the token out of app files.
 3. For an app, build into a dedicated directory and inspect its contents. Everything in that
-   directory will be uploaded, including dotfiles.
+   directory will be uploaded, including dotfiles; `publish` refuses a directory containing a `.env`
+   or `.env.*` file at any depth (exit code 2).
 4. For a new Streamlit app, account for the project-machine restart and interruption to active work.
 
 ## Publish an app
@@ -148,11 +150,11 @@ serves the retained files at the returned URL. Authentication and the API origin
 
 ## Interpret the result
 
-| Exit code | `deepnote publish`                                                              | `deepnote streamlit publish`                   |
-| --------- | ------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`       | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait` |
-| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes         | Request failure or startup timeout             |
-| `2`       | Invalid arguments, missing token/directory, or unusable sync manifest/workspace | Invalid arguments or missing token             |
+| Exit code | `deepnote publish`                                                                                            | `deepnote streamlit publish`                   |
+| --------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`       | Files uploaded and sharing enabled                                                                            | App running, or created/found with `--no-wait` |
+| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes                                       | Request failure or startup timeout             |
+| `2`       | Invalid arguments, missing token/directory, `.env` file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token             |
 
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. Sharing is not changed and remaining stale files are not

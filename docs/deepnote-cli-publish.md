@@ -28,15 +28,16 @@ through the Deepnote editor instead, see [Data apps](/docs/data-apps).
 
 ## Authentication
 
-Create a token under [Settings & members → API tokens](https://deepnote.com/workspace/settings/api-tokens).
-Set `DEEPNOTE_TOKEN`, or pass `--token`:
+Create an API key in your workspace under **Settings & members → Security → API keys** (see the
+[Deepnote API docs](/docs/deepnote-api)). Set `DEEPNOTE_TOKEN` in the environment or in a `.env` file
+in the current directory, or pass `--token`:
 
 ```bash
 export DEEPNOTE_TOKEN="<your-token>"
 deepnote publish ./dist --project-id <project-id>
 ```
 
-Prefer the environment variable to keep the token out of command history and process arguments.
+Prefer `DEEPNOTE_TOKEN` to keep the token out of command history and process arguments.
 In CI, expose it from the provider's secret store. Keep tokens out of the build directory and revoke
 any exposed token from the settings page. Without a token, all three commands exit with code `2`.
 
@@ -64,8 +65,10 @@ after all uploads succeed. Remote files absent from the build are retained unles
 Use the URL printed by the command.
 
 <Callout status="warning">
-Every file in the build directory can be served to viewers, including dotfiles, source maps, and
-`.env` files. Publish a clean build output directory that contains no credentials.
+Every file in the build directory can be served to viewers, including dotfiles and source maps.
+Publish a clean build output directory that contains no credentials. As a safeguard, the command
+refuses a directory that contains a `.env` or `.env.*` file at any depth (exit code `2`, nothing is
+uploaded).
 </Callout>
 
 ### Where the files go
@@ -155,8 +158,9 @@ Use `--api-access enabled|disabled` to change viewer API access. At least one se
 
 ### Recover from a failed publish
 
-Invalid local paths or conflicting destination paths stop the command before uploads, with exit
-code `2`. Each local file is read before its remote copy is deleted and replaced.
+Invalid local paths, conflicting destination paths, or `.env` files in the build directory stop the
+command before uploads, with exit code `2`. Each local file is read before its remote copy is
+deleted and replaced.
 
 If an upload fails, successful uploads remain in place, sharing is not changed, and remaining stale
 files are not pruned. The command reports the failures and exits with code `1`. Fix the reported
@@ -226,11 +230,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                              | `deepnote streamlit publish`                   |
-| ---- | ------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                              | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, or unusable sync workspace          | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                   | `deepnote streamlit publish`                   |
+| ---- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                                                   | App running, or created/found with `--no-wait` |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                      | A request failed or startup timed out          |
+| `2`  | Invalid arguments, missing token/directory, `.env` file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.
