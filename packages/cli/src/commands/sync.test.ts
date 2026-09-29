@@ -1935,6 +1935,7 @@ describe('syncWorkspace', () => {
       const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
       let saving = 0
       let peakSaving = 0
+      vi.mocked(saveSyncManifest).mockClear()
       vi.mocked(saveSyncManifest).mockImplementation(async (...args) => {
         peakSaving = Math.max(peakSaving, ++saving)
         await new Promise(resolve => setTimeout(resolve, 5))
@@ -1948,7 +1949,8 @@ describe('syncWorkspace', () => {
           expect.objectContaining({ action: 'pushed', filesUploaded: 2 }),
           expect.objectContaining({ action: 'pushed', filesUploaded: 2 }),
         ])
-        expect(vi.mocked(saveSyncManifest).mock.calls.length).toBeGreaterThan(4)
+        // Two saves per uploaded file (mark it pending, then settle it) and the final one.
+        expect(saveSyncManifest).toHaveBeenCalledTimes(2 * 2 * 2 + 1)
         expect(peakSaving).toBe(1)
       } finally {
         vi.mocked(saveSyncManifest).mockImplementation(actual.saveSyncManifest)
