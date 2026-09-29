@@ -965,7 +965,7 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
       progress(renderOutcomeLine(outcome))
     }
   }
-  const workerCount = movesDirectory ? 1 : (options.concurrency ?? DEFAULT_SYNC_CONCURRENCY)
+  const workerCount = Math.min(queue.length, movesDirectory ? 1 : (options.concurrency ?? DEFAULT_SYNC_CONCURRENCY))
   for (const settled of await Promise.allSettled(Array.from({ length: workerCount }, worker))) {
     if (settled.status === 'rejected') {
       throw settled.reason
