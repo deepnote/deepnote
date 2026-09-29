@@ -8,12 +8,12 @@ Manage database integrations in a local integrations file (default: `.deepnote.e
 
 Pull integrations from the Deepnote API and merge them into the local integrations file. Existing entries are updated in place, preserving comments, formatting, local-only integrations, and custom env var names.
 
-| Option              | Description                                        | Default                    |
-| ------------------- | -------------------------------------------------- | -------------------------- |
-| `--url <url>`       | API base URL                                       | `https://api.deepnote.com` |
-| `--token <token>`   | Bearer token (or use the `DEEPNOTE_TOKEN` env var) |                            |
-| `--file <path>`     | Path to integrations file                          | `.deepnote.env.yaml`       |
-| `--env-file <path>` | Path to `.env` file for storing secrets            | `.env`                     |
+| Option              | Description                                         | Default                    |
+| ------------------- | --------------------------------------------------- | -------------------------- |
+| `--url <url>`       | API base URL                                        | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or `DEEPNOTE_TOKEN` env var / `.env`) |                            |
+| `--file <path>`     | Path to integrations file                           | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file for storing secrets             | `.env`                     |
 
 **Examples:**
 

@@ -73,7 +73,7 @@ Every block has these common fields:
 | **SQL**     | `sql`                                                                                                                                |
 | **Text**    | `markdown`, `text-cell-h1`, `text-cell-h2`, `text-cell-h3`, `text-cell-p`, `text-cell-bullet`, `text-cell-todo`, `text-cell-callout` |
 | **Input**   | `input-text`, `input-textarea`, `input-checkbox`, `input-select`, `input-slider`, `input-date`, `input-date-range`, `input-file`     |
-| **Display** | `visualization`, `big-number`, `image`, `separator`                                                                                  |
+| **Display** | `visualization`, `pivot-table`, `big-number`, `image`, `separator`                                                                   |
 | **Other**   | `button`, `notebook-function`                                                                                                        |
 
 ### Block Type References
