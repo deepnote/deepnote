@@ -61,8 +61,8 @@ export const DEFAULT_SYNC_CONCURRENCY = 8
 
 /** Commander parser for `--concurrency`: a positive integer. */
 export function parseSyncConcurrency(value: string): number {
-  const concurrency = /^\d+$/.test(value) ? Number(value) : 0
-  if (!Number.isSafeInteger(concurrency) || concurrency < 1) {
+  const concurrency = Number(value)
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
     throw new InvalidArgumentError('Must be a positive integer.')
   }
   return concurrency
