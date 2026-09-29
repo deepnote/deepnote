@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@deepnote/cloud', async importOriginal => {
@@ -262,5 +265,52 @@ describe('deepnote streamlit publish', () => {
     await expect(run('apps/dashboard.py', '--project-id', 'p1')).rejects.toThrow('exit')
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+  })
+
+  describe('token from .env', () => {
+    let tempDir: string
+    let previousCwd: string
+    let previousToken: string | undefined
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'streamlit-publish-test-'))
+      previousCwd = process.cwd()
+      previousToken = process.env[DEEPNOTE_TOKEN_ENV]
+      delete process.env[DEEPNOTE_TOKEN_ENV]
+    })
+
+    afterEach(async () => {
+      process.chdir(previousCwd)
+      if (previousToken === undefined) {
+        delete process.env[DEEPNOTE_TOKEN_ENV]
+      } else {
+        process.env[DEEPNOTE_TOKEN_ENV] = previousToken
+      }
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('reads DEEPNOTE_TOKEN from a .env file in the current directory', async () => {
+      await fs.writeFile(join(tempDir, '.env'), `${DEEPNOTE_TOKEN_ENV}=dotenv-token\n`)
+      process.chdir(tempDir)
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--no-wait')
+
+      expect(mockedCreateStreamlitApp).toHaveBeenCalledWith('https://api.deepnote.com', 'dotenv-token', {
+        projectId: 'p1',
+        entrypoint: 'apps/dashboard.py',
+      })
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('exits with code 2 when neither flag, env var nor .env provides a token', async () => {
+      process.chdir(tempDir)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run('apps/dashboard.py', '--project-id', 'p1')).rejects.toThrow('exit')
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    })
   })
 })

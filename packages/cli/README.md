@@ -974,7 +974,7 @@ These options work with all commands:
   the local `.deepnote` file, or the current directory when only `--notebook-id` is given
 - `schedule`: next to the `.deepnote` file
 - `sync`: the sync root
-- `publish` and `static-site access`: the current directory
+- `publish`, `streamlit publish` and `static-site access`: the current directory
 - `integrations pull`: the file given by `--env-file` (default `.env`)
 
 `--token` wins over everything, and a value already set in the shell wins over `.env`.
