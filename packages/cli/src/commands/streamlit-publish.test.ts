@@ -255,18 +255,6 @@ describe('deepnote streamlit publish', () => {
     }
   )
 
-  it('exits with code 2 when no token is available', async () => {
-    vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
-    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('exit')
-    })
-
-    await expect(run('apps/dashboard.py', '--project-id', 'p1')).rejects.toThrow('exit')
-    expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
-  })
-
   describe('token from .env', () => {
     let tempDir: string
     let previousCwd: string
@@ -304,6 +292,7 @@ describe('deepnote streamlit publish', () => {
 
     it('exits with code 2 when neither flag, env var nor .env provides a token', async () => {
       process.chdir(tempDir)
+      vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('exit')
       })
