@@ -1001,7 +1001,7 @@ These options work with all commands:
 - `schedule`: next to the `.deepnote` file
 - `sync`: the sync root
 - `publish`, `streamlit publish` and `static-site access`: the current directory
-- `integrations pull`: the file given by `--env-file` (default `.env`)
+- `integrations pull` and `integrations auth`: the file given by `--env-file` (default `.env`)
 
 `--token` wins over everything, and a value already set in the shell wins over `.env`.
 

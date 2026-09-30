@@ -1,3 +1,4 @@
+import path from 'node:path'
 import {
   ApiError,
   BigQueryAuthMethods,
@@ -15,14 +16,14 @@ import {
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
-import { DEEPNOTE_TOKEN_ENV } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { generatePkcePair, generateStateNonce } from '../../federated-auth/google-oauth'
 import { runOAuthFlow } from '../../federated-auth/oauth-loopback-server'
 import { computeClientFingerprint, getTokenStoreDir, writeToken } from '../../federated-auth/token-store'
 import { debug, log, output, warn } from '../../output'
-import { MissingTokenError } from '../../utils/auth'
+import { MissingTokenError, resolveToken } from '../../utils/auth'
 import { openInBrowser } from '../../utils/browser'
 import { DEFAULT_DOMAIN } from '../../utils/deepnote-api'
 import { readDotEnv } from '../../utils/dotenv'
@@ -212,7 +213,10 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
   const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
   const domain = options.domain ?? DEFAULT_DOMAIN
   const baseUrl = options.url ?? DEFAULT_API_URL
-  const token = options.token ?? process.env[DEEPNOTE_TOKEN_ENV]
+
+  // The same .env file that resolves `env:` references may also hold the token.
+  dotenv.config({ path: path.resolve(envFilePath), quiet: true })
+  const token = resolveToken(options.token)
 
   const doc = await readIntegrationsDocument(filePath)
 

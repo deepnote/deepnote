@@ -18,7 +18,7 @@ export class MissingTokenError extends Error {
         `  ${DEEPNOTE_TOKEN_ENV}=<token>    Set environment variable\n` +
         `  .env file                 Put ${DEEPNOTE_TOKEN_ENV}=<token> in a .env file (next to the notebook,\n` +
         `                            in the sync root, or in the current directory, depending on the command;\n` +
-        `                            integrations pull reads its --env-file)\n\n` +
+        `                            integrations pull and auth read their --env-file)\n\n` +
         `Create an API key in Deepnote under ${API_KEY_LOCATION}\n` +
         `See ${API_KEY_DOCS_URL}`
     )

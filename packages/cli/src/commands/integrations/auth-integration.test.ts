@@ -118,6 +118,7 @@ let program: Command
 let realFetch: typeof fetch
 let googleTokenQueue: Array<{ status: number; body: unknown }>
 let googleRequests: Array<{ authHeader: string; body: URLSearchParams }>
+let envKeysBeforeTest: Set<string>
 
 function baseOptions(overrides: Partial<IntegrationsAuthOptions> = {}): IntegrationsAuthOptions {
   return { file: filePath, envFile: envFilePath, domain: DOMAIN, url: API_URL, ...overrides }
@@ -187,6 +188,7 @@ function assertNoSecretLeak(secret: string, errorMessage?: string): void {
 
 beforeEach(async () => {
   vi.clearAllMocks()
+  envKeysBeforeTest = new Set(Object.keys(process.env))
   tempDir = await mkdtemp(join(tmpdir(), 'auth-integration-test-'))
   tempHome = await mkdtemp(join(tmpdir(), 'auth-integration-home-'))
   vi.mocked(homedir).mockReturnValue(tempHome)
@@ -227,6 +229,13 @@ beforeEach(async () => {
 afterEach(async () => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
+  // The command loads --env-file into process.env through dotenv, which outlives the test; drop
+  // what it added so one test's .env can't satisfy another test's `env:` reference.
+  for (const key of Object.keys(process.env)) {
+    if (!envKeysBeforeTest.has(key)) {
+      delete process.env[key]
+    }
+  }
   await rm(tempDir, { recursive: true, force: true })
   await rm(tempHome, { recursive: true, force: true })
 })
@@ -603,6 +612,21 @@ describe('auth-integration', () => {
         expect(error.message).not.toContain('was not found')
       }
       expect(mockFetchIntegrations).not.toHaveBeenCalled()
+    })
+
+    it('reads DEEPNOTE_TOKEN from the --env-file when neither flag nor env var provides one', async () => {
+      vi.stubEnv(DEEPNOTE_TOKEN_ENV, undefined)
+      await writeFile(envFilePath, 'DEEPNOTE_TOKEN=dotenv-token\n')
+      mockFetchIntegrations.mockResolvedValueOnce([])
+
+      try {
+        await createIntegrationsAuthAction(program)('api-only-bq', baseOptions())
+        expect.fail('Should have thrown')
+      } catch (error) {
+        assert(error instanceof CommanderError)
+        expect(error.message).toContain('was not found')
+      }
+      expect(mockFetchIntegrations).toHaveBeenCalledWith(API_URL, 'dotenv-token', ['api-only-bq'])
     })
 
     it('rejects naming "deepnote integrations pull" when the API has no matching integration', async () => {

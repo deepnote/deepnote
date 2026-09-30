@@ -65,13 +65,13 @@ Authenticate a `big-query` integration using Google OAuth so `deepnote run` can 
 
 Opens a browser to complete Google's consent screen (also prints the URL, for headless sessions or if the browser fails to open) and stores the resulting refresh token under `~/.deepnote/federated-auth-tokens/` — one file per integration, mode `0600` in a `0700` directory on POSIX; on Windows confidentiality relies on the `%USERPROFILE%` ACL instead of the file mode. Requires a browser and a signed-in Deepnote session — interactive only, no headless or CI path (use service-account authentication for CI). Applies to local runs only: `--cloud` authenticates BigQuery server-side and never reads this token store.
 
-| Option              | Description                                        | Default                    |
-| ------------------- | -------------------------------------------------- | -------------------------- |
-| `--file <path>`     | Path to integrations file                          | `.deepnote.env.yaml`       |
-| `--env-file <path>` | Path to `.env` file                                | `.env`                     |
-| `--domain <domain>` | Deepnote domain (OAuth consent proxy)              | `deepnote.com`             |
-| `--url <url>`       | API base URL                                       | `https://api.deepnote.com` |
-| `--token <token>`   | Bearer token (or use the `DEEPNOTE_TOKEN` env var) |                            |
+| Option              | Description                                         | Default                    |
+| ------------------- | --------------------------------------------------- | -------------------------- |
+| `--file <path>`     | Path to integrations file                           | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file                                 | `.env`                     |
+| `--domain <domain>` | Deepnote domain (OAuth consent proxy)               | `deepnote.com`             |
+| `--url <url>`       | API base URL                                        | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or `DEEPNOTE_TOKEN` env var / `.env`) |                            |
 
 **Examples:**
 
