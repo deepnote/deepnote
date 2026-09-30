@@ -7,8 +7,8 @@ noContent: false
 
 The Deepnote CLI is a command-line tool for working with Deepnote projects outside the browser. It
 reads and writes the open [`.deepnote` file format](/docs/deepnote-format), runs notebooks locally
-or in Deepnote Cloud, mirrors a whole workspace to your machine, and deploys static sites to a
-project. It is open source and lives in the
+or in Deepnote Cloud, mirrors a whole workspace to your machine, and publishes apps and Streamlit apps to
+a project. It is open source and lives in the
 [deepnote/deepnote](https://github.com/deepnote/deepnote/tree/main/packages/cli) repository.
 
 Use the CLI when you want to:
@@ -19,7 +19,8 @@ Use the CLI when you want to:
 - **Convert** between `.ipynb`, `.py`, `.qmd` and `.deepnote`.
 - **Mirror your Deepnote Cloud workspace locally** with [`deepnote sync`](/docs/deepnote-cli-sync)
   and push edits back.
-- **Deploy a built static site** to a project with [`deepnote publish`](/docs/deepnote-cli-publish).
+- **Publish an app or a Streamlit app** to a project with [`deepnote publish`](/docs/deepnote-cli-publish)
+  or `deepnote streamlit publish`.
 - **Give AI coding agents the Deepnote skill.** `deepnote install-skills` gives Claude Code, Codex,
   Cursor, Gemini CLI and other agents the `.deepnote` format and CLI reference, so they can write
   notebooks and check their work with `deepnote lint` and `deepnote run -o llm`.
@@ -53,7 +54,7 @@ automatically, or point it at an interpreter with `--python`.
 ## Authentication
 
 Commands that talk to Deepnote Cloud (`run --cloud`, `schedule`, `sync`, `publish`,
-`static-site access`, `integrations pull`) need an API key. Create one in your workspace under
+`static-site access`, `streamlit publish`, `integrations pull`) need an API key. Create one in your workspace under
 **Settings & members → Security → API keys** (see the [Deepnote API docs](/docs/deepnote-api)) and
 pass it in one of three ways:
 
@@ -88,8 +89,9 @@ Deepnote Cloud and open it in your browser, where you sign in; they need no toke
 | `deepnote open <path>`                                 | Upload a `.deepnote` file to Deepnote Cloud and open it in the browser                         |
 | `deepnote schedule <path>`                             | Create or update a recurring run in Deepnote Cloud                                             |
 | [`deepnote sync [dir]`](/docs/deepnote-cli-sync)       | Mirror your workspace to a local directory and push notebook edits back                        |
-| [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Deploy a local build directory as a static site hosted by a project                            |
-| `deepnote static-site access`                          | Enable or disable access to a published static site without redeploying                        |
+| [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Publish a local build directory as an app hosted by a project                                  |
+| `deepnote static-site access`                          | Enable or disable access to a published app without redeploying                                |
+| `deepnote streamlit publish <entrypoint>`              | Serve a Python file already in the project as a Streamlit app                                  |
 | `deepnote integrations pull\|add\|edit`                | Manage the local database integrations file used by `run`                                      |
 | `deepnote install-skills`                              | Install the Deepnote skill for Claude Code, Cursor and other AI coding assistants              |
 | `deepnote completion <shell>`                          | Generate shell completion scripts                                                              |
@@ -143,7 +145,7 @@ deepnote lint my-project.deepnote -o json || exit 1
 ## Related
 
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync)
-- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish)
+- [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature
 - [Deepnote API](/docs/deepnote-api) — the HTTP API the CLI talks to
