@@ -1,12 +1,14 @@
 # @deepnote/cloud
 
 Client for the Deepnote Cloud API (preview): create notebooks, trigger a run, poll it to completion,
-and fetch its execution snapshot.
+fetch its execution snapshot, and publish existing project files as Streamlit apps.
 
 Used by `deepnote run --cloud` (`@deepnote/cli`) and by `@deepnote/local-runner`.
 
-A thin client on purpose — it deals in ids and plain shapes, not `.deepnote` domain types, so callers
-map their own content onto {@link ProjectSpec}.
+An **app** is HTML, CSS, and JavaScript hosted by Deepnote and run in the browser. A **Streamlit app**
+is a Python UI that runs on project hardware.
+
+The client accepts IDs and plain objects. Map notebook content to `ProjectSpec` when creating a project.
 
 ## Installation
 
@@ -61,13 +63,19 @@ therefore cannot use `detachedRunStorageMode`.
 | `RunTimeoutError`                                                                                                                            | Thrown when `pollRunUntilComplete` exceeds its deadline. Carries the `runId` — the run may still be executing.                                               |
 | `NormalizedRun`, `TriggerRunBody`, `GetRunOptions`, `PollOptions`, `FetchSnapshotOptions`, `SettledRunSnapshot`, `WaitForRunSnapshotOptions` | Types.                                                                                                                                                       |
 | `listAllProjects(baseUrl, token, opts?)`                                                                                                     | `GET /v2/projects` — every project in the workspace, walking pagination to exhaustion.                                                                       |
-| `getProjectDetail(baseUrl, token, projectId, opts?)`                                                                                         | `GET /v2/projects/{id}` — one project, including its working-directory file inventory and static website settings when supported by the server.              |
-| `updateProjectStaticFiles(baseUrl, token, projectId, update, opts?)`                                                                         | `PATCH /v2/projects/{id}` — update static website sharing and/or API access; returns the settings and canonical website URL.                                 |
+| `getProjectDetail(baseUrl, token, projectId, opts?)`                                                                                         | `GET /v2/projects/{id}` — one project, including its working-directory file inventory and app settings when supported by the server.                         |
+| `updateProjectStaticFiles(baseUrl, token, projectId, update, opts?)`                                                                         | `PATCH /v2/projects/{id}` — update app sharing and/or API access; returns the settings and canonical app URL.                                                |
 | `exportProject(baseUrl, token, projectId, opts?)`                                                                                            | `GET /v2/projects/{id}/export` — the project's notebooks as deterministic `.deepnote` documents (unzipped from the export ZIP, one per notebook). See below. |
 | `importProject(baseUrl, token, projectId, files, opts?)`                                                                                     | `POST /v2/projects/{id}/import` — reconcile a ZIP of `.deepnote` documents (the exact inverse of export) into the project. See below.                        |
 | `uploadProjectFile(baseUrl, token, projectId, path, bytes, opts?)`                                                                           | `POST /v2/files` — upload one working-directory file (multipart). Does not overwrite; delete first. Buffered transfers are limited to 100 MiB.               |
 | `deleteProjectFile(baseUrl, token, projectId, path, opts?)`                                                                                  | `DELETE /v2/files` — delete one working-directory file; `false` if it did not exist.                                                                         |
 | `downloadProjectFile(baseUrl, token, projectId, path, opts?)`                                                                                | `GET /v2/files/download` — raw bytes of one working-directory file. Buffered transfers are limited to 100 MiB.                                               |
+| `createStreamlitApp(baseUrl, token, body, opts?)`                                                                                            | `POST /v2/streamlit-apps` — serve an existing project-relative file as a hosted Streamlit app. Returns the `StreamlitApp` record; `url` is its address.      |
+| `listStreamlitApps(baseUrl, token, projectId, opts?)`                                                                                        | `GET /v2/streamlit-apps?projectId=` — the project's Streamlit apps (unpaginated).                                                                            |
+| `getStreamlitAppStatus(baseUrl, token, appId, opts?)`                                                                                        | `GET /v2/streamlit-apps/{id}/status` — `running`, `starting`, or `unavailable`.                                                                              |
+| `waitForStreamlitApp(baseUrl, token, appId, opts?)`                                                                                          | Poll until `running`; `unavailable` is not terminal. Retries transient failures; throws `StreamlitAppTimeoutError` after `timeoutMs` (default 10 minutes).   |
+| `StreamlitAppTimeoutError`                                                                                                                   | Thrown when `waitForStreamlitApp` exceeds its deadline. Carries `streamlitAppId` and `lastStatus`; the app may still be starting.                            |
+| `StreamlitApp`, `StreamlitAppStatus`, `CreateStreamlitAppBody`, `StreamlitAppRequestOptions`, `WaitForStreamlitAppOptions`                   | Types.                                                                                                                                                       |
 
 **Note on `exportProject`:** the export is a ZIP with one `.deepnote` document per notebook, each
 carrying the full project envelope and a shared `metadata.modifiedAt`. `exportProject` unzips it and
