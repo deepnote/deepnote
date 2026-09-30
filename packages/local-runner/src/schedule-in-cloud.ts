@@ -185,9 +185,9 @@ export async function unscheduleInCloud(
 }
 
 /**
- * Find the notebook the way {@link scheduleInCloud} does: by local id, then by project and notebook
- * name, since notebooks created from the file get new ids. The id is checked with a read because a
- * schedule 404 can mean either "no notebook" or "no schedule".
+ * Find the file's notebook: by local id, then by project and notebook name, since notebooks created
+ * from the file get new ids. The id is checked with a read because a schedule 404 can mean either
+ * "no notebook" or "no schedule".
  */
 async function findCloudNotebookId({
   baseUrl,
@@ -210,7 +210,7 @@ async function findCloudNotebookId({
   const found = await findNotebook(
     baseUrl,
     token,
-    { projectName: file.project.name, notebookName: notebookNameFor(file, localId) },
+    { projectName: file.project.name, notebookName: notebookNameFor(file, localId), unique: true },
     requestOptions
   )
   return found?.notebookId ?? null

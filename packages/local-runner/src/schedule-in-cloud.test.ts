@@ -355,7 +355,7 @@ describe('unscheduleInCloud', () => {
     expect(cloudMock.findNotebook).toHaveBeenCalledWith(
       'https://api.deepnote.com',
       'token',
-      { projectName: 'Scheduled report', notebookName: 'Daily report' },
+      { projectName: 'Scheduled report', notebookName: 'Daily report', unique: true },
       { requestTimeoutMs: 1_000 }
     )
     expect(cloudMock.deleteNotebookSchedule).toHaveBeenCalledOnce()
@@ -403,7 +403,7 @@ describe('unscheduleInCloud', () => {
     expect(cloudMock.findNotebook).toHaveBeenCalledWith(
       'https://api.deepnote.com',
       'token',
-      { projectName: 'Scheduled report', notebookName: 'Other report' },
+      { projectName: 'Scheduled report', notebookName: 'Other report', unique: true },
       expect.anything()
     )
     expect(cloudMock.deleteNotebookSchedule).toHaveBeenCalledWith(

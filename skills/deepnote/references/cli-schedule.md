@@ -81,7 +81,8 @@ deepnote schedule project.deepnote --notebook "Weekly review" --remove
 
 `--remove` deletes only the selected notebook's schedule. It never creates anything, works on any
 plan, and cannot be combined with a frequency, `--at`, `--timezone`, or `--open`. If there is
-nothing to remove, it says so and exits `0`.
+nothing to remove, it says so and exits `0`. If several projects share the name and notebook, it
+fails instead of guessing.
 
 ## Output and Exit Codes
 

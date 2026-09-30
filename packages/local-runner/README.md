@@ -134,8 +134,9 @@ const result = await unscheduleInCloud("examples/6_with_inputs.deepnote", {
 // result.removed / result.notebookId
 ```
 
-It finds the notebook the same way as `scheduleInCloud` but never creates anything. `removed` is
-`false` when there was no schedule, and `notebookId` is `null` when the notebook is not in Deepnote.
+It finds the notebook like `scheduleInCloud`, but never creates anything and won't guess between
+same-named projects. `removed` is `false` when there was no schedule, and `notebookId` is `null`
+when the notebook is not in Deepnote.
 
 ### Serve it to a static page
 
