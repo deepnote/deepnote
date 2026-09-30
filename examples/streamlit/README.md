@@ -40,8 +40,8 @@ deepnote run examples/local-runner-showcase.deepnote \
 The first command previews the block changes. The second applies them and performs one deployment
 run. Synchronization is intentionally not part of a Streamlit viewer request because it may delete
 or recreate blocks. It is also what aligns the two sides: the app reads its local `.deepnote` file
-for the UI contract and triggers the cloud notebook by the block ids that file carries, so the local
-file must be pushed before the app is published and after every edit to it.
+for the UI contract and sends the cloud notebook input values by variable name, so the local file
+must be pushed before the app is published and after every edit to it.
 
 A hosted app does not inherit your shell's environment. Before pushing the app files, give
 `NOTEBOOK_ID` in `dynamic_app.py` the cloud notebook's id as a default,
