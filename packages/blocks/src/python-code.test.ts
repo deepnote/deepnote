@@ -1,12 +1,15 @@
 import { dedent } from 'ts-dedent'
 import { describe, expect, it } from 'vitest'
 
+import { UnsupportedBlockTypeError } from './blocks'
 import type { ButtonExecutionContext } from './blocks/button-blocks'
+import { isExecutableBlockType } from './blocks/executable-blocks'
 import type {
   AgentBlock,
   BigNumberBlock,
   ButtonBlock,
   CodeBlock,
+  DeepnoteBlock,
   InputCheckboxBlock,
   InputDateBlock,
   InputDateRangeBlock,
@@ -15,9 +18,11 @@ import type {
   InputSliderBlock,
   InputTextareaBlock,
   InputTextBlock,
+  PivotTableBlock,
   SqlBlock,
   VisualizationBlock,
 } from './deepnote-file/deepnote-file-schema'
+import { deepnoteBlockSchema } from './deepnote-file/deepnote-file-schema'
 import { createPythonCode } from './python-code'
 
 describe('createPythonCode', () => {
@@ -386,6 +391,108 @@ describe('createPythonCode', () => {
           _deepnote_current_table_attrs = '{"columnDisplayNames":[{"columnName":"value","displayName":"It\\'s a \\\\"test"}]}'
 
         df
+      `)
+    })
+
+    it('keeps a cell magic on the first line without the DataFrame config', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '%%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('%%bash\necho 123')
+    })
+
+    it('detects a cell magic preceded by blank lines', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '\n  \n%%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_table_state: { pageSize: 25 },
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('\n  \n%%bash\necho 123')
+      expect(result).not.toContain('_dntk')
+    })
+
+    it('still prepends the DataFrame config for an indented cell magic', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '  %%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+          %%bash
+        echo 123
+      `)
+    })
+
+    it('still prepends the DataFrame config for a line magic', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '%time df.head()',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+        %time df.head()
+      `)
+    })
+
+    it('still prepends the DataFrame config when a cell magic is not on the first line', () => {
+      const block: CodeBlock = {
+        id: '123',
+        type: 'code',
+        content: '%matplotlib inline\n%%bash\necho 123',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        if '_dntk' in globals():
+          _dntk.dataframe_utils.configure_dataframe_formatter('{}')
+        else:
+          _deepnote_current_table_attrs = '{}'
+
+        %matplotlib inline
+        %%bash
+        echo 123
       `)
     })
   })
@@ -981,6 +1088,74 @@ describe('createPythonCode', () => {
     })
   })
 
+  describe('Pivot table blocks', () => {
+    it('creates Python code for pivot table block', () => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'df',
+          deepnote_pivot_rows: ['category'],
+          deepnote_pivot_cols: ['region'],
+          deepnote_pivot_aggregator: 'sum',
+          deepnote_pivot_value_field: 'value',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual(dedent`
+        import json as _deepnote_json
+        from IPython.display import display as _deepnote_display
+
+        _deepnote_display(
+          {
+            'application/vnd.deepnote.pivot-table.v1+json': _deepnote_json.loads(_dntk.deepnote_get_data_preview_json(df, '[]', [], 10000, "sampled"))
+          },
+          raw=True
+        )
+      `)
+    })
+
+    it.each([
+      ['without variable name', {}],
+      ['whose variable name sanitizes to nothing', { deepnote_variable_name: '123' }],
+    ])('returns empty string for pivot table block %s', (_case, metadata) => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata,
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toEqual('')
+    })
+
+    it('sanitizes the variable name of a pivot table block', () => {
+      const block: PivotTableBlock = {
+        id: '123',
+        type: 'pivot-table',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {
+          deepnote_variable_name: 'my df',
+        },
+      }
+
+      const result = createPythonCode(block)
+
+      expect(result).toContain('deepnote_get_data_preview_json(my_df, ')
+    })
+  })
+
   describe('Agent blocks', () => {
     it('returns comment-based code for agent block', () => {
       const block: AgentBlock = {
@@ -997,6 +1172,47 @@ describe('createPythonCode', () => {
       const result = createPythonCode(block)
 
       expect(result).toEqual('# [agent block] System prompt:\n# Analyze the data')
+    })
+  })
+
+  describe('Non-executable blocks', () => {
+    // Derived from the schema rather than from createPythonCode, so a new block type that nobody
+    // taught createPythonCode about shows up here as a failure.
+    const nonExecutableBlockTypes = deepnoteBlockSchema.options
+      .map(blockSchema => blockSchema.shape.type.value)
+      .filter(type => !isExecutableBlockType(type))
+
+    it('finds the non-executable block types in the schema', () => {
+      expect(nonExecutableBlockTypes.length).toBeGreaterThan(0)
+    })
+
+    it.each(nonExecutableBlockTypes)('throws UnsupportedBlockTypeError for a %s block', type => {
+      const block = deepnoteBlockSchema.parse({
+        id: '123',
+        type,
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+      })
+
+      expect(() => createPythonCode(block)).toThrow(UnsupportedBlockTypeError)
+      expect(() => createPythonCode(block)).toThrow(
+        `Creating python code from block type ${type} is not supported yet.`
+      )
+    })
+
+    it('throws UnsupportedBlockTypeError for a block type the schema does not know', () => {
+      const block = {
+        id: '123',
+        type: 'crystal-ball',
+        content: '',
+        blockGroup: 'abc',
+        sortingKey: 'a0',
+        metadata: {},
+      } as unknown as DeepnoteBlock
+
+      expect(() => createPythonCode(block)).toThrow(UnsupportedBlockTypeError)
+      expect(() => createPythonCode(block)).toThrow('Unexpected block type encountered')
     })
   })
 })

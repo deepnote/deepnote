@@ -56,6 +56,10 @@ pnpm test
 
 # Run tests with coverage
 pnpm test:coverage
+
+# Run the integration tests against a real deepnote-toolkit server (excluded from `pnpm test`).
+# Needs `pip install "deepnote-toolkit[server]"`; point DEEPNOTE_PYTHON at that interpreter.
+pnpm test:integration
 ```
 
 #### Type Checking
@@ -119,6 +123,7 @@ Always run these checks before considering work complete:
 - Test edge cases, error handling, and special characters
 - For functions that generate code, test the exact output format
 - Tests must not depend on live network calls or real Deepnote Cloud credentials — mock external APIs. Verifying behavior against the real Deepnote Cloud API is a manual, explicitly-requested step outside `pnpm test`, and any resources created that way (projects, notebooks, runs) must be cleaned up afterward
+- Tests that start the real `deepnote-toolkit` server belong in `*.integration.test.ts` files. They are excluded from `pnpm test`, run with `pnpm test:integration`, and are exercised in CI by the "Runtime Integration" job. Run only one integration suite at a time per machine: its leaked-process guard sees every toolkit process of the interpreter, so a concurrent run's servers are reported as leaks
 
 #### TypeScript Guidelines
 
@@ -211,13 +216,28 @@ const testFixturesDir = path.join(__dirname, "../../../test-fixtures");
 const fixturePath = path.join(testFixturesDir, "my-fixture.ipynb");
 ```
 
+## Keeping Documentation in Sync
+
+Before opening a pull request, check whether the change makes any documentation stale, and update it in the same pull request:
+
+- `docs/` — user-facing product documentation, published at <https://deepnote.com/docs>. This directory is the source of truth for the whole product, including features developed in other repositories. Update it whenever user-visible behavior changes: CLI commands and flags, the `.deepnote` format, hosted MCP, integrations, or app behavior.
+- `packages/<name>/README.md` and `packages/<name>/docs/` — reference for the package you changed.
+- `skills/deepnote/references/` — agent-facing references; see the rules below.
+- `README.md`, `CONTRIBUTING.md`, and `FILES.md` — repository layout, setup, and workflow changes.
+
+Update only the pages your change actually affects. An unrelated documentation rewrite belongs in its own pull request.
+
 ## Keeping the Deepnote Skill in Sync
 
 The `skills/deepnote/` directory contains reference documentation used by AI agents. When making changes to any of the following, you **must** also update the corresponding skill files:
 
 - **`.deepnote` file format** (block types, metadata, schema) — update `skills/deepnote/references/blocks-*.md` and `skills/deepnote/references/schema.ts`
-- **CLI commands** (options, output formats, exit codes, new commands) — update `skills/deepnote/references/cli-*.md`
-- **MCP tools** (tool names, parameters, behavior) — update `skills/deepnote/references/cli-*.md` (MCP mirrors CLI commands)
+- **CLI commands** (options, output formats, exit codes, new commands) — update the corresponding `skills/deepnote/references/cli-*.md`
+- **Local `@deepnote/mcp`** (tool names, parameters, behavior) — update `packages/mcp/README.md` and any local-MCP skill reference that describes it. Do not record local MCP behavior in the CLI references: the local MCP server is its own surface, not a mirror of the CLI
+- **Hosted MCP** (`https://deepnote.com/mcp`) — update `docs/deepnote-mcp.md`, and coordinate the separate codex-plugin consumer, which is not maintained in this repository
+- **App types, publishing ownership, runtime choices, or token boundaries** — update `skills/deepnote/references/apps.md`
+
+Update more than one reference only when the underlying behavior actually crosses those surfaces.
 
 ## Git & Pull Request Rules
 

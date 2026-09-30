@@ -75,6 +75,18 @@ export {
   upsertNotebookSchedule,
 } from './schedules'
 export {
+  type CreateStreamlitAppBody,
+  createStreamlitApp,
+  getStreamlitAppStatus,
+  listStreamlitApps,
+  type StreamlitApp,
+  type StreamlitAppRequestOptions,
+  type StreamlitAppStatus,
+  StreamlitAppTimeoutError,
+  type WaitForStreamlitAppOptions,
+  waitForStreamlitApp,
+} from './streamlit-apps'
+export {
   deleteProjectFile,
   downloadProjectFile,
   type ExportedNotebookFile,
@@ -86,6 +98,7 @@ export {
   importProject,
   listAllProjects,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
+  PROJECT_STATIC_ROOT,
   type ProjectDetail,
   type ProjectFileEntry,
   type ProjectFileTransferOptions,

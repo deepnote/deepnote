@@ -4,8 +4,8 @@ description: >-
   Work with Deepnote project files (.deepnote). Use when creating, editing,
   or understanding .deepnote files — YAML-based notebook projects containing
   Python code, SQL queries, markdown, visualizations, and input widgets.
-  Covers file structure, block types, database integrations, snapshots,
-  and CLI usage.
+  Also use when building or publishing Deepnote apps or Streamlit apps, choosing a runtime,
+  or using the Deepnote CLI to run, sync, or publish project files.
 ---
 
 # Deepnote Skill
@@ -73,7 +73,7 @@ Every block has these common fields:
 | **SQL**     | `sql`                                                                                                                                |
 | **Text**    | `markdown`, `text-cell-h1`, `text-cell-h2`, `text-cell-h3`, `text-cell-p`, `text-cell-bullet`, `text-cell-todo`, `text-cell-callout` |
 | **Input**   | `input-text`, `input-textarea`, `input-checkbox`, `input-select`, `input-slider`, `input-date`, `input-date-range`, `input-file`     |
-| **Display** | `visualization`, `big-number`, `image`, `separator`                                                                                  |
+| **Display** | `visualization`, `pivot-table`, `big-number`, `image`, `separator`                                                                   |
 | **Other**   | `button`, `notebook-function`                                                                                                        |
 
 ### Block Type References
@@ -194,7 +194,7 @@ deepnote --version
 
 If not installed, find the best available Python and install via pip:
 
-1. **IDE environment** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.agent/` (see IDE Environment Detection below) and use its `venvPath`
+1. **IDE interpreter** — check for a `deepnote.json` file in `.vscode/`, `.cursor/`, or `.antigravity/` (see IDE Interpreter Detection below) and use its `pythonInterpreter` (or, for older sidecars without one, the interpreter inside `venvPath`)
 2. **Project instructions** — if the project has a `.python-version` file or `pyproject.toml` with `requires-python`, use the specified version
 3. **Project venv** — look for `.venv/bin/python`, `venv/bin/python`, or `env/bin/python`
 4. **Homebrew Python** — check if `/opt/homebrew/bin/python3` or `brew --prefix python3` exists
@@ -212,40 +212,37 @@ If no suitable Python is available, install via npm instead:
 npm install -g @deepnote/cli
 ```
 
-### IDE Environment Detection
+### IDE Interpreter Detection
 
-The Deepnote extension for VS Code, Cursor, and Antigravity creates a virtual environment for each project. Before running, check if an IDE-configured environment exists so the CLI uses the same Python interpreter.
-
-Look for a `deepnote.json` file in these directories (in order):
+The Deepnote extension for VS Code, Cursor, and Antigravity records the interpreter selected for each notebook in a `deepnote.json` sidecar file in the workspace root:
 
 - `.vscode/deepnote.json`
 - `.cursor/deepnote.json`
-- `.agent/deepnote.json` (Antigravity)
+- `.antigravity/deepnote.json` (Antigravity)
 
-The file maps project IDs to virtual environments:
+The file maps project IDs to interpreters:
 
 ```json
 {
   "mappings": {
     "<project-id>": {
-      "environmentId": "<env-id>",
-      "venvPath": "/path/to/deepnote-envs/<env-id>"
+      "pythonInterpreter": "/path/to/python"
     }
   }
 }
 ```
 
-To use the IDE environment:
+Older extension versions managed a virtual environment per project and also recorded `environmentId` and `venvPath` for it; both are optional, and `venvPath` is only used as a fallback when no `pythonInterpreter` is recorded. Both shapes are pinned as fixtures in `test-fixtures/ide-sidecar/`.
 
-1. Read the `project.id` from the `.deepnote` file
-2. Check each `deepnote.json` for a matching key in `mappings`
-3. If found, pass the `venvPath` to the CLI with `--python`:
+`deepnote run`, `analyze`, `lint`, `dag`, and the MCP `deepnote_run` tool read this file automatically: when `--python` / `pythonPath` and `DEEPNOTE_PYTHON` are both unset, they look the file's `project.id` up in every `deepnote.json` from the notebook's directory upward, plus the extra roots each tool searches (`DEEPNOTE_WORKSPACE` for the CLI, plus `--cwd` for `run` only; the workspace root, `DEEPNOTE_WORKSPACE` or the server's cwd, for the MCP server), and use the recorded interpreter. You do not need to pass `--python` for a notebook whose interpreter is already selected in the extension. The output says which interpreter was used and where it came from (`source: ide`).
+
+Pass `--python` only to override that choice. To install `deepnote-cli` into the same environment, use the interpreter the tools resolved (`deepnote run` prints it): the sidecar's `pythonInterpreter`, or for an older sidecar without one, the interpreter inside its `venvPath`:
 
 ```bash
-deepnote run project.deepnote --python /path/to/deepnote-envs/<env-id>
+<resolved-python> -m pip install deepnote-cli
 ```
 
-If no IDE environment is found, omit `--python` and the CLI will use the system Python.
+At run time the full order is: `--python` / `pythonPath`, then `DEEPNOTE_PYTHON`, then the IDE environment above, then a `.venv` or `venv` directory from the notebook's directory upward that has `deepnote-toolkit` installed (`source: venv`; one without the toolkit is skipped with a warning rather than picked), then the system Python. The installation checklist earlier in this section is only about where to install `deepnote-cli`; it does not affect which interpreter a run uses.
 
 ### Running
 
@@ -271,6 +268,16 @@ deepnote run project.deepnote -o json                  # JSON output
 3. If errors, check snapshot for details
 4. Fix and re-run
 
+## Apps and Streamlit apps
+
+Use **app** for HTML, CSS, and JavaScript hosted by Deepnote, and **Streamlit app** for a Python
+UI. Start with [Build and publish apps and Streamlit apps](references/apps.md):
+
+1. Choose the workflow from the user's framework, hosting target, and audience.
+2. Prepare and verify its notebook, Streamlit entrypoint, or browser build.
+3. Follow [Publish apps and Streamlit apps](references/cli-publish.md) for an app or Streamlit app.
+4. Test the hosted URL as the intended viewer, including notebook runs and API access when used.
+
 ## CLI Quick Reference
 
 | Command                                       | Description                                                                                                                                                                                                                                                                                         |
@@ -288,7 +295,9 @@ deepnote run project.deepnote -o json                  # JSON output
 | `deepnote split <path>`                       | Split a multi-notebook file into one `.deepnote` per notebook. The init notebook (if any) becomes its own standalone file; each main file keeps `initNotebookId` so `deepnote run` resolves and runs the sibling init as a prelude.                                                                 |
 | `deepnote open <path>`                        | Open in Deepnote Cloud                                                                                                                                                                                                                                                                              |
 | `deepnote schedule <path>`                    | Create or update recurring Deepnote Cloud runs                                                                                                                                                                                                                                                      |
-| `deepnote publish <dir>`                      | Publish a static website to an existing Deepnote project; matching files are replaced and website sharing is enabled after uploads succeed. API access and pruning are explicit options.                                                                                                            |
+| `deepnote publish <dir>`                      | Publish an app from a build directory.                                                                                                                                                                                                                                                              |
+| `deepnote static-site access`                 | Enable or disable sharing and viewer API access for an existing app without changing its files.                                                                                                                                                                                                     |
+| `deepnote streamlit publish <file>`           | Serve a file already in the project as a Streamlit app.                                                                                                                                                                                                                                             |
 | `deepnote sync [dir]`                         | Sync Deepnote Cloud projects with a local directory, both ways: pull every project into `<folder path>/<project name>/` (one `.deepnote` per notebook), push local edits back (the exact-inverse ZIP import). State in `.deepnote-sync.json`; conflicts prompt (or `--on-conflict skip\|override`). |
 | `deepnote integrations pull\|add\|edit\|auth` | Manage database integrations in the local integrations file (`pull`, `add`, `edit`); `auth` authenticates a `big-query` + Google OAuth integration for local `deepnote run`, storing its token under `~/.deepnote/` instead                                                                         |
 
@@ -296,7 +305,7 @@ deepnote run project.deepnote -o json                  # JSON output
 
 - [Run command](references/cli-run.md)
 - [Schedule command](references/cli-schedule.md)
-- [Publish command](references/cli-publish.md)
+- [Publish commands](references/cli-publish.md)
 - [Convert command](references/cli-convert.md)
 - [Sync command](references/cli-sync.md)
 - [Analysis commands](references/cli-analysis.md)
