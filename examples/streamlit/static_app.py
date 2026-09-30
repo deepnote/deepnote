@@ -1,4 +1,4 @@
-"""A zero-runner Streamlit app over a committed Deepnote snapshot."""
+"""A Streamlit app that shows the outputs saved in a Deepnote snapshot."""
 
 from pathlib import Path
 
@@ -10,20 +10,20 @@ HERE = Path(__file__).resolve().parent
 SNAPSHOT = HERE.parent / "snapshot-showcase.snapshot.deepnote"
 
 st.set_page_config(
-    page_title="Deepnote snapshot · Streamlit", page_icon="◆", layout="wide"
+    page_title="Static Deepnote app · Streamlit", page_icon="◆", layout="wide"
 )
 
 snapshot = DeepnoteDocument.load(SNAPSHOT)
 
-st.caption("STATIC · local .deepnote snapshot · no kernel or API")
+st.caption("STATIC · saved .deepnote snapshot · no kernel or API calls")
 st.title(snapshot.project_name)
 st.write(
-    "This app reads structured outputs from a committed Deepnote snapshot. Its layout is custom "
-    "Streamlit code; the notebook is the data contract, not the presentation."
+    "This app reads the outputs saved in a Deepnote snapshot. The notebook provides "
+    "the data, and the layout is ordinary Streamlit code."
 )
 
 with st.sidebar:
-    st.header("Run inputs")
+    st.header("Saved inputs")
     for input_block in snapshot.inputs:
         st.text(
             f"{input_block.label or input_block.variable_name}: {input_block.value}"

@@ -122,6 +122,6 @@ You can have a look at the other examples in this folder:
 - `3_integrations.deepnote` - Example with database integrations
 - `demo-agent-block.deepnote` - agent block with MCP server support
 - [`local-runner/`](./local-runner) - Static and dynamic TypeScript/JavaScript apps over `.deepnote` files
-- [`streamlit/`](./streamlit) - The same static/dynamic approach for custom Python Streamlit apps
+- [`streamlit/`](./streamlit) - Static and dynamic Python Streamlit apps over `.deepnote` files
 
 For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.

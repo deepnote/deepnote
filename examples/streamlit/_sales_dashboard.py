@@ -1,4 +1,4 @@
-"""Custom presentation shared by the static and dynamic Streamlit examples."""
+"""The dashboard layout shared by the static and dynamic Streamlit examples."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ INDEX_COLUMN = "_deepnote_index_column"
 def render_sales_dashboard(outputs: Any, inputs: Mapping[str, Any]) -> None:
     dataframe = outputs.first_dataframe()
     if dataframe is None:
-        st.info("This run did not produce a structured dataframe output.")
+        st.info("This run produced no dataframe output.")
         return
 
     rows = dataframe.records()
@@ -26,18 +26,27 @@ def render_sales_dashboard(outputs: Any, inputs: Mapping[str, Any]) -> None:
 
     revenue, target_card, region = st.columns(3)
     revenue.metric("Revenue", f"${total_revenue:,.0f}")
-    target_card.metric("To target", f"{attainment:.1%}", f"${target:,.0f} target")
+    target_card.metric(
+        "Target attainment",
+        f"{attainment:.1%}",
+        f"{attainment - 1:+.1%} vs target",
+        help=f"Target: ${target:,.0f}",
+    )
     region.metric("Top region", top_region)
 
     st.subheader("Revenue by region")
-    st.bar_chart(rows, x=INDEX_COLUMN, y="Revenue ($k)", horizontal=True)
-    st.dataframe(rows, hide_index=True, width="stretch")
+    st.bar_chart(
+        rows, x=INDEX_COLUMN, y="Revenue ($k)", x_label="Region", horizontal=True
+    )
+    st.dataframe(
+        rows, hide_index=True, width="stretch", column_config={INDEX_COLUMN: "Region"}
+    )
 
     for image in outputs.images():
         st.image(image, width="stretch")
 
     if readout := outputs.agent_text():
-        st.subheader("Agentic analysis")
+        st.subheader("Agent analysis")
         st.markdown(readout)
 
 
