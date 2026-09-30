@@ -1,4 +1,4 @@
-"""A Streamlit app that edits and runs a local `.deepnote` notebook."""
+"""A Streamlit app that runs a notebook with inputs from a local `.deepnote` file."""
 
 import os
 from pathlib import Path
@@ -18,7 +18,7 @@ RUNNER_URL = os.environ.get("DEEPNOTE_RUNNER_URL")
 NOTEBOOK_ID = os.environ.get("DEEPNOTE_NOTEBOOK_ID")
 
 st.set_page_config(
-    page_title="Deepnote run app · Streamlit", page_icon="◆", layout="wide"
+    page_title="Dynamic Deepnote app · Streamlit", page_icon="◆", layout="wide"
 )
 
 notebook = DeepnoteDocument.load(NOTEBOOK)
@@ -31,11 +31,12 @@ elif NOTEBOOK_ID:
 else:
     runner = None
 
-st.caption("DYNAMIC · local .deepnote source · viewer-scoped cloud run or local kernel")
+st.caption("DYNAMIC · local .deepnote file · runs in Deepnote Cloud or a local kernel")
 st.title(notebook.project_name)
 st.write(
-    "The controls come from the notebook's input blocks. The hosted runner calls the public API "
-    "as the current viewer; local development can use an API token or a runner sidecar."
+    "The controls come from the notebook's input blocks. When Deepnote hosts this "
+    "app, the notebook runs as the current viewer. When you run the app locally, it "
+    "uses an API token or a runner process."
 )
 
 with st.sidebar:
@@ -46,8 +47,9 @@ with st.sidebar:
     if runner is None:
         info = None
         st.warning(
-            "Set NOTEBOOK_ID in this file for a hosted run, DEEPNOTE_NOTEBOOK_ID for an "
-            "API-token run, or DEEPNOTE_RUNNER_URL for sidecar-based local development."
+            "Set NOTEBOOK_ID in this file for hosted runs. For local runs, set "
+            "DEEPNOTE_NOTEBOOK_ID and DEEPNOTE_TOKEN, or DEEPNOTE_RUNNER_URL for a "
+            "runner process."
         )
     else:
         try:
@@ -57,12 +59,12 @@ with st.sidebar:
             )
             input_contract_matches = info.matches_inputs(notebook.inputs)
             if input_contract_matches:
-                st.success(f"Runner connected · {target_label}")
+                st.success(f"Connected to {target_label}")
             else:
                 st.warning(
-                    "The runner notebook has different input names or types. "
-                    "Sync this file with `deepnote run --cloud --push`, or point "
-                    "NOTEBOOK_ID at the notebook represented by this file."
+                    "The notebook's inputs don't match the app's `.deepnote` file. "
+                    "Push the file with `deepnote run --cloud --push`, or set "
+                    "NOTEBOOK_ID to the notebook that matches it."
                 )
         except RunnerError as error:
             info = None
@@ -90,9 +92,9 @@ if result is None:
     st.info("Edit the inputs and run the notebook to populate this dashboard.")
 else:
     if result.success:
-        st.success(f"Run completed in {result.target}.")
+        st.success("Run completed.")
     else:
         st.error(result.error or f"Run ended with status {result.status or 'failed'}.")
     if result.view_url:
         st.link_button("Open run in Deepnote", result.view_url)
-    render_sales_dashboard(result, st.session_state.get("deepnote_inputs", values))
+    render_sales_dashboard(result, st.session_state.deepnote_inputs)

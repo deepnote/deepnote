@@ -21,7 +21,7 @@ def test_static_example_renders_snapshot_dashboard() -> None:
     assert app.title[0].value == "Sales performance"
     assert [metric.label for metric in app.metric] == [
         "Revenue",
-        "To target",
+        "Target attainment",
         "Top region",
     ]
 
@@ -61,5 +61,5 @@ def test_dynamic_example_disables_run_for_mismatched_input_names(
     app = AppTest.from_file(EXAMPLE_DIR / "dynamic_app.py").run(timeout=15)
 
     assert not app.exception
-    assert "different input names or types" in app.warning[0].value
+    assert "inputs don't match" in app.warning[0].value
     assert app.button[0].disabled is True
