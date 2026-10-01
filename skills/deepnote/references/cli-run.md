@@ -181,10 +181,19 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json
 
 **Environment variables for `--prompt` / agent blocks:**
 
-| Variable          | Required | Description                                                     |
-| ----------------- | -------- | --------------------------------------------------------------- |
-| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                                    |
-| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)        |
-| `OPENAI_MODEL`    | no       | Default model name (overridden by block `deepnote_agent_model`) |
+The provider comes from the `provider:model` prefix on `deepnote_agent_model` (`anthropic:claude-opus-5`);
+a bare model name or `"auto"` means `openai`.
+
+| Variable                  | Provider            | Required | Description                                                    |
+| ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
+| `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
+| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; switches the SDK to Chat Completions          |
+| `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
+| `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
+| `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |
+| `ANTHROPIC_MODEL`         | `anthropic`         | no       | Model when the block says `auto`; otherwise the block wins     |
+| `DEEPNOTE_AGENT_API_KEY`  | `openai-compatible` | yes      | API key; falls back to `OPENAI_API_KEY`                        |
+| `DEEPNOTE_AGENT_BASE_URL` | `openai-compatible` | yes      | Endpoint; falls back to `OPENAI_BASE_URL`                      |
+| `DEEPNOTE_AGENT_MODEL`    | `openai-compatible` | no       | Model when the block says `auto`; falls back to `OPENAI_MODEL` |
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.

@@ -278,15 +278,44 @@ Without `--python`, the CLI also picks up a `.venv` or `venv` next to (or above)
 
 The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
 
+**Choosing a provider:**
+
+`deepnote_agent_model` takes an optional `provider:model` prefix:
+
+| Provider id         | Package                     | Use for                                           |
+| ------------------- | --------------------------- | ------------------------------------------------- |
+| `openai`            | `@ai-sdk/openai`            | OpenAI (the default when no provider is named)    |
+| `anthropic`         | `@ai-sdk/anthropic`         | Claude                                            |
+| `openai-compatible` | `@ai-sdk/openai-compatible` | OpenRouter, Ollama, LiteLLM, vLLM, Together, Groq |
+
+A bare model name (`gpt-5`) or `auto` means `openai`, so notebooks written before prefixes existed are unaffected.
+
+```bash
+ANTHROPIC_API_KEY=sk-ant-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
+```
+
 **Requirements:**
 
-- `OPENAI_API_KEY` environment variable must be set (works with any OpenAI-compatible API)
-- Optionally set `OPENAI_BASE_URL` for non-OpenAI providers (Ollama, LiteLLM, etc.)
-- Model selection precedence:
-  - If the agent block sets `deepnote_agent_model` to a specific model, that model is used.
-  - If `deepnote_agent_model` is `"auto"` (or omitted), `OPENAI_MODEL` is used when set.
-  - If neither a block-specific model nor `OPENAI_MODEL` is set, the runtime falls back to `gpt-5`.
-  - `OPENAI_BASE_URL` only changes the provider endpoint; it does not change the precedence above or the final `gpt-5` fallback.
+- The API key variable for the chosen provider must be set (see the table below).
+- Model selection precedence, per provider:
+  - If the agent block names a model after the prefix, that model is used.
+  - If the model is `"auto"` (or omitted), the provider's `*_MODEL` variable is used when set.
+  - Otherwise the provider default applies: `gpt-5` for `openai`, `claude-opus-5` for `anthropic`. `openai-compatible` has no default and errors instead of guessing.
+  - A base URL only changes the endpoint; it does not change the precedence above.
+
+**Environment variables:**
+
+| Variable                  | Provider            | Required | Description                                                    |
+| ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
+| `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
+| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; switches the SDK to Chat Completions          |
+| `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
+| `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
+| `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |
+| `ANTHROPIC_MODEL`         | `anthropic`         | no       | Model when the block says `auto`; otherwise the block wins     |
+| `DEEPNOTE_AGENT_API_KEY`  | `openai-compatible` | yes      | API key; falls back to `OPENAI_API_KEY`                        |
+| `DEEPNOTE_AGENT_BASE_URL` | `openai-compatible` | yes      | Endpoint; falls back to `OPENAI_BASE_URL`                      |
+| `DEEPNOTE_AGENT_MODEL`    | `openai-compatible` | no       | Model when the block says `auto`; falls back to `OPENAI_MODEL` |
 
 When database integrations are configured, the agent is automatically made aware of them and can query them using `deepnote-toolkit`.
 

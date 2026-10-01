@@ -272,6 +272,11 @@ const agentBlockSchema = z.object({
   content: z.string().optional(),
   metadata: executableBlockMetadataSchema
     .extend({
+      /**
+       * Model the agent block runs on, optionally prefixed with a provider:
+       * `anthropic:claude-opus-5`, `openai-compatible:llama3`. A bare name
+       * (`gpt-5`) or `'auto'` means the `openai` provider.
+       */
       deepnote_agent_model: z.string().default('auto'),
       deepnote_mcp_servers: z.array(mcpServerSchema).optional(),
     })

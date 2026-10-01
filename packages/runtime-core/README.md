@@ -67,6 +67,22 @@ try {
 - Cancellation of agent blocks: `signal` — code and SQL blocks still run to completion, and an aborted agent is reported as a failed block rather than a rejection
 - Callbacks: `onBlockStart`, `onBlockDone`, `onOutput`, `onAgentEvent`, `onServerStarting`, `onServerReady`
 
+## Agent block providers
+
+A block's `deepnote_agent_model` takes an optional `provider:model` prefix, resolved by
+`resolveAgentModel()`. A bare model name (`gpt-5`) or `auto` means `openai`, so notebooks written
+before prefixes existed are unaffected.
+
+| Provider id         | Default model                | API key                  | Base URL                  |
+| ------------------- | ---------------------------- | ------------------------ | ------------------------- |
+| `openai`            | `gpt-5`                      | `OPENAI_API_KEY`         | `OPENAI_BASE_URL`         |
+| `anthropic`         | `claude-opus-5`              | `ANTHROPIC_API_KEY`      | `ANTHROPIC_BASE_URL`      |
+| `openai-compatible` | none — errors if unspecified | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_BASE_URL` |
+
+`openai-compatible` covers OpenRouter, Ollama, LiteLLM, vLLM, Together and Groq, and falls back to
+the `OPENAI_*` variables when its own are unset. Each provider also reads a `*_MODEL` variable used
+when the block says `auto`.
+
 ## Result shape
 
 Execution methods return `ExecutionSummary`:
