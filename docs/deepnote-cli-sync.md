@@ -156,6 +156,7 @@ Use another transfer method for larger data files.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project              | `false`                    |
 | `--prune`                    | Delete local files for projects and files that no longer exist in the cloud | `false`                    |
 | `--dry-run`                  | Report what would be synced without writing anything                        | `false`                    |
+| `--concurrency <n>`          | How many projects to sync at once                                           | `8`                        |
 | `--token <token>`            | API token                                                                   | `DEEPNOTE_TOKEN`           |
 | `--url <url>`                | API base URL (for single-tenant instances)                                  | `https://api.deepnote.com` |
 | `-o, --output <format>`      | Machine-readable output: `json` or `llm`                                    | text                       |

@@ -5,7 +5,8 @@ import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import { loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
+import type * as syncManifest from '../utils/sync-manifest'
+import { assertNoSymbolicLinkAncestors, loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
 import {
   canonicalProjectHash,
   classifySyncStep,
@@ -17,6 +18,16 @@ import {
 // `select` is mocked so a conflict prompt can be driven (e.g. simulate a Ctrl+C rejection). Tests
 // that resolve conflicts non-interactively (`--on-conflict skip|override`, or no TTY) never call it.
 vi.mock('@inquirer/prompts', () => ({ select: vi.fn() }))
+// Wrapped (still the real implementations) so a test can watch manifest saves overlap and see
+// when each project starts.
+vi.mock('../utils/sync-manifest', async importOriginal => {
+  const actual = await importOriginal<typeof syncManifest>()
+  return {
+    ...actual,
+    saveSyncManifest: vi.fn(actual.saveSyncManifest),
+    assertNoSymbolicLinkAncestors: vi.fn(actual.assertNoSymbolicLinkAncestors),
+  }
+})
 
 const API_URL = 'https://api.example.com'
 const TOKEN = 'tok-1'
@@ -1325,7 +1336,9 @@ describe('syncWorkspace', () => {
       )
       projects[0].notebooks = singleNotebook('p1', '2026-01-07T00:00:00.000Z', 'cloud-edit')
 
-      await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
+      await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask', concurrency: 1 })).rejects.toBe(
+        exitError
+      )
       expect(select).toHaveBeenCalled()
       await expect(fs.access(path.join(tempDir, 'Beta'))).rejects.toThrow()
     } finally {
@@ -1625,6 +1638,373 @@ describe('syncWorkspace', () => {
       expect.objectContaining({ projectId: 'p-bad', action: 'error', detail: 'Project is suspended' }),
       expect.objectContaining({ projectId: 'p-good', action: 'pulled' }),
     ])
+  })
+
+  describe('parallel projects', () => {
+    /** A promise the test settles by hand, to order concurrent work without timers. */
+    function deferred(): { promise: Promise<void>; resolve: () => void } {
+      let resolve = () => {}
+      const promise = new Promise<void>(settle => {
+        resolve = settle
+      })
+      return { promise, resolve }
+    }
+
+    /** Wraps the installed cloud fetch so `hold` can see each request and pause it on a promise. */
+    function holdRequests(hold: (url: URL) => unknown): void {
+      const inner = vi.mocked(fetch).getMockImplementation() as typeof fetch
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        await hold(new URL(String(url)))
+        return inner(url, init)
+      })
+    }
+
+    const projectsNamed = (...names: string[]): CloudProject[] =>
+      names.map(name => ({ id: `p-${name}`, name, notebooks: singleNotebook(`p-${name}`, '2026-01-02T00:00:00.000Z') }))
+
+    /** Runs `body` as if stdin and stdout were a terminal, so `ask` really prompts. */
+    async function withTty(body: () => Promise<void>): Promise<void> {
+      const prior = [process.stdin, process.stdout].map(stream => Object.getOwnPropertyDescriptor(stream, 'isTTY'))
+      for (const stream of [process.stdin, process.stdout]) {
+        Object.defineProperty(stream, 'isTTY', { value: true, configurable: true })
+      }
+      try {
+        await body()
+      } finally {
+        ;[process.stdin, process.stdout].forEach((stream, index) => {
+          const descriptor = prior[index]
+          if (descriptor) Object.defineProperty(stream, 'isTTY', descriptor)
+          else Reflect.deleteProperty(stream, 'isTTY')
+        })
+      }
+    }
+
+    /** Leaves projects A and B edited both locally and in the cloud; C and D unchanged. */
+    async function setUpTwoConflicts(): Promise<void> {
+      const projects = projectsNamed('A', 'B', 'C', 'D')
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      for (const project of projects.slice(0, 2)) {
+        project.notebooks = singleNotebook(project.id, '2026-01-07T00:00:00.000Z', 'cloud-edit')
+        const localEdit = notebookYaml(project.id, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, project.name, 'main.deepnote'), localEdit, 'utf-8')
+      }
+    }
+
+    /** Resolves after the microtasks queued so far have run: an unchanged project's work after its
+     * export response is all microtasks, so this lets it finish. */
+    const afterQueuedMicrotasks = () => new Promise<void>(resolve => setImmediate(resolve))
+
+    /** Collects printed progress lines; `quiet` would drop them. */
+    function capturePrinted(): string[] {
+      setOutputConfig({ quiet: false, color: false, debug: false })
+      const printed: string[] = []
+      vi.spyOn(console, 'log').mockImplementation(line => printed.push(String(line)))
+      return printed
+    }
+
+    /** Records how many projects are in progress each time one's export starts. A project starts
+     * with a symbolic-link check of its directory and ends when its outcome line prints. */
+    function sampleProjectsInProgress(dirs: readonly string[]): number[] {
+      vi.mocked(assertNoSymbolicLinkAncestors).mockClear()
+      capturePrinted()
+      let finished = 0
+      vi.mocked(console.log).mockImplementation(line => {
+        if (/pulled|unchanged/.test(String(line))) finished++
+      })
+      const samples: number[] = []
+      holdRequests(url => {
+        if (!url.pathname.endsWith('/export')) return
+        const started = vi
+          .mocked(assertNoSymbolicLinkAncestors)
+          .mock.calls.filter(([, relativePath]) => dirs.includes(relativePath)).length
+        samples.push(started - finished)
+      })
+      return samples
+    }
+
+    it.each([
+      { concurrency: undefined, expected: 8 },
+      { concurrency: 3, expected: 3 },
+    ])('syncs at most $expected projects at once (--concurrency $concurrency)', async ({ concurrency, expected }) => {
+      const names = 'ABCDEFGHIJKL'.split('')
+      installCloud(projectsNamed(...names))
+      const inProgress = sampleProjectsInProgress(names)
+
+      const result = await syncWorkspace(tempDir, { ...baseOptions, concurrency })
+
+      expect(Math.max(...inProgress)).toBe(expected)
+      expect(result.projects.map(outcome => outcome.action)).toEqual(Array(names.length).fill('pulled'))
+    })
+
+    it('syncs one project at a time when a tracked project directory moves', async () => {
+      const projects = projectsNamed('A', 'B', 'C')
+      installCloud(projects)
+      await syncWorkspace(tempDir, baseOptions)
+      projects[1].name = 'Renamed'
+      const inProgress = sampleProjectsInProgress(['A', 'C', 'Renamed'])
+
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(inProgress).toEqual([1, 1, 1])
+      expect(result.projects).toContainEqual(expect.objectContaining({ path: 'Renamed', detail: 'moved from B' }))
+    })
+
+    it('reports outcomes sorted by path regardless of completion order', async () => {
+      installCloud(projectsNamed('C', 'A', 'B'))
+      const printed = capturePrinted()
+      const othersDone = deferred()
+      vi.mocked(console.log).mockImplementation(line => {
+        printed.push(String(line))
+        if (printed.filter(entry => /pulled\s+[BC]$/.test(entry)).length === 2) othersDone.resolve()
+      })
+      // A finishes last: its export waits until B and C have reported their outcomes.
+      holdRequests(url => (url.pathname === '/v2/projects/p-A/export' ? othersDone.promise : undefined))
+
+      const result = await syncWorkspace(tempDir, baseOptions)
+
+      expect(printed.filter(line => line.includes('pulled')).at(-1)).toMatch(/pulled\s+A$/)
+      expect(result.projects.map(outcome => outcome.path)).toEqual(['A', 'B', 'C'])
+    })
+
+    it('opens one conflict prompt at a time and holds progress lines while it is open', async () => {
+      const { select } = await import('@inquirer/prompts')
+      await setUpTwoConflicts()
+      const printed = capturePrinted()
+      // C and D export only once the first prompt is open, so they finish while it is.
+      const promptOpen = deferred()
+      const exported = { 'p-C': deferred(), 'p-D': deferred() }
+      const inner = vi.mocked(fetch).getMockImplementation() as typeof fetch
+      vi.mocked(fetch).mockImplementation(async (url, init) => {
+        const projectId = String(url).match(/\/v2\/projects\/(p-[CD])\/export$/)?.[1] as keyof typeof exported
+        if (!projectId) return inner(url, init)
+        await promptOpen.promise
+        const response = await inner(url, init)
+        exported[projectId].resolve()
+        return response
+      })
+      let open = 0
+      let peakOpen = 0
+      const printedWhileOpen: string[] = []
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          peakOpen = Math.max(peakOpen, ++open)
+          const before = printed.length
+          promptOpen.resolve()
+          await Promise.all([exported['p-C'].promise, exported['p-D'].promise])
+          await afterQueuedMicrotasks()
+          printedWhileOpen.push(...printed.slice(before))
+          open--
+          return 'skip'
+        })
+
+      await withTty(async () => {
+        const result = await syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })
+
+        expect(select).toHaveBeenCalledTimes(2)
+        expect(peakOpen).toBe(1)
+        expect(printedWhileOpen).toEqual([])
+        expect(printed.filter(line => line.includes('unchanged'))).toHaveLength(2)
+        expect(result.projects.map(outcome => outcome.action)).toEqual([
+          'skipped-conflict',
+          'skipped-conflict',
+          'unchanged',
+          'unchanged',
+        ])
+      })
+    })
+
+    it('holds warnings from other projects while a conflict prompt is open', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const projects = projectsNamed('A', 'C').map(project => ({ ...project, files: [] as CloudFile[] }))
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      projects[0].notebooks = singleNotebook('p-A', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      const localEdit = notebookYaml('p-A', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+      await fs.writeFile(path.join(tempDir, 'A', 'main.deepnote'), localEdit, 'utf-8')
+      // C warns about the unsafe path, then downloads the safe file after it.
+      projects[1].files = [
+        { path: '../evil.csv', size: 1, updatedAt: '2026-01-07T00:00:00.000Z', content: 'x' },
+        { path: 'data.csv', size: 1, updatedAt: '2026-01-07T00:00:00.000Z', content: 'y' },
+      ]
+      const promptOpen = deferred()
+      const cWarned = deferred()
+      holdRequests(url => {
+        if (url.pathname === '/v2/projects/p-C') return promptOpen.promise
+        if (url.searchParams.get('path') === 'data.csv') cWarned.resolve()
+      })
+      const warnings: string[] = []
+      vi.spyOn(console, 'error').mockImplementation(line => warnings.push(String(line)))
+      const warnedWhileOpen: string[] = []
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          promptOpen.resolve()
+          await cWarned.promise
+          warnedWhileOpen.push(...warnings)
+          return 'skip'
+        })
+
+      await withTty(async () => {
+        await syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })
+      })
+
+      expect(warnedWhileOpen).toEqual([])
+      expect(warnings).toEqual(['Skipping file with unsafe path in "C": ../evil.csv'])
+    })
+
+    it('opens no further prompt after Ctrl+C on the first one', async () => {
+      const { select } = await import('@inquirer/prompts')
+      await setUpTwoConflicts()
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select).mockReset().mockRejectedValue(exitError)
+
+      await withTty(async () => {
+        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
+      })
+      expect(select).toHaveBeenCalledTimes(1)
+      vi.mocked(select).mockReset()
+    })
+
+    it('starts no cloud write after Ctrl+C and keeps the manifest of finished projects', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const [a, b, c] = projectsNamed('A', 'B', 'C')
+      const installed = installCloud([a, b, c])
+      await syncWorkspace(tempDir, baseOptions)
+      // A conflicts, B has only a local edit (a push), C has only a cloud edit (a pull).
+      for (const project of [a, c]) {
+        project.notebooks = singleNotebook(project.id, '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      }
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+      }
+      const cPulled = deferred()
+      const bExporting = deferred()
+      const releaseB = deferred()
+      holdRequests(url => {
+        if (url.pathname === '/v2/projects/p-A/export') return cPulled.promise
+        if (url.pathname === '/v2/projects/p-B/export') {
+          bExporting.resolve()
+          return releaseB.promise
+        }
+      })
+      setOutputConfig({ quiet: false, color: false, debug: false })
+      vi.spyOn(console, 'log').mockImplementation(line => {
+        if (/pulled\s+C$/.test(String(line))) cPulled.resolve()
+      })
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          await bExporting.promise
+          // B's export returns from `setImmediate`, after the rejection below has settled.
+          setImmediate(releaseB.resolve)
+          throw exitError
+        })
+
+      await withTty(async () => {
+        await expect(syncWorkspace(tempDir, { ...baseOptions, onConflict: 'ask' })).rejects.toBe(exitError)
+      })
+
+      expect(installed.importCalls).toEqual([])
+      const manifest = await loadSyncManifest(tempDir)
+      expect(manifest.projects['p-C'].modifiedAt).toBe('2026-01-07T00:00:00.000Z')
+      expect(manifest.projects['p-B'].modifiedAt).toBe('2026-01-02T00:00:00.000Z')
+      vi.mocked(select).mockReset()
+    })
+
+    it('starts no file replacement when Ctrl+C lands while its pending mark is saved', async () => {
+      const { select } = await import('@inquirer/prompts')
+      const [a, b] = projectsNamed('A', 'B').map(project => ({
+        ...project,
+        notebooksAfterImport: singleNotebook(project.id, '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [] as CloudFile[],
+      }))
+      const installed = installCloud([a, b])
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      // A conflicts; B pushes, then replaces one working file.
+      a.notebooks = singleNotebook('p-A', '2026-01-07T00:00:00.000Z', 'cloud-edit')
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+      }
+      await fs.mkdir(path.join(tempDir, 'B', '.files'), { recursive: true })
+      await fs.writeFile(path.join(tempDir, 'B', '.files', 'one.csv'), 'a', 'utf-8')
+      const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
+      const bSaving = deferred()
+      const releaseSave = deferred()
+      vi.mocked(saveSyncManifest).mockImplementation(async (...args) => {
+        bSaving.resolve()
+        await releaseSave.promise
+        await actual.saveSyncManifest(...args)
+      })
+      const exitError = Object.assign(new Error('User force closed the prompt'), { name: 'ExitPromptError' })
+      vi.mocked(select)
+        .mockReset()
+        .mockImplementation(async () => {
+          await bSaving.promise
+          // B's save finishes from `setImmediate`, after the rejection below has settled.
+          setImmediate(releaseSave.resolve)
+          throw exitError
+        })
+
+      try {
+        await withTty(async () => {
+          await expect(syncWorkspace(tempDir, { ...baseOptions, allFiles: true, onConflict: 'ask' })).rejects.toBe(
+            exitError
+          )
+        })
+
+        expect(installed.deletedPaths).toEqual([])
+        expect(installed.uploadedPaths).toEqual([])
+      } finally {
+        vi.mocked(saveSyncManifest).mockImplementation(actual.saveSyncManifest)
+        vi.mocked(select).mockReset()
+      }
+    })
+
+    it('never overlaps two manifest saves', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      const projects = projectsNamed('A', 'B').map(project => ({
+        ...project,
+        notebooksAfterImport: singleNotebook(project.id, '2026-01-09T00:00:00.000Z', 'canonical'),
+        files: [],
+      }))
+      installCloud(projects)
+      await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+      for (const name of ['A', 'B']) {
+        const localEdit = notebookYaml(`p-${name}`, 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit')
+        await fs.writeFile(path.join(tempDir, name, 'main.deepnote'), localEdit, 'utf-8')
+        await fs.mkdir(path.join(tempDir, name, '.files'), { recursive: true })
+        await fs.writeFile(path.join(tempDir, name, '.files', 'one.csv'), 'a', 'utf-8')
+        await fs.writeFile(path.join(tempDir, name, '.files', 'two.csv'), 'b', 'utf-8')
+      }
+      const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
+      let saving = 0
+      let peakSaving = 0
+      vi.mocked(saveSyncManifest).mockClear()
+      vi.mocked(saveSyncManifest).mockImplementation(async (...args) => {
+        peakSaving = Math.max(peakSaving, ++saving)
+        await new Promise(resolve => setTimeout(resolve, 5))
+        await actual.saveSyncManifest(...args)
+        saving--
+      })
+      try {
+        const result = await syncWorkspace(tempDir, { ...baseOptions, allFiles: true })
+
+        expect(result.projects).toEqual([
+          expect.objectContaining({ action: 'pushed', filesUploaded: 2 }),
+          expect.objectContaining({ action: 'pushed', filesUploaded: 2 }),
+        ])
+        // Two saves per uploaded file (mark it pending, then settle it) and the final one.
+        expect(saveSyncManifest).toHaveBeenCalledTimes(2 * 2 * 2 + 1)
+        expect(peakSaving).toBe(1)
+      } finally {
+        vi.mocked(saveSyncManifest).mockImplementation(actual.saveSyncManifest)
+      }
+    })
   })
 })
 
