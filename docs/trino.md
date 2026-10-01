@@ -9,7 +9,7 @@ coverImage: oHI8e65YQrGA3bwlC6Jj
 Available on Team and Enterprise plans
 </Callout>
 
-With the Trino integration, you can leverage the capabilities of Deepnote's SQL blocks to query your Trino instances at ludicrous speed..
+With the Trino integration, you can use Deepnote's SQL blocks to query your Trino instances at high speed.
 
 Deepnote's Trino integration allows data teams to efficiently query their data, extract relevant data, and start analyzing and modeling in the comfort of their known notebook environment. In addition, switching between Trino and other distributed SQL engines won't require you to rewrite any SQL statements; all that's needed is switching the SQL block's assigned integration.
 
@@ -35,7 +35,7 @@ As with all SQL blocks, the query results will be saved as a Pandas DataFrame an
 
 ### Next steps
 
-Jump right into Deepnote & [learn more about SQL blocks in this A/B testing template](https://deepnote.com/launch?template=A/B%20Testing). You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
+Jump right into Deepnote and [learn more about SQL blocks in this A/B testing template](https://deepnote.com/launch?template=A/B%20Testing). You can also save yourself some setup work by hitting the `Duplicate` button in the top-right corner to start exploring on your own!
 
 ### Secure connections
 
