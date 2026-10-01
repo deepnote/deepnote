@@ -216,6 +216,15 @@ const visualizationBlockSchema = z.object({
     .default({}),
 })
 
+const pivotTableBlockSchema = z.object({
+  ...executableBlockFields,
+  type: z.literal('pivot-table'),
+  content: emptyContent(),
+  // The `deepnote_pivot_*` configuration fields are intentionally undeclared: the block is in beta
+  // and metadata passthrough preserves them whatever their current shape.
+  metadata: executableBlockMetadataSchema.extend({ deepnote_variable_name: z.string().optional() }).default({}),
+})
+
 const buttonBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('button'),
@@ -414,6 +423,7 @@ export const deepnoteBlockSchema = z.discriminatedUnion('type', [
   sqlBlockSchema,
   notebookFunctionBlockSchema,
   visualizationBlockSchema,
+  pivotTableBlockSchema,
   buttonBlockSchema,
   bigNumberBlockSchema,
   // Input blocks
@@ -448,6 +458,7 @@ export type CodeBlock = z.infer<typeof codeBlockSchema>
 export type SqlBlock = z.infer<typeof sqlBlockSchema>
 export type NotebookFunctionBlock = z.infer<typeof notebookFunctionBlockSchema>
 export type VisualizationBlock = z.infer<typeof visualizationBlockSchema>
+export type PivotTableBlock = z.infer<typeof pivotTableBlockSchema>
 export type ButtonBlock = z.infer<typeof buttonBlockSchema>
 export type BigNumberBlock = z.infer<typeof bigNumberBlockSchema>
 export type InputTextBlock = z.infer<typeof inputTextBlockSchema>
@@ -477,6 +488,7 @@ export type ExecutableBlock =
   | SqlBlock
   | NotebookFunctionBlock
   | VisualizationBlock
+  | PivotTableBlock
   | ButtonBlock
   | BigNumberBlock
   | InputBlock

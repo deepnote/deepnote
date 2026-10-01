@@ -59,6 +59,39 @@ const createFileWithBlocks = (): DeepnoteFile => ({
   },
 })
 
+const createFileWithPivotTableBlock = (): DeepnoteFile => ({
+  version: '1.0.0',
+  metadata: {
+    createdAt: '2024-01-01T00:00:00.000Z',
+  },
+  project: {
+    id: 'project-1',
+    name: 'Test Project',
+    notebooks: [
+      {
+        id: 'notebook-1',
+        name: 'Main Notebook',
+        blocks: [
+          {
+            id: 'block-1',
+            blockGroup: 'group-1',
+            sortingKey: '000000',
+            type: 'pivot-table',
+            content: '',
+            metadata: {
+              deepnote_variable_name: 'df',
+              deepnote_pivot_rows: ['region'],
+              deepnote_pivot_cols: ['product'],
+              deepnote_pivot_aggregator: 'sum',
+              deepnote_pivot_value_field: 'revenue',
+            },
+          },
+        ],
+      },
+    ],
+  },
+})
+
 const createSnapshot = (): DeepnoteSnapshot => ({
   version: '1.0.0',
   metadata: {
@@ -117,6 +150,14 @@ describe('serializeDeepnoteFile', () => {
 
     it('serializes and deserializes a file with blocks correctly', () => {
       const file = createFileWithBlocks()
+      const yaml = serializeDeepnoteFile(file)
+      const parsed = deserializeDeepnoteFile(yaml)
+
+      expect(parsed).toEqual(file)
+    })
+
+    it('serializes and deserializes a pivot table block with its undeclared metadata intact', () => {
+      const file = createFileWithPivotTableBlock()
       const yaml = serializeDeepnoteFile(file)
       const parsed = deserializeDeepnoteFile(yaml)
 

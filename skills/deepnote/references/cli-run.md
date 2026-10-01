@@ -107,8 +107,9 @@ run of an **existing** notebook in your Deepnote workspace via the public API
 (`POST /v2/runs`), polls it to completion (`GET /v2/runs/{runId}`), and downloads the resulting
 snapshot into the local `snapshots/` directory — the same format `deepnote diff` reads.
 
-Requires a token: `--token <token>` or the `DEEPNOTE_TOKEN` env var
-(get one at https://deepnote.com/workspace/settings/api-tokens).
+Requires a token: `--token <token>`, the `DEEPNOTE_TOKEN` env var, or `DEEPNOTE_TOKEN` in a `.env`
+file next to the notebook. Create one in Deepnote under Settings & members > Security > API keys
+(see https://deepnote.com/docs/deepnote-api).
 
 The notebook to run is resolved in this order:
 

@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { join, posix, relative, sep } from 'node:path'
+import { basename, join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
@@ -8,7 +8,9 @@ import {
   updateProjectStaticFiles,
   uploadProjectFile,
 } from '@deepnote/cloud'
+import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
@@ -46,6 +48,12 @@ interface PublishFile {
 async function collectFiles(dir: string): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true, recursive: true })
   return entries.filter(entry => entry.isFile()).map(entry => join(entry.parentPath ?? entry.path, entry.name))
+}
+
+/** `.env` and `.env.*` files: they usually hold secrets, and everything published is world-readable. */
+function isEnvFile(localPath: string): boolean {
+  const name = basename(localPath)
+  return name === DEFAULT_ENV_FILE || name.startsWith(`${DEFAULT_ENV_FILE}.`)
 }
 
 function normalizeTargetPrefix(path: string): string | null {
@@ -88,7 +96,7 @@ function preparePublishFiles(targetPrefix: string, localDir: string, files: stri
   return prepared
 }
 
-function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
+function appUrlWithPath(canonicalUrl: string, targetPrefix: string): string {
   const base = new URL(canonicalUrl)
   const origin = base.origin
   if (!base.pathname.endsWith('/')) {
@@ -104,7 +112,7 @@ function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
     .join('/')
   base.pathname += `${suffix}/`
   if (base.origin !== origin) {
-    throw new Error('Static site URL changed origin')
+    throw new Error('App URL changed origin')
   }
   return base.toString()
 }
@@ -116,6 +124,8 @@ function errorMessage(error: unknown): string {
 export function createPublishAction(program: Command) {
   return async (dir: string, options: PublishOptions) => {
     const c = getChalk()
+    // Load .env from the current directory before reading the token — mirrors `sync` and `run --cloud`.
+    dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
     const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
@@ -153,6 +163,19 @@ export function createPublishAction(program: Command) {
     }
     if (files.length === 0) {
       program.error(`No files found in ${dir}`, { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
+    // Everything under the published directory becomes readable at the site URL, so a `.env` file
+    // would expose its secrets (possibly the very token used to publish). Refuse before any remote work.
+    const envFiles = files.filter(isEnvFile).map(localPath => relative(dir, localPath).split(sep).join('/'))
+    if (envFiles.length > 0) {
+      program.error(
+        `Refusing to publish ${envFiles.map(file => `"${file}"`).join(', ')}: environment files may contain secrets ` +
+          `and every published file is readable by anyone who can view the site. ` +
+          `Remove them from ${dir} or publish a clean build output directory.`,
+        { exitCode: ExitCode.InvalidUsage }
+      )
       return
     }
 
@@ -298,7 +321,7 @@ export function createPublishAction(program: Command) {
       )
     }
 
-    let siteUrl: string | undefined
+    let appUrl: string | undefined
     let apiAccessEnabled: boolean | undefined
     if (errors.length === 0) {
       const requestedApiAccess = options.apiAccess === undefined ? undefined : options.apiAccess === 'enabled'
@@ -315,12 +338,12 @@ export function createPublishAction(program: Command) {
           }
           settings = await updateProjectStaticFiles(baseUrl, token, options.projectId, update)
         }
-        siteUrl = staticSiteUrl(settings.url, targetPrefix)
+        appUrl = appUrlWithPath(settings.url, targetPrefix)
         apiAccessEnabled = settings.apiAccessEnabled
       } catch (error) {
         const message = errorMessage(error)
         errors.push({ file: 'project settings', error: message })
-        logError(`  ✗ enable static website sharing — ${message}`)
+        logError(`  ✗ enable app sharing — ${message}`)
       }
     }
 
@@ -337,8 +360,8 @@ export function createPublishAction(program: Command) {
       }
       if (errors.length > 0) {
         log(`${c.red('✗')} Publish failed with ${errors.length} error${errors.length === 1 ? '' : 's'}`)
-      } else if (siteUrl !== undefined) {
-        log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
+      } else if (appUrl !== undefined) {
+        log(`\n${c.bold('App URL:')} ${c.underline(appUrl)}`)
         log(`${c.dim(`API access: ${apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
         if (apiAccessEnabled) {
           log(`\n${embeddedApiAccessNote(c)}`)
