@@ -26,6 +26,7 @@ import {
   executeAgentBlock,
   serializeNotebookContext,
 } from './agent-handler'
+import { apiKeyEnvVarFor, parseAgentModel } from './agent-provider'
 import { toPythonLiteral } from './javascript'
 import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './kernel-client'
 import {
@@ -337,11 +338,13 @@ export class ExecutionEngine {
             throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
-          const apiKey = process.env.OPENAI_API_KEY
+          const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
+          const apiKeyEnvVar = apiKeyEnvVarFor(providerId)
+          const apiKey = process.env[apiKeyEnvVar]
           if (!apiKey) {
             throw new Error(
-              'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
-                'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
+              `${apiKeyEnvVar} environment variable is required for agent blocks using the "${providerId}" provider.\n` +
+                'Prefix the block model with a provider to use a different one, for example `anthropic:claude-opus-5`.'
             )
           }
 
@@ -436,7 +439,7 @@ export class ExecutionEngine {
           }
 
           const agentContext: AgentBlockContext = {
-            openAiToken: apiKey,
+            apiKey,
             mcpServers: projectMcpServers,
             notebookContext,
             addAndExecuteCodeBlock,

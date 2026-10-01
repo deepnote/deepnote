@@ -24,13 +24,30 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
 | `args`    | `string[]`              | no       | Command arguments                                |
 | `env`     | `Record<string,string>` | no       | Environment variables; `${VAR}` refs process.env |
 
+**Providers:**
+
+`deepnote_agent_model` takes an optional `provider:model` prefix (`anthropic:claude-opus-5`). A bare
+model name or `"auto"` means `openai`.
+
+| Provider id         | Package                     | Use for                                           |
+| ------------------- | --------------------------- | ------------------------------------------------- |
+| `openai`            | `@ai-sdk/openai`            | OpenAI (the default when no provider is named)    |
+| `anthropic`         | `@ai-sdk/anthropic`         | Claude                                            |
+| `openai-compatible` | `@ai-sdk/openai-compatible` | OpenRouter, Ollama, LiteLLM, vLLM, Together, Groq |
+
 **Environment variables:**
 
-| Variable          | Required | Description                                                                               |
-| ----------------- | -------- | ----------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                                                              |
-| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)                                  |
-| `OPENAI_MODEL`    | no       | Model used when `deepnote_agent_model` is `"auto"`; otherwise `deepnote_agent_model` wins |
+| Variable                  | Provider            | Required | Description                                                    |
+| ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
+| `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
+| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; switches the SDK to Chat Completions          |
+| `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
+| `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
+| `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |
+| `ANTHROPIC_MODEL`         | `anthropic`         | no       | Model when the block says `auto`; otherwise the block wins     |
+| `DEEPNOTE_AGENT_API_KEY`  | `openai-compatible` | yes      | API key; falls back to `OPENAI_API_KEY`                        |
+| `DEEPNOTE_AGENT_BASE_URL` | `openai-compatible` | yes      | Endpoint; falls back to `OPENAI_BASE_URL`                      |
+| `DEEPNOTE_AGENT_MODEL`    | `openai-compatible` | no       | Model when the block says `auto`; falls back to `OPENAI_MODEL` |
 
 **Built-in agent tools:**
 
