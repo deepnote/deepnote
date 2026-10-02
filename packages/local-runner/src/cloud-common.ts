@@ -1,9 +1,9 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml } from '@deepnote/blocks'
 import { describeRunError, findNotebook, getWorkspace, type NormalizedRun, notebookUrl } from '@deepnote/cloud'
-import type { RunBlockOutput } from './run-with-inputs'
-import type { SnapshotView } from './snapshot-view'
-import { parseSnapshot } from './snapshot-view'
+import { parseSnapshot } from '@deepnote/pipelines'
+
+export { DEFAULT_CLOUD_API_URL, extractOutputs } from '@deepnote/pipelines'
 
 /**
  * The plumbing every cloud entry point needs — `run-in-cloud.ts` and `cloud-runs.ts` both reach for
@@ -16,7 +16,6 @@ import { parseSnapshot } from './snapshot-view'
 
 /** Environment variable holding the Deepnote API token (matches the CLI). */
 export const DEEPNOTE_TOKEN_ENV = 'DEEPNOTE_TOKEN'
-export const DEFAULT_CLOUD_API_URL = 'https://api.deepnote.com'
 
 /**
  * The caller's token, or `DEEPNOTE_TOKEN` from the environment.
@@ -149,33 +148,4 @@ function describeFailedBlocks(snapshotYaml: string): string | undefined {
     }
   }
   return undefined
-}
-
-/**
- * Parse the per-block outputs out of a cloud snapshot's YAML, in document order. Any executable
- * block type carries outputs — code, SQL, visualization, big-number — so read them off whatever
- * block has them (via {@link parseSnapshot}) rather than special-casing `code`.
- *
- * A snapshot that won't parse throws rather than returning nothing: the run succeeded, so "no
- * outputs" is a claim about the notebook, and it would be a false one. The caller still has the raw
- * YAML to inspect.
- */
-export function extractOutputs(snapshotYaml: string): RunBlockOutput[] {
-  let view: SnapshotView
-  try {
-    view = parseSnapshot(snapshotYaml)
-  } catch (error) {
-    throw new Error(
-      `Deepnote returned a snapshot that could not be parsed: ${error instanceof Error ? error.message : String(error)}`
-    )
-  }
-  const outputs: RunBlockOutput[] = []
-  for (const notebook of view.notebooks) {
-    for (const block of notebook.blocks) {
-      if (block.outputs.length > 0) {
-        outputs.push({ blockId: block.id, outputs: block.outputs, executionCount: block.executionCount })
-      }
-    }
-  }
-  return outputs
 }
