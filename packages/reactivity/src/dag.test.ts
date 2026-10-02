@@ -965,6 +965,113 @@ describe('DAG', () => {
       })
     })
 
+    it('should return a DAG edge for a global read inside a function body defined in another block', async () => {
+      // https://github.com/deepnote/deepnote/issues/512
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content: 'source_value = "old"',
+        },
+        {
+          id: '2',
+          type: 'code',
+          content: 'def read_source():\n    return source_value',
+        },
+        {
+          id: '3',
+          type: 'code',
+          content: 'observed = read_source()',
+        },
+      ])
+
+      const { dag } = await getDagForBlocks(blocks)
+
+      expect(dag).toEqual({
+        modulesEdges: [],
+        nodes: [
+          expect.objectContaining({
+            id: '1',
+            inputVariables: [],
+            outputVariables: ['source_value'],
+          }),
+          expect.objectContaining({
+            id: '2',
+            inputVariables: ['source_value'],
+            outputVariables: ['read_source'],
+          }),
+          expect.objectContaining({
+            id: '3',
+            inputVariables: ['read_source'],
+            outputVariables: ['observed'],
+          }),
+        ],
+        edges: [
+          expect.objectContaining({ from: '1', inputVariables: ['source_value'], to: '2' }),
+          expect.objectContaining({ from: '2', inputVariables: ['read_source'], to: '3' }),
+        ],
+      })
+    })
+
+    it('should not create DAG edges for comprehension targets or lambda parameters', async () => {
+      // https://github.com/deepnote/deepnote/issues/513
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content: 'o = 5',
+        },
+        {
+          id: '2',
+          type: 'code',
+          content: 'x = 99',
+        },
+        {
+          id: '3',
+          type: 'code',
+          content: 'items = [1, 2, 3]\nsquares = [o * o for o in items]\ndouble = lambda x: x * 2',
+        },
+        {
+          id: '4',
+          type: 'code',
+          content: 'result = (o, squares, double(3))',
+        },
+      ])
+
+      const { dag } = await getDagForBlocks(blocks)
+
+      expect(dag).toEqual({
+        modulesEdges: [],
+        nodes: [
+          expect.objectContaining({
+            id: '1',
+            inputVariables: [],
+            outputVariables: ['o'],
+          }),
+          expect.objectContaining({
+            id: '2',
+            inputVariables: [],
+            outputVariables: ['x'],
+          }),
+          expect.objectContaining({
+            id: '3',
+            inputVariables: [],
+            outputVariables: ['double', 'items', 'squares'],
+          }),
+          expect.objectContaining({
+            id: '4',
+            inputVariables: ['double', 'o', 'squares'],
+            outputVariables: ['result'],
+          }),
+        ],
+        edges: [
+          expect.objectContaining({ from: '3', inputVariables: ['double'], to: '4' }),
+          expect.objectContaining({ from: '1', inputVariables: ['o'], to: '4' }),
+          expect.objectContaining({ from: '3', inputVariables: ['squares'], to: '4' }),
+        ],
+      })
+    })
+
     it('should return a DAG with imported modules', async () => {
       const blocks = createBlocks([
         {
