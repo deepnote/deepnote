@@ -5,7 +5,12 @@
  */
 
 import { type DeepnoteBlock, type DeepnoteFile, INPUT_BLOCK_TYPES } from '@deepnote/blocks'
-import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
+import {
+  BigQueryAuthMethods,
+  type DatabaseIntegrationConfig,
+  getSqlEnvVarName,
+  isBuiltinIntegration,
+} from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
@@ -84,6 +89,13 @@ export interface AnalysisOptions {
   notebook?: string
   /** Python interpreter path for DAG analysis */
   pythonInterpreter?: string
+  /**
+   * Lowercased ids of federated (e.g. Google OAuth) BigQuery integrations to treat as configured
+   * regardless of `process.env` — the synchronous env var generator never sets one for them, so
+   * without this every federated BigQuery integration would lint as missing. Config-shape-only:
+   * this does not imply a live, working credential, since lint never reads the token store.
+   */
+  federatedIntegrationIds?: Set<string>
 }
 
 export interface AnalysisResult {
@@ -100,6 +112,23 @@ export interface AnalysisResult {
  * Perform comprehensive analysis on a DeepnoteFile.
  * Combines stats, lint, and DAG analysis into a single result.
  */
+/**
+ * Ids (lowercased) of federated (Google OAuth) BigQuery integrations, for `federatedIntegrationIds`.
+ * The synchronous env var generator never produces a `process.env[SQL_<ID>]` for them, so without
+ * this every one reads as a false-positive `missing-integration`. Lives here rather than beside a
+ * single command because every caller of {@link checkForIssues} needs it — `deepnote lint` and
+ * `deepnote run --context` both run the same check and must agree.
+ */
+export function collectFederatedBigQueryIntegrationIds(integrations: DatabaseIntegrationConfig[]): Set<string> {
+  const ids = new Set<string>()
+  for (const integration of integrations) {
+    if (integration.type === 'big-query' && integration.metadata.authMethod === BigQueryAuthMethods.GoogleOauth) {
+      ids.add(integration.id.toLowerCase())
+    }
+  }
+  return ids
+}
+
 export async function analyzeProject(file: DeepnoteFile, options: AnalysisOptions = {}): Promise<AnalysisResult> {
   const stats = computeProjectStats(file, options)
   const { lint, dag } = await checkForIssues(file, options)
@@ -218,7 +247,11 @@ export async function checkForIssues(
   }
 
   // Check for missing integrations (doesn't require DAG)
-  const { issues: integrationIssues, summary: integrationSummary } = checkMissingIntegrations(allBlocks, blockMap)
+  const { issues: integrationIssues, summary: integrationSummary } = checkMissingIntegrations(
+    allBlocks,
+    blockMap,
+    options.federatedIntegrationIds
+  )
   issues.push(...integrationIssues)
 
   // Check for missing inputs (doesn't require DAG)
@@ -506,7 +539,11 @@ interface IntegrationCheckResult {
 /**
  * Check for SQL blocks using integrations that aren't configured.
  */
-function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string, BlockInfo>): IntegrationCheckResult {
+function checkMissingIntegrations(
+  blocks: DeepnoteBlock[],
+  blockMap: Map<string, BlockInfo>,
+  federatedIntegrationIds?: Set<string>
+): IntegrationCheckResult {
   const issues: LintIssue[] = []
   const configuredIntegrations = new Set<string>()
   const missingIntegrations = new Set<string>()
@@ -527,7 +564,12 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     if (!info) continue
 
     const envVarName = getSqlEnvVarName(integrationId)
-    const isConfigured = !!process.env[envVarName]
+    // Federated integrations (e.g. BigQuery + google-oauth) never appear in process.env — their
+    // credentials are minted at `deepnote run` time, not from static config — so they're counted as
+    // configured via federatedIntegrationIds instead. Case-folded on both sides: the caller lowercases
+    // the set, and process.env[envVarName] is already case-insensitive because envVarName is
+    // uppercased from the id on both the writing and reading side.
+    const isConfigured = !!process.env[envVarName] || !!federatedIntegrationIds?.has(integrationId.toLowerCase())
 
     if (isConfigured) {
       configuredIntegrations.add(integrationId)

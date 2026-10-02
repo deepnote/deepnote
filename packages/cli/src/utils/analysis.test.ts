@@ -29,6 +29,20 @@ function createTestFile(
   } as DeepnoteFile
 }
 
+/** Runs `fn` with `keys` deleted from `process.env`, restoring their prior values afterwards. */
+async function withoutEnvVars<T>(keys: string[], fn: () => Promise<T>): Promise<T> {
+  const saved = keys.map(k => [k, process.env[k]] as const)
+  for (const k of keys) delete process.env[k]
+  try {
+    return await fn()
+  } finally {
+    for (const [k, v] of saved) {
+      if (v === undefined) delete process.env[k]
+      else process.env[k] = v
+    }
+  }
+}
+
 describe('analysis utilities', () => {
   describe('computeProjectStats', () => {
     it('computes stats for empty project', () => {
@@ -311,6 +325,44 @@ describe('analysis utilities', () => {
 
       expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
       expect(lint.integrations?.missing).toEqual([])
+    })
+  })
+
+  describe('federatedIntegrationIds (federated BigQuery)', () => {
+    it('counts a federated integration id as configured', async () => {
+      await withoutEnvVars(['SQL_MY_BIGQUERY'], async () => {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'my-bigquery' } },
+        ])
+        const { lint } = await checkForIssues(file, { federatedIntegrationIds: new Set(['my-bigquery']) })
+
+        expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+        expect(lint.integrations?.missing).toEqual([])
+        expect(lint.integrations?.configured).toContain('my-bigquery')
+      })
+    })
+
+    it('still reports it as missing without federatedIntegrationIds', async () => {
+      await withoutEnvVars(['SQL_MY_BIGQUERY'], async () => {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'my-bigquery' } },
+        ])
+        const { lint } = await checkForIssues(file)
+
+        expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(true)
+        expect(lint.integrations?.missing).toContain('my-bigquery')
+      })
+    })
+
+    it('matches the block’s sql_integration_id against federatedIntegrationIds case-insensitively', async () => {
+      await withoutEnvVars(['SQL_MY_BIGQUERY'], async () => {
+        const file = createTestFile([
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'My-BigQuery' } },
+        ])
+        const { lint } = await checkForIssues(file, { federatedIntegrationIds: new Set(['my-bigquery']) })
+
+        expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
+      })
     })
   })
 })

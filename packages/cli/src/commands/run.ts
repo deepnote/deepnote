@@ -20,6 +20,7 @@ import {
   type DatabaseIntegrationConfig,
   DEFAULT_API_URL,
   DEFAULT_ENV_FILE,
+  isBuiltinIntegration,
 } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
@@ -42,6 +43,7 @@ import { markedTerminal } from 'marked-terminal'
 marked.use(markedTerminal())
 
 import { ExitCode, NotFoundInProjectError } from '../exit-codes'
+import { IntegrationAuthenticationError } from '../federated-auth/resolve-bigquery-sql-env-vars'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
 import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
@@ -58,7 +60,13 @@ import {
   outputToon,
 } from '../output'
 import { renderOutput } from '../output-renderer'
-import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import {
+  analyzeProject,
+  buildBlockMap,
+  collectFederatedBigQueryIntegrationIds,
+  diagnoseBlockFailure,
+  type ProjectStats,
+} from '../utils/analysis'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
@@ -258,6 +266,8 @@ interface ProjectSetup {
   isMachineOutput: boolean
   convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
+  /** Resolved once here so both callers (dry run and real run) execute the exact same block set. */
+  blockIds: string[] | undefined
 }
 
 interface RunExecutionState {
@@ -412,12 +422,21 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     isMachineOutput,
   })
 
+  // Resolved here (rather than by each caller) so the credential gate below and the eventual
+  // execution both act on the exact same block set — see collectFederatedIntegrationIds.
+  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const federatedIds = collectFederatedIntegrationIds(file, options, blockIds)
+
+  // Gate on live credentials before any of the notebook runs: a missing or stale federated token
+  // fails the command here, with no kernel started and no block executed. This also injects
+  // integration environment variables into process.env so SQL blocks can access database
+  // connections. `--dry-run` only checks that credentials are stored, never contacts Google.
+  await injectIntegrationEnvVars(allIntegrations, workingDirectory, federatedIds, {
+    refreshFederatedTokens: !options.dryRun,
+  })
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
   await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
-
-  // Inject integration environment variables into process.env
-  // This allows SQL blocks to access database connections
-  injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
   return {
     absolutePath,
@@ -429,6 +448,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     isMachineOutput,
     convertedFile,
     allIntegrations,
+    blockIds,
   }
 }
 
@@ -549,6 +569,46 @@ async function resolveUpstreamExecutionBlockIds(
   return blockIds
 }
 
+/**
+ * SQL integration ids referenced by blocks that will actually execute, scoped by `blockIds` (the
+ * upstream-resolved set under `--block`) the same way `collectExecutableBlocks` scopes its listing.
+ * Unlike `collectRequiredIntegrationIds`, which is notebook-wide, this is what lets the credential
+ * gate skip an integration a `--block` run never touches instead of demanding credentials for every
+ * SQL block in the notebook.
+ */
+function collectFederatedIntegrationIds(
+  file: DeepnoteFile,
+  options: { notebook?: string; block?: string },
+  blockIds: string[] | undefined
+): string[] {
+  // Credential collection must not be what fails a run over an unknown `--notebook`. Under
+  // `--block` the throw already happens earlier, in resolveUpstreamExecutionBlockIds; without it the
+  // error belongs to the execution path, as it always has. Either way a filter matching no notebook
+  // executes no blocks and so needs no credentials, so collecting none cannot under-scope the gate.
+  let notebooks: DeepnoteFile['project']['notebooks']
+  try {
+    notebooks = getNotebooksForExecutionScope(file, options)
+  } catch (error) {
+    if (error instanceof NotFoundInProjectError) {
+      return []
+    }
+    throw error
+  }
+  const blockIdFilter = blockIds ? new Set(blockIds) : options.block ? new Set([options.block]) : null
+
+  const ids = new Set<string>()
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      if (block.type !== 'sql' || (blockIdFilter && !blockIdFilter.has(block.id))) continue
+      const integrationId = block.metadata.sql_integration_id
+      if (integrationId && !isBuiltinIntegration(integrationId)) {
+        ids.add(integrationId)
+      }
+    }
+  }
+  return Array.from(ids)
+}
+
 export function createRunAction(program: Command): (path: string | undefined, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
@@ -613,6 +673,7 @@ export function createRunAction(program: Command): (path: string | undefined, op
         error instanceof InvalidInputError ||
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
+        error instanceof IntegrationAuthenticationError ||
         error instanceof InitNotebookResolutionError ||
         error instanceof NotFoundInProjectError ||
         error instanceof CloudRunUsageError ||
@@ -698,8 +759,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
  * Also validates that all requirements (inputs, integrations) are met.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, file, isMachineOutput, pythonEnv } = await setupProject(path, options)
-  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const { absolutePath, file, isMachineOutput, blockIds } = await setupProject(path, options)
   const executableBlocks = collectExecutableBlocks(file, { ...options, blockIds })
 
   const notebookCount = options.notebook ? 1 : file.project.notebooks.length
@@ -856,6 +916,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
     convertedFile,
     file,
     allIntegrations,
+    blockIds,
   } = await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
@@ -873,7 +934,6 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
 
     // Track execution timing for snapshot
     const executionStartedAt = new Date().toISOString()
-    const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
 
     // Use runProject instead of runFile since we may have converted the file in memory
     const summary = await engine.runProject(file, {
@@ -903,6 +963,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         pythonEnv,
         options,
         summary,
+        allIntegrations,
         blockResults: state.blockResults,
         hint: state.runtimeHint,
       })
@@ -1270,6 +1331,7 @@ async function buildMachineRunResult({
   pythonEnv,
   options,
   summary,
+  allIntegrations,
   blockResults,
   hint,
 }: {
@@ -1278,6 +1340,7 @@ async function buildMachineRunResult({
   pythonEnv: string
   options: RunOptions
   summary: ExecutionSummary
+  allIntegrations: DatabaseIntegrationConfig[]
   blockResults: BlockResult[]
   hint?: string
 }): Promise<RunResult> {
@@ -1303,6 +1366,10 @@ async function buildMachineRunResult({
     const { stats, lint, dag } = await analyzeProject(file, {
       notebook: options.notebook,
       pythonInterpreter: pythonEnv,
+      // Same check `deepnote lint` runs, so it must be told the same thing: without this a
+      // federated BigQuery integration reads as missing here even though the credential gate
+      // already passed and the run succeeded.
+      federatedIntegrationIds: collectFederatedBigQueryIntegrationIds(allIntegrations),
     })
     const blockMap = buildBlockMap(file, { notebook: options.notebook })
 
