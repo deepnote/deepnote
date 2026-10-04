@@ -172,7 +172,14 @@ from deepnote_toolkit.streamlit import StreamlitCloudRunner, render_inputs
 NOTEBOOK_ID = "<paste-notebook-uuid-here>"
 
 runner = StreamlitCloudRunner(NOTEBOOK_ID)
-values = render_inputs(runner.info().inputs, st.sidebar)
+
+try:
+    info = runner.info()
+except RunnerError as error:
+    st.error(str(error))
+    st.stop()
+
+values = render_inputs(info.inputs, st.sidebar)
 
 if st.button("Run"):
     try:
@@ -181,13 +188,15 @@ if st.button("Run"):
             st.error(result.error or "The run failed.")
         elif (table := result.first_dataframe()) is not None:
             st.dataframe(table.records(include_index=False))
+            if table.is_truncated:
+                st.caption(f"Showing the first {len(table.rows)} of {table.row_count} rows.")
         else:
             st.write(result.text())
     except RunnerError as error:
         st.error(str(error))
 ```
 
-You can find the notebook UUID at the end of the notebook's URL. Runs started by `StreamlitCloudRunner` can read the project's files but not change them. Pass `storage_mode="read_write"` if the notebook needs to write files.
+You can find the notebook UUID at the end of the notebook's URL. If the app can't call the API for the current viewer, for example because they opened it through a share link, `runner.info()` raises a `RunnerError` and the example shows the error instead of the inputs. Tables in run results contain only the first page of rows; check `is_truncated` and `row_count` before treating them as complete data. Runs started by `StreamlitCloudRunner` can read the project's files but not change them. Pass `storage_mode="read_write"` if the notebook needs to write files.
 
 To call the API endpoints listed above directly, `current_user_api_credentials()` returns the viewer's short-lived token and the API origin it is valid for:
 
@@ -195,12 +204,18 @@ To call the API endpoints listed above directly, `current_user_api_credentials()
 import requests
 from deepnote_toolkit.streamlit import current_user_api_credentials
 
+NOTEBOOK_ID = "<paste-notebook-uuid-here>"
+
 credentials = current_user_api_credentials()
 response = requests.get(
     f"{credentials.api_origin}/v2/notebooks/{NOTEBOOK_ID}",
     headers={"Authorization": f"Bearer {credentials.token}"},
 )
+response.raise_for_status()
+inputs = response.json()["notebook"]["inputs"]
 ```
+
+When you start runs directly with `POST /v2/runs`, they must be detached, which is the default. Setting `"detached": false` or `blockIds` returns a 400 error, and setting `machineType` returns a 403 error. Unlike runs started by `StreamlitCloudRunner`, these runs can write to the project's files unless you set `"detachedRunStorageMode": "readonly"`.
 
 Call these helpers from your Streamlit script, not from a background thread. If the viewer's credentials can't be obtained, they raise an error instead of falling back to another user's credentials. If your app can't resolve its app ID, restart the project's machine so the app starts again with the latest Deepnote toolkit.
 
