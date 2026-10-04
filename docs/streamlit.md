@@ -142,6 +142,68 @@ The first time a viewer opens an app that uses an OAuth integration they have no
 
 If you need lower-level control, `get_federated_auth_token(integration_id)` returns the raw `{integrationType, accessToken, connectionParams}` payload, and `prompt_federated_auth(integration_id)` renders the authentication prompt without opening a connection.
 
+## API access
+
+<Callout status="info">
+API access for Streamlit apps is an early-access feature and may not be available in your workspace yet. Expect it to change, and tell us what you'd like it to do.
+</Callout>
+
+A Streamlit app can run notebooks in its project through the [Deepnote API](/docs/deepnote-api) as the person viewing the app. This lets you build an app with your own interface on top of a notebook: the viewer fills in the notebook's inputs, the app starts a run, and then shows the outputs.
+
+To turn it on, open the Streamlit app settings sidebar and, under **API access**, enable **Allow API access for all Streamlit apps in this project**. The setting applies to every Streamlit app in the project. Only users who can manage project settings can change it.
+
+When API access is on, an app can make these calls on behalf of the viewer, for notebooks in its own project only:
+
+- Read a notebook's inputs (`GET /v2/notebooks/{notebookId}`)
+- Start a detached notebook run (`POST /v2/runs`)
+- Read the status and outputs of runs the viewer started (`GET /v2/runs/{runId}`)
+
+All other API endpoints are unavailable to the app.
+
+The viewer must be signed in to Deepnote and have access to the project as a workspace member or project collaborator. Viewers who only have a share link can still open the app, but the app can't call the API for them.
+
+The helpers in `deepnote_toolkit.streamlit` (available in `deepnote-toolkit` 2.8.0 and later) take care of authentication. `StreamlitCloudRunner` runs a notebook as the current viewer and waits for its outputs, and `render_inputs` renders the notebook's input blocks as Streamlit widgets:
+
+```python
+import streamlit as st
+from deepnote_toolkit.notebooks import RunnerError
+from deepnote_toolkit.streamlit import StreamlitCloudRunner, render_inputs
+
+NOTEBOOK_ID = "<paste-notebook-uuid-here>"
+
+runner = StreamlitCloudRunner(NOTEBOOK_ID)
+values = render_inputs(runner.info().inputs, st.sidebar)
+
+if st.button("Run"):
+    try:
+        result = runner.run(values)
+        if not result.success:
+            st.error(result.error or "The run failed.")
+        elif (table := result.first_dataframe()) is not None:
+            st.dataframe(table.records(include_index=False))
+        else:
+            st.write(result.text())
+    except RunnerError as error:
+        st.error(str(error))
+```
+
+You can find the notebook UUID at the end of the notebook's URL. Runs started by `StreamlitCloudRunner` can read the project's files but not change them. Pass `storage_mode="read_write"` if the notebook needs to write files.
+
+To call the API endpoints listed above directly, `current_user_api_credentials()` returns the viewer's short-lived token and the API origin it is valid for:
+
+```python
+import requests
+from deepnote_toolkit.streamlit import current_user_api_credentials
+
+credentials = current_user_api_credentials()
+response = requests.get(
+    f"{credentials.api_origin}/v2/notebooks/{NOTEBOOK_ID}",
+    headers={"Authorization": f"Bearer {credentials.token}"},
+)
+```
+
+Call these helpers from your Streamlit script, not from a background thread. If the viewer's credentials can't be obtained, they raise an error instead of falling back to another user's credentials. If your app can't resolve its app ID, restart the project's machine so the app starts again with the latest Deepnote toolkit.
+
 ## Customizing app environment
 
 Your Streamlit app shares its environment with your project. If you need to add specific Python libraries you can do so by:
