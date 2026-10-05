@@ -210,6 +210,7 @@ credentials = current_user_api_credentials()
 response = requests.get(
     f"{credentials.api_origin}/v2/notebooks/{NOTEBOOK_ID}",
     headers={"Authorization": f"Bearer {credentials.token}"},
+    timeout=30,
 )
 response.raise_for_status()
 inputs = response.json()["notebook"]["inputs"]
