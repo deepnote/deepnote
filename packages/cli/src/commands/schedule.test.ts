@@ -3,14 +3,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ApiError } from '@deepnote/database-integrations'
-import type { ScheduleInCloudResult } from '@deepnote/local-runner'
+import type { ScheduleInCloudResult, scheduleInCloud, unscheduleInCloud } from '@deepnote/local-runner'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
 
 const localRunnerMock = vi.hoisted(() => ({
-  scheduleInCloud: vi.fn(),
-  unscheduleInCloud: vi.fn(),
+  scheduleInCloud: vi.fn<typeof scheduleInCloud>(),
+  unscheduleInCloud: vi.fn<typeof unscheduleInCloud>(),
 }))
 
 vi.mock('@deepnote/local-runner', () => ({
@@ -92,6 +92,7 @@ describe('schedule command', () => {
     resetOutputConfig()
     vi.restoreAllMocks()
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
     while (tempDirs.length > 0) {
       rmSync(tempDirs.pop() as string, { recursive: true, force: true })
     }
@@ -166,12 +167,10 @@ describe('schedule command', () => {
   })
 
   it('reports creation progress in human-readable mode', async () => {
-    localRunnerMock.scheduleInCloud.mockImplementationOnce(
-      async (_path, _cron, scheduleOptions: { onCreateProgress?: (created: number, total: number) => void }) => {
-        scheduleOptions.onCreateProgress?.(3, 7)
-        return RESULT
-      }
-    )
+    localRunnerMock.scheduleInCloud.mockImplementationOnce(async (_path, _cron, scheduleOptions) => {
+      scheduleOptions?.onCreateProgress?.(3, 7)
+      return RESULT
+    })
 
     await createScheduleAction(new Command())(HELLO_WORLD_FILE, options())
 
@@ -397,11 +396,8 @@ version: '1.0.0'
 
     it('requires a token before calling Deepnote', async () => {
       vi.stubEnv('DEEPNOTE_TOKEN', '')
-      try {
-        await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ token: undefined }))
-      } finally {
-        vi.unstubAllEnvs()
-      }
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ token: undefined }))
 
       expect(process.exitCode).toBe(2)
       expect(localRunnerMock.unscheduleInCloud).not.toHaveBeenCalled()

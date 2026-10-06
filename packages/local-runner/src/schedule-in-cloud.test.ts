@@ -1,15 +1,25 @@
+import type {
+  addNotebooksToProject,
+  createProject,
+  deleteNotebookSchedule,
+  findNotebook,
+  findProject,
+  getNotebook,
+  getWorkspace,
+  upsertNotebookSchedule,
+} from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const cloudMock = vi.hoisted(() => ({
-  upsertNotebookSchedule: vi.fn(),
-  deleteNotebookSchedule: vi.fn(),
-  getNotebook: vi.fn(),
-  findNotebook: vi.fn(),
-  findProject: vi.fn(),
-  createProject: vi.fn(),
-  addNotebooksToProject: vi.fn(),
-  getWorkspace: vi.fn(),
+  upsertNotebookSchedule: vi.fn<typeof upsertNotebookSchedule>(),
+  deleteNotebookSchedule: vi.fn<typeof deleteNotebookSchedule>(),
+  getNotebook: vi.fn<typeof getNotebook>(),
+  findNotebook: vi.fn<typeof findNotebook>(),
+  findProject: vi.fn<typeof findProject>(),
+  createProject: vi.fn<typeof createProject>(),
+  addNotebooksToProject: vi.fn<typeof addNotebooksToProject>(),
+  getWorkspace: vi.fn<typeof getWorkspace>(),
 }))
 
 vi.mock('@deepnote/cloud', () => ({
