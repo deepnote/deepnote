@@ -171,11 +171,11 @@ To build a new app, make three choices:
 
 The app does not need to know how Deepnote stores inputs, how nbformat encodes text and images,
 or whether the notebook runs in Deepnote Cloud or in a local kernel. These helpers ship with
-Deepnote Toolkit, so `deepnote-toolkit[server]` is the only package the app needs.
+Deepnote Toolkit 2.8.0 and later, so `deepnote-toolkit[server]` is the only package the app needs.
 
 ## Tests
 
-Run the smoke tests once a Deepnote Toolkit release includes these helpers:
+Run the smoke tests:
 
 ```bash
 pnpm test:streamlit
