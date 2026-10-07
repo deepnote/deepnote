@@ -10,6 +10,7 @@
  * audit usable on a partial checkout, a single exported project, or a tree assembled by hand.
  */
 
+import type { Dirent } from 'node:fs'
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { type DeepnoteBlock, type DeepnoteFile, deserializeDeepnoteFile } from '@deepnote/blocks'
@@ -43,8 +44,9 @@ export interface WorkspaceProject {
   modifiedAt?: string
 }
 
-/** A file that could not be read or parsed. Reported rather than thrown: one bad file in a
- *  workspace of hundreds must not cost the whole audit. */
+/** A file or directory that could not be read or parsed. Reported rather than thrown: one bad
+ *  entry in a workspace of hundreds must not cost the whole audit. The root directory is the
+ *  exception — see `findDeepnoteFiles`. */
 export interface WorkspaceLoadError {
   path: string
   message: string
@@ -64,24 +66,47 @@ const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', '.venv', 'venv', '_
 /** Depth limit, so a symlink loop or a pathological tree cannot hang the audit. */
 const MAX_DEPTH = 12
 
-/** Every `.deepnote` file under `root`, depth-first and in directory order. */
-async function findDeepnoteFiles(root: string, dir: string, depth: number): Promise<string[]> {
+/**
+ * Every `.deepnote` file under `root`, depth-first and in directory order.
+ *
+ * A directory that cannot be read is recorded in `errors` and skipped — one unreadable folder in a
+ * workspace of hundreds must not cost the whole audit. The **root** is the exception and is
+ * rethrown: if the directory the operator pointed at cannot be read there is nothing to audit, and
+ * returning an empty tree would report a workspace with no projects and therefore no findings. A
+ * governance tool answering "all clear" because it could not look is the single outcome it exists
+ * to prevent, so that case has to fail loudly instead.
+ */
+async function findDeepnoteFiles(
+  root: string,
+  dir: string,
+  depth: number,
+  errors: WorkspaceLoadError[]
+): Promise<string[]> {
   if (depth > MAX_DEPTH) {
     debug(`Skipping ${dir}: deeper than ${MAX_DEPTH} levels`)
+    errors.push({ path: relative(root, dir) || dir, message: `Deeper than ${MAX_DEPTH} levels; not descended` })
     return []
   }
 
-  const entries = await readdir(dir, { withFileTypes: true }).catch((error: unknown) => {
-    debug(`Skipping ${dir}: ${error instanceof Error ? error.message : String(error)}`)
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch (error) {
+    if (dir === root) {
+      throw error
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    debug(`Skipping ${dir}: ${message}`)
+    errors.push({ path: relative(root, dir) || dir, message })
     return []
-  })
+  }
 
   const files: string[] = []
   for (const entry of entries) {
     const path = join(dir, entry.name)
     if (entry.isDirectory()) {
       if (!SKIPPED_DIRECTORIES.has(entry.name)) {
-        files.push(...(await findDeepnoteFiles(root, path, depth + 1)))
+        files.push(...(await findDeepnoteFiles(root, path, depth + 1, errors)))
       }
     } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.deepnote')) {
       files.push(path)
@@ -167,11 +192,11 @@ function mergeFile(projects: Map<string, WorkspaceProject>, file: DeepnoteFile, 
  */
 export async function loadWorkspace(root: string): Promise<LoadedWorkspace> {
   const rootStat = await stat(root)
-  const files = rootStat.isDirectory() ? await findDeepnoteFiles(root, root, 0) : [root]
+  const errors: WorkspaceLoadError[] = []
+  const files = rootStat.isDirectory() ? await findDeepnoteFiles(root, root, 0, errors) : [root]
   debug(`Found ${files.length} .deepnote files under ${root}`)
 
   const projects = new Map<string, WorkspaceProject>()
-  const errors: WorkspaceLoadError[] = []
 
   for (const path of files) {
     const relativePath = relative(root, path) || path

@@ -124,3 +124,27 @@ describe('findExternalEndpoints', () => {
     expect(findExternalEndpoints('')).toEqual([])
   })
 })
+
+describe('findExternalEndpoints — evidence redaction', () => {
+  it('redacts a credential embedded in the path, not only the query string', () => {
+    const [endpoint] = findExternalEndpoints(
+      `requests.get("https://api.example.com/v1/${'ghp_'}abcdefghijklmnopqrstuvwxyz0123456789AB/export")`
+    )
+
+    expect(endpoint.host).toBe('api.example.com')
+    expect(endpoint.evidence).not.toContain('abcdefghijklmnop')
+    expect(endpoint.evidence).toContain('<redacted>')
+  })
+
+  it('still drops the query string entirely', () => {
+    const [endpoint] = findExternalEndpoints('requests.get("https://api.example.com/v1/x?token=abc&email=a@b.co")')
+
+    expect(endpoint.evidence).toBe('https://api.example.com/v1/x')
+  })
+
+  it('keeps an ordinary path, which is what identifies the endpoint', () => {
+    const [endpoint] = findExternalEndpoints('requests.post("https://api.segment.io/v1/track")')
+
+    expect(endpoint.evidence).toBe('https://api.segment.io/v1/track')
+  })
+})

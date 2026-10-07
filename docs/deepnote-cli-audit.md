@@ -80,12 +80,12 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 
 ## Options
 
-| Option                  | Description                                          |
-| ----------------------- | ---------------------------------------------------- |
-| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`) |
-| `-o, --output <format>` | `json` for the full report, including the flow map   |
-| `--project <name>`      | Audit a single project, by name or id                |
-| `--issues`              | List every finding instead of a count per check      |
+| Option                  | Description                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`)                                |
+| `-o, --output <format>` | `json` for the full report, including the flow map; `llm` resolves to the same JSON |
+| `--project <name>`      | Audit a single project, by name or id                                               |
+| `--issues`              | List every finding instead of a count per check                                     |
 
 ## The flow map
 

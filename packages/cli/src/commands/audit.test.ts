@@ -78,7 +78,7 @@ describe('audit command', () => {
       expect(output).toContain('This workspace has 3 projects')
     })
 
-    it('summarises findings by check, and lists them with --issues', async () => {
+    it('summarizes findings by check, and lists them with --issues', async () => {
       await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
       const summary = getOutput(consoleSpy)
       consoleSpy.mockClear()

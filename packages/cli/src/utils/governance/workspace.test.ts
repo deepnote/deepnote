@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -180,5 +180,50 @@ describe('projectBlocks', () => {
       ['b1', 'First'],
       ['b2', 'Second'],
     ])
+  })
+})
+
+describe('loadWorkspace — unreadable directories', () => {
+  it('throws when the root itself cannot be read, rather than reporting an empty workspace', async () => {
+    // The failure this guards against: an audit that cannot open the directory reports zero
+    // projects, therefore zero findings, and reads as a clean bill of health.
+    const root = await mkdtemp(join(tmpdir(), 'deepnote-unreadable-'))
+    await chmod(root, 0o000)
+
+    try {
+      await expect(loadWorkspace(root)).rejects.toThrow()
+    } finally {
+      await chmod(root, 0o755)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('records an unreadable subdirectory and keeps auditing the rest', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'deepnote-partial-'))
+    const readable = join(root, 'readable')
+    const blocked = join(root, 'blocked')
+    await mkdir(readable)
+    await mkdir(blocked)
+    await writeFile(
+      join(readable, 'p.deepnote'),
+      JSON.stringify({
+        version: '1',
+        metadata: { createdAt: '2025-01-01T00:00:00.000Z' },
+        project: { id: 'p1', name: 'Alpha', notebooks: [{ id: 'n1', name: 'One', blocks: [] }] },
+      })
+    )
+    await chmod(blocked, 0o000)
+
+    try {
+      const workspace = await loadWorkspace(root)
+
+      expect(workspace.projects).toHaveLength(1)
+      // Visible, not merely debug-logged: a folder the audit could not look into is a hole in the
+      // report and the report has to say so.
+      expect(workspace.errors.map(error => error.path)).toContain('blocked')
+    } finally {
+      await chmod(blocked, 0o755)
+      await rm(root, { recursive: true, force: true })
+    }
   })
 })

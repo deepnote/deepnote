@@ -191,3 +191,36 @@ describe('fingerprintSecret', () => {
     expect(fingerprintSecret('a')).not.toBe(fingerprintSecret('b'))
   })
 })
+
+describe('redactSecrets — overlapping matches', () => {
+  it('keeps the text around a literal that two rules both matched', () => {
+    // The provider pattern matches `ghp_…` inside the heuristic rule's `"prefix-ghp_…"`, and the
+    // two values hash differently so the per-line dedupe does not collapse them. Replacing them
+    // one at a time left the second slice cutting into whatever followed.
+    const line = `api_key = "prefix-${'ghp_'}abcdefghijklmnopqrstuvwxyz0123456789AB"  # rotate before Friday`
+
+    const redacted = redactSecrets(line)
+
+    expect(redacted).toContain('# rotate before Friday')
+    expect(redacted).not.toContain('abcdefghijklmnop')
+  })
+
+  it('does not eat trailing content after a nested match', () => {
+    const line = 'token = "AKIAIOSFODNN7EXAMPLE-suffix"  # trailing comment must survive'
+
+    expect(redactSecrets(line)).toBe('token = "<redacted>"  # trailing comment must survive')
+  })
+
+  it('redacts two separate secrets on one line independently', () => {
+    const line = 'a = "AKIAIOSFODNN7EXAMPLE", b = "AKIAJ7PQRSTUVWXY2345"'
+
+    const redacted = redactSecrets(line)
+
+    expect(redacted.match(/<redacted>/g)).toHaveLength(2)
+    expect(redacted).toBe('a = "<redacted>", b = "<redacted>"')
+  })
+
+  it('leaves text with no secrets exactly as it was', () => {
+    expect(redactSecrets('SELECT * FROM users WHERE id = 1')).toBe('SELECT * FROM users WHERE id = 1')
+  })
+})

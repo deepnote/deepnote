@@ -73,7 +73,7 @@ const SECRET_NAME_PATTERN =
 const WEAK_SECRET_NAME_PATTERN = /\b(\w*(?:key|auth|credential)\w*)\b/i
 
 /** Minimum length for a value to carry the finding on its own, under a weak name. */
-const MIN_KEYLIKE_LENGTH = 16
+const MIN_KEY_LIKE_LENGTH = 16
 
 /**
  * True when a literal has the shape of an issued key: long, unbroken, and mixing letters and
@@ -82,7 +82,7 @@ const MIN_KEYLIKE_LENGTH = 16
  */
 function looksLikeKeyMaterial(value: string): boolean {
   return (
-    value.length >= MIN_KEYLIKE_LENGTH &&
+    value.length >= MIN_KEY_LIKE_LENGTH &&
     /^[A-Za-z0-9+/=_.-]+$/.test(value) &&
     /[0-9]/.test(value) &&
     /[A-Za-z]/.test(value)
@@ -152,7 +152,7 @@ interface LocatedSecret {
  * Scan `content` for hardcoded credentials, keeping each match's offsets.
  *
  * Internal: the offsets are how `redactSecrets` masks a secret without any caller ever holding it.
- * `findSecrets` drops them, so the public finding stays something you can serialise and share.
+ * `findSecrets` drops them, so the public finding stays something you can serialize and share.
  */
 function scanSecrets(content: string, options: { includeHeuristic?: boolean } = {}): LocatedSecret[] {
   const located: LocatedSecret[] = []
@@ -273,10 +273,33 @@ export function redactSecretsWithContext(text: string, context: string): string 
  * the whole arrangement.
  */
 export function redactSecrets(text: string): string {
-  const located = scanSecrets(text).sort((a, b) => b.start - a.start)
+  const located = scanSecrets(text)
+  if (located.length === 0) {
+    return text
+  }
+
+  // Overlapping spans have to be merged before anything is replaced. Two rules can match nested
+  // regions of one literal with different values — the provider pattern on `ghp_…` inside the
+  // heuristic rule's `"prefix-ghp_…"` — which the per-line dedupe does not catch because the
+  // fingerprints differ. Substituting them one at a time invalidates every offset to the right of
+  // the first replacement, so the second slice cuts into real content: the trailing comment on
+  // `token = "AKIA…-suffix"  # trailing comment` was being eaten.
+  const spans = [...located].sort((a, b) => a.start - b.start || a.end - b.end)
+  const merged: Array<{ start: number; end: number }> = []
+  for (const { start, end } of spans) {
+    const last = merged[merged.length - 1]
+    // `<=` so touching spans merge too, rather than producing `<redacted><redacted>`.
+    if (last && start <= last.end) {
+      last.end = Math.max(last.end, end)
+    } else {
+      merged.push({ start, end })
+    }
+  }
+
+  // Right to left, so each replacement leaves the offsets still pending to its left untouched.
   let redacted = text
-  for (const { start, end } of located) {
-    redacted = redacted.slice(0, start) + REDACTION_MARKER + redacted.slice(end)
+  for (let i = merged.length - 1; i >= 0; i--) {
+    redacted = redacted.slice(0, merged[i].start) + REDACTION_MARKER + redacted.slice(merged[i].end)
   }
   return redacted
 }

@@ -12,6 +12,8 @@
  * to.
  */
 
+import { redactSecrets } from './secrets'
+
 /** Direction of the data flow, as far as the surrounding call reveals. */
 export type EgressDirection = 'write' | 'read' | 'unknown'
 
@@ -208,11 +210,15 @@ export function findExternalEndpoints(content: string): ExternalEndpoint[] {
     seen.add(key)
 
     // Keep the path — it identifies the endpoint — but drop the query string, which is where
-    // tokens and personal identifiers end up.
+    // tokens and personal identifiers end up. The path is not safe either: an API key embedded in
+    // a route (`/v1/ghp_…/export`) survives dropping the query, so the assembled evidence goes
+    // through the same redaction as every other string this layer reports. `rawHost` already has
+    // any `user:pass@` userinfo stripped by `hostOf`.
     const pathStart = authority.indexOf('/')
     const path = pathStart === -1 ? '' : authority.slice(pathStart).split('?')[0]
+    const evidence = redactSecrets(`${scheme}://${rawHost}${path}`)
 
-    endpoints.push({ host, scheme, direction, line, evidence: `${scheme}://${rawHost}${path}` })
+    endpoints.push({ host, scheme, direction, line, evidence })
   }
 
   return endpoints
