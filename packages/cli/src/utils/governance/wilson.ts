@@ -9,7 +9,7 @@
  *
  * The Wilson lower bound is the standard answer. It asks what share the population could plausibly
  * have, given this sample, and reports the pessimistic end of that interval — so a small sample is
- * penalised in proportion to how small it is rather than by a rule:
+ * penalized in proportion to how small it is rather than by a rule:
  *
  *   2 of 3    → 0.21     a coincidence
  *   3 of 4    → 0.30     still thin

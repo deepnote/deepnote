@@ -120,7 +120,7 @@ The audit anchors consensus on three things that mean the same thing in every no
 | **filter** | a table and a column | whether the query filters it | six queries filter `orders.is_test`, two do not         |
 | **metric** | an output name       | the aggregate behind it      | `revenue` as `sum(amount)` vs `sum(amount_gross)`       |
 
-Spelling is normalised before anything is compared, which is what makes this work across projects at
+Spelling is normalized before anything is compared, which is what makes this work across projects at
 all. These three are one claim, not three:
 
 ```sql
@@ -132,6 +132,20 @@ FROM analytics.public.orders AS a, prod.users AS b WHERE b.id = a.user_id
 Aliases are resolved to table names, operand order is sorted, composite conditions are gathered into
 one claim per table pair, and a table is identified by its short name — so `analytics.users` and
 `staging.users` are one subject, with the conflation that implies.
+
+#### One warehouse at a time
+
+Anchors are scoped by integration. A table called `users` behind one connection and a table called
+`users` behind another are not the same table, and comparing them manufactures a disagreement
+between systems that never shared a schema. `--divergence-scope type` relaxes this to the
+integration _type_, which is right when several projects each hold their own connection to the same
+warehouse; `none` pools everything, and exists so the cost of the scoping is measurable.
+
+A block with no `sql_integration_id` goes in its own bucket and is never compared against a known
+warehouse. The report says how many blocks that was.
+
+Scoping also makes dialect folding safe: within one integration type, `nvl`, `ifnull` and
+`coalesce` are the same intent written three ways, and reporting that as a disagreement is noise.
 
 #### Confidence, not thresholds
 
@@ -158,6 +172,61 @@ deepnote audit workspace --divergence
 # Only joins, and only where the consensus is well attested
 deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
 ```
+
+### Measuring precision instead of asserting it
+
+The per-kind weights behind the ranking are unmeasured starting points. They encode one structural
+claim — a table pair means exactly one thing, so two queries relating it differently cannot both be
+right, whereas two teams may legitimately mean different things by `revenue` — and nothing more.
+
+They are meant to be replaced by a measurement, which is a two-command job:
+
+```bash
+deepnote audit workspace --divergence --export-review review.json
+# fill in "verdict" on each entry: real, legitimate-difference, or false-positive
+deepnote audit workspace --import-review review.json
+```
+
+The export carries every group, every variant and the locations to look at, ordered best-attested
+first so a partly filled file still measures the part that matters most. On import the audit reports
+precision per kind and uses it in place of the default once at least 10 entries of that kind are
+judged — below that the measurement is noisier than the guess it would replace, so it is reported
+and not used. `details.signalSource` on every finding reads `prior`, `measured` or `triage`, so a
+reader can always tell which number produced the score.
+
+### Triage: asking a model the question the arithmetic cannot
+
+Confidence measures how lopsided a split is. It cannot measure whether the two forms were ever
+supposed to agree, and that is what decides whether a finding is worth your time. A lexer cannot
+see a name collision, `x` against `t.x`, `count(1)` against `count(*)`, or a table pair joined two
+ways because the two joins answer different questions.
+
+Normalizing harder is deliberately **not** the fix: stripping table qualifiers would collapse a
+genuine finding — a table rename that only half the workspace followed. So the judgement goes to a
+model, and the model is optional:
+
+```bash
+export DEEPNOTE_TRIAGE_BASE_URL=http://localhost:11434/v1   # Ollama, LM Studio, vLLM…
+export DEEPNOTE_TRIAGE_MODEL=qwen2.5-coder:7b
+deepnote audit workspace --triage
+```
+
+- **Off by default.** Without `--triage` the report is byte-identical to one that never heard of it.
+- **No default endpoint.** `--triage` without a configured URL is an error, not a call to somebody's
+  cloud. The resolved endpoint is printed before the first request.
+- **The model never sees your blocks.** It gets pre-grouped variant forms, redacted the same way the
+  rest of the report is, and the payload is bounded by finding count rather than workspace size.
+- **Verdicts are cached** under `.deepnote/` and keyed by model, so CI is free and offline on a hit.
+- **Both numbers are kept.** A verdict replaces the default in `signal`, and `details` carries the
+  verdict, its reason and the number it displaced.
+- **`false-positive` leaves the ranking but stays in the report**, under `suppressed`, with its
+  reason printed. Suppression you cannot read is indistinguishable from a check that stopped working.
+- **It can never fail the run.** Any error, timeout or malformed verdict warns once and the
+  deterministic score stands.
+
+If you have both a review file and a triage run, the audit reports how often the model agreed with
+the reviewer, per kind. Without that number, a model's opinion is one unmeasured judgement
+replacing another.
 
 **Divergence precision is unvalidated.** Joins are the strongest anchor and metrics the weakest — a
 table pair means exactly one thing, while two teams may legitimately mean different things by
@@ -213,17 +282,25 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 
 ## Options
 
-| Option                  | Description                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`)                                |
-| `-o, --output <format>` | `json` for the full report, including the flow map; `llm` resolves to the same JSON |
-| `--project <name>`      | Audit a single project, by name or id                                               |
-| `--issues`              | List every finding instead of a count per check                                     |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                                |
-| `--divergence`          | List every consensus group with its variants and locations                          |
-| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable)                        |
-| `--min-confidence <n>`  | Consensus confidence below which a group raises no finding (default `0.25`)         |
-| `--skip-divergence`     | Do not run the consensus checks at all                                              |
+| Option                   | Description                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------- |
+| `[dir]`                  | Directory of synced `.deepnote` files (default: `.`)                                |
+| `-o, --output <format>`  | `json` for the full report, including the flow map; `llm` resolves to the same JSON |
+| `--project <name>`       | Audit a single project, by name or id                                               |
+| `--issues`               | List every finding instead of a count per check                                     |
+| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)                                |
+| `--divergence`           | List every consensus group with its variants and locations                          |
+| `--divergence-kind <k>`  | Limit consensus to `join`, `filter` or `metric` (repeatable)                        |
+| `--min-confidence <n>`   | Consensus confidence below which a group raises no finding (default `0.25`)         |
+| `--skip-divergence`      | Do not run the consensus checks at all                                              |
+| `--divergence-scope <s>` | Which queries may be compared: `integration` (default), `type`, or `none`           |
+| `--triage`               | Ask a model whether each group is a real defect (needs a configured endpoint)       |
+| `--triage-base-url <u>`  | OpenAI-compatible endpoint (or `DEEPNOTE_TRIAGE_BASE_URL`)                          |
+| `--triage-model <name>`  | Model to triage with (or `DEEPNOTE_TRIAGE_MODEL`)                                   |
+| `--triage-limit <n>`     | Triage only the n most confident groups                                             |
+| `--no-triage-cache`      | Ignore cached verdicts and ask again                                                |
+| `--export-review <f>`    | Write every group to `<f>` with a blank verdict, for review                         |
+| `--import-review <f>`    | Read verdicts back and use measured precision instead of the defaults               |
 
 ## How findings are ranked
 

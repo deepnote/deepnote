@@ -1,9 +1,10 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
+import { MIN_REVIEWED_FOR_PRECISION } from '../utils/governance/review'
 import { TRIAGE_ENV, type TriageProvider, type Verdict } from '../utils/governance/triage'
 import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
@@ -871,5 +872,167 @@ describe('audit command — triage', () => {
     await createAuditAction(program)(WORKSPACE, { triage: true, triageProvider: watcher })
 
     expect(called).toBe(false)
+  })
+})
+
+describe('audit command — divergence scoping end to end', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  async function divergence(options: AuditOptions = {}) {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', ...options })
+    return JSON.parse(getOutput(consoleSpy)).divergence as Array<{
+      kind: string
+      observations: number
+      scopeRule: string
+      scopeKey: string
+    }>
+  }
+
+  it('does not fold a second warehouse into the first', async () => {
+    // The fixture's Research project runs byte-identical SQL against its own Postgres
+    // integration. Under the old unscoped behaviour those queries joined every group.
+    const scoped = await divergence()
+    const pooled = await divergence({ divergenceScope: 'none' })
+
+    for (const group of scoped) {
+      const same = pooled.find(other => other.kind === group.kind)
+      expect(same?.observations).toBeGreaterThan(group.observations)
+    }
+    expect(scoped.every(group => group.scopeRule === 'integration')).toBe(true)
+  })
+
+  it('raises no finding from identical SQL behind a different integration', async () => {
+    const groups = await divergence()
+
+    // Research's two queries are alone in their scope, so neither reaches the observation floor.
+    expect(groups.every(group => group.scopeKey !== 'eeeeeeee-2222-4222-8222-eeeeeeeeeeee')).toBe(true)
+  })
+
+  it('records which rule admitted the queries, on every finding', async () => {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    for (const issue of report.issues.filter((i: { code: string }) => i.code === 'sql-divergence')) {
+      expect(issue.details.scopeRule).toBe('integration')
+      expect(typeof issue.details.scopeKey).toBe('string')
+    }
+  })
+})
+
+describe('audit command — review round trip', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let exitSpy: Mock<typeof process.exit>
+  let workDir: string
+
+  beforeEach(async () => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+    workDir = await mkdtemp(join(tmpdir(), 'deepnote-review-'))
+  })
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await rm(workDir, { recursive: true, force: true })
+  })
+
+  it('exports every group with a blank verdict and somewhere to look', async () => {
+    const path = join(workDir, 'review.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path })
+
+    const file = JSON.parse(await readFile(path, 'utf8'))
+    expect(file.reviewed).toBe(0)
+    expect(file.entries.length).toBeGreaterThan(0)
+    expect(file.entries.every((e: { verdict: string }) => e.verdict === '')).toBe(true)
+    expect(file.entries[0].variants[0].locations.length).toBeGreaterThan(0)
+    expect(getOutput(consoleSpy)).toContain('Review export')
+  })
+
+  it('refuses a review file with a verdict nobody can act on', async () => {
+    const path = join(workDir, 'bad.json')
+    await writeFile(
+      path,
+      JSON.stringify({ version: 1, entries: [{ id: 'x', kind: 'join', subject: 's', verdict: 'maybe' }] })
+    )
+
+    await expect(createAuditAction(program)(DIVERGENCE_WORKSPACE, { importReview: path })).rejects.toThrow(
+      'process.exit called'
+    )
+    expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+
+  it('reports measured precision but keeps the default below the floor', async () => {
+    const path = join(workDir, 'thin.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path })
+    const file = JSON.parse(await readFile(path, 'utf8'))
+    for (const entry of file.entries) {
+      entry.verdict = 'real'
+    }
+    await writeFile(path, JSON.stringify(file))
+    consoleSpy.mockClear()
+
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { importReview: path })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Measured precision')
+    // Three reviewed entries is an anecdote, not a precision.
+    expect(text).toContain(`needs ${MIN_REVIEWED_FOR_PRECISION} to be used`)
+  })
+
+  it('uses the measurement once there is enough of it, and says so in the JSON', async () => {
+    // A synthetic file with enough join verdicts to clear the floor, carrying the real ids so the
+    // measurement attaches to the groups the workspace actually produced.
+    const path = join(workDir, 'full.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path })
+    const file = JSON.parse(await readFile(path, 'utf8'))
+    const padding = Array.from({ length: MIN_REVIEWED_FOR_PRECISION }, (_, i) => ({
+      id: `pad-${i}`,
+      kind: 'join',
+      subject: `pad ${i}`,
+      verdict: 'real',
+      confidence: 0.5,
+      observations: 4,
+      projectCount: 4,
+      scopeKey: 'x',
+      variants: [],
+    }))
+    await writeFile(path, JSON.stringify({ ...file, entries: [...file.entries, ...padding] }))
+    consoleSpy.mockClear()
+
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', importReview: path })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const joins = report.issues.filter(
+      (i: { code: string; details: { kind: string } }) => i.code === 'sql-divergence' && i.details.kind === 'join'
+    )
+    expect(joins.length).toBeGreaterThan(0)
+    for (const issue of joins) {
+      expect(issue.details.signalSource).toBe('measured')
+      expect(issue.details.measuredPrecision).toBe(1)
+    }
   })
 })

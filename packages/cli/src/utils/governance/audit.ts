@@ -25,6 +25,7 @@ import {
   DEFAULT_MIN_CONFIDENCE,
   type DivergenceGroup,
   type DivergenceKind,
+  type DivergenceScope,
   dissenters,
   divergenceSignal,
   findDivergence,
@@ -206,6 +207,10 @@ export interface AuditOptions {
   divergence?: boolean
   /** Anchor families to look for. Defaults to all three. */
   divergenceKinds?: DivergenceKind[]
+  /** How strictly two queries must share a warehouse before they are compared. */
+  divergenceScope?: DivergenceScope
+  /** Precision measured from a reviewed sample, per kind. Displaces the prior where present. */
+  measuredPrecision?: Partial<Record<DivergenceKind, number>>
   /** Consensus confidence below which a divergence group is reported but raises no issue. */
   minConfidence?: number
   /**
@@ -465,6 +470,16 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   /** Every SQL block's claims, which is the corpus the consensus checks run over. */
   const observations: QueryObservation[] = []
 
+  // Integration types come from whichever project declared them; a block only carries the id.
+  const declaredTypes = new Map<string, string>()
+  for (const project of projects) {
+    for (const integration of project.integrations) {
+      if (integration.type) {
+        declaredTypes.set(integration.id, integration.type)
+      }
+    }
+  }
+
   for (const project of projects) {
     projectAges.set(project.id, assetAge(project.modifiedAt, now))
     for (const notebook of project.notebooks) {
@@ -559,7 +574,14 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
               blockId: block.id,
               blockLabel: blockMap.get(block.id)?.label ?? block.id,
             },
-            facts: extractQueryFacts(content),
+            // Which warehouse the query runs against. Two tables called `users` behind two
+            // connections are not one subject, so the consensus checks scope on this.
+            facts: extractQueryFacts(content, {
+              ...(integrationId ? { integrationId } : {}),
+              ...(integrationId && declaredTypes.get(integrationId)
+                ? { integrationType: declaredTypes.get(integrationId) }
+                : {}),
+            }),
           })
         }
         if (integrationId) {
@@ -839,7 +861,9 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // the report rather than dropped.
   const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE
   const divergence =
-    options.divergence === false ? [] : findDivergence(observations, { kinds: options.divergenceKinds })
+    options.divergence === false
+      ? []
+      : findDivergence(observations, { kinds: options.divergenceKinds, scope: options.divergenceScope })
 
   // Divergence anchors are short table names; the reach index is keyed by qualified name, because
   // that is what a query writes. Folding it here keeps `analytics.public.orders` and `orders` one
@@ -861,7 +885,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     // A verdict, when `--triage` ran, replaces the per-kind prior in `signal`. Both numbers are
     // recorded on the finding so a reviewer can always tell which one they are reading.
     const verdict = options.triage?.get(toCandidate(group).id)
-    const prior = divergenceSignal(group)
+    const measured = options.measuredPrecision ?? {}
+    const prior = divergenceSignal(group, measured)
     const signal = verdict ? group.confidence * VERDICT_SIGNAL[verdict.verdict] : prior
     const consensusCount = group.consensus.members.length
     const attestation = `${consensusCount} of ${group.observations} queries across ${group.projectCount} ${group.projectCount === 1 ? 'project' : 'projects'}`
@@ -910,9 +935,13 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           projectCount: group.projectCount,
           confidence: Number(group.confidence.toFixed(4)),
           // Which number produced `score.signal`, and what the other one was. Without this a
-          // reader cannot tell a model's judgement from a hardcoded constant.
-          signalSource: verdict ? 'triage' : 'prior',
+          // reader cannot tell a model's judgment from a hardcoded constant.
+          // Which queries were allowed into this comparison, and on what rule.
+          scopeRule: group.scopeRule,
+          scopeKey: group.scopeKey,
+          signalSource: verdict ? 'triage' : measured[group.kind] !== undefined ? 'measured' : 'prior',
           prior: Number(prior.toFixed(4)),
+          ...(measured[group.kind] !== undefined ? { measuredPrecision: measured[group.kind] } : {}),
           ...(verdict
             ? {
                 verdict: verdict.verdict,
@@ -971,6 +1000,12 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   }
   if (divergence.length > 0) {
     notes.push(DIVERGENCE_PRECISION_NOTE)
+  }
+  const unscopedQueries = observations.filter(observation => !observation.facts.integrationId).length
+  if (options.divergence !== false && unscopedQueries > 0) {
+    notes.push(
+      `${unscopedQueries} of ${observations.length} SQL blocks declare no integration. They are compared only with each other, never against a known warehouse, because two tables of the same name behind two connections are not the same table.`
+    )
   }
   if (options.divergence !== false && workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
     notes.push(

@@ -398,16 +398,20 @@ interpreter, and nothing leaves the machine.
 
 **Options:**
 
-| Option                  | Description                                                  | Default |
-| ----------------------- | ------------------------------------------------------------ | ------- |
-| `-o, --output <fmt>`    | Output format: `json` or `llm`                               | text    |
-| `--project <name>`      | Audit a single project, by name or id                        |         |
-| `--issues`              | List every finding instead of a count per check              | off     |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable)         |         |
-| `--divergence`          | List every consensus group, with variants and locations      | off     |
-| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable) | all     |
-| `--min-confidence <n>`  | Confidence below which a group raises no finding             | `0.25`  |
-| `--skip-divergence`     | Do not run the consensus checks at all                       | off     |
+| Option                   | Description                                                  | Default       |
+| ------------------------ | ------------------------------------------------------------ | ------------- |
+| `-o, --output <fmt>`     | Output format: `json` or `llm`                               | text          |
+| `--project <name>`       | Audit a single project, by name or id                        |               |
+| `--issues`               | List every finding instead of a count per check              | off           |
+| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)         |               |
+| `--divergence`           | List every consensus group, with variants and locations      | off           |
+| `--divergence-kind <k>`  | Limit consensus to `join`, `filter` or `metric` (repeatable) | all           |
+| `--min-confidence <n>`   | Confidence below which a group raises no finding             | `0.25`        |
+| `--skip-divergence`      | Do not run the consensus checks at all                       | off           |
+| `--divergence-scope <s>` | Compare only within `integration`, `type`, or `none`         | `integration` |
+| `--triage`               | Ask a model whether each group is a real defect              | off           |
+| `--export-review <f>`    | Write every group with a blank verdict, for review           |               |
+| `--import-review <f>`    | Use measured precision instead of the defaults               |               |
 
 Findings are **ranked, never gated**: `severity = signal × exposure × neglect × blast radius`, and
 every issue carries all four factors so you can disagree with one rather than with the number. Blast
@@ -415,7 +419,7 @@ radius is liveness-weighted — if a table is referenced by 100 projects of whic
 year, it is scored on the 12 — and neglect only ever raises severity, so a credential in an abandoned notebook
 ranks above one in a live notebook. The key still works.
 
-**Consensus.** Before two queries are compared they are normalised — aliases resolved to table
+**Consensus.** Before two queries are compared they are normalized — aliases resolved to table
 names, operand order sorted, composite join conditions merged per table pair — so these are one
 claim rather than three:
 
@@ -429,7 +433,18 @@ Each group's confidence is the Wilson lower bound on its consensus share, so a m
 discounted by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.49, 78-of-80 scores
 0.91. That replaces a minimum-sample threshold — thin evidence is ranked low rather than thrown
 away. `--divergence` prints every group with every variant and location, which is how this check's
-precision gets measured instead of asserted; it is currently judgement, not measurement.
+precision gets measured instead of asserted; it is currently judgment, not measurement.
+
+**Scoping.** Anchors are keyed by integration: `users` behind one connection is not compared with
+`users` behind another, because those are two tables that happen to share a name. Within a scope,
+dialect synonyms are folded, so `nvl(x, 0)` and `coalesce(x, 0)` are one claim.
+
+**Precision is measurable, not asserted.** `--export-review` writes every group with a blank
+verdict; `--import-review` reads them back and uses the measured precision per kind in place of the
+defaults, once there is enough of it. `--triage` adds an opt-in local-model pass that judges whether
+each group is a real defect — off by default, no default endpoint, redacted payloads bounded by
+finding count, verdicts cached, and never able to fail a run. See
+[the audit docs](/docs/deepnote-cli-audit) for the full behaviour.
 
 The report also inventories every table the workspace's SQL references, with its live and total
 project reach, and summarizes how much of the workspace is still maintained. A notebook with no

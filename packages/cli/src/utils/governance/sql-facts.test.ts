@@ -47,7 +47,7 @@ describe('extractQueryFacts — joins', () => {
     ])
   })
 
-  // The three normalisations that make cross-project consensus possible at all.
+  // The three normalizations that make cross-project consensus possible at all.
   it('gives the same claim however the join is written', () => {
     const canonical = 'orders↔users [orders.user_id=users.id]'
     expect(joinsIn('SELECT * FROM orders o JOIN users u ON o.user_id = u.id')).toEqual([canonical])

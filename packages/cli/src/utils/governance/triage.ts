@@ -12,10 +12,10 @@
  *   - a table pair joined two ways because the two joins answer different questions
  *   - filters and metrics that differ deliberately
  *
- * Normalising harder is not the fix and must not be used as one. Stripping table qualifiers
+ * Normalizing harder is not the fix and must not be used as one. Stripping table qualifiers
  * collapses genuine findings — a table rename that only half the workspace followed looks
- * identical once the qualifier is gone — so canonicalisation stays strictly semantics-preserving
- * and the judgement call is handed to a model.
+ * identical once the qualifier is gone — so canonicalization stays strictly semantics-preserving
+ * and the judgment call is handed to a model.
  *
  * ## What this module guarantees
  *
@@ -259,7 +259,7 @@ export class TriageCache {
       this.dirty = false
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => {})
-      // The cache is an optimisation. Failing to persist it must not fail the audit.
+      // The cache is an optimization. Failing to persist it must not fail the audit.
       warn(`Could not write the triage cache: ${error instanceof Error ? error.message : String(error)}`)
     }
   }

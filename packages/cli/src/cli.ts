@@ -1070,6 +1070,14 @@ ${c.bold('Examples:')}
     .option('--issues', 'List every finding instead of a count per check')
     .option('--divergence', 'List every divergence group with its variants and locations')
     .option('--skip-divergence', 'Do not run the cross-project consensus checks')
+    .addOption(
+      new Option(
+        '--divergence-scope <scope>',
+        'Which queries may be compared: same integration, same integration type, or any'
+      )
+        .choices(['integration', 'type', 'none'])
+        .default('integration')
+    )
     .option('--triage', 'Ask a model whether each divergence group is a real defect (needs a configured endpoint)')
     .option('--triage-base-url <url>', `OpenAI-compatible endpoint (or ${TRIAGE_ENV.baseUrl})`)
     .option('--triage-model <name>', `Model to triage with (or ${TRIAGE_ENV.model})`)
@@ -1081,6 +1089,8 @@ ${c.bold('Examples:')}
       return parsed
     })
     .option('--no-triage-cache', 'Ignore cached verdicts and ask the model again')
+    .option('--export-review <file>', 'Write every divergence group to <file> with a blank verdict, for review')
+    .option('--import-review <file>', 'Read reviewed verdicts back and use measured precision instead of the defaults')
     .option(
       '--divergence-kind <kind>',
       'Consensus anchors to check: join, filter or metric (repeatable, defaults to all three)',

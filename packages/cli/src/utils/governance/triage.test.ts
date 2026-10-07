@@ -142,7 +142,7 @@ describe('runTriage — what leaves the machine', () => {
   /**
    * A corpus whose variant forms really would carry a credential and an address.
    *
-   * A metric variant is the normalised aggregate expression, and that keeps string literals
+   * A metric variant is the normalized aggregate expression, and that keeps string literals
    * verbatim — so a `CASE WHEN … = '<literal>'` inside an aggregate is the path by which a secret
    * or an address reaches the payload. Join and filter forms are only column names, so they are
    * not the case worth testing.
@@ -154,7 +154,7 @@ describe('runTriage — what leaves the machine', () => {
   }
 
   it('the fixture really does put a literal in a variant form', () => {
-    // Guards the two tests below: if normalisation ever stops carrying literals they would pass
+    // Guards the two tests below: if normalization ever stops carrying literals they would pass
     // for the wrong reason, and the redaction they exist to check would be untested.
     const forms = leakyGroups().flatMap(group => group.variants.map(variant => variant.label))
     expect(forms.join(' ')).toContain(CREDENTIAL)

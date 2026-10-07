@@ -29,7 +29,7 @@
  * ## What this is not
  *
  * Precision here is unvalidated. The source spec puts joins near 55% and metrics near 29% on its
- * own corpus, by its author's own judgement, and nothing in this module improves on that — it makes
+ * own corpus, by its author's own judgment, and nothing in this module improves on that — it makes
  * the evidence inspectable instead. `deepnote audit --divergence` prints every group with every
  * variant and every location precisely so someone can click through them and replace those numbers
  * with measured ones.
@@ -62,7 +62,7 @@ export interface QueryObservation {
 
 /** One way of defining the anchor, and every query that defines it that way. */
 export interface DivergenceVariant {
-  /** Normalised form two queries are compared on. `ABSENT_VARIANT` means "says nothing". */
+  /** Normalized form two queries are compared on. `ABSENT_VARIANT` means "says nothing". */
   variant: string
   /** How to render the variant to a person. */
   label: string
@@ -73,6 +73,10 @@ export interface DivergenceGroup {
   kind: DivergenceKind
   /** Stable key: `orders|users`, `revenue`, `orders.is_test`. */
   anchor: string
+  /** The integration (or integration type) every query in this group runs against. */
+  scopeKey: string
+  /** Which rule put these queries in the same group. */
+  scopeRule: DivergenceScope
   /** How to render the anchor to a person: `orders ↔ users`. */
   anchorLabel: string
   /** Short names of the tables this anchor is about, for looking up its blast radius. */
@@ -94,7 +98,7 @@ export interface DivergenceGroup {
 /**
  * The variant of a query that reads a table and does not filter the anchor's column.
  *
- * Parenthesised so it can never collide with a normalised predicate, which is the bare word
+ * Parenthesised so it can never collide with a normalized predicate, which is the bare word
  * `applied`.
  */
 export const ABSENT_VARIANT = '(absent)'
@@ -118,18 +122,43 @@ export const DEFAULT_MIN_CONFIDENCE = 0.25
 
 /**
  * How much a divergence of each kind is worth when it is real, independent of how sure we are that
- * the consensus exists. Taken from the source spec's own hand-assessment of its output, and kept as
- * named constants so replacing them with measured precision is a one-line change.
+ * the consensus exists.
+ *
+ * **These are unmeasured starting points, not measurements.** They encode one claim only, and it is
+ * a structural one rather than an empirical one: a table pair means exactly one thing, so two
+ * queries relating it differently cannot both be right, whereas an output name is a convention and
+ * two teams may legitimately mean different things by `revenue`. Joins therefore start above
+ * metrics. The magnitudes are arbitrary.
+ *
+ * They are meant to be replaced. `--export-review` / `--import-review` measures precision per kind
+ * from a reviewed sample and `divergenceSignal` prefers the measurement wherever there is enough of
+ * it; `details.signalSource` always says which number produced the score.
  */
 export const KIND_PRECISION_PRIOR: Record<DivergenceKind, number> = {
-  join: 0.55,
+  join: 0.6,
   filter: 0.5,
-  metric: 0.29,
+  metric: 0.35,
 }
+
+/**
+ * How strictly two queries must share a warehouse before they are compared.
+ *
+ * `integration` is the honest default: a table named `users` behind one connection and a table
+ * named `users` behind another are not the same table, and comparing them manufactures a
+ * disagreement out of two unrelated systems. `type` is the useful relaxation — several projects
+ * often hold their own connection to the same warehouse, and those really are one subject.
+ * `none` restores the old behaviour and is kept only so the cost of the scoping is measurable.
+ */
+export type DivergenceScope = 'integration' | 'type' | 'none'
+
+/** Scope tag for queries whose block declares no `sql_integration_id`. */
+export const UNKNOWN_INTEGRATION = 'unknown'
 
 export interface DivergenceOptions {
   /** Kinds to look for. Defaults to all three. */
   kinds?: DivergenceKind[]
+  /** Defaults to `integration`. */
+  scope?: DivergenceScope
 }
 
 /** Accumulates one anchor's variants while the corpus is being walked. */
@@ -137,9 +166,26 @@ interface PendingGroup {
   kind: DivergenceKind
   anchor: string
   anchorLabel: string
+  scopeKey: string
+  scopeRule: DivergenceScope
   tables: string[]
   variants: Map<string, DivergenceVariant>
   projects: Set<string>
+}
+
+/**
+ * The warehouse a query runs against, as an anchor key.
+ *
+ * A block with no `sql_integration_id` goes in its own bucket and is never compared against a
+ * known one. Guessing that an undeclared query runs against the same warehouse as its neighbors
+ * is how a check starts inventing disagreements between systems that never shared a schema.
+ */
+function scopeKeyOf(facts: QueryFacts, scope: DivergenceScope): string {
+  if (scope === 'none') {
+    return ''
+  }
+  const key = scope === 'type' ? facts.integrationType : facts.integrationId
+  return key ?? UNKNOWN_INTEGRATION
 }
 
 function addVariant(
@@ -196,6 +242,8 @@ function finalizeGroups(groups: Map<string, PendingGroup>): DivergenceGroup[] {
       kind: group.kind,
       anchor: group.anchor,
       anchorLabel: group.anchorLabel,
+      scopeKey: group.scopeKey,
+      scopeRule: group.scopeRule,
       tables: group.tables,
       observations,
       projectCount: group.projects.size,
@@ -220,19 +268,23 @@ function finalizeGroups(groups: Map<string, PendingGroup>): DivergenceGroup[] {
  */
 export function findDivergence(observations: QueryObservation[], options: DivergenceOptions = {}): DivergenceGroup[] {
   const kinds = new Set(options.kinds ?? (['join', 'filter', 'metric'] as DivergenceKind[]))
+  const scope = options.scope ?? 'integration'
   const groups = new Map<string, PendingGroup>()
 
   if (kinds.has('join')) {
     for (const { location, facts } of observations) {
+      const scopeKey = scopeKeyOf(facts, scope)
       for (const join of facts.joins) {
         const anchor = join.tables.join('|')
         addVariant(
           groups,
-          `join:${anchor}`,
+          `join:${scopeKey}:${anchor}`,
           {
             kind: 'join',
             anchor,
             anchorLabel: join.tables.join(' ↔ '),
+            scopeKey,
+            scopeRule: scope,
             tables: join.tables,
           },
           join.keys.join(' AND '),
@@ -245,11 +297,19 @@ export function findDivergence(observations: QueryObservation[], options: Diverg
 
   if (kinds.has('metric')) {
     for (const { location, facts } of observations) {
+      const scopeKey = scopeKeyOf(facts, scope)
       for (const metric of facts.metrics) {
         addVariant(
           groups,
-          `metric:${metric.alias}`,
-          { kind: 'metric', anchor: metric.alias, anchorLabel: `"${metric.alias}"`, tables: facts.tables },
+          `metric:${scopeKey}:${metric.alias}`,
+          {
+            kind: 'metric',
+            anchor: metric.alias,
+            anchorLabel: `"${metric.alias}"`,
+            scopeKey,
+            scopeRule: scope,
+            tables: facts.tables,
+          },
           metric.expression,
           metric.expression,
           { location, evidence: metric.evidence, line: metric.line }
@@ -262,25 +322,30 @@ export function findDivergence(observations: QueryObservation[], options: Diverg
     // A filter anchor's population is every query that *reads* the table, not every query that
     // filters it — the whole point is to find the ones that do not. So the columns anyone filters
     // have to be known before the population can be walked.
+    // Per scope, not per table: "most queries against this warehouse filter this column" is a
+    // claim about one warehouse, and pooling two of them would let a convention in a busy
+    // integration manufacture findings against an unrelated one.
     const filteredColumns = new Map<string, Set<string>>()
     for (const { facts } of observations) {
       for (const filter of facts.filters) {
-        const columns = filteredColumns.get(filter.table) ?? new Set<string>()
+        const key = `${scopeKeyOf(facts, scope)}:${filter.table}`
+        const columns = filteredColumns.get(key) ?? new Set<string>()
         columns.add(filter.column)
-        filteredColumns.set(filter.table, columns)
+        filteredColumns.set(key, columns)
       }
     }
 
     for (const { location, facts } of observations) {
+      const scopeKey = scopeKeyOf(facts, scope)
       const applied = new Map(facts.filters.map(filter => [`${filter.table}.${filter.column}`, filter]))
       for (const table of facts.tables) {
-        for (const column of filteredColumns.get(table) ?? []) {
+        for (const column of filteredColumns.get(`${scopeKey}:${table}`) ?? []) {
           const anchor = `${table}.${column}`
           const filter = applied.get(anchor)
           addVariant(
             groups,
-            `filter:${anchor}`,
-            { kind: 'filter', anchor, anchorLabel: anchor, tables: [table] },
+            `filter:${scopeKey}:${anchor}`,
+            { kind: 'filter', anchor, anchorLabel: anchor, scopeKey, scopeRule: scope, tables: [table] },
             filter ? 'applied' : ABSENT_VARIANT,
             filter ? `filters ${anchor}` : `no filter on ${anchor}`,
             { location, evidence: filter?.evidence ?? '', line: filter?.line ?? 1 }
@@ -301,8 +366,11 @@ export function findDivergence(observations: QueryObservation[], options: Diverg
  * measured here). Keeping them separate is what lets a reviewer who disagrees with the prior
  * recompute the ranking without re-running the audit — both are reported in the issue details.
  */
-export function divergenceSignal(group: DivergenceGroup): number {
-  return group.confidence * KIND_PRECISION_PRIOR[group.kind]
+export function divergenceSignal(
+  group: DivergenceGroup,
+  measured: Partial<Record<DivergenceKind, number>> = {}
+): number {
+  return group.confidence * (measured[group.kind] ?? KIND_PRECISION_PRIOR[group.kind])
 }
 
 /** The members of every variant that is not the consensus — the queries a finding is raised for. */

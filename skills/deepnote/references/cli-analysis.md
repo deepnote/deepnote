@@ -93,16 +93,24 @@ Audit a synced workspace — the tree `deepnote sync` writes. Answers what `lint
 from one project: which integrations exist and who uses them, where data leaves to, and which
 credentials are shared across projects. Everything is local: no warehouse connection, no Python.
 
-| Option                  | Description                                                                 |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `-o, --output <format>` | Output format: `json`, `llm`                                                |
-| `--project <name>`      | Audit a single project, by name or id                                       |
-| `--issues`              | List every finding instead of a count per check                             |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                        |
-| `--divergence`          | List every consensus group with its variants and locations                  |
-| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable)                |
-| `--min-confidence <n>`  | Confidence below which a consensus group raises no finding (default `0.25`) |
-| `--skip-divergence`     | Do not run the consensus checks at all                                      |
+| Option                   | Description                                                                 |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `-o, --output <format>`  | Output format: `json`, `llm`                                                |
+| `--project <name>`       | Audit a single project, by name or id                                       |
+| `--issues`               | List every finding instead of a count per check                             |
+| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)                        |
+| `--divergence`           | List every consensus group with its variants and locations                  |
+| `--divergence-kind <k>`  | Limit consensus to `join`, `filter` or `metric` (repeatable)                |
+| `--min-confidence <n>`   | Confidence below which a consensus group raises no finding (default `0.25`) |
+| `--skip-divergence`      | Do not run the consensus checks at all                                      |
+| `--divergence-scope <s>` | Compare only within `integration` (default), `type`, or `none`              |
+| `--triage`               | Ask a model whether each group is a real defect                             |
+| `--triage-base-url <u>`  | OpenAI-compatible endpoint (or `DEEPNOTE_TRIAGE_BASE_URL`)                  |
+| `--triage-model <n>`     | Model name (or `DEEPNOTE_TRIAGE_MODEL`)                                     |
+| `--triage-limit <n>`     | Triage only the n most confident groups                                     |
+| `--no-triage-cache`      | Ignore cached verdicts                                                      |
+| `--export-review <f>`    | Write every group with a blank verdict, for review                          |
+| `--import-review <f>`    | Read verdicts back; measured precision replaces the defaults                |
 
 **Workspace-scoped checks:**
 
@@ -128,7 +136,7 @@ works). `signal` and `exposure` are judgment constants, not measured precision.
 **Consensus (`sql-divergence`).** Three anchors, each something that means the same thing in every
 notebook: a **join** (a table pair; variants are the join keys), a **filter** (a table column most
 queries constrain; variants are presence or absence, never the literal value), and a **metric** (an
-output name; variants are the aggregate behind it). Spelling is normalised first — aliases resolved,
+output name; variants are the aggregate behind it). Spelling is normalized first — aliases resolved,
 operand order sorted, composite conditions merged per table pair, tables keyed by short name — so
 `FROM orders o JOIN users u ON o.user_id = u.id` and `FROM users JOIN orders ON users.id =
 orders.user_id` are one claim rather than two.
@@ -140,6 +148,26 @@ majority by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.49,
 than asserted. A finding's `signal` is `confidence × a per-kind prior` (join 0.55, filter 0.5,
 metric 0.29), and `details` carries `observations`, `consensusCount`, `projectCount` and
 `confidence` so the ranking can be recomputed without re-running the audit.
+
+**Scoping.** Anchors are keyed by integration, so `users` behind one connection is never compared
+with `users` behind another. `--divergence-scope type` relaxes to the integration type; `none`
+pools everything. Blocks with no `sql_integration_id` form their own bucket and are never compared
+against a known warehouse — the count is in `notes`. Within a scope, dialect synonyms (`nvl` /
+`ifnull` / `coalesce`) are folded, so one intent written two ways is not a finding. Every finding
+carries `details.scopeRule` and `details.scopeKey`.
+
+**Precision.** The per-kind weights are unmeasured starting points, not measurements.
+`--export-review <file>` writes every group with a blank `verdict`; filling them in and passing
+`--import-review <file>` reports precision per kind and uses it in place of the default once ≥10
+entries of that kind are judged. `details.signalSource` is `prior`, `measured` or `triage`.
+
+**Triage (`--triage`).** Opt-in, and there is no default endpoint — `--triage` without
+`DEEPNOTE_TRIAGE_BASE_URL` exits 2. The model sees redacted, pre-grouped variant forms only, never
+blocks or outputs; the payload is bounded by finding count. Verdicts (`real`,
+`legitimate-difference`, `false-positive`) are cached under `.deepnote/` keyed by model. A verdict
+replaces the default in `signal`, with the displaced number kept in `details.prior`.
+`false-positive` moves the finding from `issues` to `suppressed`. Any failure warns once and the
+deterministic score stands; triage never fails a run.
 
 The report also inventories `tables` (name, `projectCount`, `liveProjectCount`, `blockCount`) and
 `staleness` (live / aging / cold / undated notebooks, median age). An undated notebook is never

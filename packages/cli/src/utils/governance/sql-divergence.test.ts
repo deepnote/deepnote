@@ -8,6 +8,7 @@ import {
   KIND_PRECISION_PRIOR,
   MIN_OBSERVATIONS,
   type QueryObservation,
+  UNKNOWN_INTEGRATION,
 } from './sql-divergence'
 import { extractQueryFacts } from './sql-facts'
 import { wilsonLowerBound } from './wilson'
@@ -330,5 +331,133 @@ describe('findDivergence — reporting', () => {
 
   it('returns nothing for an empty corpus rather than throwing', () => {
     expect(findDivergence([])).toEqual([])
+  })
+})
+
+describe('findDivergence — integration scoping', () => {
+  /** A query tagged with the warehouse it runs against. */
+  function scoped(projectId: string, sql: string, integrationId: string, integrationType: string, index = 0) {
+    return {
+      location: {
+        projectId,
+        projectName: projectId,
+        notebookName: `notebook-${index}`,
+        path: `${projectId}/file.deepnote`,
+        blockId: `${projectId}-${index}`,
+        blockLabel: sql.slice(0, 20),
+      },
+      facts: extractQueryFacts(sql, { integrationId, integrationType }),
+    }
+  }
+
+  const JOIN = 'SELECT * FROM orders o JOIN users u ON o.user_id = u.id'
+  const OTHER_JOIN = 'SELECT * FROM orders o JOIN users u ON o.email = u.email'
+
+  it('does not compare two warehouses that happen to share a table name', () => {
+    // `users` behind one connection and `users` behind another are not the same table. Pooling
+    // them manufactures a disagreement between systems that never shared a schema.
+    const groups = findDivergence(
+      [
+        scoped('p1', JOIN, 'warehouse', 'snowflake', 0),
+        scoped('p2', JOIN, 'warehouse', 'snowflake', 1),
+        scoped('p3', OTHER_JOIN, 'research', 'postgres', 2),
+      ],
+      { kinds: ['join'] }
+    )
+
+    expect(groups).toEqual([])
+  })
+
+  it('reports a disagreement within one integration', () => {
+    const groups = findDivergence(
+      [
+        scoped('p1', JOIN, 'warehouse', 'snowflake', 0),
+        scoped('p2', JOIN, 'warehouse', 'snowflake', 1),
+        scoped('p3', OTHER_JOIN, 'warehouse', 'snowflake', 2),
+      ],
+      { kinds: ['join'] }
+    )
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0]).toMatchObject({ scopeKey: 'warehouse', scopeRule: 'integration' })
+  })
+
+  it('can relax to integration type, for teams holding their own connection to one warehouse', () => {
+    const observations = [
+      scoped('p1', JOIN, 'warehouse-a', 'snowflake', 0),
+      scoped('p2', JOIN, 'warehouse-b', 'snowflake', 1),
+      scoped('p3', OTHER_JOIN, 'warehouse-c', 'snowflake', 2),
+    ]
+
+    expect(findDivergence(observations, { kinds: ['join'] })).toEqual([])
+    const relaxed = findDivergence(observations, { kinds: ['join'], scope: 'type' })
+    expect(relaxed).toHaveLength(1)
+    expect(relaxed[0]).toMatchObject({ scopeKey: 'snowflake', scopeRule: 'type' })
+  })
+
+  it('never compares an undeclared query against a known warehouse', () => {
+    // Guessing that an untagged block runs against its neighbors' warehouse is how a check starts
+    // inventing disagreements between systems that never shared a schema.
+    const groups = findDivergence(
+      [
+        scoped('p1', JOIN, 'warehouse', 'snowflake', 0),
+        scoped('p2', JOIN, 'warehouse', 'snowflake', 1),
+        query('p3', OTHER_JOIN, 2),
+      ],
+      { kinds: ['join'] }
+    )
+
+    expect(groups).toEqual([])
+  })
+
+  it('still compares undeclared queries with each other', () => {
+    const groups = findDivergence(corpus(JOIN, JOIN, OTHER_JOIN), { kinds: ['join'] })
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0].scopeKey).toBe(UNKNOWN_INTEGRATION)
+  })
+
+  it('pools everything under scope "none", which is what the old behaviour was', () => {
+    const groups = findDivergence(
+      [
+        scoped('p1', JOIN, 'warehouse', 'snowflake', 0),
+        scoped('p2', JOIN, 'research', 'postgres', 1),
+        scoped('p3', OTHER_JOIN, 'other', 'bigquery', 2),
+      ],
+      { kinds: ['join'], scope: 'none' }
+    )
+
+    expect(groups).toHaveLength(1)
+    expect(groups[0].scopeRule).toBe('none')
+  })
+})
+
+describe('findDivergence — dialect-equivalent spellings', () => {
+  it('does not report two names for the same function as a disagreement', () => {
+    const groups = findDivergence(
+      corpus(
+        'SELECT sum(nvl(o.amount, 0)) AS revenue FROM orders o',
+        'SELECT sum(coalesce(o.amount, 0)) AS revenue FROM orders o',
+        'SELECT sum(ifnull(o.amount, 0)) AS revenue FROM orders o'
+      ),
+      { kinds: ['metric'] }
+    )
+
+    expect(groups).toEqual([])
+  })
+
+  it('still reports a genuine difference beside a folded synonym', () => {
+    const groups = findDivergence(
+      corpus(
+        'SELECT sum(nvl(o.amount, 0)) AS revenue FROM orders o',
+        'SELECT sum(coalesce(o.amount, 0)) AS revenue FROM orders o',
+        'SELECT sum(coalesce(o.amount, 0)) AS revenue FROM orders o',
+        'SELECT sum(coalesce(o.amount_gross, 0)) AS revenue FROM orders o'
+      ),
+      { kinds: ['metric'] }
+    )
+
+    expect(groups).toHaveLength(1)
+    expect(dissenters(groups[0])[0].variant.label).toContain('amount_gross')
   })
 })

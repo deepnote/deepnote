@@ -1,12 +1,22 @@
-import { stat } from 'node:fs/promises'
+import { stat, writeFile } from 'node:fs/promises'
 import { join, relative, resolve } from 'node:path'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, isErrnoENOENT } from '../utils/file-resolver'
 import { type AuditIssue, auditWorkspace, scrubText, type WorkspaceAudit } from '../utils/governance/audit'
+import {
+  buildReviewFile,
+  compareTriageToReview,
+  loadReviewFile,
+  type MeasuredPrecision,
+  MIN_REVIEWED_FOR_PRECISION,
+  measurePrecision,
+  ReviewFileError,
+  usablePrecision,
+} from '../utils/governance/review'
 import { scoreOutOf100 } from '../utils/governance/scoring'
-import { ABSENT_VARIANT, type DivergenceKind } from '../utils/governance/sql-divergence'
+import { ABSENT_VARIANT, type DivergenceKind, type DivergenceScope } from '../utils/governance/sql-divergence'
 import { COLD_DAYS, formatAge } from '../utils/governance/staleness'
 import {
   createOpenAiCompatibleProvider,
@@ -33,6 +43,8 @@ export interface AuditOptions {
   minConfidence?: number
   /** Restrict the consensus checks to these anchor families. */
   divergenceKind?: DivergenceKind[]
+  /** How strictly two queries must share a warehouse before they are compared. */
+  divergenceScope?: DivergenceScope
   /** Ask a model whether each divergence group is a real defect. Off by default. */
   triage?: boolean
   /** Endpoint and model, when not taken from the environment. */
@@ -44,6 +56,10 @@ export interface AuditOptions {
   triageCache?: boolean
   /** Injected by tests; production resolves a provider from the configuration. */
   triageProvider?: TriageProvider
+  /** Write every divergence group to this file with a blank verdict, for a human to fill in. */
+  exportReview?: string
+  /** Read verdicts back and use the measured precision in place of the per-kind priors. */
+  importReview?: string
 }
 
 /** Issues printed in the terminal summary before it collapses the rest into a count. */
@@ -106,16 +122,36 @@ export function createAuditAction(
         divergence: !options.skipDivergence,
         divergenceKinds: options.divergenceKind,
         minConfidence: options.minConfidence,
+        divergenceScope: options.divergenceScope,
       }
 
       // Triage needs the groups, and the groups come from the audit — so the deterministic pass
       // runs first and is re-scored with the verdicts. One extra pass over an in-memory report is
       // cheaper than threading a provider through the engine, and it keeps `auditWorkspace` pure.
+      // A reviewed sample, when one exists, replaces the per-kind priors with a measurement.
+      const review = options.importReview
+        ? await loadReviewFile(resolve(process.cwd(), options.importReview))
+        : undefined
+      const measured = review ? measurePrecision(review) : undefined
+      if (measured) {
+        Object.assign(auditOptions, { measuredPrecision: usablePrecision(measured) })
+      }
+
       const deterministic = auditWorkspace(workspace, auditOptions)
-      const audit =
+      const triageResults =
         options.triage && deterministic.divergence.length > 0
-          ? auditWorkspace(workspace, { ...auditOptions, triage: await triageDivergence(deterministic, options) })
-          : deterministic
+          ? await triageDivergence(deterministic, options)
+          : undefined
+      const audit = triageResults
+        ? auditWorkspace(workspace, { ...auditOptions, triage: triageResults })
+        : deterministic
+
+      if (options.exportReview) {
+        await writeReviewFile(resolve(process.cwd(), options.exportReview), deterministic)
+      }
+      if (measured && options.output !== 'json') {
+        outputPrecision(measured, triageResults)
+      }
 
       if (options.output === 'json') {
         outputJson(audit)
@@ -127,7 +163,7 @@ export function createAuditAction(
       // A missing triage endpoint is a usage error, not a failure of the audit: the user asked for
       // something that has to be configured, and the message says how.
       const exitCode =
-        error instanceof FileResolutionError || error instanceof TriageConfigError
+        error instanceof FileResolutionError || error instanceof TriageConfigError || error instanceof ReviewFileError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
 
@@ -235,6 +271,67 @@ async function triageDivergence(audit: WorkspaceAudit, options: AuditOptions): P
   )
   output('')
   return run.results
+}
+
+/**
+ * Write the review file: every group, every variant, every location, and a blank verdict.
+ *
+ * This is the thing that turns "precision is unvalidated" from a caveat into a task. The order is
+ * the order a reviewer should work in — best-attested first — so a partially filled file still
+ * measures the part that matters most.
+ */
+async function writeReviewFile(path: string, audit: WorkspaceAudit): Promise<void> {
+  const file = buildReviewFile(audit.divergence)
+  await writeFile(path, `${JSON.stringify(file, null, 2)}\n`)
+
+  const c = getChalk()
+  output(c.bold('Review export'))
+  output(`  ${plural(file.entries.length, 'group')} written to ${relative(process.cwd(), path) || path}`)
+  output(c.dim(`  Set "verdict" on each to one of: real, legitimate-difference, false-positive.`))
+  output(c.dim(`  Then: deepnote audit <dir> --import-review ${relative(process.cwd(), path) || path}`))
+  output('')
+}
+
+/** Report what the reviewed sample measured, and how a model run compared against it. */
+function outputPrecision(measured: MeasuredPrecision, triage?: Map<string, TriageResult>): void {
+  const c = getChalk()
+  output(c.bold('Measured precision'))
+  if (measured.reviewed === 0) {
+    output(c.dim('  The review file has no verdicts yet, so the per-kind defaults still apply.'))
+    output('')
+    return
+  }
+
+  for (const kind of ['join', 'filter', 'metric'] as const) {
+    const row = measured.byKind[kind]
+    if (row.reviewed === 0) {
+      continue
+    }
+    const enough = row.reviewed >= MIN_REVIEWED_FOR_PRECISION
+    const share = `${row.real}/${row.reviewed}`
+    // Below the floor the measurement is noisier than the guess it would replace, so it is
+    // reported and not used — and the line says which.
+    output(
+      `  ${kind.padEnd(6)} ${c.bold(((row.precision ?? 0) * 100).toFixed(0).padStart(3))}% ${c.dim(`(${share} judged real)`)} ${
+        enough ? c.dim('— used in place of the default') : c.yellow(`— needs ${MIN_REVIEWED_FOR_PRECISION} to be used`)
+      }`
+    )
+  }
+
+  if (triage && triage.size > 0) {
+    output('')
+    output(c.bold('Triage agreement with the reviewer'))
+    for (const row of compareTriageToReview(measured, triage)) {
+      if (row.compared === 0) {
+        continue
+      }
+      output(
+        `  ${row.kind.padEnd(6)} ${c.bold(((row.rate ?? 0) * 100).toFixed(0).padStart(3))}% ${c.dim(`(${row.agreed}/${row.compared})`)}`
+      )
+    }
+    output(c.dim('  Without this number the model is one unmeasured judgment replacing another.'))
+  }
+  output('')
 }
 
 function plural(count: number, noun: string): string {

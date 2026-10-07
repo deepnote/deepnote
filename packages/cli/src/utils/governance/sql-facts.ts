@@ -9,7 +9,7 @@
  *   metrics  what this named number means       `revenue → sum(orders.amount)`
  *   filters  which columns this query filters   `orders.is_test`
  *
- * Normalisation is the whole job. `FROM orders o JOIN users u ON o.user_id = u.id` and
+ * Normalization is the whole job. `FROM orders o JOIN users u ON o.user_id = u.id` and
  * `FROM users JOIN orders ON users.id = orders.user_id` are the same claim written two ways, and a
  * check that cannot see that will report every alias and every operand order as a disagreement.
  * So aliases are resolved to table names, operand order is sorted, and composite conditions are
@@ -17,15 +17,23 @@
  *
  * Tables are anchored on their **short name**: `analytics.public.users` and `users` are taken to be
  * the same table. Two projects routinely qualify the same warehouse table differently, and treating
- * those as separate subjects would silently split every consensus in half. The cost is that
- * `staging.users` and `prod.users` are conflated, which the divergence report notes.
+ * those as separate subjects would silently split every consensus in half.
+ *
+ * Worth re-reading now that anchors are scoped per integration. Scoping removes the worse half of
+ * the cost — `users` behind one connection is no longer compared with `users` behind another, which
+ * was a comparison between unrelated systems. What remains is two schemas inside a single
+ * warehouse, `staging.users` against `prod.users`, which is a narrower and more plausible
+ * conflation. Keying on the qualified name instead would trade it for a worse one: the same table
+ * written `analytics.public.users` in one notebook and `users` in another would stop being one
+ * subject, and that is the common case rather than the exotic one. Short name stays; the residual
+ * limit is stated in the report.
  *
  * Everything here is lexical. There is no catalogue, so a column's table can only be recovered when
  * the query qualifies it or reads exactly one table; unresolvable references are dropped rather
  * than guessed, which makes this a lower bound on what a query claims.
  */
 
-import { EQUALITY_OPERATORS, readColumnReferenceEndingAt, type SqlToken, tokenizeSql } from './sql-scanner'
+import { readColumnReferenceEndingAt, type SqlToken, tokenizeSql } from './sql-scanner'
 
 /**
  * Operators that state two columns are the same value, and so give a join key.
@@ -42,7 +50,7 @@ const JOIN_KEY_OPERATORS = new Set(['=', '<=>'])
 export interface JoinFact {
   /** Short names of the two tables, sorted, so operand order cannot create a second variant. */
   tables: [string, string]
-  /** Normalised `table.column=table.column` equalities, sorted and deduplicated. */
+  /** Normalized `table.column=table.column` equalities, sorted and deduplicated. */
   keys: string[]
   /** The conditions as written, for the report. */
   evidence: string
@@ -53,7 +61,7 @@ export interface JoinFact {
 export interface MetricFact {
   /** The output name, lower-cased: `revenue`. */
   alias: string
-  /** The aggregate expression, normalised: `sum(orders.amount)`. */
+  /** The aggregate expression, normalized: `sum(orders.amount)`. */
   expression: string
   evidence: string
   line: number
@@ -68,7 +76,41 @@ export interface FilterFact {
   line: number
 }
 
+/**
+ * Dialect-equivalent function names, folded to one spelling before expressions are compared.
+ *
+ * Only safe once an anchor is scoped to an integration *type*: `ifnull` and `nvl` mean the same
+ * thing, but folding them across two different warehouses would claim an agreement that was never
+ * tested. Within one dialect family they are the same intent written two ways, which is exactly
+ * what divergence must not report.
+ */
+const DIALECT_SYNONYMS: Record<string, string> = {
+  nvl: 'coalesce',
+  ifnull: 'coalesce',
+  isnull: 'coalesce',
+  countif: 'count_if',
+  sumif: 'sum_if',
+  str_to_date: 'to_date',
+  datepart: 'extract',
+  char_length: 'length',
+  character_length: 'length',
+  strpos: 'position',
+  instr: 'position',
+  approx_distinct: 'approx_count_distinct',
+  stddev_samp: 'stddev',
+  var_samp: 'variance',
+}
+
+/** Fold a function name onto its canonical spelling, when the dialects share one. */
+export function canonicalFunctionName(name: string): string {
+  return DIALECT_SYNONYMS[name] ?? name
+}
+
 export interface QueryFacts {
+  /** The integration the block runs against, when it declares one. */
+  integrationId?: string
+  /** That integration's type — `snowflake`, `postgres` — when the project declares it. */
+  integrationType?: string
   /** Short names of every table the query reads, deduplicated. */
   tables: string[]
   /** Fully-qualified names as written, for looking the table up in the workspace's reach index. */
@@ -247,7 +289,7 @@ const CLAUSE_BOUNDARY = new Set([
 ])
 
 /** Tokens that may sit beside a bare boolean column: `WHERE active AND …`. */
-const BOOLEAN_NEIGHBOURS = new Set(['and', 'or', 'not', 'where', 'on'])
+const BOOLEAN_NEIGHBORS = new Set(['and', 'or', 'not', 'where', 'on'])
 
 const IDENTIFIER_TYPES = new Set(['word', 'quotedIdentifier'])
 
@@ -255,7 +297,7 @@ const IDENTIFIER_TYPES = new Set(['word', 'quotedIdentifier'])
  * Words that are never a column, however much they look like one to a lexer.
  *
  * Without this, `SUM(CASE WHEN … END)` over a single-table query resolves `case`, `when` and `end`
- * to columns of that table, and the normalised expression becomes nonsense that no two queries can
+ * to columns of that table, and the normalized expression becomes nonsense that no two queries can
  * agree on. A quoted `"end"` is still a column — only bare words are excluded.
  */
 const SQL_KEYWORDS = new Set([
@@ -590,6 +632,9 @@ function normalizeExpression(
     const token = tokens[i]
     if (token.type === 'string') {
       emitValue(`'${token.value}'`)
+    } else if (token.type === 'word' && tokens[i + 1]?.text === '(') {
+      // A function call: fold dialect synonyms so `nvl(x, 0)` and `coalesce(x, 0)` are one claim.
+      emitValue(canonicalFunctionName(token.value.toLowerCase()))
     } else if (token.type === 'word' || token.type === 'number' || token.type === 'parameter') {
       emitValue(token.value.toLowerCase())
     } else {
@@ -848,12 +893,12 @@ function readFilters(tokens: SqlToken[], resolve: ReturnType<typeof makeResolver
 
       // A bare boolean column: `WHERE is_active AND …`, `WHERE NOT is_deleted`.
       const boundedBefore =
-        !before || before.text === '(' || (before.type === 'word' && BOOLEAN_NEIGHBOURS.has(before.value))
+        !before || before.text === '(' || (before.type === 'word' && BOOLEAN_NEIGHBORS.has(before.value))
       const boundedAfter =
         reference.endIndex === range.end ||
         !after ||
         after.text === ')' ||
-        (after.type === 'word' && BOOLEAN_NEIGHBOURS.has(after.value))
+        (after.type === 'word' && BOOLEAN_NEIGHBORS.has(after.value))
       if (boundedBefore && boundedAfter) {
         record(reference, range.end)
       }
@@ -864,8 +909,14 @@ function readFilters(tokens: SqlToken[], resolve: ReturnType<typeof makeResolver
   return filters
 }
 
+/** Where the query runs, when the block says. */
+export interface QueryContext {
+  integrationId?: string
+  integrationType?: string
+}
+
 /** Everything one query claims. Pure and dependency-free: a lexer pass and some bookkeeping. */
-export function extractQueryFacts(sql: string): QueryFacts {
+export function extractQueryFacts(sql: string, context: QueryContext = {}): QueryFacts {
   const tokens = tokenizeSql(sql)
   const items = readFromItems(tokens)
   const resolve = makeResolver(items)
@@ -873,6 +924,8 @@ export function extractQueryFacts(sql: string): QueryFacts {
   const qualifiedTables = [...new Set(items.filter(item => item.qualified).map(item => item.qualified as string))]
 
   return {
+    ...(context.integrationId ? { integrationId: context.integrationId } : {}),
+    ...(context.integrationType ? { integrationType: context.integrationType } : {}),
     tables: [...new Set(qualifiedTables.map(shortName))],
     qualifiedTables,
     joins: readJoins(tokens, resolve),
