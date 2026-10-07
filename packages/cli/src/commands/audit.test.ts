@@ -972,6 +972,18 @@ describe('audit command — review round trip', () => {
     expect(getOutput(consoleSpy)).toContain('Review export')
   })
 
+  it('keeps -o json parseable while still writing the review file', async () => {
+    // The export announcement is four lines of instructions. In front of a JSON document, with the
+    // command still exiting 0, a pipeline reads a successful run and unparseable output.
+    const path = join(workDir, 'review.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path, output: 'json' })
+
+    const stdout = getOutput(consoleSpy)
+    expect(() => JSON.parse(stdout)).not.toThrow()
+    expect(stdout).not.toContain('Review export')
+    expect(JSON.parse(await readFile(path, 'utf8')).entries.length).toBeGreaterThan(0)
+  })
+
   it('refuses a review file with a verdict nobody can act on', async () => {
     const path = join(workDir, 'bad.json')
     await writeFile(

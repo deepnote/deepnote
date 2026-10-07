@@ -147,7 +147,7 @@ export function createAuditAction(
         : deterministic
 
       if (options.exportReview) {
-        await writeReviewFile(resolve(process.cwd(), options.exportReview), deterministic)
+        await writeReviewFile(resolve(process.cwd(), options.exportReview), deterministic, options.output !== 'json')
       }
       if (measured && options.output !== 'json') {
         outputPrecision(measured, triageResults)
@@ -280,9 +280,16 @@ async function triageDivergence(audit: WorkspaceAudit, options: AuditOptions): P
  * the order a reviewer should work in — best-attested first — so a partially filled file still
  * measures the part that matters most.
  */
-async function writeReviewFile(path: string, audit: WorkspaceAudit): Promise<void> {
+async function writeReviewFile(path: string, audit: WorkspaceAudit, announce: boolean): Promise<void> {
   const file = buildReviewFile(audit.divergence)
   await writeFile(path, `${JSON.stringify(file, null, 2)}\n`)
+
+  // Under `-o json` stdout is one document a caller parses. Four lines of instructions in front of
+  // it is not a cosmetic problem: the command still exits 0, so a pipeline reads a successful run
+  // and unparseable output.
+  if (!announce) {
+    return
+  }
 
   const c = getChalk()
   output(c.bold('Review export'))

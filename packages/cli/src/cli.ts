@@ -37,6 +37,7 @@ import { DEEPNOTE_TOKEN_ENV } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
+import { CONSENSUS_PROJECT_FLOOR } from './utils/governance/audit'
 import { DIVERGENCE_KINDS, type DivergenceKind } from './utils/governance/sql-divergence'
 import { TRIAGE_ENV } from './utils/governance/triage'
 import { parseTimeoutSeconds } from './utils/parse-timeout'
@@ -1158,9 +1159,10 @@ ${c.bold('Limits it reports rather than hides:')}
   - Egress is a lower bound: a host assembled from variables at run time is invisible.
   - Integration usage counts SQL blocks in notebooks only; dbt, BI tools and other
     consumers of the same warehouse are not visible from here.
-  - Divergence precision is unvalidated, and consensus thins out below roughly 130
-    projects. Every group is ranked by a Wilson lower bound rather than filtered by a
-    threshold, and ${c.dim('--divergence')} prints all of them so the ranking can be checked.
+  - Divergence precision is unvalidated, and consensus thins out below roughly
+    ${CONSENSUS_PROJECT_FLOOR} projects. Every group is ranked by a Wilson lower bound rather than
+    filtered by a threshold, and ${c.dim('--divergence')} prints all of them so the ranking can be
+    checked.
   - Table identity is the short name, so analytics.users and staging.users are one
     subject. Column-level and schema-aware checks need the warehouse catalogue, which
     this command never connects to.

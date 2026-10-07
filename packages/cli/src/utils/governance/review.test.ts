@@ -77,6 +77,32 @@ describe('buildReviewFile', () => {
     expect(buildReviewFile([group]).entries[0].id).toBe(toCandidate(group).id)
   })
 
+  it('still lines up when a form carries a literal, which is when it used not to', async () => {
+    // Ids are hashed from the *redacted* forms. Building them from the raw labels agreed with
+    // triage on every group whose SQL happened to carry nothing worth redacting, and disagreed
+    // silently on the ones that did — so a filled-in file measured precision over no entries and
+    // reported that as an empty result rather than as a mismatch.
+    const { toCandidate } = await import('./triage')
+    const withLiteral = (expression: string) =>
+      `SELECT ${expression} FILTER (WHERE owner = 'jane.doe@acme-corp.io') AS revenue FROM orders`
+    const [group] = findDivergence(
+      [
+        withLiteral('sum(amount)'),
+        withLiteral('sum(amount)'),
+        withLiteral('sum(amount)'),
+        withLiteral('sum(total)'),
+      ].map((sql, i) => query(`p${i}`, sql, i)),
+      { kinds: ['metric'] }
+    )
+    const entry = buildReviewFile([group]).entries[0]
+
+    expect(entry.id).toBe(toCandidate(group).id)
+    // And the file a reviewer is asked to pass around holds no address.
+    expect(group.variants[0].label).toContain('jane.doe@acme-corp.io')
+    expect(JSON.stringify(entry)).not.toContain('jane.doe@acme-corp.io')
+    expect(entry.variants[0].form).toContain('<redacted>')
+  })
+
   it('orders best-attested first, so a partly filled file measures the part that matters', () => {
     const observations = [
       ...[JOIN, JOIN, JOIN, JOIN, JOIN, JOIN_DIVERGENT].map((sql, i) => query(`a${i}`, sql, i)),
