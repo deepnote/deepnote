@@ -2,11 +2,11 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
+import type * as cloudSync from '@deepnote/cloud-sync'
+import { assertNoSymbolicLinkAncestors, loadSyncManifest, saveSyncManifest } from '@deepnote/cloud-sync'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import type * as syncManifest from '../utils/sync-manifest'
-import { assertNoSymbolicLinkAncestors, loadSyncManifest, saveSyncManifest } from '../utils/sync-manifest'
 import {
   canonicalProjectHash,
   classifySyncStep,
@@ -20,8 +20,8 @@ import {
 vi.mock('@inquirer/prompts', () => ({ select: vi.fn() }))
 // Wrapped (still the real implementations) so a test can watch manifest saves overlap and see
 // when each project starts.
-vi.mock('../utils/sync-manifest', async importOriginal => {
-  const actual = await importOriginal<typeof syncManifest>()
+vi.mock('@deepnote/cloud-sync', async importOriginal => {
+  const actual = await importOriginal<typeof cloudSync>()
   return {
     ...actual,
     saveSyncManifest: vi.fn(actual.saveSyncManifest),
@@ -1932,7 +1932,7 @@ describe('syncWorkspace', () => {
       }
       await fs.mkdir(path.join(tempDir, 'B', '.files'), { recursive: true })
       await fs.writeFile(path.join(tempDir, 'B', '.files', 'one.csv'), 'a', 'utf-8')
-      const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
+      const actual = await vi.importActual<typeof cloudSync>('@deepnote/cloud-sync')
       const bSaving = deferred()
       const releaseSave = deferred()
       vi.mocked(saveSyncManifest).mockImplementation(async (...args) => {
@@ -1981,7 +1981,7 @@ describe('syncWorkspace', () => {
         await fs.writeFile(path.join(tempDir, name, '.files', 'one.csv'), 'a', 'utf-8')
         await fs.writeFile(path.join(tempDir, name, '.files', 'two.csv'), 'b', 'utf-8')
       }
-      const actual = await vi.importActual<typeof syncManifest>('../utils/sync-manifest')
+      const actual = await vi.importActual<typeof cloudSync>('@deepnote/cloud-sync')
       let saving = 0
       let peakSaving = 0
       vi.mocked(saveSyncManifest).mockClear()

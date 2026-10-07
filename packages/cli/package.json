@@ -44,6 +44,7 @@
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
     "@deepnote/cloud": "workspace:*",
+    "@deepnote/cloud-sync": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/database-integrations": "workspace:*",
     "@deepnote/local-runner": "workspace:*",

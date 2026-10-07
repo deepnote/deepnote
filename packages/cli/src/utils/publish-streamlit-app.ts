@@ -6,11 +6,11 @@ import {
   StreamlitAppTimeoutError,
   waitForStreamlitApp,
 } from '@deepnote/cloud'
+import { isSafeRelativeFilePath } from '@deepnote/cloud-sync'
 import { ApiError } from '@deepnote/database-integrations'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
 import { getChalk, getOutputConfig, log, error as logError, warn } from '../output'
-import { isSafeRelativeFilePath } from './sync-paths'
 
 export interface PublishStreamlitAppOptions {
   url: string
