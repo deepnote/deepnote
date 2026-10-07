@@ -404,7 +404,7 @@ every connection — so the same report backs the terminal summary, a dashboard,
 
 The report states its own limits on every run: egress is a lower bound (a host assembled from
 variables at run time is invisible), integration usage counts SQL blocks in notebooks only, and
-cross-project consensus checks are not run below roughly 130 projects.
+cross-project consensus checks are not run below roughly 100 projects.
 
 **Exit codes:** `0` = the workspace was audited — findings never fail the command, because an audit
 is an inventory rather than a gate; use `deepnote lint --governance` in CI. `1` = the workspace could

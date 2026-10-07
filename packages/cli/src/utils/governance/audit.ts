@@ -113,11 +113,15 @@ export interface AuditOptions {
 }
 
 /**
- * Below this many projects, cross-project consensus checks have nothing to measure: two queries
+ * Below this many projects, cross-project consensus checks have little to measure: two queries
  * agreeing is not a convention, and the ranking they produce would be noise presented as signal.
  * Inventory and flow are unaffected — they are counts, not consensus.
+ *
+ * A round order-of-magnitude figure, not a measured threshold, and nothing is gated on it: below
+ * the line the audit still runs the consensus checks and adds a note saying how far below it is.
+ * The per-group Wilson bound is what actually discounts thin evidence.
  */
-export const CONSENSUS_PROJECT_FLOOR = 130
+export const CONSENSUS_PROJECT_FLOOR = 100
 
 const DIVERGENCE_NOTE = `Divergence checks need roughly ${CONSENSUS_PROJECT_FLOOR}+ projects before consensus means anything, and are not run here.`
 

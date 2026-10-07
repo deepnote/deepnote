@@ -110,8 +110,9 @@ clean bill of health:
 - **Integration usage counts SQL blocks in notebooks only.** dbt models, BI tools and other
   consumers of the same warehouse are not visible from a Deepnote workspace.
 - **Consensus checks are not run.** Finding the same metric defined two different ways needs a
-  workspace large enough for agreement to mean something — well over a hundred projects. Below
-  that, a ranking of "divergent" definitions is noise presented as signal.
+  workspace large enough for agreement to mean something — roughly 100 projects, as an order of
+  magnitude rather than a measured threshold. Below that, a ranking of "divergent" definitions is
+  noise presented as signal.
 
 ## Audit is not a gate
 

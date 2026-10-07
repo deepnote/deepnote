@@ -117,7 +117,7 @@ data, not a drawing — render it however you need.
 
 **Limits the report states on every run:** egress only sees hosts written into block content, not
 ones assembled at run time; integration usage counts SQL blocks in notebooks only (dbt and BI tools
-are invisible); and cross-project consensus checks are not run below roughly 130 projects.
+are invisible); and cross-project consensus checks are not run below roughly 100 projects.
 
 **Exit codes:** 0 = the workspace was audited (findings never fail the command — audit is an
 inventory, not a gate; use `lint --governance` in CI), 1 = the workspace could not be read, 2 =
