@@ -308,13 +308,32 @@ deepnote lint my-project.deepnote
 - **missing-integration** - SQL blocks using integrations that are not configured
 - **missing-input** - Input blocks without default values
 
+**Governance checks (`--governance`):**
+
+| Code                   | Finding                                                                   |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `sql-null-comparison`  | `= NULL` never matches a row — use `IS NULL`                              |
+| `sql-tautology`        | A column compared to itself, making the join or filter a no-op            |
+| `sql-string-boolean`   | A column compared to the string `'true'`/`'false'` instead of the keyword |
+| `credential-hardcoded` | A credential written into a block                                         |
+
+Credentials are reported by a truncated SHA-256 fingerprint, never by value, so the output is safe
+to paste into a ticket and the same key is still recognisable across blocks. The SQL checks read the
+query text only: no warehouse connection, no schema, and no Python interpreter is required.
+
+`--governance` covers what a single project can answer on its own. The checks that compare projects
+against each other — duplicated metric definitions, personal data scattered across notebooks, writes
+to third-party hosts, abandoned assets — need the whole synced workspace, and lint says so rather
+than reporting an empty result.
+
 **Options:**
 
-| Option               | Description                    | Default |
-| -------------------- | ------------------------------ | ------- |
-| `-o, --output <fmt>` | Output format: `json` or `llm` | text    |
-| `--notebook <name>`  | Lint only a specific notebook  |         |
-| `--python <path>`    | Path to Python interpreter     |         |
+| Option               | Description                                 | Default |
+| -------------------- | ------------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm`              | text    |
+| `--notebook <name>`  | Lint only a specific notebook               |         |
+| `--python <path>`    | Path to Python interpreter                  |         |
+| `--governance`       | Also run the governance checks listed above | off     |
 
 **Exit codes:** `0` = no errors (warnings may be present), `1` = errors found, `2` = invalid usage.
 
@@ -329,6 +348,9 @@ deepnote lint my-project.deepnote -o json
 
 # Use in CI pipeline
 deepnote lint my-project.deepnote || exit 1
+
+# Add the governance checks
+deepnote lint my-project.deepnote --governance
 ```
 
 ### `stats <path>`

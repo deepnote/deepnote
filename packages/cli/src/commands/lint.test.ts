@@ -20,6 +20,8 @@ vi.mock('../utils/python-resolution', () => ({
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+// A project that deliberately contains one of every project-scoped governance finding.
+const GOVERNANCE_FILE = join('test-fixtures', 'governance-findings.deepnote')
 
 // The (only) SQL integration id referenced by the SQL block in 3_integrations.deepnote. Tests that
 // want this integration to read as "missing" unset its generated SQL_* env var via vi.stubEnv.
@@ -668,6 +670,98 @@ describe('lint command', () => {
     })
   })
 
+  describe('--governance', () => {
+    /** The governance fixture has unconfigured integrations, so lint always exits non-zero. */
+    function allowExit(): void {
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+    }
+
+    it('reports the project-scoped governance findings', async () => {
+      setOutputConfig({ color: false })
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), GOVERNANCE_FILE), { governance: true })
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('sql-null-comparison')
+      expect(output).toContain('sql-tautology')
+      expect(output).toContain('sql-string-boolean')
+      expect(output).toContain('credential-hardcoded')
+    })
+
+    it('does not run the governance checks unless asked', async () => {
+      setOutputConfig({ color: false })
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), GOVERNANCE_FILE), DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).not.toContain('sql-null-comparison')
+      expect(output).not.toContain('credential-hardcoded')
+      expect(output).not.toContain('Governance:')
+    })
+
+    it('never prints the credential itself', async () => {
+      setOutputConfig({ color: false })
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), GOVERNANCE_FILE), { governance: true })
+
+      expect(getOutput(consoleSpy)).not.toContain('AKIAIOSFODNN7EXAMPLE')
+    })
+
+    it('states the scope it covered, so an empty result is not read as a clean workspace', async () => {
+      setOutputConfig({ color: false })
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), HELLO_WORLD_FILE), { governance: true })
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('No issues found')
+      expect(output).toContain('Governance: scanned')
+      expect(output).toContain('need the whole synced workspace')
+    })
+
+    it('includes the governance summary in JSON output', async () => {
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), GOVERNANCE_FILE), { governance: true, output: 'json' })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      expect(parsed.governance.scope).toBe('project')
+      expect(parsed.governance.scanned.sqlBlocks).toBe(2)
+      expect(parsed.governance.credentialFingerprints).toHaveLength(1)
+      expect(parsed.governance.note).toContain('synced workspace')
+
+      const codes = parsed.issues.map((issue: { code: string }) => issue.code)
+      expect(codes).toContain('sql-null-comparison')
+      expect(codes).toContain('credential-hardcoded')
+    })
+
+    it('omits the governance key from JSON output when not requested', async () => {
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), GOVERNANCE_FILE), { output: 'json' })
+
+      expect(JSON.parse(getOutput(consoleSpy)).governance).toBeUndefined()
+    })
+
+    it('counts governance errors towards the exit code', async () => {
+      const action = createLintAction(program)
+
+      await expect(action(resolve(process.cwd(), GOVERNANCE_FILE), { governance: true })).rejects.toThrow(
+        'process.exit called'
+      )
+      expect(exitSpy).toHaveBeenCalledWith(1)
+    })
+  })
+
   describe('global options', () => {
     describe('--no-color', () => {
       it('produces output without ANSI escape codes when color is disabled', async () => {
@@ -884,6 +978,23 @@ describe('lint command - linting integrations yaml directly', () => {
     const stderr = consoleErrorSpy.mock.calls.flat().join('\n')
     expect(stderr).toContain('--integrations-file is ignored')
     expect(getOutput(consoleSpy)).not.toContain('--integrations-file is ignored')
+  })
+
+  it('warns on stderr when --governance is passed alongside a direct YAML path', async () => {
+    setOutputConfig({ color: false })
+    const action = createLintAction(program)
+    const intFile = join(tempDir, 'warn-governance.yaml')
+    await writeFile(intFile, 'integrations: []')
+
+    exitSpy.mockRestore()
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+    // An integrations file has no blocks, so there is nothing for the governance checks to read.
+    await action(intFile, { governance: true })
+
+    const stderr = consoleErrorSpy.mock.calls.flat().join('\n')
+    expect(stderr).toContain('--governance is ignored')
+    expect(getOutput(consoleSpy)).toContain('No issues found')
   })
 
   it('outputs valid JSON for a clean integrations yaml file', async () => {

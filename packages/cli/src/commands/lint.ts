@@ -23,6 +23,7 @@ export interface LintOptions {
   notebook?: string
   python?: string
   integrationsFile?: string
+  governance?: boolean
 }
 
 export interface IntegrationsFileResult {
@@ -138,6 +139,10 @@ export function createLintAction(_program: Command): (path: string | undefined, 
         if (options.integrationsFile) {
           warn('Warning: --integrations-file is ignored when linting an integrations YAML file directly')
         }
+        if (options.governance) {
+          // The governance checks read blocks; an integrations file has none.
+          warn('Warning: --governance is ignored when linting an integrations YAML file directly')
+        }
         result = await lintIntegrationsFile(path)
       } else {
         result = await lintFile(path, options)
@@ -222,6 +227,7 @@ async function lintFile(path: string | undefined, options: LintOptions): Promise
     const { lint } = await checkForIssues(deepnoteFile, {
       notebook: options.notebook,
       pythonInterpreter,
+      governance: options.governance,
     })
 
     // Integration/config issues are hard errors (no severity field), so fold their count into
@@ -320,6 +326,7 @@ function outputLintResult(result: LintFileResult, options: LintOptions): void {
   // Show success message if no issues at all
   if (!hasAnyIssues) {
     output(c.green('✓ No issues found'))
+    outputGovernanceScope(result)
     return
   }
 
@@ -375,4 +382,24 @@ function outputLintResult(result: LintFileResult, options: LintOptions): void {
   }
 
   output(`${c.bold('Summary:')} ${parts.join(', ')}`)
+  outputGovernanceScope(result)
+}
+
+/**
+ * State what `--governance` did and did not cover.
+ *
+ * Without this, a clean single-project run reads as "this project is fine", when what it means is
+ * "the checks that can be answered from one project found nothing". The workspace-scoped checks —
+ * divergence, subject scatter, egress, staleness — are not failing silently here; they have no
+ * evidence to work from until the whole synced tree is in scope.
+ */
+function outputGovernanceScope(result: LintFileResult): void {
+  if (!result.governance) {
+    return
+  }
+  const c = getChalk()
+  const { sqlBlocks, contentBlocks } = result.governance.scanned
+  output('')
+  output(c.dim(`Governance: scanned ${sqlBlocks} SQL and ${contentBlocks} content blocks in this project.`))
+  output(c.dim(result.governance.note))
 }
