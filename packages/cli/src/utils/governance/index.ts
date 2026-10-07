@@ -2,8 +2,9 @@
  * Project-scoped governance checks.
  *
  * These answer "what is wrong inside this project" from the project file alone: queries that are
- * silently wrong, and credentials written into blocks. They run under `deepnote lint --governance`,
- * so they are per-file, deterministic, and need neither the network nor a Python interpreter.
+ * silently wrong, credentials written into blocks, and dependencies that will not install the same
+ * twice. They run under `deepnote lint --governance`, so they are per-file, deterministic, and need
+ * neither the network nor a Python interpreter.
  *
  * The scope split is deliberate and load-bearing. The questions governance also wants answered —
  * is this metric defined two different ways, how many *live* projects read this table, whose

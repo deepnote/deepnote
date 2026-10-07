@@ -945,8 +945,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
       continue
     }
     // Filed against each project that pins a version, because there is no one project at fault —
-    // the finding is that they disagree.
-    for (const consumer of usage.projects.filter(entry => entry.live && entry.version !== undefined)) {
+    // the finding is that they disagree. Those projects are also the finding's holders: a live
+    // consumer that declares the package without a version is not part of the disagreement, and
+    // nothing outside the list is part of its reach.
+    const holders = usage.projects.filter(entry => entry.live && entry.version !== undefined)
+    for (const consumer of holders) {
       issues.push({
         severity: SEVERITY['dependency-drift'],
         code: 'dependency-drift',
@@ -962,7 +965,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           versions: usage.maintainedVersions,
           allVersions: usage.versions,
           version: consumer.version,
-          projectCount: usage.projects.filter(entry => entry.live).length,
+          projectIds: holders.map(entry => entry.projectId),
+          projectCount: holders.length,
         },
       })
     }
@@ -1314,12 +1318,9 @@ function scoreIssue(issue: PendingAuditIssue, context: ScoreIssueContext): Sever
       // A bare name will install anything; a range at least bounds what can arrive.
       return scoreFinding(issue.code, { age, signal: issue.details?.pin === 'ranged' ? 0.6 : undefined })
 
-    case 'dependency-drift': {
+    case 'dependency-drift':
       // Its reach is the projects that disagree, weighted by how many of them are still live.
-      const projectCount = typeof issue.details?.projectCount === 'number' ? issue.details.projectCount : 1
-      const live = [...context.projectAges.values()].filter(projectAge => projectAge.liveness === 'live').length
-      return scoreFinding(issue.code, { age, reach: { live: Math.min(live, projectCount), total: projectCount } })
-    }
+      return scoreFinding(issue.code, { age, reach: holderReach(issue.details, context.projectAges) })
 
     case 'ingress-integration-orphan':
       // No live consumer by definition — that is the finding. Its reach is the projects still

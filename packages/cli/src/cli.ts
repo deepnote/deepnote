@@ -992,7 +992,10 @@ ${c.bold('Examples:')}
       '--integrations-file <path>',
       `Path to integrations env file (default: ${DEFAULT_INTEGRATIONS_FILE} next to .deepnote file)`
     )
-    .option('--governance', 'Also run the governance checks: SQL correctness and hardcoded credentials')
+    .option(
+      '--governance',
+      'Also run the governance checks: SQL correctness, hardcoded credentials and dependency pinning'
+    )
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -1054,7 +1057,7 @@ ${c.bold('Examples:')}
   ${c.dim('# Use a custom integrations file')}
   $ deepnote lint my-project.deepnote --integrations-file prod-integrations.yaml
 
-  ${c.dim('# Add the governance checks (SQL correctness, hardcoded credentials)')}
+  ${c.dim('# Add the governance checks (SQL correctness, credentials, dependency pinning)')}
   $ deepnote lint my-project.deepnote --governance
 
   ${c.dim('# Use in CI pipeline')}

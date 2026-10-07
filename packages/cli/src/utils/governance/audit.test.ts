@@ -1959,6 +1959,45 @@ describe('auditWorkspace — dependencies', () => {
     )
   })
 
+  it('measures drift reach over the projects that disagree, not every live consumer', () => {
+    // A live project declaring pandas without a version consumes it but is not party to the
+    // dispute, and a workspace-wide live count is not the reach of this finding either. Both come
+    // from one list now: the projects that pin a version and disagree.
+    const audit = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }),
+        depProject('p2', 'Beta', { packages: { pandas: '1.5.3' } }),
+        depProject('p3', 'Bare', { requirements: ['pandas'] }),
+        depProject('p4', 'Elsewhere', { packages: { numpy: '1.26.0' } }),
+      ]),
+      { now: NOW }
+    )
+
+    const drift = issuesOf(audit, 'dependency-drift')
+    expect(drift).toHaveLength(2)
+    expect(drift[0].details?.projectIds).toEqual(['p1', 'p2'])
+    expect(drift[0].details?.projectCount).toBe(2)
+  })
+
+  it('does not count an abandoned holder as live reach', () => {
+    // Drift only files against maintained projects today, which is what kept a workspace-wide
+    // live count from showing up as a wrong number. Reach is measured among the holders either
+    // way, so it stays right if that filter ever loosens.
+    const audit = auditWorkspace(
+      workspace([
+        ...['a', 'b', 'c'].map(id => depProject(id, id, { packages: { pandas: '2.0.1' } })),
+        depProject('d', 'd', { packages: { pandas: '1.5.3' } }),
+        // Five live projects elsewhere, which are not this finding's reach.
+        ...['x1', 'x2', 'x3', 'x4', 'x5'].map(id => depProject(id, id, { packages: { numpy: '1.26.0' } })),
+      ]),
+      { now: NOW }
+    )
+
+    const drift = issuesOf(audit, 'dependency-drift')[0]
+    expect(drift.details?.projectCount).toBe(4)
+    expect((drift.details?.projectIds as string[]).sort()).toEqual(['a', 'b', 'c', 'd'])
+  })
+
   it('ranks a bare name above a bounded range', () => {
     const audit = auditWorkspace(
       workspace([
