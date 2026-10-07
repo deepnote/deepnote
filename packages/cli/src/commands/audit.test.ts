@@ -1167,3 +1167,96 @@ describe('audit command — review round trip', () => {
     }
   })
 })
+
+describe('audit command — dependencies and SBOM', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('reports how much of the workspace is reproducible', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, DEFAULT_OPTIONS)
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Dependencies')
+    expect(text).toMatch(/\d+ packages, \d+ pinned/)
+    expect(text).toContain('pandas pinned to 1.5.3 and 2.0.1')
+    expect(text).toContain('matplotlib unpinned')
+  })
+
+  it('lists only versions maintained projects hold, not the abandoned one', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { packages: true })
+    const text = getOutput(consoleSpy)
+
+    // Legacy reporting pins pandas 1.3.5, but it has not been touched since 2021.
+    expect(text).toContain('pandas pinned to 1.5.3 and 2.0.1')
+    expect(text).not.toContain('1.3.5 and')
+  })
+
+  it('writes a CycloneDX document instead of the report under --sbom', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { sbom: true })
+    const document = JSON.parse(getOutput(consoleSpy))
+
+    expect(document).toMatchObject({ bomFormat: 'CycloneDX', specVersion: '1.5', version: 1 })
+    expect(document.metadata.component.name).toBe('workspace-divergence')
+    expect(document.components.every((component: { type: string }) => component.type === 'library')).toBe(true)
+  })
+
+  it('emits one component per version, so each has a purl a scanner can match', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { sbom: true })
+    const document = JSON.parse(getOutput(consoleSpy))
+
+    const purls = document.components.map((component: { purl: string }) => component.purl)
+    expect(purls).toContain('pkg:pypi/pandas@1.3.5')
+    expect(purls).toContain('pkg:pypi/pandas@2.0.1')
+    // A package nobody pinned has no version to match on, and is emitted anyway — that is the
+    // finding, not an omission.
+    expect(purls).toContain('pkg:pypi/matplotlib')
+  })
+
+  it('attributes each version to the projects that pin it', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { sbom: true })
+    const document = JSON.parse(getOutput(consoleSpy))
+
+    const old = document.components.find((component: { purl: string }) => component.purl === 'pkg:pypi/pandas@1.3.5')
+    const projects = old.properties.find((p: { name: string }) => p.name === 'deepnote:projects')
+    expect(projects.value).toBe('Legacy reporting')
+  })
+
+  it('carries the bill of materials in the JSON report too', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const pandas = report.packages.find((entry: { name: string }) => entry.name === 'pandas')
+    expect(pandas).toMatchObject({ drifted: true, maintainedVersions: ['1.5.3', '2.0.1'] })
+    expect(pandas.projects).toHaveLength(5)
+  })
+
+  it('finds a package installed by a block but not tracked by the environment', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const untracked = report.issues.filter((issue: { code: string }) => issue.code === 'dependency-untracked')
+    expect(untracked).toHaveLength(1)
+    expect(untracked[0].details.package).toBe('xlsxwriter')
+  })
+
+  it('omits the section for a workspace that declares no dependencies', async () => {
+    await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+    expect(getOutput(consoleSpy)).not.toContain('Dependencies')
+  })
+})

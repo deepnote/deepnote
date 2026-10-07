@@ -1,7 +1,12 @@
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import type { BlockInfo } from '../analysis'
-import { GOVERNANCE_CHECK_CODES, runProjectGovernanceChecks, WORKSPACE_SCOPE_NOTE } from './index'
+import {
+  GOVERNANCE_CHECK_CODES,
+  type ProjectEnvironment,
+  runProjectGovernanceChecks,
+  WORKSPACE_SCOPE_NOTE,
+} from './index'
 
 interface TestBlock {
   id: string
@@ -448,5 +453,107 @@ describe('runProjectGovernanceChecks — what a finding carries out of the block
     const { issues } = run([{ id: 'b1', type: 'sql', content: 'SELECT * FROM users WHERE a.deleted_at = NULL' }])
 
     expect(issues[0].details?.snippet).toContain('a.deleted_at = NULL')
+  })
+})
+
+describe('runProjectGovernanceChecks — dependencies', () => {
+  /** `run`, with a declared environment alongside the blocks. */
+  function runWith(environment: ProjectEnvironment | undefined, blocks: TestBlock[] = []) {
+    const blockMap = new Map<string, BlockInfo>(
+      blocks.map(block => [
+        block.id,
+        { id: block.id, label: `block ${block.id}`, type: block.type, notebookName: 'Notebook' },
+      ])
+    )
+    return runProjectGovernanceChecks(blocks as unknown as DeepnoteBlock[], blockMap, undefined, environment)
+  }
+
+  function codes(result: ReturnType<typeof runWith>, code: string) {
+    return result.issues.filter(issue => issue.code === code)
+  }
+
+  it('reports a requirement with no exact version', () => {
+    const result = runWith({ requirements: ['pandas', 'scipy>=1.11', 'numpy==1.26.0'] })
+
+    expect(codes(result, 'dependency-unpinned').map(issue => issue.details?.package)).toEqual(['pandas', 'scipy'])
+  })
+
+  it('files a declared requirement under the project environment, which belongs to no notebook', () => {
+    const [issue] = codes(runWith({ requirements: ['pandas'] }), 'dependency-unpinned')
+
+    expect(issue).toMatchObject({
+      notebookName: 'Project environment',
+      blockLabel: 'settings.requirements',
+      blockId: '',
+    })
+    expect(issue.message).toContain('declared in settings.requirements')
+  })
+
+  it('does not report a requirement the resolved environment already pins', () => {
+    // `environment.packages` is the lockfile. `pandas>=2.0` beside it is what was asked for, not
+    // what installs — firing here would fire on nearly every synced project.
+    expect(
+      codes(runWith({ packages: { pandas: '2.0.1' }, requirements: ['pandas>=2.0'] }), 'dependency-unpinned')
+    ).toEqual([])
+  })
+
+  it('reports a package a block re-installs, which runs after the environment is built', () => {
+    const result = runWith({ packages: { pandas: '2.0.1' } }, [
+      { id: 'b1', type: 'code', content: '!pip install pandas' },
+    ])
+
+    const [issue] = codes(result, 'dependency-unpinned')
+    expect(issue.details).toMatchObject({ package: 'pandas', declaredIn: 'install-command' })
+    expect(issue.blockId).toBe('b1')
+    expect(issue.message).toContain('The environment resolves it to 2.0.1')
+  })
+
+  it('reports a package installed by a block but missing from the environment', () => {
+    const result = runWith({ packages: { pandas: '2.0.1' } }, [
+      { id: 'b1', type: 'code', content: '!pip install seaborn==0.13.0' },
+    ])
+
+    const [issue] = codes(result, 'dependency-untracked')
+    expect(issue).toMatchObject({ blockId: 'b1', notebookName: 'Notebook', severity: 'warning' })
+    // Pinned, so it raises no unpinned finding — only the tracking one.
+    expect(codes(result, 'dependency-unpinned')).toEqual([])
+  })
+
+  it('does not report untracked packages when there is no environment to track against', () => {
+    const result = runWith(undefined, [{ id: 'b1', type: 'code', content: '!pip install seaborn' }])
+
+    expect(codes(result, 'dependency-untracked')).toEqual([])
+  })
+
+  it('summarises the project dependency set', () => {
+    const result = runWith({ packages: { pandas: '2.0.1' }, requirements: ['scipy>=1.11', 'seaborn'] }, [
+      { id: 'b1', type: 'code', content: '!pip install xgboost' },
+    ])
+
+    expect(result.summary.dependencies).toEqual({ total: 4, pinned: 1, ranged: 1, unpinned: 2, untracked: 1 })
+  })
+
+  it('reports an empty dependency set rather than omitting it', () => {
+    expect(runWith(undefined).summary.dependencies).toEqual({
+      total: 0,
+      pinned: 0,
+      ranged: 0,
+      unpinned: 0,
+      untracked: 0,
+    })
+  })
+
+  it('redacts a credential that shares a block with an install command', () => {
+    // The block label is the block's first line, and these findings carry it like every other.
+    const blockMap = new Map<string, BlockInfo>([
+      ['b1', { id: 'b1', label: 'API_KEY = "AKIAIOSFODNN7EXAMPLE"', type: 'code', notebookName: 'Notebook' }],
+    ])
+    const blocks = [
+      { id: 'b1', type: 'code', content: 'API_KEY = "AKIAIOSFODNN7EXAMPLE"\n!pip install seaborn' },
+    ] as unknown as DeepnoteBlock[]
+
+    const { issues } = runProjectGovernanceChecks(blocks, blockMap, undefined, { packages: { pandas: '2.0.1' } })
+
+    expect(issues.some(issue => issue.blockLabel.includes('AKIAIOSFODNN7EXAMPLE'))).toBe(false)
   })
 })

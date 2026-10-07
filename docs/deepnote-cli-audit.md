@@ -275,6 +275,48 @@ For a persistent, searchable index, use
 Pass `--internal-domain` to separate colleagues from customers; without it, everyone is counted
 alike and the report says so.
 
+### Dependencies — the bill of materials
+
+Every package the workspace installs, gathered from the three places a project can declare one:
+
+| Source                          | What it is                                     |
+| ------------------------------- | ---------------------------------------------- |
+| `environment.packages`          | The resolved lockfile `deepnote sync` writes   |
+| `project.settings.requirements` | What the project asked for, as PEP 508 strings |
+| `!pip install …` inside a block | An imperative install, re-run every execution  |
+
+**The lockfile settles it, except where a block does not let it.** `numpy>=1.24` in
+`settings.requirements` alongside `numpy: 1.26.0` in `environment.packages` is reproducible — the
+lock is what installs, and reporting that would fire on nearly every synced project and be wrong
+every time. But `!pip install numpy` inside a block runs _after_ the environment is built, so it
+overrides the lock, and that case is reported.
+
+Three findings come out of this. The first two are per-project, so they are available in CI through
+`deepnote lint --governance`:
+
+| Code                   | Finding                                                              |
+| ---------------------- | -------------------------------------------------------------------- |
+| `dependency-unpinned`  | No exact version, so the project may install something else tomorrow |
+| `dependency-untracked` | Installed by a block but absent from `environment.packages`          |
+| `dependency-drift`     | Maintained projects pin the same package to different versions       |
+
+Drift only counts projects somebody still maintains. A notebook abandoned in 2021 pinning the
+version that was current in 2021 is pinning working as intended, not a team disagreeing with
+itself — counting it would put a finding on every package in every workspace that has ever had an
+old project in it. The abandoned version still appears in the inventory.
+
+```bash
+# How much of the workspace is reproducible, and which packages are not
+deepnote audit workspace --packages
+
+# A CycloneDX 1.5 document, for a vulnerability scanner
+deepnote audit workspace --sbom > sbom.json
+```
+
+`--sbom` emits one component per package _version_, each with a `purl` like
+`pkg:pypi/pandas@2.0.1`. A workspace where two projects pin different versions genuinely contains
+both, and collapsing them into one versionless component would hide every advisory for both.
+
 ### Credentials
 
 A credential hardcoded in more than one project is reported by fingerprint — a truncated SHA-256,
@@ -295,9 +337,11 @@ Alongside the workspace-level checks, every project is run through the same chec
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
 | `asset-stale`                    | A notebook untouched for three years or more                         |
 | `sql-divergence`                 | A query defines a join, filter or metric differently from the rest   |
+| `dependency-drift`               | Maintained projects pin one package to different versions            |
 
 Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-string-boolean`, and
-`credential-hardcoded`. See the [CLI overview](/docs/deepnote-cli) for the lint command.
+`credential-hardcoded`, `dependency-unpinned` and `dependency-untracked`. See the
+[CLI overview](/docs/deepnote-cli) for the lint command.
 
 ## Options
 
@@ -321,6 +365,8 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 | `--no-triage-cache`      | Ignore cached verdicts and ask again                                                |
 | `--export-review <f>`    | Write every group to `<f>` with a blank verdict, for review                         |
 | `--import-review <f>`    | Read verdicts back and use measured precision instead of the defaults               |
+| `--packages`             | List every package that is not pinned, instead of the first few                     |
+| `--sbom`                 | Write a CycloneDX bill of materials instead of the report                           |
 
 ## How findings are ranked
 
@@ -386,6 +432,8 @@ clean bill of health:
   blanket refusal.
 - **Divergence precision is unvalidated.** The per-kind priors behind the ranking are judgment, not
   measurement. `--divergence` exists so they can be replaced with measured numbers.
+- **The bill of materials is what the files declare.** Transitive dependencies are not resolved —
+  there is no index lookup and no network — so it covers direct dependencies only.
 - **Column-level checks need the warehouse catalogue.** Whether a query references a column that
   was dropped, or whether a PII column reaches an egress point, cannot be decided from the
   `.deepnote` files alone. The audit never connects to a warehouse.

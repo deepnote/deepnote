@@ -1809,3 +1809,167 @@ describe('auditWorkspace — blast radius stays inside the group integration sco
     expect(finding?.score.blastRadius).toBeGreaterThan(0.99)
   })
 })
+
+describe('auditWorkspace — dependencies', () => {
+  /** A project with a declared environment and optional install blocks. */
+  function depProject(
+    id: string,
+    name: string,
+    environment: { packages?: Record<string, string>; requirements?: string[] } | undefined,
+    installs: string[] = [],
+    modifiedAt = daysAgo(30)
+  ): WorkspaceProject {
+    const built = datedProject(id, name, modifiedAt, [
+      {
+        name: 'Setup',
+        blocks: installs.map((content, index) => ({ id: `${id}-i${index}`, type: 'code', content })),
+      },
+    ])
+    return environment ? { ...built, environment } : built
+  }
+
+  it('builds a bill of materials across the workspace', () => {
+    const audit = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }),
+        depProject('p2', 'Beta', { packages: { pandas: '2.0.1', numpy: '1.26.0' } }),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.packages.map(entry => `${entry.name}:${entry.projects.length}`)).toEqual(['pandas:2', 'numpy:1'])
+    expect(audit.packages[0].purl).toBe('pkg:pypi/pandas@2.0.1')
+  })
+
+  it('reports drift when two maintained projects pin different versions', () => {
+    const audit = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }),
+        depProject('p2', 'Beta', { packages: { pandas: '1.5.3' } }),
+      ]),
+      { now: NOW }
+    )
+
+    const pandas = audit.packages.find(entry => entry.name === 'pandas')
+    expect(pandas?.drifted).toBe(true)
+    expect(pandas?.maintainedVersions).toEqual(['1.5.3', '2.0.1'])
+    // One finding per project, because neither side is the wrong one — they disagree.
+    expect(issuesOf(audit, 'dependency-drift')).toHaveLength(2)
+  })
+
+  it('does not call an abandoned project disagreeing with the present', () => {
+    // A 2021 notebook pinning the 2021 version is pinning working as intended. Counting it as
+    // drift would put a finding on every package in every workspace with an old project in it.
+    const audit = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }),
+        depProject('p2', 'Beta', { packages: { pandas: '2.0.1' } }),
+        depProject('p3', 'Legacy', { packages: { pandas: '1.0.0' } }, [], daysAgo(1800)),
+      ]),
+      { now: NOW }
+    )
+
+    const pandas = audit.packages.find(entry => entry.name === 'pandas')
+    expect(pandas?.drifted).toBe(false)
+    expect(pandas?.maintainedVersions).toEqual(['2.0.1'])
+    // The old version is still inventoried — it is installed somewhere, it just is not a dispute.
+    expect(pandas?.versions).toEqual(['1.0.0', '2.0.1'])
+    expect(issuesOf(audit, 'dependency-drift')).toEqual([])
+  })
+
+  it('takes the weakest pin in the workspace as the package pin', () => {
+    const audit = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }),
+        depProject('p2', 'Beta', { requirements: ['pandas'] }),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.packages.find(entry => entry.name === 'pandas')?.pin).toBe('unpinned')
+  })
+
+  it('reports an unpinned dependency against the project that declares it', () => {
+    const audit = auditWorkspace(workspace([depProject('p1', 'Alpha', { requirements: ['pandas>=2.0'] })]), {
+      now: NOW,
+    })
+
+    const findings = issuesOf(audit, 'dependency-unpinned')
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ projectName: 'Alpha', severity: 'warning' })
+    expect(findings[0].details).toMatchObject({ package: 'pandas', pin: 'ranged', declaredIn: 'requirements' })
+  })
+
+  it('reports a package a block installs but the environment does not track', () => {
+    const audit = auditWorkspace(
+      workspace([depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }, ['!pip install seaborn'])]),
+      { now: NOW }
+    )
+
+    const findings = issuesOf(audit, 'dependency-untracked')
+    expect(findings).toHaveLength(1)
+    expect(findings[0].details).toMatchObject({ package: 'seaborn' })
+    expect(findings[0].blockId).toBe('p1-i0')
+  })
+
+  it('does not call everything untracked when there is no environment to track against', () => {
+    const audit = auditWorkspace(workspace([depProject('p1', 'Alpha', undefined, ['!pip install seaborn'])]), {
+      now: NOW,
+    })
+
+    expect(issuesOf(audit, 'dependency-untracked')).toEqual([])
+    // It is still unpinned, which is a fact about the install rather than about the environment.
+    expect(issuesOf(audit, 'dependency-unpinned')).toHaveLength(1)
+  })
+
+  it('does not report a dependency the lockfile pins', () => {
+    const audit = auditWorkspace(
+      workspace([depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' }, requirements: ['pandas>=2.0'] })]),
+      { now: NOW }
+    )
+
+    expect(issuesOf(audit, 'dependency-unpinned')).toEqual([])
+  })
+
+  it('reports nothing for a workspace that declares no dependencies', () => {
+    const audit = auditWorkspace(workspace([project('p1', 'Alpha', [{ name: 'One', blocks: [] }])]), { now: NOW })
+
+    expect(audit.packages).toEqual([])
+    expect(issuesOf(audit, 'dependency-unpinned')).toEqual([])
+  })
+
+  it('scores drift by how many maintained projects disagree', () => {
+    const narrow = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { packages: { pandas: '2.0.1' } }),
+        depProject('p2', 'Beta', { packages: { pandas: '1.5.3' } }),
+      ]),
+      { now: NOW }
+    )
+    const wide = auditWorkspace(
+      workspace([
+        ...['a', 'b', 'c', 'd', 'e'].map(id => depProject(id, id, { packages: { pandas: '2.0.1' } })),
+        depProject('f', 'f', { packages: { pandas: '1.5.3' } }),
+      ]),
+      { now: NOW }
+    )
+
+    expect(issuesOf(wide, 'dependency-drift')[0].score.blastRadius).toBeGreaterThan(
+      issuesOf(narrow, 'dependency-drift')[0].score.blastRadius
+    )
+  })
+
+  it('ranks a bare name above a bounded range', () => {
+    const audit = auditWorkspace(
+      workspace([
+        depProject('p1', 'Alpha', { requirements: ['pandas'] }),
+        depProject('p2', 'Beta', { requirements: ['scipy>=1.11'] }),
+      ]),
+      { now: NOW }
+    )
+
+    const bare = issuesOf(audit, 'dependency-unpinned').find(issue => issue.details?.package === 'pandas')
+    const ranged = issuesOf(audit, 'dependency-unpinned').find(issue => issue.details?.package === 'scipy')
+    expect(bare?.score.signal).toBeGreaterThan(ranged?.score.signal as number)
+  })
+})

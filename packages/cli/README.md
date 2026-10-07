@@ -310,12 +310,14 @@ deepnote lint my-project.deepnote
 
 **Governance checks (`--governance`):**
 
-| Code                   | Finding                                                                   |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `sql-null-comparison`  | `= NULL` never matches a row — use `IS NULL`                              |
-| `sql-tautology`        | A column compared to itself, making the join or filter a no-op            |
-| `sql-string-boolean`   | A column compared to the string `'true'`/`'false'` instead of the keyword |
-| `credential-hardcoded` | A credential written into a block                                         |
+| Code                   | Finding                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| `sql-null-comparison`  | `= NULL` never matches a row — use `IS NULL`                                  |
+| `sql-tautology`        | A column compared to itself, making the join or filter a no-op                |
+| `sql-string-boolean`   | A column compared to the string `'true'`/`'false'` instead of the keyword     |
+| `credential-hardcoded` | A credential written into a block                                             |
+| `dependency-unpinned`  | A dependency with no exact version, so the project may install something else |
+| `dependency-untracked` | A package installed by a block but missing from `environment.packages`        |
 
 Credentials are reported by a truncated SHA-256 fingerprint, never by value, so the output is safe
 to paste into a ticket and the same key is still recognizable across blocks. A block holding a
@@ -327,6 +329,10 @@ interpreter is required. Where the same characters mean different things to diff
 the block's `sql_integration_id` decides. `flag = "true"` is a string comparison on MySQL, MariaDB
 and BigQuery and so is flagged there; on the identifier-quoting dialects it names a column and is
 left alone, as it is when the block declares no integration.
+
+The dependency checks read `environment.packages`, `settings.requirements` and `!pip install` lines
+inside blocks. The lockfile is authoritative, so a loose requirement beside a locked version raises
+nothing — unless a block re-installs the package, which happens after the environment is built.
 
 `--governance` covers what a single project can answer on its own. The checks that compare projects
 against each other — duplicated metric definitions, personal data scattered across notebooks, writes
@@ -381,6 +387,8 @@ interpreter, and nothing leaves the machine.
 - **Egress** — third-party hosts the code writes to, recovered from URLs in code blocks. Object
   store buckets count as their own destination.
 - **Credentials** — credentials hardcoded in more than one project, by fingerprint, never by value.
+- **Dependencies** — every package the workspace installs, from `environment.packages`,
+  `settings.requirements` and `!pip install` lines in blocks, with how much of it is pinned.
 - **Consensus** — subjects the workspace defines two ways: a table pair joined on different keys, a
   column most queries filter and some do not, a metric name backed by different aggregates.
 - **Findings** — the workspace checks below, plus every `lint --governance` check run against each
@@ -395,24 +403,27 @@ interpreter, and nothing leaves the machine.
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
 | `asset-stale`                    | A notebook untouched for three years or more                         |
 | `sql-divergence`                 | A query defines a join, filter or metric differently from the rest   |
+| `dependency-drift`               | Maintained projects pin one package to different versions            |
 
 **Options:**
 
-| Option                   | Description                                                  | Default       |
-| ------------------------ | ------------------------------------------------------------ | ------------- |
-| `-o, --output <fmt>`     | Output format: `json` or `llm`                               | text          |
-| `--project <name>`       | Audit a single project, by name or id                        |               |
-| `--issues`               | List every finding instead of a count per check              | off           |
-| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)         |               |
-| `--divergence`           | List every consensus group, with variants and locations      | off           |
-| `--divergence-kind <k>`  | Anchors to look for: `join`, `metric`, `filter` (repeatable) | join, metric  |
-| `--min-confidence <n>`   | Confidence below which a group raises no finding             | `0.25`        |
-| `--skip-divergence`      | Do not run the consensus checks at all                       | off           |
-| `--divergence-scope <s>` | Compare only within `integration`, `type`, or `none`         | `integration` |
-| `--triage`               | Ask a model whether each group is a real defect              | off           |
-| &nbsp;                   | Judges `metric` anchors unless `--divergence-kind` is given  |               |
-| `--export-review <f>`    | Write every group with a blank verdict, for review           |               |
-| `--import-review <f>`    | Use measured precision instead of the defaults               |               |
+| Option                   | Description                                                     | Default       |
+| ------------------------ | --------------------------------------------------------------- | ------------- |
+| `-o, --output <fmt>`     | Output format: `json` or `llm`                                  | text          |
+| `--project <name>`       | Audit a single project, by name or id                           |               |
+| `--issues`               | List every finding instead of a count per check                 | off           |
+| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)            |               |
+| `--divergence`           | List every consensus group, with variants and locations         | off           |
+| `--divergence-kind <k>`  | Anchors to look for: `join`, `metric`, `filter` (repeatable)    | join, metric  |
+| `--min-confidence <n>`   | Confidence below which a group raises no finding                | `0.25`        |
+| `--skip-divergence`      | Do not run the consensus checks at all                          | off           |
+| `--divergence-scope <s>` | Compare only within `integration`, `type`, or `none`            | `integration` |
+| `--triage`               | Ask a model whether each group is a real defect                 | off           |
+| &nbsp;                   | Judges `metric` anchors unless `--divergence-kind` is given     |               |
+| `--export-review <f>`    | Write every group with a blank verdict, for review              |               |
+| `--import-review <f>`    | Use measured precision instead of the defaults                  |               |
+| `--packages`             | List every package that is not pinned, instead of the first few | off           |
+| `--sbom`                 | Write a CycloneDX bill of materials instead of the report       | off           |
 
 Findings are **ranked, never gated**: `severity = signal × exposure × neglect × blast radius`, and
 every issue carries all four factors so you can disagree with one rather than with the number. Blast
@@ -454,6 +465,15 @@ each group is a real defect — off by default, no default endpoint, redacted pa
 finding count, verdicts cached, and never able to fail a run. See
 [the audit docs](/docs/deepnote-cli-audit) for the full behaviour.
 
+**Dependencies.** `environment.packages` is the resolved lockfile and is treated as authoritative:
+`numpy>=1.24` in `settings.requirements` beside `numpy: 1.26.0` in the lock is reproducible, and
+reporting it would be wrong on nearly every synced project. The exception is a block that
+re-installs the package, which runs after the environment is built and overrides the lock.
+
+`dependency-drift` counts only maintained projects — a notebook abandoned in 2021 pinning the 2021
+version is pinning working, not a disagreement. `--sbom` writes a CycloneDX 1.5 document with one
+component per package version, each carrying a `purl` a vulnerability scanner can match.
+
 The report also inventories every table the workspace's SQL references, with its live and total
 project reach, and summarizes how much of the workspace is still maintained. A notebook with no
 timestamp is reported as undated, never as abandoned.
@@ -487,6 +507,9 @@ deepnote audit ./workspace --divergence
 
 # Only joins, and only where the consensus is well attested
 deepnote audit ./workspace --divergence --divergence-kind join --min-confidence 0.5
+
+# A CycloneDX bill of materials, for a vulnerability scanner
+deepnote audit ./workspace --sbom > sbom.json
 
 # Full report, including the flow map
 deepnote audit ./workspace -o json
