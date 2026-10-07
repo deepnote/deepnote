@@ -1242,7 +1242,8 @@ describe('audit command — dependencies and SBOM', () => {
 
     const pandas = report.packages.find((entry: { name: string }) => entry.name === 'pandas')
     expect(pandas).toMatchObject({ drifted: true, maintainedVersions: ['1.5.3', '2.0.1'] })
-    expect(pandas.projects).toHaveLength(5)
+    // Six consumers: five that declare a version, plus the project that installs it bare.
+    expect(pandas.projects).toHaveLength(6)
   })
 
   it('finds a package installed by a block but not tracked by the environment', async () => {
@@ -1258,5 +1259,84 @@ describe('audit command — dependencies and SBOM', () => {
     await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
 
     expect(getOutput(consoleSpy)).not.toContain('Dependencies')
+  })
+})
+
+describe('audit command — the SBOM represents what is not pinned', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  async function sbom() {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { sbom: true })
+    return JSON.parse(getOutput(consoleSpy)) as {
+      components: Array<{
+        name: string
+        version?: string
+        purl: string
+        properties: Array<{ name: string; value: string }>
+      }>
+    }
+  }
+
+  it('keeps a versionless component for a package that is pinned somewhere and not elsewhere', async () => {
+    // The fixture pins pandas in three projects and installs it bare in a fourth. Dropping the
+    // versionless component would let the document claim a reproducibility the workspace does not
+    // have, which is the one thing a bill of materials must not do.
+    const purls = (await sbom()).components.map(c => c.purl)
+
+    expect(purls).toContain('pkg:pypi/pandas@2.0.1')
+    expect(purls).toContain('pkg:pypi/pandas')
+  })
+
+  it('attributes the versionless component to whoever did not pin it', async () => {
+    const bare = (await sbom()).components.find(c => c.purl === 'pkg:pypi/pandas')
+    const projects = bare?.properties.find(p => p.name === 'deepnote:projects')
+
+    expect(projects?.value).toBe('Research experiments')
+  })
+
+  it('does not add a versionless component to a package everyone pins', async () => {
+    const purls = (await sbom()).components.map(c => c.purl)
+
+    expect(purls).toContain('pkg:pypi/numpy@1.26.0')
+    expect(purls).not.toContain('pkg:pypi/numpy')
+  })
+
+  it('reports the version a project ends up with, not the lowest one seen', async () => {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const pandas = report.packages.find((p: { name: string }) => p.name === 'pandas')
+    const legacy = pandas.projects.find((p: { projectName: string }) => p.projectName === 'Legacy reporting')
+    expect(legacy.version).toBe('1.3.5')
+  })
+
+  it('does not read a shell continuation as a requirement', async () => {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    // The Research project runs `!pip install pandas && python -m pytest`.
+    const names = report.packages.map((p: { name: string }) => p.name)
+    expect(names).toContain('pandas')
+    expect(names).not.toContain('python')
+    expect(names).not.toContain('pytest')
   })
 })

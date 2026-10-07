@@ -222,7 +222,7 @@ see a name collision, `x` against `t.x`, `count(1)` against `count(*)`, or a tab
 ways because the two joins answer different questions.
 
 Normalizing harder is deliberately **not** the fix: stripping table qualifiers would collapse a
-genuine finding — a table rename that only half the workspace followed. So the judgement goes to a
+genuine finding — a table rename that only half the workspace followed. So the judgment goes to a
 model, and the model is optional:
 
 ```bash
@@ -245,7 +245,7 @@ deepnote audit workspace --triage
   deterministic score stands.
 
 If you have both a review file and a triage run, the audit reports how often the model agreed with
-the reviewer, per kind. Without that number, a model's opinion is one unmeasured judgement
+the reviewer, per kind. Without that number, a model's opinion is one unmeasured judgment
 replacing another.
 
 **Divergence precision is unvalidated.** Joins are the strongest anchor and metrics the weakest — a

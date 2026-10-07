@@ -525,7 +525,7 @@ describe('runProjectGovernanceChecks — dependencies', () => {
     expect(codes(result, 'dependency-untracked')).toEqual([])
   })
 
-  it('summarises the project dependency set', () => {
+  it('summarizes the project dependency set', () => {
     const result = runWith({ packages: { pandas: '2.0.1' }, requirements: ['scipy>=1.11', 'seaborn'] }, [
       { id: 'b1', type: 'code', content: '!pip install xgboost' },
     ])

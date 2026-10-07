@@ -41,7 +41,7 @@ export type RequirementSource =
   | 'install-command'
 
 export interface PackageRequirement {
-  /** Normalised name, per PEP 503: lower-cased with runs of `-`, `_` and `.` folded to `-`. */
+  /** Normalized name, per PEP 503: lower-cased with runs of `-`, `_` and `.` folded to `-`. */
   name: string
   /** The name as written, which is what a reader will search the notebook for. */
   rawName: string
@@ -89,7 +89,7 @@ const FLAGS_WITH_VALUES = new Set([
   '--prefix',
 ])
 
-/** Normalise a distribution name so `Foo_Bar` and `foo-bar` are one package (PEP 503). */
+/** Normalize a distribution name so `Foo_Bar` and `foo-bar` are one package (PEP 503). */
 export function normalizePackageName(name: string): string {
   return name.replace(/[-_.]+/g, '-').toLowerCase()
 }
@@ -178,9 +178,48 @@ function pinOf(specifier: string): { pin: PinState; version?: string } {
   return { pin: 'ranged' }
 }
 
+/**
+ * Tokens that end the install command, because what follows is a different command.
+ *
+ * `!pip install pandas && python train.py` installs one package, not a package called `python`
+ * and another called `train.py`. Same for `; `, a pipe, and a trailing `# comment`.
+ */
+const SHELL_TERMINATORS = new Set(['>', '>>', '2>', '&>'])
+
+/**
+ * Characters that end the command even with no space around them, so `pandas;` is one package and
+ * not a package called `pandas;`.
+ *
+ * `>` and `<` are deliberately absent: they are part of `pandas>=2.0`, which is the thing this
+ * function exists to read.
+ */
+const INLINE_TERMINATORS = /[;#|&]/
+
 /** Split an install command's arguments, honouring quotes around `"pandas>=2.0"`. */
 function splitArguments(text: string): string[] {
-  return (text.match(/"[^"]*"|'[^']*'|\S+/g) ?? []).map(argument => argument.replace(/^["']|["']$/g, ''))
+  const raw = text.match(/"[^"]*"|'[^']*'|\S+/g) ?? []
+  const argumentList: string[] = []
+
+  for (const token of raw) {
+    // Quoted text is a value, never an operator: `pip install "a;b"` is one odd requirement.
+    if (/^["']/.test(token)) {
+      argumentList.push(token.replace(/^["']|["']$/g, ''))
+      continue
+    }
+    if (SHELL_TERMINATORS.has(token)) {
+      break
+    }
+    const cut = token.search(INLINE_TERMINATORS)
+    if (cut === 0) {
+      break
+    }
+    if (cut > 0) {
+      argumentList.push(token.slice(0, cut))
+      break
+    }
+    argumentList.push(token)
+  }
+  return argumentList
 }
 
 /** Requirements installed by `!pip install` lines inside one block's content. */
@@ -222,7 +261,7 @@ export interface ProjectEnvironment {
 export interface DependencySet {
   /** Every requirement found, in declaration order: environment, then requirements, then installs. */
   requirements: PackageRequirement[]
-  /** Normalised names declared in `environment.packages` — the tracked set. */
+  /** Normalized names declared in `environment.packages` — the tracked set. */
   tracked: Set<string>
   /** Whether the project declares an environment at all, which decides what "untracked" can mean. */
   hasEnvironment: boolean
@@ -307,6 +346,14 @@ export interface PackageEntry {
   weakestSource?: RequirementSource
   /** Specifier of that declaration, which is the one worth printing. */
   specifier?: string
+  /**
+   * The version this project will actually end up with, where that is knowable.
+   *
+   * Not `versions[0]`: that list is sorted, so the lowest version seen wins by accident. A block
+   * that re-installs at an exact version runs after the environment is built, so it is what
+   * arrives; otherwise the lockfile is.
+   */
+  effectiveVersion?: string
   /** First install command that introduced it, when one did. */
   blockId?: string
   line?: number
@@ -344,12 +391,19 @@ export function reconcile(requirements: PackageRequirement[]): PackageEntry[] {
     const pin: PinState = !weakest || weakest.pin === 'pinned' ? 'pinned' : weakest.pin
     const install = declarations.find(d => d.blockId !== undefined)
 
+    // Last writer wins: an install command runs after the environment is built.
+    const effectiveVersion =
+      declarations.find(d => d.source === 'install-command' && d.version)?.version ??
+      declarations.find(d => d.source === 'environment' && d.version)?.version ??
+      declarations.find(d => d.version)?.version
+
     entries.push({
       name,
       rawName: declarations[0].rawName,
       versions,
       pin,
       sources: [...new Set(declarations.map(d => d.source))],
+      ...(effectiveVersion ? { effectiveVersion } : {}),
       ...(pin !== 'pinned' && weakest
         ? {
             weakestSource: weakest.source,

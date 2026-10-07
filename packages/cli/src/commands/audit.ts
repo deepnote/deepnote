@@ -926,7 +926,15 @@ function toCycloneDx(audit: WorkspaceAudit): Record<string, unknown> {
     // One component per version, not one per package. A workspace where two projects pin different
     // versions genuinely contains both, and a scanner matches advisories on `purl` — so collapsing
     // them into a single versionless component would silently hide every advisory for both.
-    const versions = entry.versions.length > 0 ? entry.versions : [undefined]
+    //
+    // A package that is *also* unpinned somewhere gets a versionless component in addition to its
+    // pinned ones. Without it an unpinned dependency disappears from the SBOM the moment any one
+    // project happens to lock it, and the document then claims a reproducibility the workspace
+    // does not have — which is the one thing a bill of materials must not do.
+    const versions: Array<string | undefined> = entry.versions.length > 0 ? [...entry.versions] : [undefined]
+    if (entry.pin !== 'pinned' && entry.versions.length > 0) {
+      versions.push(undefined)
+    }
 
     return versions.map(version => ({
       type: 'library',
@@ -938,7 +946,12 @@ function toCycloneDx(audit: WorkspaceAudit): Record<string, unknown> {
         {
           name: 'deepnote:projects',
           value: entry.projects
-            .filter(project => version === undefined || project.version === version)
+            // The versionless component belongs to whoever did not pin it.
+            .filter(project =>
+              version === undefined
+                ? project.pin !== 'pinned' || entry.versions.length === 0
+                : project.version === version
+            )
             .map(project => project.projectName)
             .join(', '),
         },

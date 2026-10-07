@@ -225,7 +225,7 @@ describe('reconcile', () => {
     expect(entries[0].versions).toEqual(['1.5.0', '2.0.1'])
   })
 
-  it('sorts by normalised name, so two runs agree', () => {
+  it('sorts by normalized name, so two runs agree', () => {
     const entries = reconcile([
       { name: 'zope-interface', rawName: 'zope.interface', pin: 'unpinned', source: 'requirements' },
       { name: 'attrs', rawName: 'attrs', pin: 'unpinned', source: 'requirements' },
@@ -330,5 +330,60 @@ describe('reconcile — what the lockfile settles', () => {
 
     expect(entries[0].weakestSource).toBe('install-command')
     expect(entries[0].specifier).toBe('>=1.11')
+  })
+})
+
+describe('findInstallCommands — shell continuations', () => {
+  // `!pip install pandas && python train.py` installs one package, not three.
+  it.each([
+    ['&&', '!pip install pandas && python -m pytest'],
+    ['; with no space', '!pip install pandas; echo done'],
+    ['a pipe', '!pip install pandas | tee install.log'],
+    ['a trailing comment', '!pip install pandas  # and numpy later'],
+    ['a redirect', '!pip install pandas > install.log'],
+    ['&& with no spaces', '!pip install pandas&&make'],
+  ])('stops at %s', (_label, line) => {
+    expect(findInstallCommands(line).map(r => r.name)).toEqual(['pandas'])
+  })
+
+  it('keeps every package before the terminator', () => {
+    expect(findInstallCommands('!pip install pandas numpy && rm -rf build').map(r => r.name)).toEqual([
+      'pandas',
+      'numpy',
+    ])
+  })
+
+  it('does not mistake a version specifier for a redirect', () => {
+    expect(findInstallCommands('!pip install "pandas>=2.0,<3" numpy').map(r => r.name)).toEqual(['pandas', 'numpy'])
+    expect(findInstallCommands('!pip install pandas>=2.0').map(r => r.specifier)).toEqual(['>=2.0'])
+  })
+})
+
+describe('reconcile — the version a project actually ends up with', () => {
+  it('prefers the install command, which runs after the environment is built', () => {
+    const [entry] = reconcile([
+      { name: 'pandas', rawName: 'pandas', version: '2.0.1', pin: 'pinned', source: 'environment' },
+      { name: 'pandas', rawName: 'pandas', version: '1.5.0', pin: 'pinned', source: 'install-command', blockId: 'b1' },
+    ])
+
+    // `versions` is sorted, so taking its first element would report 1.5.0 by accident rather
+    // than on purpose — and would report 2.0.1 if the numbers were the other way round.
+    expect(entry.effectiveVersion).toBe('1.5.0')
+    expect(entry.versions).toEqual(['1.5.0', '2.0.1'])
+  })
+
+  it('falls back to the lockfile when no block re-installs', () => {
+    const [entry] = reconcile([
+      { name: 'pandas', rawName: 'pandas', version: '2.0.1', pin: 'pinned', source: 'environment' },
+      { name: 'pandas', rawName: 'pandas', specifier: '>=1.0', pin: 'ranged', source: 'requirements' },
+    ])
+
+    expect(entry.effectiveVersion).toBe('2.0.1')
+  })
+
+  it('has no effective version when nothing names one', () => {
+    expect(
+      reconcile([{ name: 'pandas', rawName: 'pandas', pin: 'unpinned', source: 'requirements' }])[0].effectiveVersion
+    ).toBeUndefined()
   })
 })

@@ -139,7 +139,7 @@ export interface CredentialUsage {
 
 /** One package across the whole workspace: who installs it, and at which versions. */
 export interface PackageUsage {
-  /** Normalised name (PEP 503). */
+  /** Normalized name (PEP 503). */
   name: string
   /** The name as the projects write it. */
   rawName: string
@@ -1380,9 +1380,9 @@ function buildPackageInventory(
         projectName: project.name,
         pin: entry.pin,
         live: projectAges.get(project.id)?.liveness !== 'cold',
-        // One project can resolve a package to several versions across its own sources; the
-        // workspace row reports the lowest-sorting one, and the full list is on `versions`.
-        ...(entry.versions.length > 0 ? { version: entry.versions[0] } : {}),
+        // The version this project actually ends up with. `versions` is sorted, so taking its
+        // first element reported the lowest one seen rather than the one that wins.
+        ...(entry.effectiveVersion ? { version: entry.effectiveVersion } : {}),
       })
       inventory.set(entry.name, usage)
     }
