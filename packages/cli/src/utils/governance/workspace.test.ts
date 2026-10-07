@@ -1,8 +1,25 @@
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { loadWorkspace, projectBlocks } from './workspace'
+
+/** Aim an EACCES at one directory, so the permission behaviour is testable as any user. */
+const readdirFailure = vi.hoisted(() => ({ path: undefined as string | undefined }))
+
+vi.mock('node:fs/promises', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    default: actual,
+    readdir: (async (path: string, options?: unknown) => {
+      if (readdirFailure.path !== undefined && path === readdirFailure.path) {
+        throw Object.assign(new Error(`EACCES: permission denied, scandir '${path}'`), { code: 'EACCES' })
+      }
+      return (actual.readdir as (p: string, o?: unknown) => Promise<unknown>)(path, options)
+    }) as typeof actual.readdir,
+  }
+})
 
 let root: string
 
@@ -183,7 +200,14 @@ describe('projectBlocks', () => {
   })
 })
 
-describe('loadWorkspace — unreadable directories', () => {
+/**
+ * `chmod 0o000` does not stop root reading, and POSIX mode bits do not exist on Windows, so the
+ * two tests below cannot bite in a root container. They are kept for the environments where they
+ * are a real integration test, and the fault-injected test underneath covers everywhere else.
+ */
+const canRevokeRead = process.platform !== 'win32' && process.getuid?.() !== 0
+
+describe.skipIf(!canRevokeRead)('loadWorkspace — unreadable directories', () => {
   it('throws when the root itself cannot be read, rather than reporting an empty workspace', async () => {
     // The failure this guards against: an audit that cannot open the directory reports zero
     // projects, therefore zero findings, and reads as a clean bill of health.
@@ -224,6 +248,46 @@ describe('loadWorkspace — unreadable directories', () => {
     } finally {
       await chmod(blocked, 0o755)
       await rm(root, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('loadWorkspace — an unreadable root, injected', () => {
+  // The same guarantee as above, but independent of who the test runs as: a CI container running
+  // as root would skip the chmod tests entirely, and this is the one failure mode that must never
+  // go uncovered — an audit that cannot read the workspace reporting no findings.
+  it('throws rather than reporting an empty workspace', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'deepnote-eacces-'))
+    try {
+      readdirFailure.path = dir
+      await expect(loadWorkspace(dir)).rejects.toThrow(/EACCES/)
+    } finally {
+      readdirFailure.path = undefined
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('records an unreadable subdirectory instead of failing the run', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'deepnote-eacces-sub-'))
+    try {
+      await mkdir(join(dir, 'blocked'))
+      await writeFile(
+        join(dir, 'ok.deepnote'),
+        JSON.stringify({
+          version: '1',
+          metadata: { createdAt: '2025-01-01T00:00:00.000Z' },
+          project: { id: 'p1', name: 'Alpha', notebooks: [{ id: 'n1', name: 'One', blocks: [] }] },
+        })
+      )
+      readdirFailure.path = join(dir, 'blocked')
+
+      const workspace = await loadWorkspace(dir)
+
+      expect(workspace.projects).toHaveLength(1)
+      expect(workspace.errors.map(error => error.path)).toContain('blocked')
+    } finally {
+      readdirFailure.path = undefined
+      await rm(dir, { recursive: true, force: true })
     }
   })
 })
