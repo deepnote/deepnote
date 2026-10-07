@@ -594,10 +594,12 @@ describe('audit command — divergence', () => {
   let consoleSpy: Mock<typeof console.log>
   let exitSpy: Mock<typeof process.exit>
 
+  let consoleErrorSpy: Mock<typeof console.error>
+
   beforeEach(() => {
     program = new Command()
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit called')
     })
@@ -607,6 +609,61 @@ describe('audit command — divergence', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  /**
+   * Run triage against a port nothing is listening on.
+   *
+   * This is the only way to reach the configured-endpoint path without a model: an injected
+   * provider short-circuits it, which is exactly why the status lines went unnoticed. The
+   * connection is refused on loopback, so nothing leaves the machine and the result is
+   * deterministic — and it exercises fail-soft at the same time.
+   */
+  async function withDeadEndpoint(options: Record<string, unknown>): Promise<void> {
+    const original = { ...process.env }
+    process.env[TRIAGE_ENV.baseUrl] = 'http://127.0.0.1:1'
+    process.env[TRIAGE_ENV.model] = 'test-model'
+    try {
+      await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, triageCache: false, ...options })
+    } finally {
+      for (const key of Object.values(TRIAGE_ENV)) {
+        delete process.env[key]
+      }
+      Object.assign(process.env, original)
+    }
+  }
+
+  it('keeps -o json parseable while still disclosing the endpoint', async () => {
+    // Same defect as the review export: status lines in front of the document, exit code still 0,
+    // so a caller reads a successful run and unparseable output. They move to stderr rather than
+    // being dropped — saying where the SQL is going, before it goes, is a guarantee this command
+    // makes, and the automated path is the one where nobody is watching.
+    await withDeadEndpoint({ triage: true, output: 'json' })
+
+    const stdout = getOutput(consoleSpy)
+    expect(() => JSON.parse(stdout)).not.toThrow()
+    expect(stdout).not.toContain('Triage:')
+
+    const stderr = getOutput(consoleErrorSpy as unknown as Mock<typeof console.log>)
+    expect(stderr).toContain('http://127.0.0.1:1')
+    expect(stderr).toContain('no blocks, no outputs')
+  })
+
+  it('still prints the endpoint to stdout for a person', async () => {
+    await withDeadEndpoint({ triage: true })
+
+    expect(getOutput(consoleSpy)).toContain('http://127.0.0.1:1')
+  })
+
+  it('does not fail the audit when the model cannot be reached', async () => {
+    await withDeadEndpoint({ triage: true, output: 'json' })
+
+    const report = JSON.parse(getOutput(consoleSpy))
+    expect(exitSpy).not.toHaveBeenCalled()
+    // Every finding keeps the deterministic score it would have had without triage.
+    for (const issue of report.issues.filter((i: { code: string }) => i.code === 'sql-divergence')) {
+      expect(issue.details.signalSource).toBe('prior')
+    }
   })
 
   it('collapses divergence to a count by default', async () => {

@@ -127,6 +127,18 @@ describe('parseReviewFile', () => {
     expect(parseReviewFile(JSON.stringify(file)).reviewed).toBe(2)
   })
 
+  it.each([
+    ['an entry that is not an object', { version: 1, entries: [null] }, 'not an object'],
+    ['an entry with no id', { version: 1, entries: [{ kind: 'join', verdict: 'real' }] }, 'no id'],
+    ['an unknown kind', { version: 1, entries: [{ id: 'a', kind: 'joins', verdict: 'real' }] }, 'kind "joins"'],
+  ])('rejects %s', (_label, file, message) => {
+    // Each of these failed quietly. A null entry threw a TypeError from inside; an entry with no
+    // id could never match a group; an unknown kind was counted as reviewed and then skipped by
+    // the measurement, so the file reported progress over a measurement that covered nothing.
+    expect(() => parseReviewFile(JSON.stringify(file))).toThrow(ReviewFileError)
+    expect(() => parseReviewFile(JSON.stringify(file))).toThrow(new RegExp(message.replace(/["]/g, '"')))
+  })
+
   it('rejects a verdict nobody can act on, rather than silently measuring nothing', () => {
     const file = reviewed('join', 1, 'real')
     ;(file.entries[0] as { verdict: string }).verdict = 'probably?'

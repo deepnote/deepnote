@@ -17,7 +17,7 @@
  */
 
 import { readFile } from 'node:fs/promises'
-import type { DivergenceGroup, DivergenceKind } from './sql-divergence'
+import { DIVERGENCE_KINDS, type DivergenceGroup, type DivergenceKind } from './sql-divergence'
 import { type TriageResult, toCandidate, VERDICTS, type Verdict } from './triage'
 
 /** One group as a reviewer sees it: everything needed to judge, and a blank to judge into. */
@@ -112,7 +112,23 @@ export function parseReviewFile(raw: string): ReviewFile {
   if (file?.version !== 1 || !Array.isArray(file.entries)) {
     throw new ReviewFileError('Review file is not a version 1 review export.')
   }
+  // Every entry is checked for the three fields the measurement keys on, because each of them
+  // fails quietly rather than loudly. An entry with no id can never match a candidate; an entry
+  // with an unknown kind is skipped by `measurePrecision`, so the file reports progress — "1
+  // reviewed" — over a measurement that covered nothing. That is the one outcome this file exists
+  // to rule out, and a hand-edited file reaches all of them.
   for (const entry of file.entries) {
+    if (typeof entry !== 'object' || entry === null) {
+      throw new ReviewFileError('Review file has an entry that is not an object.')
+    }
+    if (typeof entry.id !== 'string' || entry.id === '') {
+      throw new ReviewFileError('Review file has an entry with no id. Ids are what line a verdict up with a group.')
+    }
+    if (!DIVERGENCE_KINDS.includes(entry.kind)) {
+      throw new ReviewFileError(
+        `Entry ${entry.id} has kind "${entry.kind}". Use one of: ${DIVERGENCE_KINDS.join(', ')}.`
+      )
+    }
     if (entry.verdict !== '' && !VERDICTS.includes(entry.verdict as Verdict)) {
       throw new ReviewFileError(
         `Entry ${entry.id} has verdict "${entry.verdict}". Use one of: ${VERDICTS.join(', ')}, or leave it empty.`

@@ -252,8 +252,13 @@ async function triageDivergence(audit: WorkspaceAudit, options: AuditOptions): P
   }
 
   const config = resolveTriageConfig({ baseUrl: options.triageBaseUrl, model: options.triageModel })
-  output(c.dim(`Triage: sending ${plural(audit.divergence.length, 'group')} to ${config.baseUrl} (${config.model})`))
-  output(c.dim('Variant forms only — no blocks, no outputs — redacted the same way the report is.'))
+
+  // Under `-o json` stdout is one document a caller parses, so these go to stderr rather than in
+  // front of it. They are not dropped: saying where the SQL is being sent, before it is sent, is a
+  // guarantee this command makes, and the automated path is the one where nobody is watching.
+  const status = options.output === 'json' ? (message: string) => console.error(message) : output
+  status(c.dim(`Triage: sending ${plural(audit.divergence.length, 'group')} to ${config.baseUrl} (${config.model})`))
+  status(c.dim('Variant forms only — no blocks, no outputs — redacted the same way the report is.'))
 
   const cache =
     options.triageCache === false ? undefined : new TriageCache(join(audit.root, TRIAGE_CACHE_PATH), config.model)
@@ -264,12 +269,12 @@ async function triageDivergence(audit: WorkspaceAudit, options: AuditOptions): P
   })
 
   const { candidates, cached, requested, failed } = run.stats
-  output(
+  status(
     c.dim(
       `Triage: ${candidates} considered, ${cached} from cache, ${requested} judged${failed > 0 ? `, ${failed} unavailable` : ''}`
     )
   )
-  output('')
+  status('')
   return run.results
 }
 
