@@ -833,6 +833,28 @@ interface ScoreIssueContext {
 }
 
 /**
+ * Reach over the projects a finding names, not over the workspace.
+ *
+ * Every "N projects share this" finding has the same trap: the workspace's live-project count is
+ * easy to reach for and is the wrong number. Counting live projects workspace-wide and clamping to
+ * the finding's own count scores something held by three abandoned projects as if all three were
+ * live, whenever the workspace has three live projects anywhere in it — and blast radius is the
+ * multiplier the whole ranking rests on.
+ *
+ * So liveness is only ever counted among the holders the finding itself lists. A finding that
+ * carries no `projectIds` is scored as having no live reach rather than assumed to have some:
+ * under-stating an unknown is the failure this tool can survive.
+ */
+export function holderReach(
+  details: PendingAuditIssue['details'],
+  projectAges: Map<string, AssetAge>
+): { live: number; total: number } {
+  const holders = Array.isArray(details?.projectIds) ? (details.projectIds as string[]) : []
+  const total = holders.length || (typeof details?.projectCount === 'number' ? details.projectCount : 1)
+  return { live: holders.filter(id => projectAges.get(id)?.liveness === 'live').length, total }
+}
+
+/**
  * Give one finding the evidence its blast radius should be measured from.
  *
  * The evidence differs by code, and that is the point. A wrong predicate's reach is the live work
@@ -874,17 +896,10 @@ function scoreIssue(issue: PendingAuditIssue, context: ScoreIssueContext): Sever
         signal: issue.details?.confidence === 'heuristic' ? 0.5 : undefined,
       })
 
-    case 'credential-shared': {
+    case 'credential-shared':
       // Reach is the projects that hold the credential, and the live half of it is how many of
-      // *those* are still maintained. Counting live projects across the whole workspace and then
-      // clamping to the credential's project count scored a key shared by three abandoned projects
-      // as if all three were live, whenever the workspace had three live projects anywhere in it.
-      const holders = Array.isArray(issue.details?.projectIds) ? (issue.details.projectIds as string[]) : []
-      const projectCount =
-        holders.length || (typeof issue.details?.projectCount === 'number' ? issue.details.projectCount : 1)
-      const live = holders.filter(id => context.projectAges.get(id)?.liveness === 'live').length
-      return scoreFinding(issue.code, { age, reach: { live, total: projectCount } })
-    }
+      // *those* are still maintained.
+      return scoreFinding(issue.code, { age, reach: holderReach(issue.details, context.projectAges) })
 
     case 'pii-subject-scatter': {
       const notebookCount = typeof issue.details?.notebookCount === 'number' ? issue.details.notebookCount : 1

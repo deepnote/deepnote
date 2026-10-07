@@ -1,6 +1,7 @@
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
-import { auditWorkspace, CONSENSUS_PROJECT_FLOOR } from './audit'
+import { auditWorkspace, CONSENSUS_PROJECT_FLOOR, holderReach } from './audit'
+import type { AssetAge } from './staleness'
 import type { LoadedWorkspace, WorkspaceProject } from './workspace'
 
 interface TestBlock {
@@ -979,5 +980,40 @@ describe('auditWorkspace — credential-shared reach', () => {
     const audit = auditWorkspace(workspace(HOLDERS.map(id => credProject(id, id, daysAgo(10)))), { now: NOW })
 
     expect(issuesOf(audit, 'credential-shared')[0].score.blastRadius).toBeGreaterThan(0.75)
+  })
+})
+
+describe('holderReach', () => {
+  const ages = new Map<string, AssetAge>([
+    ['live-1', { liveness: 'live' }],
+    ['live-2', { liveness: 'live' }],
+    ['cold-1', { liveness: 'cold' }],
+    ['cold-2', { liveness: 'cold' }],
+    ['cold-3', { liveness: 'cold' }],
+  ])
+
+  it('counts live projects among the holders, never across the workspace', () => {
+    // The trap this helper exists to close: three cold holders in a workspace that has two live
+    // projects elsewhere. A workspace-wide count clamped to the holder count returns two.
+    expect(holderReach({ projectIds: ['cold-1', 'cold-2', 'cold-3'] }, ages)).toEqual({ live: 0, total: 3 })
+  })
+
+  it('counts the live holders when there are some', () => {
+    expect(holderReach({ projectIds: ['live-1', 'cold-1'] }, ages)).toEqual({ live: 1, total: 2 })
+  })
+
+  it('ignores a holder the workspace has no age for', () => {
+    expect(holderReach({ projectIds: ['live-1', 'never-seen'] }, ages)).toEqual({ live: 1, total: 2 })
+  })
+
+  it('prefers the holder list over a projectCount that disagrees with it', () => {
+    expect(holderReach({ projectIds: ['live-1'], projectCount: 9 }, ages)).toEqual({ live: 1, total: 1 })
+  })
+
+  it('reports no live reach rather than guessing when the holders are not named', () => {
+    // Understating an unknown is survivable; inventing live reach for a finding that never said
+    // which projects hold it is the thing that made the ranking untrustworthy.
+    expect(holderReach({ projectCount: 4 }, ages)).toEqual({ live: 0, total: 4 })
+    expect(holderReach(undefined, ages)).toEqual({ live: 0, total: 1 })
   })
 })
