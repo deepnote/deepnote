@@ -579,6 +579,46 @@ describe('auditWorkspace', () => {
       expect(audit.staleness.live).toBe(1)
       expect(issuesOf(audit, 'asset-stale')).toEqual([])
     })
+
+    it('ignores an unparseable modification date rather than carrying it', () => {
+      // Every comparison against NaN is false, so a malformed `modifiedAt` could never be replaced
+      // by a valid execution time. A notebook that ran last week reported as undated, and liveness
+      // is the multiplier the whole ranking is weighted by.
+      const broken = datedProject('p1', 'Broken', daysAgo(1500), [
+        { name: 'One', blocks: [{ id: 'b1', type: 'code' }] },
+      ])
+      broken.notebooks[0] = { ...broken.notebooks[0], modifiedAt: 'last Tuesday' }
+      broken.notebooks[0].blocks[0] = {
+        ...broken.notebooks[0].blocks[0],
+        executionFinishedAt: daysAgo(10),
+      } as (typeof broken.notebooks)[number]['blocks'][number]
+
+      const audit = auditWorkspace(workspace([broken]), { now: NOW })
+
+      expect(audit.staleness.live).toBe(1)
+      expect(audit.staleness.unknown).toBe(0)
+    })
+
+    it('counts notebooks that share a name separately, and does not guess between them', () => {
+      // Notebook names are not unique within a project. Keying ages by name collapsed two
+      // notebooks into one, so the staleness summary counted one too few and the stale check read one
+      // notebook's age for both — reporting a live notebook as stale, or missing a cold one.
+      const mixed = datedProject('p1', 'Mixed', daysAgo(30), [
+        { name: 'Analysis', blocks: [] },
+        { name: 'Analysis', blocks: [] },
+      ])
+      mixed.notebooks[0] = { ...mixed.notebooks[0], modifiedAt: daysAgo(1500) }
+      mixed.notebooks[1] = { ...mixed.notebooks[1], modifiedAt: daysAgo(10) }
+
+      const audit = auditWorkspace(workspace([mixed]), { now: NOW })
+
+      expect(audit.summary.notebooks).toBe(2)
+      expect(audit.staleness.dated).toBe(2)
+      expect(audit.staleness.cold).toBe(1)
+      expect(audit.staleness.live).toBe(1)
+      // Exactly one is stale — not both, and not neither.
+      expect(issuesOf(audit, 'asset-stale')).toHaveLength(1)
+    })
   })
 
   describe('tables and blast radius', () => {

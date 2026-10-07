@@ -338,15 +338,30 @@ function sqlIntegrationIdOf(block: { type: string; metadata?: unknown }): string
  * a notebook that ran last week is live even if nobody edited the file. The later of the two wins.
  */
 function notebookLastTouchedAt(notebook: WorkspaceProject['notebooks'][number]): string | undefined {
-  let latest = notebook.modifiedAt
+  let latest: string | undefined
+  let latestMs = Number.NEGATIVE_INFINITY
+
+  // An unparseable timestamp is no evidence of anything, so it is skipped rather than carried.
+  // Comparing against it kept it forever — every `Date.parse(executed) > NaN` is false — so one
+  // malformed `modifiedAt` made a notebook that ran last week report as undated, which is the
+  // liveness the whole ranking is weighted by. The `Number.isNaN` guard also keeps a malformed
+  // value from becoming the baseline; that half is defense in depth, since `assetAge` rejects an
+  // unparseable date downstream either way.
+  const consider = (value: unknown): void => {
+    if (typeof value !== 'string') {
+      return
+    }
+    const parsed = Date.parse(value)
+    if (Number.isNaN(parsed) || parsed <= latestMs) {
+      return
+    }
+    latest = value
+    latestMs = parsed
+  }
+
+  consider(notebook.modifiedAt)
   for (const block of notebook.blocks) {
-    const executed = (block as { executionFinishedAt?: unknown }).executionFinishedAt
-    if (typeof executed !== 'string') {
-      continue
-    }
-    if (!latest || Date.parse(executed) > Date.parse(latest)) {
-      latest = executed
-    }
+    consider((block as { executionFinishedAt?: unknown }).executionFinishedAt)
   }
   return latest
 }
@@ -380,7 +395,14 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // are resolved up front, per notebook as well as per project: sync writes one file per notebook,
   // so a live project can still contain notebooks nobody has opened in four years.
   const now = options.now ?? new Date()
+  /** Keyed by notebook id, which is the only thing unique within a project. */
   const notebookAges = new Map<string, AssetAge>()
+  /**
+   * Keyed by `projectId:notebookName`, for findings that record only the name. `undefined` marks a
+   * name two notebooks share: which of them a finding sits in is then genuinely unknown, so it
+   * falls back to the project's age rather than borrowing whichever was read last.
+   */
+  const agesByName = new Map<string, AssetAge | undefined>()
   const projectAges = new Map<string, AssetAge>()
   const tables = new Map<string, TableUsage>()
   /** Tables referenced by each block, so a SQL finding can be scored by what depends on them. */
@@ -389,13 +411,16 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   for (const project of projects) {
     projectAges.set(project.id, assetAge(project.modifiedAt, now))
     for (const notebook of project.notebooks) {
-      notebookAges.set(`${project.id}:${notebook.name}`, assetAge(notebookLastTouchedAt(notebook), now))
+      const age = assetAge(notebookLastTouchedAt(notebook), now)
+      notebookAges.set(notebook.id, age)
+      const nameKey = `${project.id}:${notebook.name}`
+      agesByName.set(nameKey, agesByName.has(nameKey) ? undefined : age)
     }
   }
 
   /** Age of the asset an issue sits in: its notebook when it has one, else its project. */
   const ageFor = (projectId: string, notebookName: string): AssetAge =>
-    notebookAges.get(`${projectId}:${notebookName}`) ?? projectAges.get(projectId) ?? { liveness: 'unknown' }
+    agesByName.get(`${projectId}:${notebookName}`) ?? projectAges.get(projectId) ?? { liveness: 'unknown' }
 
   for (const project of projects) {
     const blockMap = blockMapFor(project)
@@ -705,7 +730,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // is the multiplier the others are already scored by rather than a problem in its own right.
   for (const project of projects) {
     for (const notebook of project.notebooks) {
-      const age = notebookAges.get(`${project.id}:${notebook.name}`)
+      const age = notebookAges.get(notebook.id)
       if (age?.liveness !== 'cold' || age.ageDays === undefined) {
         continue
       }
