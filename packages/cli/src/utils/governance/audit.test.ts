@@ -44,6 +44,30 @@ function issuesOf(audit: ReturnType<typeof auditWorkspace>, code: string) {
   return audit.issues.filter(issue => issue.code === code)
 }
 
+/** A fixed clock, so staleness is a property of the fixture rather than of the day the test runs. */
+const NOW = new Date('2026-10-07T00:00:00.000Z')
+
+/** An ISO timestamp `days` before NOW. */
+function daysAgo(days: number): string {
+  return new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+/** `project`, with a last-modified date on the project and every notebook it holds. */
+function datedProject(
+  id: string,
+  name: string,
+  modifiedAt: string,
+  notebooks: Array<{ name: string; blocks: TestBlock[] }>,
+  integrations: Array<{ id: string; name: string; type: string }> = []
+): WorkspaceProject {
+  const built = project(id, name, notebooks, integrations)
+  return {
+    ...built,
+    modifiedAt,
+    notebooks: built.notebooks.map(notebook => ({ ...notebook, modifiedAt })),
+  }
+}
+
 describe('auditWorkspace', () => {
   describe('inventory', () => {
     it('counts projects, notebooks, and blocks by kind', () => {
@@ -504,6 +528,206 @@ describe('auditWorkspace', () => {
       const loaded = { ...workspace([]), errors: [{ path: 'bad.deepnote', message: 'boom' }] }
 
       expect(auditWorkspace(loaded).errors).toEqual([{ path: 'bad.deepnote', message: 'boom' }])
+    })
+  })
+
+  describe('staleness', () => {
+    it('classifies notebooks by how long ago they were touched', () => {
+      const audit = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Live', daysAgo(30), [{ name: 'One', blocks: [] }]),
+          datedProject('p2', 'Aging', daysAgo(500), [{ name: 'One', blocks: [] }]),
+          datedProject('p3', 'Cold', daysAgo(1500), [{ name: 'One', blocks: [] }]),
+          project('p4', 'Undated', [{ name: 'One', blocks: [] }]),
+        ]),
+        { now: NOW }
+      )
+
+      expect(audit.staleness).toMatchObject({ live: 1, aging: 1, cold: 1, unknown: 1, dated: 3 })
+      expect(audit.staleness.medianAgeDays).toBe(500)
+    })
+
+    it('reports a notebook untouched for three years', () => {
+      const audit = auditWorkspace(
+        workspace([datedProject('p1', 'Cold', daysAgo(1500), [{ name: 'Old', blocks: [] }])]),
+        { now: NOW }
+      )
+
+      const stale = issuesOf(audit, 'asset-stale')
+      expect(stale).toHaveLength(1)
+      expect(stale[0].message).toContain('4.1 years')
+      expect(stale[0].details).toMatchObject({ ageDays: 1500 })
+    })
+
+    it('does not report an undated notebook as abandoned', () => {
+      const audit = auditWorkspace(workspace([project('p1', 'Undated', [{ name: 'One', blocks: [] }])]), { now: NOW })
+
+      expect(issuesOf(audit, 'asset-stale')).toEqual([])
+      expect(audit.notes.some(note => note.includes('no modification date'))).toBe(true)
+    })
+
+    it('counts a recently executed block as a touch, even when the file is old', () => {
+      const old = datedProject('p1', 'Executed', daysAgo(1500), [{ name: 'One', blocks: [{ id: 'b1', type: 'code' }] }])
+      old.notebooks[0].blocks[0] = {
+        ...old.notebooks[0].blocks[0],
+        executionFinishedAt: daysAgo(10),
+      } as (typeof old.notebooks)[number]['blocks'][number]
+
+      const audit = auditWorkspace(workspace([old]), { now: NOW })
+
+      expect(audit.staleness.live).toBe(1)
+      expect(issuesOf(audit, 'asset-stale')).toEqual([])
+    })
+  })
+
+  describe('tables and blast radius', () => {
+    it('inventories tables with their live and total reach', () => {
+      const audit = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Live', daysAgo(30), [
+            { name: 'One', blocks: [{ id: 'b1', type: 'sql', content: 'SELECT * FROM users' }] },
+          ]),
+          datedProject('p2', 'Abandoned', daysAgo(1500), [
+            { name: 'One', blocks: [{ id: 'b2', type: 'sql', content: 'SELECT * FROM users' }] },
+          ]),
+        ]),
+        { now: NOW }
+      )
+
+      expect(audit.tables).toHaveLength(1)
+      expect(audit.tables[0]).toMatchObject({ name: 'users', projectCount: 2, liveProjectCount: 1, blockCount: 2 })
+    })
+
+    it('ranks tables by live reach rather than raw reach', () => {
+      const audit = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Live A', daysAgo(30), [
+            { name: 'One', blocks: [{ id: 'b1', type: 'sql', content: 'SELECT * FROM live_table' }] },
+          ]),
+          datedProject('p2', 'Live B', daysAgo(30), [
+            { name: 'One', blocks: [{ id: 'b2', type: 'sql', content: 'SELECT * FROM live_table' }] },
+          ]),
+          datedProject('p3', 'Dead A', daysAgo(1500), [
+            { name: 'One', blocks: [{ id: 'b3', type: 'sql', content: 'SELECT * FROM dead_table' }] },
+          ]),
+          datedProject('p4', 'Dead B', daysAgo(1500), [
+            { name: 'One', blocks: [{ id: 'b4', type: 'sql', content: 'SELECT * FROM dead_table JOIN x ON 1 = 2' }] },
+          ]),
+          datedProject('p5', 'Dead C', daysAgo(1500), [
+            { name: 'One', blocks: [{ id: 'b5', type: 'sql', content: 'SELECT * FROM dead_table' }] },
+          ]),
+        ]),
+        { now: NOW }
+      )
+
+      expect(audit.tables[0].name).toBe('live_table')
+      expect(audit.tables.find(table => table.name === 'dead_table')?.projectCount).toBe(3)
+      expect(audit.tables.find(table => table.name === 'dead_table')?.liveProjectCount).toBe(0)
+    })
+
+    it('scores a wrong query higher when live projects read the same table', () => {
+      const wrongQuery = { id: 'b1', type: 'sql', content: 'SELECT * FROM users WHERE deleted_at = NULL' }
+      const alone = auditWorkspace(
+        workspace([datedProject('p1', 'Alpha', daysAgo(30), [{ name: 'One', blocks: [wrongQuery] }])]),
+        { now: NOW }
+      )
+      const widelyRead = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Alpha', daysAgo(30), [{ name: 'One', blocks: [wrongQuery] }]),
+          datedProject('p2', 'Bravo', daysAgo(30), [
+            { name: 'One', blocks: [{ id: 'b2', type: 'sql', content: 'SELECT * FROM users' }] },
+          ]),
+          datedProject('p3', 'Charlie', daysAgo(30), [
+            { name: 'One', blocks: [{ id: 'b3', type: 'sql', content: 'SELECT id FROM users' }] },
+          ]),
+        ]),
+        { now: NOW }
+      )
+
+      const scoreOf = (audit: ReturnType<typeof auditWorkspace>) =>
+        issuesOf(audit, 'sql-null-comparison')[0].score.score
+      expect(scoreOf(widelyRead)).toBeGreaterThan(scoreOf(alone))
+    })
+  })
+
+  describe('ranking', () => {
+    it('scores every finding and returns them highest first', () => {
+      const audit = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Alpha', daysAgo(30), [
+            {
+              name: 'One',
+              blocks: [
+                { id: 'b1', type: 'sql', content: 'SELECT * FROM t WHERE a = NULL' },
+                { id: 'b2', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' },
+                { id: 'b3', type: 'code', content: 'requests.post("https://api.segment.io/v1/track")' },
+              ],
+            },
+          ]),
+        ]),
+        { now: NOW }
+      )
+
+      const scores = audit.issues.map(issue => issue.score.score)
+      expect(scores).toEqual([...scores].sort((a, b) => b - a))
+      expect(audit.issues.every(issue => issue.score.score > 0)).toBe(true)
+    })
+
+    it('exposes all four factors, so the ranking can be argued with', () => {
+      const audit = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Alpha', daysAgo(30), [
+            { name: 'One', blocks: [{ id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }] },
+          ]),
+        ]),
+        { now: NOW }
+      )
+
+      expect(audit.issues[0].score).toMatchObject({
+        signal: expect.any(Number),
+        exposure: expect.any(Number),
+        neglect: expect.any(Number),
+        blastRadius: expect.any(Number),
+      })
+    })
+
+    it('ranks a credential in an abandoned notebook above one in a live notebook', () => {
+      // The key still works. Liveness weighting must not be allowed to score it as harmless.
+      const leak = { id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }
+      const live = auditWorkspace(
+        workspace([datedProject('p1', 'Live', daysAgo(30), [{ name: 'One', blocks: [leak] }])]),
+        { now: NOW }
+      )
+      const abandoned = auditWorkspace(
+        workspace([datedProject('p1', 'Cold', daysAgo(1500), [{ name: 'One', blocks: [leak] }])]),
+        { now: NOW }
+      )
+
+      const credentialScore = (audit: ReturnType<typeof auditWorkspace>) =>
+        issuesOf(audit, 'credential-hardcoded')[0].score.score
+      expect(credentialScore(abandoned)).toBeGreaterThan(credentialScore(live))
+    })
+
+    it('ranks the heuristic credential rule below the pattern rules', () => {
+      const audit = auditWorkspace(
+        workspace([
+          datedProject('p1', 'Alpha', daysAgo(30), [
+            {
+              name: 'One',
+              blocks: [
+                { id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' },
+                { id: 'b2', type: 'code', content: 'api_key = "9f8e7d6c5b4a39281706"' },
+              ],
+            },
+          ]),
+        ]),
+        { now: NOW }
+      )
+
+      const [first, second] = issuesOf(audit, 'credential-hardcoded')
+      expect(first.details?.confidence).toBe('pattern')
+      expect(second.details?.confidence).toBe('heuristic')
+      expect(first.score.score).toBeGreaterThan(second.score.score)
     })
   })
 

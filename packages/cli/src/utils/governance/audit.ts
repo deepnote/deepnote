@@ -20,17 +20,29 @@ import type { BlockInfo, LintIssue } from '../analysis'
 import { getBlockLabel } from '../block-label'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
+import { type SeverityScore, scoreFinding } from './scoring'
+import { findTableReferences } from './sql-tables'
+import { type AssetAge, assetAge, formatAge, medianAgeDays } from './staleness'
 import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
 import { createSubjectFingerprinter, redactSubjects } from './subjects'
 import { type LoadedWorkspace, projectBlocks, type WorkspaceLoadError, type WorkspaceProject } from './workspace'
 
-/** A lint issue, placed in the workspace it was found in. */
+/** A lint issue, placed in the workspace it was found in and ranked against the rest. */
 export interface AuditIssue extends LintIssue {
   projectId: string
   projectName: string
   /** Workspace-root-relative path of the file the issue was found in. */
   path: string
+  /** Severity and the four factors it is built from, so the ranking can be taken apart. */
+  score: SeverityScore
 }
+
+/**
+ * An issue before it is scored. Three of the four severity factors — neglect, and both halves of
+ * blast radius — are only knowable once the whole workspace has been read, so findings are collected
+ * unscored and ranked in one pass at the end.
+ */
+type PendingAuditIssue = Omit<AuditIssue, 'score'> & { score?: SeverityScore }
 
 /** One project's use of an integration. */
 export interface IntegrationConsumer {
@@ -52,6 +64,35 @@ export interface IntegrationUsage {
   blockCount: number
   /** Declared by at least one project and used by none. */
   orphan: boolean
+  /** Projects querying it that were edited within the past year — the reach that is actually live. */
+  liveProjectCount: number
+}
+
+/** A table referenced by the workspace's SQL, and how much live work depends on it. */
+export interface TableUsage {
+  /** Name as written, lower-cased: `analytics.public.users`. */
+  name: string
+  /** Projects whose SQL references it. */
+  projectCount: number
+  /** Of those, the ones edited within the past year. */
+  liveProjectCount: number
+  /** SQL blocks referencing it. */
+  blockCount: number
+  projects: Array<{ projectId: string; projectName: string; live: boolean }>
+}
+
+/** How much of the workspace is still being maintained. */
+export interface StalenessSummary {
+  /** Notebooks whose file carries a usable timestamp. */
+  dated: number
+  live: number
+  aging: number
+  /** Untouched for three years or more. */
+  cold: number
+  /** Notebooks with no timestamp to judge by. */
+  unknown: number
+  /** Median age in days across dated notebooks. */
+  medianAgeDays?: number
 }
 
 export interface EgressUsage {
@@ -113,7 +154,9 @@ export interface WorkspaceAudit {
     codeBlocks: number
   }
   integrations: IntegrationUsage[]
+  tables: TableUsage[]
   egress: EgressUsage[]
+  staleness: StalenessSummary
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
   credentials: CredentialUsage[]
   subjects: SubjectSummary
@@ -131,6 +174,8 @@ export interface AuditOptions {
   project?: string
   /** Domains belonging to your own organization, so colleagues are not counted as data subjects. */
   internalDomains?: string[]
+  /** Fixed clock, so tests and reproducible reports do not depend on the time of day. */
+  now?: Date
 }
 
 /**
@@ -159,6 +204,7 @@ const SEVERITY = {
   'egress-external': 'warning',
   'credential-shared': 'error',
   'pii-subject-scatter': 'warning',
+  'asset-stale': 'warning',
 } as const
 
 /**
@@ -285,6 +331,26 @@ function sqlIntegrationIdOf(block: { type: string; metadata?: unknown }): string
   return typeof id === 'string' && id !== '' && !isBuiltinIntegration(id) ? id : undefined
 }
 
+/**
+ * When a notebook was last touched.
+ *
+ * The file's `modifiedAt` is the baseline, but a block's recorded execution is stronger evidence:
+ * a notebook that ran last week is live even if nobody edited the file. The later of the two wins.
+ */
+function notebookLastTouchedAt(notebook: WorkspaceProject['notebooks'][number]): string | undefined {
+  let latest = notebook.modifiedAt
+  for (const block of notebook.blocks) {
+    const executed = (block as { executionFinishedAt?: unknown }).executionFinishedAt
+    if (typeof executed !== 'string') {
+      continue
+    }
+    if (!latest || Date.parse(executed) > Date.parse(latest)) {
+      latest = executed
+    }
+  }
+  return latest
+}
+
 /** `--project` matches a project by exact id, or by name case-insensitively. */
 function matchesProject(project: WorkspaceProject, filter: string): boolean {
   return project.id === filter || project.name.toLowerCase() === filter.toLowerCase()
@@ -296,7 +362,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     ? workspace.projects.filter(project => matchesProject(project, options.project as string))
     : workspace.projects
 
-  const issues: AuditIssue[] = []
+  const issues: PendingAuditIssue[] = []
   const integrations = new Map<string, IntegrationUsage>()
   const egress = new Map<string, EgressUsage>()
   const credentials = new Map<string, CredentialUsage & { blockIds: Set<string> }>()
@@ -310,15 +376,44 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // been scanned, can still name the block they point at.
   const blockLabelsByProject = new Map<string, Map<string, string>>()
 
+  // Ages drive both the neglect multiplier and the liveness weighting of every blast radius, so they
+  // are resolved up front, per notebook as well as per project: sync writes one file per notebook,
+  // so a live project can still contain notebooks nobody has opened in four years.
+  const now = options.now ?? new Date()
+  const notebookAges = new Map<string, AssetAge>()
+  const projectAges = new Map<string, AssetAge>()
+  const tables = new Map<string, TableUsage>()
+  /** Tables referenced by each block, so a SQL finding can be scored by what depends on them. */
+  const tablesByBlock = new Map<string, string[]>()
+
+  for (const project of projects) {
+    projectAges.set(project.id, assetAge(project.modifiedAt, now))
+    for (const notebook of project.notebooks) {
+      notebookAges.set(`${project.id}:${notebook.name}`, assetAge(notebookLastTouchedAt(notebook), now))
+    }
+  }
+
+  /** Age of the asset an issue sits in: its notebook when it has one, else its project. */
+  const ageFor = (projectId: string, notebookName: string): AssetAge =>
+    notebookAges.get(`${projectId}:${notebookName}`) ?? projectAges.get(projectId) ?? { liveness: 'unknown' }
+
   for (const project of projects) {
     const blockMap = blockMapFor(project)
+    const projectIsLive = projectAges.get(project.id)?.liveness === 'live'
     blockLabelsByProject.set(project.id, new Map([...blockMap].map(([id, info]) => [id, info.label])))
     notebookCount += project.notebooks.length
 
     // Declared integrations are registered before any block is read, so an integration nobody uses
     // still appears in the inventory — being unused is the finding.
     for (const declared of project.integrations) {
-      const usage = integrations.get(declared.id) ?? { id: declared.id, consumers: [], blockCount: 0, orphan: true }
+      // `liveProjectCount` is recomputed from the consumers once every project has been read.
+      const usage: IntegrationUsage = integrations.get(declared.id) ?? {
+        id: declared.id,
+        consumers: [],
+        blockCount: 0,
+        orphan: true,
+        liveProjectCount: 0,
+      }
       usage.name ??= declared.name
       usage.type ??= declared.type
       usage.consumers.push({
@@ -339,13 +434,37 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         const integrationId = sqlIntegrationIdOf(block)
         if (block.type === 'sql') {
           sqlBlockCount++
+          const referenced = findTableReferences(content)
+          tablesByBlock.set(
+            block.id,
+            referenced.map(reference => reference.name)
+          )
+          for (const { name } of referenced) {
+            const usage = tables.get(name) ?? {
+              name,
+              projectCount: 0,
+              liveProjectCount: 0,
+              blockCount: 0,
+              projects: [],
+            }
+            if (!usage.projects.some(entry => entry.projectId === project.id)) {
+              usage.projects.push({ projectId: project.id, projectName: project.name, live: projectIsLive })
+              usage.projectCount++
+              if (projectIsLive) {
+                usage.liveProjectCount++
+              }
+            }
+            usage.blockCount++
+            tables.set(name, usage)
+          }
         }
         if (integrationId) {
-          const usage = integrations.get(integrationId) ?? {
+          const usage: IntegrationUsage = integrations.get(integrationId) ?? {
             id: integrationId,
             consumers: [],
             blockCount: 0,
             orphan: false,
+            liveProjectCount: 0,
           }
           const consumer = usage.consumers.find(entry => entry.projectId === project.id)
           if (consumer) {
@@ -579,7 +698,63 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     })
   }
 
+  // A notebook nobody has touched in three years. Reported last of the workspace checks, because it
+  // is the multiplier the others are already scored by rather than a problem in its own right.
+  for (const project of projects) {
+    for (const notebook of project.notebooks) {
+      const age = notebookAges.get(`${project.id}:${notebook.name}`)
+      if (age?.liveness !== 'cold' || age.ageDays === undefined) {
+        continue
+      }
+      issues.push({
+        severity: SEVERITY['asset-stale'],
+        code: 'asset-stale',
+        message: `Notebook "${notebook.name}" has not been edited or run in ${formatAge(age.ageDays)}. Nobody is maintaining what it queries, or watching what it holds.`,
+        blockId: '',
+        blockLabel: 'notebook',
+        notebookName: notebook.name,
+        projectId: project.id,
+        projectName: project.name,
+        path: notebook.path,
+        score: scoreFinding('asset-stale', { age, occurrences: 1 }),
+        details: { lastTouchedAt: age.lastTouchedAt, ageDays: age.ageDays },
+      })
+    }
+  }
+
+  // Score everything, then rank. Scoring happens here rather than at each push because three of the
+  // four factors — neglect, and both halves of blast radius — are only knowable once the whole
+  // workspace has been read.
+  const scoredIssues: AuditIssue[] = issues.map(issue => ({
+    ...issue,
+    score: issue.score ?? scoreIssue(issue, { ageFor, tables, tablesByBlock, projectAges, subjectIndex }),
+  }))
+
+  // Highest score first: the ranking is the work queue. Ties fall back to severity and then code, so
+  // two runs over the same tree produce the same order.
+  scoredIssues.sort(
+    (a, b) =>
+      b.score.score - a.score.score ||
+      (a.severity === b.severity ? 0 : a.severity === 'error' ? -1 : 1) ||
+      a.code.localeCompare(b.code)
+  )
+
+  const notebookAgeList = [...notebookAges.values()]
+  const staleness: StalenessSummary = {
+    dated: notebookAgeList.filter(age => age.liveness !== 'unknown').length,
+    live: notebookAgeList.filter(age => age.liveness === 'live').length,
+    aging: notebookAgeList.filter(age => age.liveness === 'aging').length,
+    cold: notebookAgeList.filter(age => age.liveness === 'cold').length,
+    unknown: notebookAgeList.filter(age => age.liveness === 'unknown').length,
+    medianAgeDays: medianAgeDays(notebookAgeList),
+  }
+
   const notes = [INTEGRATION_LOWER_BOUND_NOTE, EGRESS_LOWER_BOUND_NOTE]
+  if (staleness.unknown > 0) {
+    notes.push(
+      `${staleness.unknown} of ${notebookAgeList.length} notebooks carry no modification date, so their findings are scored as neither live nor abandoned.`
+    )
+  }
   if (subjectIndex.summary.subjects > 0 && (options.internalDomains ?? []).length === 0) {
     notes.push('No --internal-domain was given, so colleagues and customers are counted alike as data subjects.')
   }
@@ -610,9 +785,21 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
       sqlBlocks: sqlBlockCount,
       codeBlocks: codeBlockCount,
     },
-    integrations: [...integrations.values()].sort(
-      (a, b) => b.blockCount - a.blockCount || (a.name ?? a.id).localeCompare(b.name ?? b.id)
+    integrations: [...integrations.values()]
+      .map(usage => ({
+        ...usage,
+        liveProjectCount: usage.consumers.filter(
+          consumer => consumer.blockCount > 0 && projectAges.get(consumer.projectId)?.liveness === 'live'
+        ).length,
+      }))
+      .sort((a, b) => b.blockCount - a.blockCount || (a.name ?? a.id).localeCompare(b.name ?? b.id)),
+    // Ranked by live reach, not by raw reach: a table twenty abandoned projects query is not a
+    // bigger dependency than one three live projects query.
+    tables: [...tables.values()].sort(
+      (a, b) =>
+        b.liveProjectCount - a.liveProjectCount || b.projectCount - a.projectCount || a.name.localeCompare(b.name)
     ),
+    staleness,
     egress: [...egress.values()].sort((a, b) => b.blockCount - a.blockCount || a.host.localeCompare(b.host)),
     credentials: sharedCredentials.sort((a, b) => b.projects.length - a.projects.length),
     subjects: {
@@ -623,15 +810,86 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
       internalDomains: subjectIndex.internalDomains,
     },
     flow: buildFlowMap(projects, [...integrations.values()], [...egress.values()]),
-    issues,
+    issues: scoredIssues,
     issueCount: {
-      errors: issues.filter(issue => issue.severity === 'error').length,
-      warnings: issues.filter(issue => issue.severity === 'warning').length,
-      total: issues.length,
+      errors: scoredIssues.filter(issue => issue.severity === 'error').length,
+      warnings: scoredIssues.filter(issue => issue.severity === 'warning').length,
+      total: scoredIssues.length,
     },
     errors: workspace.errors,
     notes,
   })
+}
+
+interface ScoreIssueContext {
+  ageFor: (projectId: string, notebookName: string) => AssetAge
+  tables: Map<string, TableUsage>
+  tablesByBlock: Map<string, string[]>
+  projectAges: Map<string, AssetAge>
+  subjectIndex: ReturnType<typeof buildSubjectIndex>
+}
+
+/**
+ * Give one finding the evidence its blast radius should be measured from.
+ *
+ * The evidence differs by code, and that is the point. A wrong predicate's reach is the live work
+ * depending on the tables it queries. A shared credential's reach is the live projects it is
+ * hardcoded in. Using one notion of "reach" for both would make the ranking a restatement of the
+ * severity field it is supposed to refine.
+ */
+function scoreIssue(issue: PendingAuditIssue, context: ScoreIssueContext): SeverityScore {
+  const age = context.ageFor(issue.projectId, issue.notebookName)
+
+  switch (issue.code) {
+    case 'sql-null-comparison':
+    case 'sql-tautology':
+    case 'sql-string-boolean': {
+      // A query that is wrong matters in proportion to what reads the same tables — and only the
+      // part of that which is still live.
+      const tableNames = context.tablesByBlock.get(issue.blockId) ?? []
+      const reach = tableNames.reduce(
+        (totals, name) => {
+          const usage = context.tables.get(name)
+          return usage
+            ? { live: Math.max(totals.live, usage.liveProjectCount), total: Math.max(totals.total, usage.projectCount) }
+            : totals
+        },
+        { live: 0, total: 0 }
+      )
+      // A query against no table the audit could resolve still sits in a notebook someone may run.
+      return reach.total === 0
+        ? scoreFinding(issue.code, { age, occurrences: 1 })
+        : scoreFinding(issue.code, { age, reach })
+    }
+
+    case 'credential-hardcoded':
+      return scoreFinding(issue.code, {
+        age,
+        occurrences: typeof issue.details?.blockCount === 'number' ? issue.details.blockCount : 1,
+        // The heuristic rule is a guess about a variable name; the pattern rules recognise a shape
+        // the issuer assigned. Scoring them alike would bury the certain findings under the guesses.
+        signal: issue.details?.confidence === 'heuristic' ? 0.5 : undefined,
+      })
+
+    case 'credential-shared': {
+      const projectCount = typeof issue.details?.projectCount === 'number' ? issue.details.projectCount : 1
+      const live = [...context.projectAges.values()].filter(projectAge => projectAge.liveness === 'live').length
+      return scoreFinding(issue.code, { age, reach: { live: Math.min(live, projectCount), total: projectCount } })
+    }
+
+    case 'pii-subject-scatter': {
+      const notebookCount = typeof issue.details?.notebookCount === 'number' ? issue.details.notebookCount : 1
+      return scoreFinding(issue.code, { age, occurrences: notebookCount })
+    }
+
+    case 'ingress-integration-orphan':
+      // No live consumer by definition — that is the finding. Its reach is the projects still
+      // declaring it, whose own liveness the occurrence weighting already accounts for.
+      return scoreFinding(issue.code, { age, occurrences: 1 })
+
+    default:
+      return scoreFinding(issue.code, { age, occurrences: 1 })
+  }
 }
 
 /**

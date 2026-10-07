@@ -138,6 +138,60 @@ describe('audit command', () => {
     })
   })
 
+  describe('staleness and ranking', () => {
+    it('reports how much of the workspace is still maintained', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Maintenance')
+      expect(output).toContain('cold (3y+)')
+      expect(output).toContain('median age')
+    })
+
+    it('inventories tables by live reach', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Tables — ranked by live reach')
+      expect(output).toContain('users')
+    })
+
+    it('shows a score per check, and the ranked list with --issues', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+      const grouped = getOutput(consoleSpy)
+      consoleSpy.mockClear()
+      await createAuditAction(program)(WORKSPACE, { issues: true })
+      const ranked = getOutput(consoleSpy)
+
+      expect(grouped).toMatch(/\d+ ✖ credential-shared/)
+      expect(ranked).toContain('Findings — ranked')
+      expect(ranked).toContain('signal × exposure × neglect × blast radius')
+    })
+
+    it('ranks the findings highest score first', async () => {
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      const report = JSON.parse(getOutput(consoleSpy))
+      const scores = report.issues.map((issue: { score: { score: number } }) => issue.score.score)
+      expect(scores).toEqual([...scores].sort((a: number, b: number) => b - a))
+      expect(report.issues[0].score).toMatchObject({
+        signal: expect.any(Number),
+        exposure: expect.any(Number),
+        neglect: expect.any(Number),
+        blastRadius: expect.any(Number),
+      })
+    })
+
+    it('reports the stale notebook in the archive project', async () => {
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      const report = JSON.parse(getOutput(consoleSpy))
+      const stale = report.issues.filter((issue: { code: string }) => issue.code === 'asset-stale')
+      expect(stale).toHaveLength(1)
+      expect(stale[0].projectName).toBe('Churn 2021')
+    })
+  })
+
   describe('--project', () => {
     it('restricts the report to one project', async () => {
       await createAuditAction(program)(WORKSPACE, { project: 'Revenue reporting' })

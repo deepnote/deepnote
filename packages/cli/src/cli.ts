@@ -1090,9 +1090,18 @@ ${c.bold('What it reports:')}
             Identities are fingerprinted under a salt generated for the run and thrown
             away with it, so the report cannot be read back as a list of people. For a
             persistent, searchable index, use ${c.dim('deepnote subjects index')}.
+  ${c.underline('Tables')}    Every table the SQL references, ranked by how many *live* projects read it.
   ${c.underline('Findings')}  ingress-integration-orphan, ingress-integration-undeclared,
-            egress-external, credential-shared, plus every ${c.dim('lint --governance')}
-            check run against each project.
+            egress-external, credential-shared, pii-subject-scatter, asset-stale,
+            plus every ${c.dim('lint --governance')} check run against each project.
+
+${c.bold('Ranking:')}
+  severity = signal × exposure × neglect × blast radius, reported out of 100 with all
+  four factors in the JSON. Blast radius is liveness-weighted: a table 168 projects
+  reference, 19 of them edited this year, is scored on the 19. Neglect only ever raises
+  severity, so a credential in an abandoned notebook ranks above one in a live notebook —
+  the key still works. Nothing is gated on the score; a low rank is lower in the list,
+  not missing from it.
 
 ${c.bold('Limits it reports rather than hides:')}
   - Egress is a lower bound: a host assembled from variables at run time is invisible.

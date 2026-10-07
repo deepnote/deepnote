@@ -5,6 +5,8 @@ import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, isErrnoENOENT } from '../utils/file-resolver'
 import { type AuditIssue, auditWorkspace, scrubText, type WorkspaceAudit } from '../utils/governance/audit'
+import { scoreOutOf100 } from '../utils/governance/scoring'
+import { COLD_DAYS, formatAge } from '../utils/governance/staleness'
 import { loadWorkspace } from '../utils/governance/workspace'
 
 export interface AuditOptions {
@@ -175,9 +177,11 @@ function outputAudit(audit: WorkspaceAudit, options: AuditOptions): void {
   output('')
 
   outputIntegrations(audit)
+  outputTables(audit)
   outputEgress(audit)
   outputSubjects(audit)
   outputSharedCredentials(audit)
+  outputStaleness(audit)
   outputIssues(audit, options)
   outputNotes(audit)
 }
@@ -218,6 +222,31 @@ function outputIntegrations(audit: WorkspaceAudit): void {
 
 /** Width of the widest egress direction marker (`→ writes`), so the host column lines up. */
 const EGRESS_MARKER_WIDTH = 8
+
+/** Tables, ranked by how much *live* work depends on them. */
+function outputTables(audit: WorkspaceAudit): void {
+  if (audit.tables.length === 0) {
+    return
+  }
+  const c = getChalk()
+  output(c.bold('Tables — ranked by live reach'))
+
+  const shown = audit.tables.slice(0, MAX_LISTED_ROWS)
+  for (const table of shown) {
+    // Both numbers, always. The raw count is the one people quote; the live count is the one that
+    // is true, and printing them together is what stops a blast radius being read as 8× its size.
+    const reach =
+      table.liveProjectCount === table.projectCount
+        ? `${plural(table.projectCount, 'project')}`
+        : `${table.liveProjectCount} live of ${plural(table.projectCount, 'project')}`
+    output(`  ${table.name} ${c.dim(`— ${reach}, ${plural(table.blockCount, 'SQL block')}`)}`)
+  }
+  const more = remainder(audit.tables.length, shown.length)
+  if (more) {
+    output(c.dim(more))
+  }
+  output('')
+}
 
 /** Egress: third-party hosts the code reaches, writes first. */
 function outputEgress(audit: WorkspaceAudit): void {
@@ -289,6 +318,27 @@ function outputSharedCredentials(audit: WorkspaceAudit): void {
   output('')
 }
 
+/** How much of the workspace is still maintained — the multiplier every finding is scored by. */
+function outputStaleness(audit: WorkspaceAudit): void {
+  const c = getChalk()
+  const { live, aging, cold, unknown, medianAgeDays } = audit.staleness
+  if (live + aging + cold + unknown === 0) {
+    return
+  }
+
+  output(c.bold('Maintenance'))
+  const parts = [`${live} live`, `${aging} aging`]
+  if (cold > 0) {
+    parts.push(c.yellow(`${cold} cold (${Math.round(COLD_DAYS / 365)}y+)`))
+  }
+  if (unknown > 0) {
+    parts.push(c.dim(`${unknown} undated`))
+  }
+  const median = medianAgeDays === undefined ? '' : c.dim(` · median age ${formatAge(medianAgeDays)}`)
+  output(`  ${parts.join(', ')} notebooks${median}`)
+  output('')
+}
+
 function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
   const c = getChalk()
   if (audit.issues.length === 0) {
@@ -297,38 +347,52 @@ function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
     return
   }
 
-  const byCode = new Map<string, AuditIssue[]>()
-  for (const issue of audit.issues) {
-    // Appended, not rebuilt: copying the group per finding makes grouping quadratic in the number
-    // of findings sharing a code, which on a large workspace is most of them.
-    const group = byCode.get(issue.code)
-    if (group) {
-      group.push(issue)
-    } else {
-      byCode.set(issue.code, [issue])
+  // `audit.issues` arrives ranked. With --issues the ranking is shown directly; without it, findings
+  // are grouped by check and the groups keep the order of their highest-scoring member, so the top
+  // of the list is the same work either way.
+  if (options.issues) {
+    output(c.bold('Findings — ranked'))
+    for (const issue of audit.issues.slice(0, MAX_LISTED_ISSUES)) {
+      const isError = issue.severity === 'error'
+      const score = String(scoreOutOf100(issue.score)).padStart(3)
+      output(
+        `  ${c.bold(score)} ${isError ? c.red('✖') : c.yellow('⚠')} ${isError ? c.red(issue.code) : c.yellow(issue.code)}`
+      )
+      output(`      ${c.dim(`${issue.projectName} · ${issue.notebookName || issue.path}`)} ${issue.message}`)
     }
-  }
-  const ordered = [...byCode.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    const listedMore = remainder(audit.issues.length, Math.min(audit.issues.length, MAX_LISTED_ISSUES))
+    if (listedMore) {
+      output(c.dim(`  ${listedMore.trim()}`))
+    }
+    output('')
+    output(c.dim('Score = signal × exposure × neglect × blast radius, out of 100. Ranked, never gated;'))
+    output(c.dim('-o json carries all four factors so you can disagree with one of them.'))
+    output('')
+  } else {
+    const byCode = new Map<string, AuditIssue[]>()
+    for (const issue of audit.issues) {
+      // Appended, not rebuilt: copying the group per finding makes grouping quadratic in the
+      // number of findings sharing a code, which on a large workspace is most of them.
+      const group = byCode.get(issue.code)
+      if (group) {
+        group.push(issue)
+      } else {
+        byCode.set(issue.code, [issue])
+      }
+    }
 
-  output(c.bold('Findings'))
-  for (const [code, codeIssues] of ordered) {
-    const isError = codeIssues[0].severity === 'error'
-    const icon = isError ? c.red('✖') : c.yellow('⚠')
-    const projectCount = new Set(codeIssues.map(issue => issue.projectId)).size
-    output(
-      `  ${icon} ${isError ? c.red(code) : c.yellow(code)}: ${codeIssues.length} in ${plural(projectCount, 'project')}`
-    )
-    if (options.issues) {
-      for (const issue of codeIssues.slice(0, MAX_LISTED_ISSUES)) {
-        output(`      ${c.dim(`${issue.projectName} · ${issue.notebookName || issue.path}`)} ${issue.message}`)
-      }
-      const more = remainder(codeIssues.length, Math.min(codeIssues.length, MAX_LISTED_ISSUES))
-      if (more) {
-        output(c.dim(`    ${more.trim()}`))
-      }
+    output(c.bold('Findings'))
+    for (const [code, codeIssues] of byCode) {
+      const isError = codeIssues[0].severity === 'error'
+      const icon = isError ? c.red('✖') : c.yellow('⚠')
+      const projectCount = new Set(codeIssues.map(issue => issue.projectId)).size
+      const topScore = String(scoreOutOf100(codeIssues[0].score)).padStart(3)
+      output(
+        `  ${c.bold(topScore)} ${icon} ${isError ? c.red(code) : c.yellow(code)}: ${codeIssues.length} in ${plural(projectCount, 'project')}`
+      )
     }
+    output('')
   }
-  output('')
 
   const parts: string[] = []
   if (audit.issueCount.errors > 0) {
@@ -339,7 +403,7 @@ function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
   }
   output(`${c.bold('Summary:')} ${parts.join(', ')}`)
   if (!options.issues) {
-    output(c.dim('Run with --issues to list each finding, or -o json for the full report.'))
+    output(c.dim('Highest score per check shown. Run with --issues for the ranked list, or -o json.'))
   }
   output('')
 }
