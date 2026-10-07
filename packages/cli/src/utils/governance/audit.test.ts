@@ -1066,7 +1066,6 @@ describe('holderReach', () => {
   })
 })
 
-<<<<<<< HEAD
 describe('auditWorkspace — one table identity, shared with the divergence anchors', () => {
   it('merges a qualified and a bare reference to the same table', () => {
     // Keyed on the name as written, these were two rows with two reach counts — while the join
@@ -1194,7 +1193,9 @@ describe('auditWorkspace — one table identity, shared with the divergence anch
     // The four bare readers count towards the reach of the one qualified writer's finding.
     expect(audit.tables.filter(table => table.name === 'users')).toHaveLength(1)
     expect(issuesOf(audit, 'sql-null-comparison')[0].score.blastRadius).toBeGreaterThan(0.75)
-=======
+  })
+})
+
 describe('auditWorkspace — divergence', () => {
   /** A project whose single notebook holds one SQL block per query. */
   function sqlProject(id: string, name: string, queries: string[], modifiedAt = daysAgo(30)): WorkspaceProject {
@@ -1449,7 +1450,6 @@ describe('auditWorkspace — divergence', () => {
     )
 
     expect(audit.divergence).toEqual([])
->>>>>>> 6b72017 (feat(cli): find SQL divergence across a workspace, ranked by Wilson confidence)
   })
 })
 

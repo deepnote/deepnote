@@ -38,7 +38,10 @@
 import type { QueryFacts } from './sql-facts'
 import { wilsonLowerBound } from './wilson'
 
-export type DivergenceKind = 'join' | 'metric' | 'filter'
+/** Every anchor family, in the order they are reported. Also the accepted `--divergence-kind`. */
+export const DIVERGENCE_KINDS = ['join', 'filter', 'metric'] as const
+
+export type DivergenceKind = (typeof DIVERGENCE_KINDS)[number]
 
 /** Where one query lives. Carried through so a finding can point at the block it is about. */
 export interface QueryLocation {

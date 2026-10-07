@@ -27,6 +27,17 @@
 
 import { EQUALITY_OPERATORS, readColumnReferenceEndingAt, type SqlToken, tokenizeSql } from './sql-scanner'
 
+/**
+ * Operators that state two columns are the same value, and so give a join key.
+ *
+ * Deliberately narrower than the scanner's `EQUALITY_OPERATORS`, which includes the not-equal
+ * spellings. `a.id <> b.a_id` is an anti-join condition, not a join key: reading it as one both
+ * invents a key the query never asserted and makes an anti-join indistinguishable from the equi-
+ * join beside it — so two queries that genuinely disagree were being counted as agreeing, which
+ * suppresses the divergence rather than reporting it. `<=>` is MySQL's null-safe equality.
+ */
+const JOIN_KEY_OPERATORS = new Set(['=', '<=>'])
+
 /** How two tables are related, as one query has it. */
 export interface JoinFact {
   /** Short names of the two tables, sorted, so operand order cannot create a second variant. */
@@ -661,7 +672,7 @@ function readJoins(tokens: SqlToken[], resolve: ReturnType<typeof makeResolver>)
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
-    if (token.type !== 'operator' || !EQUALITY_OPERATORS.has(token.text)) {
+    if (token.type !== 'operator' || !JOIN_KEY_OPERATORS.has(token.text)) {
       continue
     }
     const left = readReferenceEndingAt(tokens, i - 1)

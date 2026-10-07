@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
+import { TRIAGE_ENV, type TriageProvider, type Verdict } from '../utils/governance/triage'
 import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
 /** A four-project synced workspace with one of every workspace-scoped finding. */
@@ -708,5 +709,167 @@ describe('audit command — divergence', () => {
     await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
 
     expect(exitSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('audit command — triage', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let exitSpy: Mock<typeof process.exit>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /** A provider that answers every candidate the same way. */
+  function provider(verdict: Verdict, reason = 'because'): TriageProvider {
+    return {
+      async triage(batch) {
+        return batch.map(candidate => ({ id: candidate.id, verdict, reason }))
+      },
+    }
+  }
+
+  interface ReportIssue {
+    code: string
+    projectName: string
+    score: { signal: number; score: number }
+    details: Record<string, unknown>
+  }
+  interface Report {
+    issues: ReportIssue[]
+    suppressed: ReportIssue[]
+  }
+
+  async function reportWith(options: AuditOptions): Promise<Report> {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', ...options })
+    return JSON.parse(getOutput(consoleSpy)) as Report
+  }
+
+  /** Identify a finding across two runs, since the ranking itself is what changes. */
+  const keyOf = (issue: ReportIssue) => `${issue.details.anchor}:${issue.projectName}:${issue.details.variant}`
+
+  it('is off by default, and the report is byte-identical to one that never heard of triage', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const before = getOutput(consoleSpy)
+    consoleSpy.mockClear()
+
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', triage: false })
+    expect(getOutput(consoleSpy)).toBe(before)
+
+    const report = JSON.parse(before)
+    expect(report.suppressed).toEqual([])
+    for (const issue of report.issues.filter((i: { code: string }) => i.code === 'sql-divergence')) {
+      expect(issue.details.signalSource).toBe('prior')
+      expect(issue.details.verdict).toBeUndefined()
+    }
+  })
+
+  it('fails with usage guidance when --triage has no configured endpoint', async () => {
+    const original = { ...process.env }
+    for (const key of Object.values(TRIAGE_ENV)) {
+      delete process.env[key]
+    }
+    try {
+      await expect(createAuditAction(program)(DIVERGENCE_WORKSPACE, { triage: true })).rejects.toThrow(
+        'process.exit called'
+      )
+      expect(exitSpy).toHaveBeenCalledWith(2)
+    } finally {
+      Object.assign(process.env, original)
+    }
+  })
+
+  it('lets a verdict replace the prior, and records both', async () => {
+    const report = await reportWith({ triage: true, triageProvider: provider('real', 'the join keys disagree') })
+
+    const divergence = report.issues.filter(i => i.code === 'sql-divergence')
+    expect(divergence.length).toBeGreaterThan(0)
+    for (const issue of divergence) {
+      expect(issue.details.signalSource).toBe('triage')
+      expect(issue.details.verdict).toBe('real')
+      expect(issue.details.verdictReason).toBe('the join keys disagree')
+      // The displaced number is kept, so a reviewer can always see what the other answer was.
+      expect(typeof issue.details.prior).toBe('number')
+      expect(issue.score.signal).not.toBe(issue.details.prior)
+    }
+  })
+
+  it('raises the signal of the same finding above what the prior gave it', async () => {
+    const withPrior = await reportWith({})
+    const withVerdict = await reportWith({ triage: true, triageProvider: provider('real') })
+
+    // Compared per finding, not per rank: the ranking is exactly what a verdict is allowed to
+    // change, so comparing "the top one" would compare two different findings.
+    const priors = new Map(withPrior.issues.filter(i => i.code === 'sql-divergence').map(i => [keyOf(i), i]))
+    const judged = withVerdict.issues.filter(i => i.code === 'sql-divergence')
+
+    expect(judged.length).toBeGreaterThan(0)
+    for (const issue of judged) {
+      const before = priors.get(keyOf(issue))
+      expect(before).toBeDefined()
+      expect(issue.score.signal).toBeGreaterThan((before as ReportIssue).score.signal)
+    }
+  })
+
+  it('takes a false positive out of the ranking but keeps it in the JSON', async () => {
+    const report = await reportWith({
+      triage: true,
+      triageProvider: provider('false-positive', 'count(1) and count(*) are the same thing'),
+    })
+
+    expect(report.issues.filter(i => i.code === 'sql-divergence')).toEqual([])
+    expect(report.suppressed.length).toBeGreaterThan(0)
+    expect(report.suppressed[0].details.verdictReason).toBe('count(1) and count(*) are the same thing')
+  })
+
+  it('prints what it suppressed and why', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, {
+      triage: true,
+      triageProvider: provider('false-positive', 'the two forms mean the same thing'),
+    })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Suppressed by triage')
+    expect(text).toContain('the two forms mean the same thing')
+  })
+
+  it('keeps the deterministic score when the provider fails, and still exits 0', async () => {
+    const failing: TriageProvider = {
+      async triage() {
+        throw new Error('connect ECONNREFUSED')
+      },
+    }
+    const report = await reportWith({ triage: true, triageProvider: failing })
+
+    for (const issue of report.issues.filter(i => i.code === 'sql-divergence')) {
+      expect(issue.details.signalSource).toBe('prior')
+    }
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
+  it('sends nothing when there is nothing to triage', async () => {
+    let called = false
+    const watcher: TriageProvider = {
+      async triage(batch) {
+        called = true
+        return batch.map(c => ({ id: c.id, verdict: 'real' as const, reason: '' }))
+      },
+    }
+    await createAuditAction(program)(WORKSPACE, { triage: true, triageProvider: watcher })
+
+    expect(called).toBe(false)
   })
 })

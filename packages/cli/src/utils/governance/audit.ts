@@ -35,6 +35,7 @@ import { canonicalTableKey, findTableReferences, UNKNOWN_INTEGRATION_SCOPE } fro
 import { type AssetAge, assetAge, formatAge, medianAgeDays } from './staleness'
 import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
 import { createSubjectFingerprinter, redactSubjects } from './subjects'
+import { type TriageResult, toCandidate, VERDICT_SIGNAL } from './triage'
 import { type LoadedWorkspace, projectBlocks, type WorkspaceLoadError, type WorkspaceProject } from './workspace'
 
 /** A lint issue, placed in the workspace it was found in and ranked against the rest. */
@@ -181,6 +182,9 @@ export interface WorkspaceAudit {
   /** Anchors the workspace disagrees on, best-attested first. Every variant and location included,
    *  so the precision of this check can be measured rather than asserted. */
   divergence: DivergenceGroup[]
+  /** Findings a model judged not to be defects. Kept out of the ranking and in the report, so the
+   *  suppression is inspectable rather than just a smaller number. */
+  suppressed: AuditIssue[]
   egress: EgressUsage[]
   staleness: StalenessSummary
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
@@ -204,6 +208,11 @@ export interface AuditOptions {
   divergenceKinds?: DivergenceKind[]
   /** Consensus confidence below which a divergence group is reported but raises no issue. */
   minConfidence?: number
+  /**
+   * Model verdicts by candidate id, when `--triage` ran. Absent by default, and absence means the
+   * deterministic path verbatim — same findings, same order.
+   */
+  triage?: Map<string, TriageResult>
   /** Domains belonging to your own organization, so colleagues are not counted as data subjects. */
   internalDomains?: string[]
   /** Fixed clock, so tests and reproducible reports do not depend on the time of day. */
@@ -849,6 +858,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     if (group.confidence < minConfidence) {
       continue
     }
+    // A verdict, when `--triage` ran, replaces the per-kind prior in `signal`. Both numbers are
+    // recorded on the finding so a reviewer can always tell which one they are reading.
+    const verdict = options.triage?.get(toCandidate(group).id)
+    const prior = divergenceSignal(group)
+    const signal = verdict ? group.confidence * VERDICT_SIGNAL[verdict.verdict] : prior
     const consensusCount = group.consensus.members.length
     const attestation = `${consensusCount} of ${group.observations} queries across ${group.projectCount} ${group.projectCount === 1 ? 'project' : 'projects'}`
 
@@ -882,7 +896,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
             },
             { live: 0, total: 0 }
           ),
-          signal: divergenceSignal(group),
+          signal,
         }),
         details: {
           kind: group.kind,
@@ -895,6 +909,17 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           consensusCount,
           projectCount: group.projectCount,
           confidence: Number(group.confidence.toFixed(4)),
+          // Which number produced `score.signal`, and what the other one was. Without this a
+          // reader cannot tell a model's judgement from a hardcoded constant.
+          signalSource: verdict ? 'triage' : 'prior',
+          prior: Number(prior.toFixed(4)),
+          ...(verdict
+            ? {
+                verdict: verdict.verdict,
+                verdictReason: verdict.reason,
+                ...(verdict.canonical ? { canonical: verdict.canonical } : {}),
+              }
+            : {}),
           ...(member.evidence ? { evidence: member.evidence } : {}),
           ...(member.line ? { line: member.line } : {}),
         },
@@ -905,10 +930,16 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // Score everything, then rank. Scoring happens here rather than at each push because three of the
   // four factors — neglect, and both halves of blast radius — are only knowable once the whole
   // workspace has been read.
-  const scoredIssues: AuditIssue[] = issues.map(issue => ({
+  const allScored: AuditIssue[] = issues.map(issue => ({
     ...issue,
     score: issue.score ?? scoreIssue(issue, { ageFor, tables, tablesByBlock, projectAges, subjectIndex }),
   }))
+
+  // A model verdict of `false-positive` takes a finding out of the work queue but not out of the
+  // report. Suppression that cannot be inspected is indistinguishable from a check that quietly
+  // stopped working, which in a compliance tool is the expensive kind of silence.
+  const suppressed = allScored.filter(issue => issue.details?.verdict === 'false-positive')
+  const scoredIssues = allScored.filter(issue => issue.details?.verdict !== 'false-positive')
 
   // Highest score first: the ranking is the work queue. Ties fall back to severity and then code, so
   // two runs over the same tree produce the same order.
@@ -977,6 +1008,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
       }))
       .sort((a, b) => b.blockCount - a.blockCount || (a.name ?? a.id).localeCompare(b.name ?? b.id)),
     divergence,
+    suppressed,
     // Ranked by live reach, not by raw reach: a table twenty abandoned projects query is not a
     // bigger dependency than one three live projects query.
     tables: [...tables.values()].sort(

@@ -1,6 +1,6 @@
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
 import chalk from 'chalk'
-import { Command, Option } from 'commander'
+import { Command, InvalidArgumentError, Option } from 'commander'
 // Note: We keep 'chalk' import for:
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
@@ -37,6 +37,8 @@ import { DEEPNOTE_TOKEN_ENV } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
+import { DIVERGENCE_KINDS, type DivergenceKind } from './utils/governance/sql-divergence'
+import { TRIAGE_ENV } from './utils/governance/triage'
 import { parseTimeoutSeconds } from './utils/parse-timeout'
 import { version } from './version'
 
@@ -1068,15 +1070,39 @@ ${c.bold('Examples:')}
     .option('--issues', 'List every finding instead of a count per check')
     .option('--divergence', 'List every divergence group with its variants and locations')
     .option('--skip-divergence', 'Do not run the cross-project consensus checks')
+    .option('--triage', 'Ask a model whether each divergence group is a real defect (needs a configured endpoint)')
+    .option('--triage-base-url <url>', `OpenAI-compatible endpoint (or ${TRIAGE_ENV.baseUrl})`)
+    .option('--triage-model <name>', `Model to triage with (or ${TRIAGE_ENV.model})`)
+    .option('--triage-limit <n>', 'Triage only the n most confident groups', (value: string) => {
+      const parsed = Number.parseInt(value, 10)
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new InvalidArgumentError('Expected a positive whole number.')
+      }
+      return parsed
+    })
+    .option('--no-triage-cache', 'Ignore cached verdicts and ask the model again')
     .option(
       '--divergence-kind <kind>',
       'Consensus anchors to check: join, filter or metric (repeatable, defaults to all three)',
-      (value: string, previous: string[] = []) => [...previous, value]
+      (value: string, previous: string[] = []) => {
+        if (!DIVERGENCE_KINDS.includes(value as DivergenceKind)) {
+          throw new InvalidArgumentError(`Expected one of ${DIVERGENCE_KINDS.join(', ')}.`)
+        }
+        return [...previous, value]
+      }
     )
     .option(
       '--min-confidence <value>',
       'Consensus confidence below which a divergence group is reported but raises no finding (0-1, default 0.25)',
-      Number.parseFloat
+      (value: string) => {
+        const parsed = Number.parseFloat(value)
+        // A silent NaN here is worse than an error: it compares false against every confidence, so
+        // every group is reported and the flag looks like it did nothing.
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+          throw new InvalidArgumentError('Expected a number between 0 and 1.')
+        }
+        return parsed
+      }
     )
     .option(
       '--internal-domain <domain>',

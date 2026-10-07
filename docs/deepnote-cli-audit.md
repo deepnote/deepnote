@@ -213,17 +213,17 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 
 ## Options
 
-| Option                  | Description                                                                 |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`)                        |
+| Option                  | Description                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- |
+| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`)                                |
 | `-o, --output <format>` | `json` for the full report, including the flow map; `llm` resolves to the same JSON |
-| `--project <name>`      | Audit a single project, by name or id                                       |
-| `--issues`              | List every finding instead of a count per check                             |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                        |
-| `--divergence`          | List every consensus group with its variants and locations                  |
-| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable)                |
-| `--min-confidence <n>`  | Consensus confidence below which a group raises no finding (default `0.25`) |
-| `--skip-divergence`     | Do not run the consensus checks at all                                      |
+| `--project <name>`      | Audit a single project, by name or id                                               |
+| `--issues`              | List every finding instead of a count per check                                     |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                                |
+| `--divergence`          | List every consensus group with its variants and locations                          |
+| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable)                        |
+| `--min-confidence <n>`  | Consensus confidence below which a group raises no finding (default `0.25`)         |
+| `--skip-divergence`     | Do not run the consensus checks at all                                              |
 
 ## How findings are ranked
 

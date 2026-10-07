@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { relative, resolve } from 'node:path'
+import { join, relative, resolve } from 'node:path'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
@@ -8,6 +8,16 @@ import { type AuditIssue, auditWorkspace, scrubText, type WorkspaceAudit } from 
 import { scoreOutOf100 } from '../utils/governance/scoring'
 import { ABSENT_VARIANT, type DivergenceKind } from '../utils/governance/sql-divergence'
 import { COLD_DAYS, formatAge } from '../utils/governance/staleness'
+import {
+  createOpenAiCompatibleProvider,
+  resolveTriageConfig,
+  runTriage,
+  TRIAGE_CACHE_PATH,
+  TriageCache,
+  TriageConfigError,
+  type TriageProvider,
+  type TriageResult,
+} from '../utils/governance/triage'
 import { loadWorkspace } from '../utils/governance/workspace'
 
 export interface AuditOptions {
@@ -23,6 +33,17 @@ export interface AuditOptions {
   minConfidence?: number
   /** Restrict the consensus checks to these anchor families. */
   divergenceKind?: DivergenceKind[]
+  /** Ask a model whether each divergence group is a real defect. Off by default. */
+  triage?: boolean
+  /** Endpoint and model, when not taken from the environment. */
+  triageBaseUrl?: string
+  triageModel?: string
+  /** Most-confident-first cap on how many groups are sent. */
+  triageLimit?: number
+  /** Ignore any cached verdicts and ask again. */
+  triageCache?: boolean
+  /** Injected by tests; production resolves a provider from the configuration. */
+  triageProvider?: TriageProvider
 }
 
 /** Issues printed in the terminal summary before it collapses the rest into a count. */
@@ -79,13 +100,22 @@ export function createAuditAction(
         )
       }
 
-      const audit = auditWorkspace(workspace, {
+      const auditOptions = {
         project: options.project,
         internalDomains: options.internalDomain,
         divergence: !options.skipDivergence,
         divergenceKinds: options.divergenceKind,
         minConfidence: options.minConfidence,
-      })
+      }
+
+      // Triage needs the groups, and the groups come from the audit — so the deterministic pass
+      // runs first and is re-scored with the verdicts. One extra pass over an in-memory report is
+      // cheaper than threading a provider through the engine, and it keeps `auditWorkspace` pure.
+      const deterministic = auditWorkspace(workspace, auditOptions)
+      const audit =
+        options.triage && deterministic.divergence.length > 0
+          ? auditWorkspace(workspace, { ...auditOptions, triage: await triageDivergence(deterministic, options) })
+          : deterministic
 
       if (options.output === 'json') {
         outputJson(audit)
@@ -94,7 +124,12 @@ export function createAuditAction(
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      const exitCode = error instanceof FileResolutionError ? ExitCode.InvalidUsage : ExitCode.Error
+      // A missing triage endpoint is a usage error, not a failure of the audit: the user asked for
+      // something that has to be configured, and the message says how.
+      const exitCode =
+        error instanceof FileResolutionError || error instanceof TriageConfigError
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
 
       if (options.output === 'json') {
         outputJson({ success: false, error: message })
@@ -157,8 +192,53 @@ export function describeNearest(query: string, names: string[]): string {
     : `Closest ${nearest.length === 1 ? 'match' : 'matches'}: ${nearest.map(entry => `"${entry.name}"`).join(', ')} (${total}).`
 }
 
+/** Nouns whose plural is not formed by appending `s`. */
+const IRREGULAR_PLURALS: Record<string, string> = { query: 'queries', person: 'people' }
+
+/**
+ * Run the model over the divergence groups and return its verdicts.
+ *
+ * Resolves and *prints* the endpoint before the first request: somebody running a compliance tool
+ * is entitled to see where their SQL is about to go, and a line of output is the cheapest possible
+ * way to tell them. Everything else about this is fail-soft — a bad endpoint, a timeout or a
+ * nonsense response all end with the deterministic score standing and the audit exiting 0.
+ */
+async function triageDivergence(audit: WorkspaceAudit, options: AuditOptions): Promise<Map<string, TriageResult>> {
+  const c = getChalk()
+
+  // Tests inject a provider directly; production resolves one from flags and environment.
+  if (options.triageProvider) {
+    const run = await runTriage(audit.divergence, {
+      provider: options.triageProvider,
+      limit: options.triageLimit,
+    })
+    return run.results
+  }
+
+  const config = resolveTriageConfig({ baseUrl: options.triageBaseUrl, model: options.triageModel })
+  output(c.dim(`Triage: sending ${plural(audit.divergence.length, 'group')} to ${config.baseUrl} (${config.model})`))
+  output(c.dim('Variant forms only — no blocks, no outputs — redacted the same way the report is.'))
+
+  const cache =
+    options.triageCache === false ? undefined : new TriageCache(join(audit.root, TRIAGE_CACHE_PATH), config.model)
+  const run = await runTriage(audit.divergence, {
+    provider: createOpenAiCompatibleProvider(config),
+    cache,
+    limit: options.triageLimit,
+  })
+
+  const { candidates, cached, requested, failed } = run.stats
+  output(
+    c.dim(
+      `Triage: ${candidates} considered, ${cached} from cache, ${requested} judged${failed > 0 ? `, ${failed} unavailable` : ''}`
+    )
+  )
+  output('')
+  return run.results
+}
+
 function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
+  return count === 1 ? `${count} ${noun}` : `${count} ${IRREGULAR_PLURALS[noun] ?? `${noun}s`}`
 }
 
 /** `plural` appends an `s`, which "person" does not take. */
@@ -202,6 +282,7 @@ function outputAudit(audit: WorkspaceAudit, options: AuditOptions): void {
   outputSharedCredentials(audit)
   outputStaleness(audit)
   outputIssues(audit, options)
+  outputSuppressed(audit)
   outputNotes(audit)
 }
 
@@ -311,7 +392,7 @@ function outputDivergence(audit: WorkspaceAudit, options: AuditOptions): void {
       0
     )
     output(
-      `  ${plural(audit.divergence.length, 'anchor')} defined more than one way ${c.dim(`(${breakdown})`)} — ${plural(diverging, 'query')} diverges`
+      `  ${plural(audit.divergence.length, 'anchor')} defined more than one way ${c.dim(`(${breakdown})`)} — ${plural(diverging, 'query')} ${diverging === 1 ? 'diverges' : 'diverge'}`
     )
     output(c.dim('  Run with --divergence to see every variant and where it is used.'))
     output('')
@@ -558,6 +639,33 @@ function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
   if (!options.issues) {
     output(c.dim('Highest score per check shown. Run with --issues for the ranked list, or -o json.'))
   }
+  output('')
+}
+
+/**
+ * Findings a model judged not to be defects.
+ *
+ * Printed, not hidden. The whole value of letting a model drop findings is that somebody can see
+ * which ones it dropped and why — a suppression you cannot read is indistinguishable from a check
+ * that quietly stopped working.
+ */
+function outputSuppressed(audit: WorkspaceAudit): void {
+  if (audit.suppressed.length === 0) {
+    return
+  }
+  const c = getChalk()
+
+  output(c.bold('Suppressed by triage'))
+  for (const issue of audit.suppressed.slice(0, MAX_LISTED_ROWS)) {
+    const reason = typeof issue.details?.verdictReason === 'string' ? issue.details.verdictReason : 'no reason given'
+    output(`  ${c.dim('·')} ${c.dim(issue.code)} ${issue.projectName} · ${issue.notebookName || issue.path}`)
+    output(c.dim(`      ${reason}`))
+  }
+  const more = remainder(audit.suppressed.length, Math.min(audit.suppressed.length, MAX_LISTED_ROWS))
+  if (more) {
+    output(c.dim(more))
+  }
+  output(c.dim('These are out of the ranking but still in -o json, under "suppressed".'))
   output('')
 }
 
