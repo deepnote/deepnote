@@ -404,12 +404,12 @@ interpreter, and nothing leaves the machine.
 
 Findings are **ranked, never gated**: `severity = signal × exposure × neglect × blast radius`, and
 every issue carries all four factors so you can disagree with one rather than with the number. Blast
-radius is liveness-weighted — a table referenced by 168 projects of which 19 were edited this year is
-scored on the 19 — and neglect only ever raises severity, so a credential in an abandoned notebook
+radius is liveness-weighted — if a table is referenced by 100 projects of which 12 were edited this
+year, it is scored on the 12 — and neglect only ever raises severity, so a credential in an abandoned notebook
 ranks above one in a live notebook. The key still works.
 
 The report also inventories every table the workspace's SQL references, with its live and total
-project reach, and summarises how much of the workspace is still maintained. A notebook with no
+project reach, and summarizes how much of the workspace is still maintained. A notebook with no
 timestamp is reported as undated, never as abandoned.
 
 `-o json` includes a `flow` object — `nodes` for every integration, project and host, `edges` for

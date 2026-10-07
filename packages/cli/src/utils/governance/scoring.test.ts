@@ -34,9 +34,9 @@ describe('scoreFinding', () => {
 
   describe('blast radius', () => {
     it('counts live dependents, discounting the abandoned ones', () => {
-      // The spec case: a table referenced by 168 projects, 19 of them edited in the past year.
-      const raw = scoreFinding('ingress-integration-orphan', { age: LIVE, reach: { live: 168, total: 168 } })
-      const weighted = scoreFinding('ingress-integration-orphan', { age: LIVE, reach: { live: 19, total: 168 } })
+      // Illustrative: a table referenced by 100 projects, 12 of them edited in the past year.
+      const raw = scoreFinding('ingress-integration-orphan', { age: LIVE, reach: { live: 100, total: 100 } })
+      const weighted = scoreFinding('ingress-integration-orphan', { age: LIVE, reach: { live: 12, total: 100 } })
 
       expect(weighted.blastRadius).toBeLessThan(raw.blastRadius)
       expect(weighted.blastRadius).toBeGreaterThan(0)

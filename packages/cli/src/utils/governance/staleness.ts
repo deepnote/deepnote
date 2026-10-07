@@ -6,10 +6,10 @@
  * credential hardcoded in that same notebook is *worse* than one in a live notebook, because nobody
  * is watching the thing that would have caught it.
  *
- * It is also what keeps blast radius honest. A table referenced by 168 projects sounds alarming
- * until you notice 19 of them were edited in the past year. Counting references without weighting
- * them by liveness overstates reach by most of an order of magnitude, and a governance report that
- * overstates reach gets ignored on its second reading.
+ * It is also what keeps blast radius honest. A table referenced by a hundred projects sounds
+ * alarming until you notice a dozen of them were edited in the past year. Counting references
+ * without weighting them by liveness can overstate reach by close to an order of magnitude, and a
+ * governance report that overstates reach gets ignored on its second reading.
  */
 
 /** Edited within this many days: the asset is in use. */

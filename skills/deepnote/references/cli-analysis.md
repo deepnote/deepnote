@@ -116,7 +116,7 @@ Findings carry `projectId`, `projectName` and `path` on top of the usual lint is
 
 Findings are **ranked**, not gated: `severity = signal × exposure × neglect × blast radius`, and
 `issue.score` carries all four factors plus the product. Blast radius is liveness-weighted — a table
-referenced by 168 projects of which 19 are live is scored on the 19 — and neglect never lowers a
+referenced by 100 projects of which 12 are live is scored on the 12 — and neglect never lowers a
 score, so a credential in an abandoned notebook ranks above one in a live notebook (the key still
 works). `signal` and `exposure` are judgment constants, not measured precision.
 

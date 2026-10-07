@@ -23,6 +23,20 @@ export interface TableReference {
 const TABLE_INTRODUCERS = new Set(['from', 'join', 'into', 'update', 'table'])
 
 /**
+ * Functions whose own grammar uses `FROM` as a separator rather than as a table introducer:
+ * `EXTRACT(YEAR FROM ts)`, `TRIM(BOTH ' ' FROM name)`, `SUBSTRING(s FROM 1 FOR 3)`,
+ * `OVERLAY(s PLACING r FROM 2)`.
+ *
+ * Without this, `EXTRACT(YEAR FROM o.created_at)` contributes a table called `o.created_at`. That
+ * is not a cosmetic miscount: table reach is the blast-radius multiplier the whole ranking is
+ * built on, so an invented table both inflates its own row and dilutes the real ones.
+ *
+ * Listed by name rather than treating every function paren as opaque, because a real subquery can
+ * sit inside a function call (`array(SELECT id FROM users)`) and the tables it reads are real.
+ */
+const FROM_TAKING_FUNCTIONS = new Set(['extract', 'trim', 'btrim', 'ltrim', 'rtrim', 'substring', 'overlay'])
+
+/**
  * Words that can follow `JOIN`/`FROM` without being a table name, so that `LEFT OUTER JOIN t` and
  * `FROM LATERAL flatten(…)` do not contribute a table called `outer` or `lateral`.
  */
@@ -103,16 +117,47 @@ function commonTableExpressionNames(tokens: ReturnType<typeof tokenizeSql>): Set
   return names
 }
 
+/**
+ * For each token, whether it sits inside the parentheses of a function whose grammar uses `FROM`
+ * as a separator. Nested calls are tracked, so only the innermost enclosing call matters.
+ */
+function insideFromTakingCall(tokens: ReturnType<typeof tokenizeSql>): boolean[] {
+  const inside: boolean[] = []
+  const stack: boolean[] = []
+  let depth = 0
+
+  for (let i = 0; i < tokens.length; i++) {
+    inside[i] = depth > 0
+    if (tokens[i].text === '(') {
+      const previous = tokens[i - 1]
+      const isSuch = previous?.type === 'word' && FROM_TAKING_FUNCTIONS.has(previous.value)
+      stack.push(isSuch)
+      if (isSuch) {
+        depth++
+      }
+    } else if (tokens[i].text === ')') {
+      if (stack.pop()) {
+        depth--
+      }
+    }
+  }
+  return inside
+}
+
 /** Every table referenced by `sql`, deduplicated and in first-appearance order. */
 export function findTableReferences(sql: string): TableReference[] {
   const tokens = tokenizeSql(sql)
   const cteNames = commonTableExpressionNames(tokens)
+  const inFunctionCall = insideFromTakingCall(tokens)
   const references: TableReference[] = []
   const seen = new Set<string>()
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]
     if (token.type !== 'word' || !TABLE_INTRODUCERS.has(token.value)) {
+      continue
+    }
+    if (inFunctionCall[i]) {
       continue
     }
     // `INSERT INTO` and `DELETE FROM` are the introducer; `INTO` after `SELECT … INTO` is not a read.

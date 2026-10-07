@@ -1097,8 +1097,8 @@ ${c.bold('What it reports:')}
 
 ${c.bold('Ranking:')}
   severity = signal × exposure × neglect × blast radius, reported out of 100 with all
-  four factors in the JSON. Blast radius is liveness-weighted: a table 168 projects
-  reference, 19 of them edited this year, is scored on the 19. Neglect only ever raises
+  four factors in the JSON. Blast radius is liveness-weighted: if a table is referenced
+  by 100 projects but only 12 were edited this year, it is scored on the 12. Neglect only ever raises
   severity, so a credential in an abandoned notebook ranks above one in a live notebook —
   the key still works. Nothing is gated on the score; a low rank is lower in the list,
   not missing from it.

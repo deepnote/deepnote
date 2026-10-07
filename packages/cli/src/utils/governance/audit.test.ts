@@ -945,3 +945,39 @@ describe('auditWorkspace — the per-project checks get the project integrations
     expect(issuesOf(audit, 'sql-string-boolean')).toEqual([])
   })
 })
+
+describe('auditWorkspace — credential-shared reach', () => {
+  function credProject(id: string, name: string, modifiedAt: string): WorkspaceProject {
+    return datedProject(id, name, modifiedAt, [
+      { name: 'Setup', blocks: [{ id: `${id}-b0`, type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }] },
+    ])
+  }
+
+  const HOLDERS = ['h1', 'h2', 'h3', 'h4', 'h5']
+
+  it('measures reach over the projects holding the credential, not the whole workspace', () => {
+    // Five abandoned projects share a key, in a workspace that also has five live projects doing
+    // something else. Counting live projects workspace-wide and clamping to the credential's own
+    // project count scored those five as if all five were live.
+    const audit = auditWorkspace(
+      workspace([
+        ...HOLDERS.map(id => credProject(id, id, daysAgo(1800))),
+        ...['x1', 'x2', 'x3', 'x4', 'x5'].map(id => datedProject(id, id, daysAgo(10), [{ name: 'N', blocks: [] }])),
+      ]),
+      { now: NOW }
+    )
+
+    const shared = issuesOf(audit, 'credential-shared')
+    expect(shared).toHaveLength(5)
+    expect(shared[0].details?.projectIds).toEqual(HOLDERS)
+    // No live holder, so reach collapses to the floor the code deliberately keeps for an exposure
+    // finding — a key does not stop working because the notebook went quiet.
+    expect(shared[0].score.blastRadius).toBeCloseTo(0.6, 5)
+  })
+
+  it('scores a credential shared by live projects well above the floor', () => {
+    const audit = auditWorkspace(workspace(HOLDERS.map(id => credProject(id, id, daysAgo(10)))), { now: NOW })
+
+    expect(issuesOf(audit, 'credential-shared')[0].score.blastRadius).toBeGreaterThan(0.75)
+  })
+})

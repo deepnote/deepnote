@@ -655,6 +655,9 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           kinds: usage.kinds,
           projectCount: usage.projects.length,
           blockCount: blockIds.size,
+          // The projects actually holding this credential, so blast radius can be measured over
+          // them rather than over the workspace they happen to sit in.
+          projectIds: usage.projects.map(entry => entry.projectId),
         },
       })
     }
@@ -866,15 +869,21 @@ function scoreIssue(issue: PendingAuditIssue, context: ScoreIssueContext): Sever
       return scoreFinding(issue.code, {
         age,
         occurrences: typeof issue.details?.blockCount === 'number' ? issue.details.blockCount : 1,
-        // The heuristic rule is a guess about a variable name; the pattern rules recognise a shape
+        // The heuristic rule is a guess about a variable name; the pattern rules recognize a shape
         // the issuer assigned. Scoring them alike would bury the certain findings under the guesses.
         signal: issue.details?.confidence === 'heuristic' ? 0.5 : undefined,
       })
 
     case 'credential-shared': {
-      const projectCount = typeof issue.details?.projectCount === 'number' ? issue.details.projectCount : 1
-      const live = [...context.projectAges.values()].filter(projectAge => projectAge.liveness === 'live').length
-      return scoreFinding(issue.code, { age, reach: { live: Math.min(live, projectCount), total: projectCount } })
+      // Reach is the projects that hold the credential, and the live half of it is how many of
+      // *those* are still maintained. Counting live projects across the whole workspace and then
+      // clamping to the credential's project count scored a key shared by three abandoned projects
+      // as if all three were live, whenever the workspace had three live projects anywhere in it.
+      const holders = Array.isArray(issue.details?.projectIds) ? (issue.details.projectIds as string[]) : []
+      const projectCount =
+        holders.length || (typeof issue.details?.projectCount === 'number' ? issue.details.projectCount : 1)
+      const live = holders.filter(id => context.projectAges.get(id)?.liveness === 'live').length
+      return scoreFinding(issue.code, { age, reach: { live, total: projectCount } })
     }
 
     case 'pii-subject-scatter': {

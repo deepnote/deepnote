@@ -29,7 +29,7 @@ Ingress — integrations
   ⚠ Legacy Redshift (redshift) — declared in 1 project, used by none
 
 Tables — ranked by live reach
-  analytics.users — 19 live of 168 projects, 214 SQL blocks
+  analytics.users — 12 live of 100 projects, 180 SQL blocks
   analytics.orders — 11 live of 24 projects, 61 SQL blocks
 
 Egress — external hosts
@@ -79,9 +79,9 @@ Object-store buckets count as their own destination, so `s3://marketing-exports`
 
 Every table the workspace's SQL references, ranked by how many **live** projects query it. Both
 numbers are always shown, because the raw one is the number people quote and the live one is the
-number that is true: a table referenced by 168 projects, only 19 of them edited in the past year, is
-not an eight-times bigger dependency than one with 19 live readers. It is the same dependency with a
-lot of abandoned notebooks attached.
+number that is true. A table referenced by 100 projects of which only 12 were edited in the past
+year is not an eight-times bigger dependency than one with 12 live readers; it is the same
+dependency with a lot of abandoned notebooks attached.
 
 Common table expressions are not counted — a CTE is local to its query, and treating one as a table
 would invent a dependency between two notebooks that happen to use the same name for a scratch
