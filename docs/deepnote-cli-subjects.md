@@ -125,6 +125,10 @@ If the index was built under a different salt, every lookup misses. Reporting "n
 be a confidently wrong answer to a legally binding question, so the command fails instead and tells
 you which salt the index expects.
 
+The same reasoning applies to the file itself: a JSON document that is not an index is rejected by
+name rather than searched. Without that check, pointing `--index` at the wrong file reports a salt
+mismatch — sending you after a salt problem that does not exist.
+
 ## Counting subjects without an index
 
 [`deepnote audit`](/docs/deepnote-cli-audit) reports the same subject counts — how many people, how

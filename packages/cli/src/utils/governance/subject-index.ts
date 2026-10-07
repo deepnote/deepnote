@@ -65,6 +65,19 @@ export interface SubjectIndex {
   subjects: SubjectEntry[]
 }
 
+/**
+ * Whether a parsed JSON document is actually one of our indexes.
+ *
+ * Only the fields a lookup depends on are checked — version, the salt fingerprint it compares
+ * against, and the array it searches. The point is not to validate every entry; it is to tell
+ * "this is the wrong file" apart from "this index holds nothing about that person", which are the
+ * same answer to a caller and opposite answers to a regulator.
+ */
+export function isSubjectIndex(value: unknown): value is SubjectIndex {
+  const candidate = value as Partial<SubjectIndex> | null | undefined
+  return candidate?.version === 1 && typeof candidate.saltFingerprint === 'string' && Array.isArray(candidate.subjects)
+}
+
 export interface BuildSubjectIndexOptions {
   fingerprinter: SubjectFingerprinter
   /** Domains belonging to the workspace's own organization. */

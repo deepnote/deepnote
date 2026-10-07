@@ -298,4 +298,21 @@ describe('subjects commands', () => {
       expect(JSON.stringify(report)).not.toContain(SCATTERED_SUBJECT)
     })
   })
+
+  describe('subjects lookup — the file is not an index', () => {
+    it.each([
+      ['an unrelated JSON document', '{"hello":"world"}'],
+      ['a newer index format', '{"version":2,"saltFingerprint":"abc","subjects":[]}'],
+      ['an index with no subjects array', '{"version":1,"saltFingerprint":"abc"}'],
+      ['an index with no salt fingerprint', '{"version":1,"subjects":[]}'],
+    ])('says so for %s, rather than failing somewhere else', async (_label, contents) => {
+      // Pointed at the wrong file the lookup used to throw a TypeError from deep inside, or — with
+      // a missing fingerprint — report a salt mismatch, sending the operator after a salt problem
+      // that does not exist.
+      await writeFile(indexPath, contents)
+
+      await expect(lookup(SCATTERED_SUBJECT)).rejects.toThrow('process.exit called')
+      expect(getOutput(consoleErrorSpy as unknown as Mock<typeof console.log>)).toContain('is not a subject index')
+    })
+  })
 })

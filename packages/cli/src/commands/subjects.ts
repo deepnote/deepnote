@@ -8,6 +8,7 @@ import { FileResolutionError, isErrnoENOENT } from '../utils/file-resolver'
 import {
   buildSubjectIndex,
   inferInternalDomain,
+  isSubjectIndex,
   lookupSubject,
   SCATTER_NOTEBOOK_THRESHOLD,
   type SubjectIndex,
@@ -268,9 +269,9 @@ export function createSubjectsLookupAction(
       }
 
       const indexPath = resolve(process.cwd(), options.index ?? DEFAULT_SUBJECT_INDEX_FILE)
-      let index: SubjectIndex
+      let parsed: unknown
       try {
-        index = JSON.parse(await readFile(indexPath, 'utf8')) as SubjectIndex
+        parsed = JSON.parse(await readFile(indexPath, 'utf8'))
       } catch (error) {
         if (isErrnoENOENT(error)) {
           throw new FileResolutionError(
@@ -279,6 +280,18 @@ export function createSubjectsLookupAction(
         }
         throw error
       }
+
+      // Valid JSON is not a valid index. Pointed at the wrong file, `lookupSubject` throws a
+      // TypeError from somewhere deep; pointed at one carrying no `saltFingerprint`, the salt check
+      // below reports a mismatch and sends the operator after a salt problem that does not exist.
+      // Either way the failure describes something other than what went wrong, and this is a
+      // question people answer regulators with.
+      if (!isSubjectIndex(parsed)) {
+        throw new FileResolutionError(
+          `${options.index ?? DEFAULT_SUBJECT_INDEX_FILE} is not a subject index. Build one with "deepnote subjects index <dir>".`
+        )
+      }
+      const index = parsed
 
       const fingerprinter = createSubjectFingerprinter(await resolveSalt(options.saltFile))
       const result = lookupSubject(index, canonicalized.canonical, fingerprinter)
