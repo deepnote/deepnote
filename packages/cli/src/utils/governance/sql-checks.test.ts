@@ -189,3 +189,40 @@ describe('checkSqlQuery — comparisons with no column on either side', () => {
     expect(checkSqlQuery('SELECT * FROM t WHERE NULL = a.b.deleted_at')[0].snippet).toContain('a.b.deleted_at')
   })
 })
+
+describe('checkSqlQuery — the null-safe operator is not a defect', () => {
+  it('does not flag `<=> NULL`, which is MySQL null-safe equality', () => {
+    // `a <=> NULL` returns 0 or 1 and never NULL; it means exactly `a IS NULL`. Reporting it and
+    // suggesting `IS NOT NULL` inverted the predicate — as an error, which exits non-zero.
+    expect(checkSqlQuery('SELECT * FROM t WHERE a <=> NULL')).toEqual([])
+    expect(checkSqlQuery('SELECT * FROM t WHERE NULL <=> a')).toEqual([])
+  })
+
+  it('still flags the spellings that really are wrong', () => {
+    expect(checkSqlQuery('SELECT * FROM t WHERE a = NULL')[0].details?.suggestion).toBe('IS NULL')
+    expect(checkSqlQuery('SELECT * FROM t WHERE a != NULL')[0].details?.suggestion).toBe('IS NOT NULL')
+    expect(checkSqlQuery('SELECT * FROM t WHERE a <> NULL')[0].details?.suggestion).toBe('IS NOT NULL')
+  })
+
+  it('reports a range against NULL but offers no replacement, because neither is the fix', () => {
+    const [finding] = checkSqlQuery('SELECT * FROM t WHERE a > NULL')
+
+    expect(finding.code).toBe('sql-null-comparison')
+    expect(finding.details?.suggestion).toBeUndefined()
+    expect(finding.message).not.toContain('IS NOT NULL')
+  })
+
+  it('calls `x <=> x` a no-op, not a contradiction', () => {
+    // It is true for every row including NULL ones — more of a no-op than `x = x`, not less.
+    const [finding] = checkSqlQuery('SELECT * FROM t JOIN u ON t.x <=> t.x')
+
+    expect(finding.code).toBe('sql-tautology')
+    expect(finding.message).toContain('filters nothing')
+    expect(finding.message).not.toContain('never true')
+  })
+
+  it('still calls `x != x` a contradiction', () => {
+    expect(checkSqlQuery('SELECT * FROM t JOIN u ON t.x != t.x')[0].message).toContain('never true')
+    expect(checkSqlQuery('SELECT * FROM t JOIN u ON t.x <> t.x')[0].message).toContain('never true')
+  })
+})

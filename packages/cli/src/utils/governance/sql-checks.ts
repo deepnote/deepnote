@@ -71,9 +71,27 @@ function snippetOf(tokens: SqlToken[], start: number, end: number): string {
 }
 
 /**
+ * Operators for which a comparison against NULL has an `IS` spelling that means what the author
+ * meant. `<=>` is excluded because it is not a mistake — see `checkNullComparison`.
+ */
+const NULL_COMPARISON_OPERATORS = new Set(['=', '!=', '<>'])
+
+/**
  * `= NULL` and `!= NULL`: in every SQL dialect a comparison against NULL evaluates to NULL, never
  * to true, so the predicate silently matches no rows. `IS NULL` / `IS NOT NULL` is the intended
  * spelling, and because `IS` is a keyword rather than an operator it is never flagged here.
+ *
+ * Two exclusions, both of which produced a wrong suggestion rather than merely a noisy one:
+ *
+ * **`<=>` is not flagged at all.** MySQL's null-safe equality is defined on NULL — `a <=> NULL`
+ * returns 0 or 1 and never NULL, and it means exactly `a IS NULL`. Reporting it as "never true"
+ * and suggesting `IS NOT NULL` inverted the predicate, as an *error*, which exits non-zero and
+ * would block a valid MySQL workflow in CI.
+ *
+ * **Range operators get no suggestion.** `a > NULL` really does match nothing, so the finding
+ * stands, but neither `IS NULL` nor `IS NOT NULL` is what the author meant — the comparison is
+ * broken in a way this check cannot guess the fix for, and offering one anyway is worse than
+ * saying so.
  */
 function checkNullComparison(tokens: SqlToken[]): SqlFinding[] {
   const findings: SqlFinding[] = []
@@ -81,6 +99,11 @@ function checkNullComparison(tokens: SqlToken[]): SqlFinding[] {
   for (let i = 0; i < tokens.length; i++) {
     const operator = tokens[i]
     if (operator.type !== 'operator' || !COMPARISON_OPERATORS.has(operator.text)) {
+      continue
+    }
+
+    // `a <=> NULL` is NULL-safe equality, not a defect.
+    if (operator.text === '<=>') {
       continue
     }
 
@@ -96,16 +119,19 @@ function checkNullComparison(tokens: SqlToken[]): SqlFinding[] {
     // there is one, so the snippet reads as `a.deleted_at = NULL` rather than `at = NULL`.
     const start = nullOnLeft ? i - 1 : (readColumnReferenceEndingAt(tokens, i - 1)?.startIndex ?? Math.max(i - 1, 0))
     const end = nullOnLeft ? (readColumnReferenceStartingAt(tokens, i + 1)?.endIndex ?? i + 1) : i + 1
-    const isNegated = operator.text !== '='
-    const replacement = isNegated ? 'IS NOT NULL' : 'IS NULL'
+    const hasIsSpelling = NULL_COMPARISON_OPERATORS.has(operator.text)
+    const replacement = hasIsSpelling ? (operator.text === '=' ? 'IS NULL' : 'IS NOT NULL') : undefined
+    const snippet = snippetOf(tokens, start, end)
 
     findings.push({
       code: 'sql-null-comparison',
-      message: `Comparison "${snippetOf(tokens, start, end)}" is never true — NULL does not compare equal to anything. Use ${replacement}.`,
+      message: replacement
+        ? `Comparison "${snippet}" is never true — NULL does not compare equal to anything. Use ${replacement}.`
+        : `Comparison "${snippet}" is never true — ordering against NULL always yields NULL. Compare against a value, or test for NULL with IS NULL.`,
       line: operator.line,
       column: operator.column,
-      snippet: snippetOf(tokens, start, end),
-      details: { operator: operator.text, suggestion: replacement },
+      snippet,
+      details: { operator: operator.text, ...(replacement ? { suggestion: replacement } : {}) },
     })
   }
 
@@ -163,7 +189,9 @@ function checkTautology(tokens: SqlToken[]): SqlFinding[] {
       continue
     }
 
-    const alwaysFalse = operator.text !== '='
+    // `x <=> x` is true for every row, NULLs included — more of a no-op than `x = x`, not less.
+    // Treating every non-`=` operator as "never true" stated the opposite of what MySQL does.
+    const alwaysFalse = operator.text === '!=' || operator.text === '<>'
     findings.push({
       code: 'sql-tautology',
       message: alwaysFalse
