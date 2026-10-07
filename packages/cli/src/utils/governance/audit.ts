@@ -14,6 +14,7 @@
  */
 
 import crypto from 'node:crypto'
+import type { DeepnoteBlock } from '@deepnote/blocks'
 import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
 import type { BlockInfo, LintIssue } from '../analysis'
 import { getBlockLabel } from '../block-label'
@@ -161,7 +162,7 @@ const SEVERITY = {
 } as const
 
 /**
- * Mask every credential in one user-facing string.
+ * Mask every credential and personal identifier in one user-facing string.
  *
  * Exported because not every string the audit command prints comes out of a report. The
  * "project not found" message names the workspace root and the closest project names, and a
@@ -170,24 +171,41 @@ const SEVERITY = {
  *
  * Applied whole first, then per `/`-separated segment. A URI password is only recognizable with
  * its scheme and host around it, so the whole-string pass has to come first; the segment pass then
- * catches patterns that deliberately refuse to match across a `/`, which is how a value buried in
- * a filesystem path or a URL would otherwise survive. Masking is idempotent, so running both
- * costs nothing on a string that has no secret in it.
+ * catches patterns that deliberately refuse to match across a `/` — the address pattern does, so
+ * that a URL's userinfo is not mistaken for a person — which is how a value buried in a filesystem
+ * path or a URL would otherwise survive. Masking is idempotent, so running both costs nothing on a
+ * string that holds neither.
  */
 export function scrubText(text: string): string {
-  const whole = redactSecrets(text)
-  return whole.includes('/') ? whole.split('/').map(redactSecrets).join('/') : whole
+  const scrub = (part: string): string => redactSubjects(redactSecrets(part))
+  const whole = scrub(text)
+  return whole.includes('/') ? whole.split('/').map(scrub).join('/') : whole
+}
+
+/** A block's content with secrets and identifiers masked, for anything derived from it. */
+function scrubContent(block: DeepnoteBlock): unknown {
+  const content = (block as { content?: unknown }).content
+  return typeof content === 'string' ? scrubText(content) : content
 }
 
 /**
  * Subtrees the boundary pass must leave alone, by dotted key path with `*` for an array index.
  *
- * Empty here. The entry that matters arrives with the subject index, which is sensitive *by
- * design*: its whole purpose is to answer "which notebooks hold this person's data", and a
- * location with the project and notebook masked answers nothing. Anything added to this set is a
- * deliberate exception and needs a reason written beside it.
+ * Anything in here is a deliberate exception and needs a reason written beside it.
+ *
+ * `subjects.*.locations` — the subject index is sensitive *by design*. Its whole purpose is to
+ * answer "which notebooks hold this person's data", and a location with the project and notebook
+ * masked answers nothing; the per-subject fingerprint, not the location, is what keeps the index
+ * from being a second copy of the data it indexes.
+ *
+ * This entry is forward-looking rather than load-bearing today: the audit report carries only
+ * `SubjectSummary`, which is counts, and the index itself is written by `deepnote subjects index`
+ * on a path that never reaches this function. It is declared anyway so that moving locations into
+ * the report — the obvious next step for anyone wanting them in one place — does not silently
+ * redact the one structure whose value is that it is not redacted. `subjects.test.ts` holds the
+ * test that would catch it.
  */
-const BOUNDARY_EXEMPT_PATHS = new Set<string>()
+const BOUNDARY_EXEMPT_PATHS = new Set<string>(['subjects.*.locations'])
 
 function isExemptPath(path: readonly string[]): boolean {
   return BOUNDARY_EXEMPT_PATHS.has(path.join('.'))
@@ -244,8 +262,12 @@ function blockMapFor(project: WorkspaceProject): Map<string, BlockInfo> {
       map.set(block.id, {
         id: block.id,
         // Labels are the block's first line, which for a credential assignment is the credential and
-        // for `owner = "jane@acme.io"` is the person the finding is about.
-        label: redactSubjects(redactSecrets(getBlockLabel(block))),
+        // for `owner = "jane@acme.io"` is the person the finding is about. Redacting the finished
+        // label is not enough on its own: `getBlockLabel` truncates to a fixed width first, so an
+        // address straddling the cut is left as a surviving prefix — `jane.doe.report…` — that
+        // matches no pattern. Redact the content, then label it, then redact again for the labels
+        // that come from metadata rather than content.
+        label: scrubText(getBlockLabel({ ...block, content: scrubContent(block) } as DeepnoteBlock)),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,
@@ -573,8 +595,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   }
 
   // Every section of the report goes through the boundary pass together, at the one point where it
-  // is finished and before anything can serialize it. Sections added by later branches inherit it
-  // without touching this line.
+  // is finished and before anything can serialize it. A notebook called "churn for jane@acme.io"
+  // puts that address in `notebookName`, and `path` and `projectName` carry whatever someone typed
+  // there — so a scatter finding could withhold the subject's fingerprint, as it deliberately
+  // does, and name them in the field beside it. Sections added by later branches inherit this
+  // without touching the line.
   return redactAuditReport({
     root: workspace.root,
     scope: 'workspace',
@@ -628,7 +653,7 @@ function buildFlowMap(
     nodes.push({
       id: `integration:${integration.id}`,
       kind: 'integration',
-      label: integration.name ?? integration.id,
+      label: scrubText(integration.name ?? integration.id),
       detail: integration.type,
     })
     for (const consumer of integration.consumers) {
@@ -664,7 +689,9 @@ function buildFlowMap(
     nodes.push({
       id: `project:${project.id}`,
       kind: 'project',
-      label: project.name,
+      // The flow map is the artifact most likely to be pasted into a ticket or a slide, and a
+      // project named after the customer it is about carries that name into it.
+      label: scrubText(project.name),
       detail: referencedProjects.has(project.id) ? undefined : 'no tracked flows',
     })
   }

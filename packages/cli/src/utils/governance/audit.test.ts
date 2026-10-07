@@ -323,6 +323,50 @@ describe('auditWorkspace', () => {
       expect(scatter[0].message).toContain('erasure request')
     })
 
+    it('keeps the person out of the report that is about them', () => {
+      // A notebook, a project or a file named after the customer it is about puts that address in
+      // `notebookName`, `projectName` and `path` — so a scatter finding could withhold the
+      // subject's fingerprint, as it deliberately does, and name them in the field beside it.
+      const address = 'jane.doe.reporting@acme-corp.io'
+      const audit = auditWorkspace(
+        workspace([
+          project('11111111-aaaa-4aaa-8aaa-111111111111', `Churn for ${address}`, [
+            { name: `analysis for ${address}`, blocks: [{ id: 'b1', type: 'code', content: `owner = "${address}"` }] },
+            { name: `followup for ${address}`, blocks: [{ id: 'b2', type: 'code', content: `owner = "${address}"` }] },
+          ]),
+        ])
+      )
+
+      const [scatter] = issuesOf(audit, 'pii-subject-scatter')
+      expect(scatter.notebookName).not.toContain('jane')
+      expect(scatter.projectName).not.toContain('jane')
+      expect(scatter.path).not.toContain('jane')
+      // Including the flow map, which is the artifact most likely to be pasted into a ticket.
+      expect(JSON.stringify(audit.flow)).not.toContain('jane')
+      expect(JSON.stringify(audit)).not.toContain(address)
+    })
+
+    it('does not leave a half-truncated address in a block label', () => {
+      // `getBlockLabel` truncates to a fixed width before anything is redacted, so an address
+      // straddling the cut used to survive as `jane.doe.report…` — a name, matching no pattern.
+      const audit = auditWorkspace(
+        workspace([
+          project('p1', 'Alpha', [
+            {
+              name: 'One',
+              blocks: [
+                { id: 'b1', type: 'code', content: `# ${'x'.repeat(35)} jane.doe.reporting@acme-corp.io` },
+                { id: 'b2', type: 'code', content: `# ${'x'.repeat(35)} jane.doe.reporting@acme-corp.io` },
+              ],
+            },
+            { name: 'Two', blocks: [{ id: 'b3', type: 'code', content: 'owner = "jane.doe.reporting@acme-corp.io"' }] },
+          ]),
+        ])
+      )
+
+      expect(JSON.stringify(audit)).not.toContain('jane.doe')
+    })
+
     it('does not flag a person confined to one notebook', () => {
       const audit = auditWorkspace(
         workspace([
