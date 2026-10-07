@@ -1066,6 +1066,18 @@ ${c.bold('Examples:')}
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--project <name>', 'Audit a single project, by name or id')
     .option('--issues', 'List every finding instead of a count per check')
+    .option('--divergence', 'List every divergence group with its variants and locations')
+    .option('--skip-divergence', 'Do not run the cross-project consensus checks')
+    .option(
+      '--divergence-kind <kind>',
+      'Consensus anchors to check: join, filter or metric (repeatable, defaults to all three)',
+      (value: string, previous: string[] = []) => [...previous, value]
+    )
+    .option(
+      '--min-confidence <value>',
+      'Consensus confidence below which a divergence group is reported but raises no finding (0-1, default 0.25)',
+      Number.parseFloat
+    )
     .option(
       '--internal-domain <domain>',
       'Email domain belonging to your organization, so colleagues are not counted as external data subjects (repeatable)',
@@ -1091,9 +1103,12 @@ ${c.bold('What it reports:')}
             away with it, so the report cannot be read back as a list of people. For a
             persistent, searchable index, use ${c.dim('deepnote subjects index')}.
   ${c.underline('Tables')}    Every table the SQL references, ranked by how many *live* projects read it.
+  ${c.underline('Consensus')} Anchors the workspace defines two ways: a table pair joined on different
+            keys, a metric name backed by different aggregates, a column most queries
+            filter and some do not. Each carries a Wilson confidence on its consensus.
   ${c.underline('Findings')}  ingress-integration-orphan, ingress-integration-undeclared,
             egress-external, credential-shared, pii-subject-scatter, asset-stale,
-            plus every ${c.dim('lint --governance')} check run against each project.
+            sql-divergence, plus every ${c.dim('lint --governance')} check run against each project.
 
 ${c.bold('Ranking:')}
   severity = signal × exposure × neglect × blast radius, reported out of 100 with all
@@ -1107,8 +1122,12 @@ ${c.bold('Limits it reports rather than hides:')}
   - Egress is a lower bound: a host assembled from variables at run time is invisible.
   - Integration usage counts SQL blocks in notebooks only; dbt, BI tools and other
     consumers of the same warehouse are not visible from here.
-  - Divergence checks are not run: cross-project consensus needs a workspace an order
-    of magnitude larger than most before agreement means anything.
+  - Divergence precision is unvalidated, and consensus thins out below roughly 130
+    projects. Every group is ranked by a Wilson lower bound rather than filtered by a
+    threshold, and ${c.dim('--divergence')} prints all of them so the ranking can be checked.
+  - Table identity is the short name, so analytics.users and staging.users are one
+    subject. Column-level and schema-aware checks need the warehouse catalogue, which
+    this command never connects to.
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  The workspace was audited (findings do not fail the command — audit is an inventory,
@@ -1125,6 +1144,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# One project, including its flow map')}
   $ deepnote audit workspace --project "Churn analysis"
+
+  ${c.dim('# Every divergence group, with every variant and where it is used')}
+  $ deepnote audit workspace --divergence
+
+  ${c.dim('# Only join divergence, and only where the consensus is well attested')}
+  $ deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
 
   ${c.dim('# Full report, including the flow map nodes and edges')}
   $ deepnote audit workspace -o json

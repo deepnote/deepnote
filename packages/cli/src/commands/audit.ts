@@ -6,6 +6,7 @@ import { debug, getChalk, error as logError, output, outputJson } from '../outpu
 import { FileResolutionError, isErrnoENOENT } from '../utils/file-resolver'
 import { type AuditIssue, auditWorkspace, scrubText, type WorkspaceAudit } from '../utils/governance/audit'
 import { scoreOutOf100 } from '../utils/governance/scoring'
+import { ABSENT_VARIANT, type DivergenceKind } from '../utils/governance/sql-divergence'
 import { COLD_DAYS, formatAge } from '../utils/governance/staleness'
 import { loadWorkspace } from '../utils/governance/workspace'
 
@@ -14,6 +15,14 @@ export interface AuditOptions {
   project?: string
   issues?: boolean
   internalDomain?: string[]
+  /** Print every divergence group with every variant and location, rather than a count. */
+  divergence?: boolean
+  /** Do not run the consensus checks at all. */
+  skipDivergence?: boolean
+  /** Consensus confidence below which a divergence group is reported but raises no finding. */
+  minConfidence?: number
+  /** Restrict the consensus checks to these anchor families. */
+  divergenceKind?: DivergenceKind[]
 }
 
 /** Issues printed in the terminal summary before it collapses the rest into a count. */
@@ -73,6 +82,9 @@ export function createAuditAction(
       const audit = auditWorkspace(workspace, {
         project: options.project,
         internalDomains: options.internalDomain,
+        divergence: !options.skipDivergence,
+        divergenceKinds: options.divergenceKind,
+        minConfidence: options.minConfidence,
       })
 
       if (options.output === 'json') {
@@ -154,6 +166,12 @@ function people(count: number): string {
   return count === 1 ? '1 person' : `${count} people`
 }
 
+/** Shorten a label to `width`, so one long first line cannot wrap the whole report. */
+function truncate(text: string, width: number): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim()
+  return collapsed.length <= width ? collapsed : `${collapsed.slice(0, width - 1)}…`
+}
+
 /** `+ n more` for a list that was cut short, or nothing when it was not. */
 function remainder(total: number, shown: number): string | undefined {
   return total > shown ? `  … ${total - shown} more` : undefined
@@ -178,6 +196,7 @@ function outputAudit(audit: WorkspaceAudit, options: AuditOptions): void {
 
   outputIntegrations(audit)
   outputTables(audit)
+  outputDivergence(audit, options)
   outputEgress(audit)
   outputSubjects(audit)
   outputSharedCredentials(audit)
@@ -251,6 +270,95 @@ function outputTables(audit: WorkspaceAudit): void {
   if (more) {
     output(c.dim(more))
   }
+  output('')
+}
+
+/** Rows of variant detail printed per divergence group under --divergence. */
+const MAX_LISTED_VARIANTS = 6
+
+/** Divergence groups printed under --divergence before the rest are collapsed. */
+const MAX_LISTED_GROUPS = 12
+
+/**
+ * Consensus: the anchors the workspace defines two ways.
+ *
+ * Collapsed to a count by default, because this is the one check whose precision has not been
+ * measured and a wall of unvalidated findings would crowd out the ones that are certain.
+ * `--divergence` opens it up into every variant and every location — which is exactly the review
+ * someone has to do before the ranking means anything.
+ */
+function outputDivergence(audit: WorkspaceAudit, options: AuditOptions): void {
+  const c = getChalk()
+  if (options.skipDivergence) {
+    return
+  }
+
+  output(c.bold('Consensus — divergence'))
+  if (audit.divergence.length === 0) {
+    output(c.dim('  No anchor is defined two ways, or the corpus is too small to tell.'))
+    output('')
+    return
+  }
+
+  if (!options.divergence) {
+    const byKind = new Map<string, number>()
+    for (const group of audit.divergence) {
+      byKind.set(group.kind, (byKind.get(group.kind) ?? 0) + 1)
+    }
+    const breakdown = [...byKind].map(([kind, count]) => `${count} ${kind}`).join(', ')
+    const diverging = audit.divergence.reduce(
+      (total, group) => total + (group.observations - group.consensus.members.length),
+      0
+    )
+    output(
+      `  ${plural(audit.divergence.length, 'anchor')} defined more than one way ${c.dim(`(${breakdown})`)} — ${plural(diverging, 'query')} diverges`
+    )
+    output(c.dim('  Run with --divergence to see every variant and where it is used.'))
+    output('')
+    return
+  }
+
+  for (const group of audit.divergence.slice(0, MAX_LISTED_GROUPS)) {
+    // Confidence first: it is the number that decides whether the rest of the line is worth
+    // reading, and it is the one the whole check is calibrated on.
+    const confidence = group.confidence.toFixed(2)
+    output(
+      `  ${c.bold(confidence)} ${c.dim(group.kind.padEnd(6))} ${group.anchorLabel} ${c.dim(`— ${group.consensus.members.length} of ${group.observations} queries, ${plural(group.projectCount, 'project')}`)}`
+    )
+
+    for (const variant of group.variants.slice(0, MAX_LISTED_VARIANTS)) {
+      const isConsensus = variant.variant === group.consensus.variant
+      const marker = isConsensus ? c.green('consensus') : c.yellow('diverges ')
+      const label = variant.variant === ABSENT_VARIANT ? c.dim(variant.label) : variant.label
+      output(`        ${marker}  ${label} ${c.dim(`× ${variant.members.length}`)}`)
+      if (isConsensus) {
+        continue
+      }
+      // Only the dissenters get located: the consensus is the background, not the work. The block
+      // label is included because two dissenting blocks in one notebook are otherwise two
+      // identical lines.
+      for (const member of variant.members.slice(0, MAX_LISTED_VARIANTS)) {
+        const where = `${member.location.projectName} · ${member.location.notebookName}`
+        output(c.dim(`                    ${where} — ${truncate(member.location.blockLabel, 60)}`))
+      }
+      const moreMembers = remainder(variant.members.length, Math.min(variant.members.length, MAX_LISTED_VARIANTS))
+      if (moreMembers) {
+        output(c.dim(`                  ${moreMembers.trim()}`))
+      }
+    }
+    const moreVariants = remainder(group.variants.length, Math.min(group.variants.length, MAX_LISTED_VARIANTS))
+    if (moreVariants) {
+      output(c.dim(`      ${moreVariants.trim()}`))
+    }
+  }
+
+  const more = remainder(audit.divergence.length, Math.min(audit.divergence.length, MAX_LISTED_GROUPS))
+  if (more) {
+    output(c.dim(more))
+  }
+  output('')
+  output(c.dim('Confidence is the Wilson lower bound on the consensus share: it discounts a majority by'))
+  output(c.dim('how little of it was seen, so 2-of-3 scores 0.21 and 78-of-80 scores 0.91.'))
   output('')
 }
 

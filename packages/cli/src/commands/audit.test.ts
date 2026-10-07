@@ -74,7 +74,7 @@ describe('audit command', () => {
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Egress is a lower bound')
-      expect(output).toContain('Divergence checks need roughly')
+      expect(output).toContain('consensus thins out below roughly')
       expect(output).toContain('This workspace has 4 projects')
     })
 
@@ -581,5 +581,132 @@ version: '1'
 
     expect(getOutput(consoleSpy)).toContain('Reporting · Daily ')
     expect(getOutput(consoleSpy)).not.toContain('Daily (alpha/daily.deepnote)')
+  })
+})
+
+/** A six-project workspace built so that each anchor family has a consensus and a dissenter. */
+const DIVERGENCE_WORKSPACE = join('test-fixtures', 'workspace-divergence')
+
+describe('audit command — divergence', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let exitSpy: Mock<typeof process.exit>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('collapses divergence to a count by default', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, DEFAULT_OPTIONS)
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Consensus — divergence')
+    expect(text).toContain('3 anchors defined more than one way')
+    expect(text).toContain('--divergence to see every variant')
+    // Collapsed means collapsed: no variant detail without the flag.
+    expect(text).not.toContain('orders.user_id = users.id')
+  })
+
+  it('prints every variant and where it is used under --divergence', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('orders ↔ users')
+    expect(text).toContain('consensus  orders.user_id = users.id')
+    expect(text).toContain('diverges   orders.email = users.email')
+    expect(text).toContain('Legacy reporting · Quarterly board pack')
+    expect(text).toContain('Wilson lower bound')
+  })
+
+  it('names the block, so two dissenters in one notebook are told apart', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('SELECT sum(o.amount_gross) AS revenue')
+    expect(text).toContain("SELECT * FROM orders o WHERE o.status = 'paid'")
+  })
+
+  it('reports all three anchor families', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('join  ')
+    expect(text).toContain('metric')
+    expect(text).toContain('filter')
+  })
+
+  it('restricts the anchor families on request', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, divergenceKind: ['join'] })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('orders ↔ users')
+    expect(text).not.toContain('no filter on orders.is_test')
+  })
+
+  it('raises no findings above an unreachable confidence floor, but still shows the groups', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, minConfidence: 0.99, issues: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('orders ↔ users')
+    expect(text).not.toContain('sql-divergence')
+  })
+
+  it('omits the section entirely with --skip-divergence', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { skipDivergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).not.toContain('Consensus — divergence')
+    expect(text).not.toContain('sql-divergence')
+  })
+
+  it('says so rather than printing an empty section when nothing diverges', async () => {
+    await createAuditAction(program)(WORKSPACE, { divergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('No anchor is defined two ways, or the corpus is too small to tell')
+  })
+
+  it('carries every group, variant and location in the JSON', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    expect(report.divergence).toHaveLength(3)
+    const join = report.divergence.find((group: { kind: string }) => group.kind === 'join')
+    expect(join).toMatchObject({ anchorLabel: 'orders ↔ users', observations: 5, projectCount: 5 })
+    expect(join.confidence).toBeGreaterThan(0.25)
+    expect(join.variants).toHaveLength(2)
+    expect(join.variants[1].members[0].location.projectName).toBe('Legacy reporting')
+  })
+
+  it('ranks a divergence in an abandoned notebook above the same one in a live notebook', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const missingFilter = report.issues.filter(
+      (issue: { code: string; details?: { kind?: string } }) =>
+        issue.code === 'sql-divergence' && issue.details?.kind === 'filter'
+    )
+    const legacy = missingFilter.find((issue: { projectName: string }) => issue.projectName === 'Legacy reporting')
+    const sales = missingFilter.find((issue: { projectName: string }) => issue.projectName === 'Sales pipeline')
+
+    expect(legacy.score.score).toBeGreaterThan(sales.score.score)
+    expect(legacy.score.neglect).toBeGreaterThan(sales.score.neglect)
+  })
+
+  it('still exits 0: divergence is a ranking, not a gate', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+
+    expect(exitSpy).not.toHaveBeenCalled()
   })
 })

@@ -487,11 +487,19 @@ describe('auditWorkspace', () => {
   })
 
   describe('scope and limits', () => {
-    it('says divergence was not run and why, below the consensus floor', () => {
+    it('says how far below the consensus floor the workspace is, rather than hiding the caveat', () => {
       const audit = auditWorkspace(workspace([project('p1', 'Alpha', [{ name: 'One', blocks: [] }])]))
 
-      expect(audit.notes.some(note => note.includes(`${CONSENSUS_PROJECT_FLOOR}+ projects`))).toBe(true)
+      expect(audit.notes.some(note => note.includes(`below roughly ${CONSENSUS_PROJECT_FLOOR} projects`))).toBe(true)
       expect(audit.notes.some(note => note.includes('has 1 project'))).toBe(true)
+    })
+
+    it('drops the scale caveat when the consensus checks were not asked for', () => {
+      const audit = auditWorkspace(workspace([project('p1', 'Alpha', [{ name: 'One', blocks: [] }])]), {
+        divergence: false,
+      })
+
+      expect(audit.notes.some(note => note.includes('below roughly'))).toBe(false)
     })
 
     it('always states that egress and integration usage are lower bounds', () => {
@@ -1058,6 +1066,7 @@ describe('holderReach', () => {
   })
 })
 
+<<<<<<< HEAD
 describe('auditWorkspace — one table identity, shared with the divergence anchors', () => {
   it('merges a qualified and a bare reference to the same table', () => {
     // Keyed on the name as written, these were two rows with two reach counts — while the join
@@ -1185,6 +1194,262 @@ describe('auditWorkspace — one table identity, shared with the divergence anch
     // The four bare readers count towards the reach of the one qualified writer's finding.
     expect(audit.tables.filter(table => table.name === 'users')).toHaveLength(1)
     expect(issuesOf(audit, 'sql-null-comparison')[0].score.blastRadius).toBeGreaterThan(0.75)
+=======
+describe('auditWorkspace — divergence', () => {
+  /** A project whose single notebook holds one SQL block per query. */
+  function sqlProject(id: string, name: string, queries: string[], modifiedAt = daysAgo(30)): WorkspaceProject {
+    return datedProject(id, name, modifiedAt, [
+      {
+        name: 'Queries',
+        blocks: queries.map((content, index) => ({ id: `${id}-b${index}`, type: 'sql', content })),
+      },
+    ])
+  }
+
+  const JOIN = 'SELECT * FROM orders o JOIN users u ON o.user_id = u.id'
+  const JOIN_REVERSED = 'SELECT * FROM users JOIN orders ON users.id = orders.user_id'
+  const JOIN_DIVERGENT = 'SELECT * FROM orders o JOIN users u ON o.email = u.email'
+
+  it('finds a table pair joined two ways across projects', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', [JOIN]),
+        sqlProject('p2', 'Beta', [JOIN_REVERSED]),
+        sqlProject('p3', 'Gamma', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.divergence).toHaveLength(1)
+    expect(audit.divergence[0]).toMatchObject({
+      kind: 'join',
+      anchorLabel: 'orders ↔ users',
+      observations: 3,
+      projectCount: 3,
+    })
+    // The reversed, unaliased spelling in Beta is the same claim as Alpha's, not a third variant.
+    expect(audit.divergence[0].consensus.label).toBe('orders.user_id = users.id')
+    expect(audit.divergence[0].consensus.members).toHaveLength(2)
+  })
+
+  it('raises one finding per diverging block, pointed at that block', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', [JOIN, JOIN]),
+        sqlProject('p2', 'Beta', [JOIN]),
+        sqlProject('p3', 'Gamma', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    const findings = issuesOf(audit, 'sql-divergence')
+    expect(findings).toHaveLength(1)
+    expect(findings[0]).toMatchObject({ projectName: 'Gamma', blockId: 'p3-b0', severity: 'warning' })
+    expect(findings[0].message).toContain('orders.email = users.email')
+    expect(findings[0].message).toContain('3 of 4 queries across 3 projects')
+  })
+
+  it('reports the evidence behind the ranking, so the score can be recomputed', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', [JOIN]),
+        sqlProject('p2', 'Beta', [JOIN]),
+        sqlProject('p3', 'Gamma', [JOIN]),
+        sqlProject('p4', 'Delta', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    expect(issuesOf(audit, 'sql-divergence')[0].details).toMatchObject({
+      kind: 'join',
+      consensus: 'orders.user_id = users.id',
+      variant: 'orders.email = users.email',
+      observations: 4,
+      consensusCount: 3,
+      projectCount: 4,
+    })
+  })
+
+  it('raises no finding below the confidence floor, but still reports the group', () => {
+    // Two agreeing and one dissenting scores 0.21 — under the 0.25 default. The group stays in the
+    // report because somebody has to be able to look at the ones that did not make the cut.
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', [JOIN]),
+        sqlProject('p2', 'Beta', [JOIN]),
+        sqlProject('p3', 'Gamma', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.divergence).toHaveLength(1)
+    expect(issuesOf(audit, 'sql-divergence')).toEqual([])
+  })
+
+  it('honours an explicit confidence floor', () => {
+    const projects = [
+      sqlProject('p1', 'Alpha', [JOIN]),
+      sqlProject('p2', 'Beta', [JOIN]),
+      sqlProject('p3', 'Gamma', [JOIN_DIVERGENT]),
+    ]
+
+    expect(
+      issuesOf(auditWorkspace(workspace(projects), { now: NOW, minConfidence: 0.1 }), 'sql-divergence')
+    ).toHaveLength(1)
+    expect(issuesOf(auditWorkspace(workspace(projects), { now: NOW, minConfidence: 0.9 }), 'sql-divergence')).toEqual(
+      []
+    )
+  })
+
+  it('scores a divergence by what live work reads the tables it is about', () => {
+    const live = [
+      sqlProject('p1', 'Alpha', [JOIN]),
+      sqlProject('p2', 'Beta', [JOIN]),
+      sqlProject('p3', 'Gamma', [JOIN]),
+      sqlProject('p4', 'Delta', [JOIN_DIVERGENT]),
+      sqlProject('p5', 'Epsilon', [JOIN]),
+    ]
+    // The same disagreement, in a workspace nobody has touched in five years.
+    const cold = live.map(project => ({
+      ...project,
+      modifiedAt: daysAgo(2000),
+      notebooks: project.notebooks.map(notebook => ({ ...notebook, modifiedAt: daysAgo(2000) })),
+    }))
+
+    const fresh = issuesOf(auditWorkspace(workspace(live), { now: NOW }), 'sql-divergence')[0]
+    const stale = issuesOf(auditWorkspace(workspace(cold), { now: NOW }), 'sql-divergence')[0]
+
+    expect(fresh.score.blastRadius).toBeGreaterThan(stale.score.blastRadius)
+    // Neglect still raises the abandoned one: nobody is watching it either.
+    expect(stale.score.neglect).toBeGreaterThan(fresh.score.neglect)
+  })
+
+  it('sets signal from the Wilson confidence rather than from the code', () => {
+    const thin = auditWorkspace(
+      workspace([sqlProject('p1', 'Alpha', [JOIN, JOIN, JOIN]), sqlProject('p2', 'Beta', [JOIN_DIVERGENT])]),
+      { now: NOW }
+    )
+    const thick = auditWorkspace(
+      workspace([
+        sqlProject(
+          'p1',
+          'Alpha',
+          Array.from({ length: 20 }, () => JOIN)
+        ),
+        sqlProject('p2', 'Beta', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    expect(issuesOf(thick, 'sql-divergence')[0].score.signal).toBeGreaterThan(
+      issuesOf(thin, 'sql-divergence')[0].score.signal
+    )
+  })
+
+  it('finds the query that omits a filter the rest of the workspace applies', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', ['SELECT * FROM orders WHERE is_test = false']),
+        sqlProject('p2', 'Beta', ['SELECT * FROM orders o WHERE o.is_test = false']),
+        sqlProject('p3', 'Gamma', ['SELECT * FROM orders WHERE is_test = false']),
+        sqlProject('p4', 'Delta', ['SELECT count(*) FROM orders']),
+      ]),
+      { now: NOW }
+    )
+
+    const finding = issuesOf(audit, 'sql-divergence')[0]
+    expect(finding.projectName).toBe('Delta')
+    expect(finding.message).toContain('without constraining orders.is_test')
+    expect(finding.details).toMatchObject({ kind: 'filter', observations: 4, consensusCount: 3 })
+  })
+
+  it('finds one metric name backed by two aggregates', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', ['SELECT sum(o.amount) AS revenue FROM orders o']),
+        sqlProject('p2', 'Beta', ['SELECT sum(amount) AS revenue FROM orders']),
+        sqlProject('p3', 'Gamma', ['SELECT sum(o.amount) AS revenue FROM orders o']),
+        sqlProject('p4', 'Delta', ['SELECT sum(o.amount_gross) AS revenue FROM orders o']),
+      ]),
+      { now: NOW }
+    )
+
+    const finding = issuesOf(audit, 'sql-divergence')[0]
+    expect(finding.projectName).toBe('Delta')
+    expect(finding.details).toMatchObject({
+      kind: 'metric',
+      consensus: 'sum(orders.amount)',
+      variant: 'sum(orders.amount_gross)',
+    })
+  })
+
+  it('skips the consensus checks entirely when asked', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', [JOIN]),
+        sqlProject('p2', 'Beta', [JOIN]),
+        sqlProject('p3', 'Gamma', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW, divergence: false }
+    )
+
+    expect(audit.divergence).toEqual([])
+    expect(issuesOf(audit, 'sql-divergence')).toEqual([])
+  })
+
+  it('runs only the anchor families it is asked for', () => {
+    const corpus = [
+      'SELECT sum(x) AS m FROM t JOIN u ON t.id = u.t_id',
+      'SELECT sum(x) AS m FROM t JOIN u ON t.id = u.t_id',
+      'SELECT avg(x) AS m FROM t JOIN u ON t.x = u.x',
+    ]
+    const audit = auditWorkspace(
+      workspace(corpus.map((query, index) => sqlProject(`p${index}`, `P${index}`, [query]))),
+      { now: NOW, divergenceKinds: ['metric'] }
+    )
+
+    expect(audit.divergence.map(group => group.kind)).toEqual(['metric'])
+  })
+
+  it('says precision is unvalidated whenever it reports a group', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', [JOIN]),
+        sqlProject('p2', 'Beta', [JOIN]),
+        sqlProject('p3', 'Gamma', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.notes.some(note => note.includes('precision is unvalidated'))).toBe(true)
+  })
+
+  it('folds a qualified and an unqualified name into one table', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', ['SELECT * FROM analytics.public.orders o JOIN prod.users u ON o.user_id = u.id']),
+        sqlProject('p2', 'Beta', [JOIN]),
+        sqlProject('p3', 'Gamma', [JOIN]),
+        sqlProject('p4', 'Delta', [JOIN_DIVERGENT]),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.divergence[0].consensus.members).toHaveLength(3)
+  })
+
+  it('reports nothing for a workspace whose queries share no subject', () => {
+    const audit = auditWorkspace(
+      workspace([
+        sqlProject('p1', 'Alpha', ['SELECT * FROM alpha_only']),
+        sqlProject('p2', 'Beta', ['SELECT * FROM beta_only']),
+        sqlProject('p3', 'Gamma', ['SELECT * FROM gamma_only']),
+      ]),
+      { now: NOW }
+    )
+
+    expect(audit.divergence).toEqual([])
+>>>>>>> 6b72017 (feat(cli): find SQL divergence across a workspace, ranked by Wilson confidence)
   })
 })
 

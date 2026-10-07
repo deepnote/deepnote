@@ -95,6 +95,7 @@ Common table expressions are not counted — a CTE is local to its query, and tr
 would invent a dependency between two notebooks that happen to use the same name for a scratch
 result.
 
+<<<<<<< HEAD
 **What counts as the same table.** A table is identified by its short name within one integration,
 so `FROM analytics.users` and `FROM users` against the same warehouse are one row with one reach
 count — the same identity the divergence anchors use, rather than a second answer to the same
@@ -104,6 +105,66 @@ own. Every qualified spelling seen is listed in `qualifiedNames`, so the one cas
 conflates — `analytics.users` and `staging.users` behind a _single_ integration — is visible on
 the row rather than silent. Telling those apart would mean knowing which schema an unqualified
 `users` resolved to, which is a property of the warehouse's search path and not of the query.
+=======
+### Consensus — where definitions disagree
+
+The one question that only exists across a whole workspace: is the same thing defined two different
+ways in two different notebooks? `= NULL` is wrong on its own; a table pair joined on different keys
+is only wrong _relative to_ what every other query does.
+
+The audit anchors consensus on three things that mean the same thing in every notebook:
+
+| Anchor     | The subject          | Variants are                 | Example divergence                                      |
+| ---------- | -------------------- | ---------------------------- | ------------------------------------------------------- |
+| **join**   | a pair of tables     | the join keys                | `orders.user_id = users.id` vs `orders.email = u.email` |
+| **filter** | a table and a column | whether the query filters it | six queries filter `orders.is_test`, two do not         |
+| **metric** | an output name       | the aggregate behind it      | `revenue` as `sum(amount)` vs `sum(amount_gross)`       |
+
+Spelling is normalised before anything is compared, which is what makes this work across projects at
+all. These three are one claim, not three:
+
+```sql
+FROM orders o JOIN users u ON o.user_id = u.id
+FROM users JOIN orders ON users.id = orders.user_id
+FROM analytics.public.orders AS a, prod.users AS b WHERE b.id = a.user_id
+```
+
+Aliases are resolved to table names, operand order is sorted, composite conditions are gathered into
+one claim per table pair, and a table is identified by its short name — so `analytics.users` and
+`staging.users` are one subject, with the conflation that implies.
+
+#### Confidence, not thresholds
+
+Every group carries a **Wilson lower bound** on its consensus share: the share a population could
+plausibly have, given a sample this size, taken at the pessimistic end. It replaces the arbitrary
+"ignore anchors with fewer than N observations" rule by discounting thin evidence instead of
+discarding it.
+
+| Consensus | Wilson | Reading               |
+| --------- | ------ | --------------------- |
+| 2 of 3    | 0.21   | a coincidence         |
+| 3 of 4    | 0.30   | still thin            |
+| 20 of 30  | 0.49   | probably a convention |
+| 78 of 80  | 0.91   | a convention          |
+
+Groups above `--min-confidence` (0.25 by default) raise a `sql-divergence` finding per diverging
+block. Groups below it are still reported — they are exactly the ones somebody has to look at before
+this check's precision is anything more than an assertion.
+
+```bash
+# Every group, every variant, every location
+deepnote audit workspace --divergence
+
+# Only joins, and only where the consensus is well attested
+deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
+```
+
+**Divergence precision is unvalidated.** Joins are the strongest anchor and metrics the weakest — a
+table pair means exactly one thing, while two teams may legitimately mean different things by
+`revenue`. That ordering is built into the ranking as a per-kind prior, reported in the JSON
+alongside the confidence so you can disagree with it without re-running the audit. Use
+`--skip-divergence` to leave the consensus checks out entirely.
+>>>>>>> 6b72017 (feat(cli): find SQL divergence across a workspace, ranked by Wilson confidence)
 
 ### Maintenance
 
@@ -145,19 +206,24 @@ Alongside the workspace-level checks, every project is run through the same chec
 | `credential-shared`              | The same credential is hardcoded in more than one project            |
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
 | `asset-stale`                    | A notebook untouched for three years or more                         |
+| `sql-divergence`                 | A query defines a join, filter or metric differently from the rest   |
 
 Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-string-boolean`, and
 `credential-hardcoded`. See the [CLI overview](/docs/deepnote-cli) for the lint command.
 
 ## Options
 
-| Option                  | Description                                                                         |
-| ----------------------- | ----------------------------------------------------------------------------------- |
-| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`)                                |
+| Option                  | Description                                                                 |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `[dir]`                 | Directory of synced `.deepnote` files (default: `.`)                        |
 | `-o, --output <format>` | `json` for the full report, including the flow map; `llm` resolves to the same JSON |
-| `--project <name>`      | Audit a single project, by name or id                                               |
-| `--issues`              | List every finding instead of a count per check                                     |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                                |
+| `--project <name>`      | Audit a single project, by name or id                                       |
+| `--issues`              | List every finding instead of a count per check                             |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                        |
+| `--divergence`          | List every consensus group with its variants and locations                  |
+| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable)                |
+| `--min-confidence <n>`  | Consensus confidence below which a group raises no finding (default `0.25`) |
+| `--skip-divergence`     | Do not run the consensus checks at all                                      |
 
 ## How findings are ranked
 
@@ -216,10 +282,16 @@ clean bill of health:
   destination nobody can act on would be worse than a gap you know is there.
 - **Integration usage counts SQL blocks in notebooks only.** dbt models, BI tools and other
   consumers of the same warehouse are not visible from a Deepnote workspace.
-- **Consensus checks are not run.** Finding the same metric defined two different ways needs a
-  workspace large enough for agreement to mean something — roughly 100 projects, as an order of
-  magnitude rather than a measured threshold. Below that, a ranking of "divergent" definitions is
-  noise presented as signal.
+- **Consensus thins out on a small workspace.** Agreement needs a workspace large enough for
+  agreement to mean something — roughly 100 projects, as an order of magnitude rather than a
+  measured threshold. Below that the audit still runs the consensus checks, but says how far below
+  the line it is, and the Wilson confidence on each group carries the discount rather than a
+  blanket refusal.
+- **Divergence precision is unvalidated.** The per-kind priors behind the ranking are judgment, not
+  measurement. `--divergence` exists so they can be replaced with measured numbers.
+- **Column-level checks need the warehouse catalogue.** Whether a query references a column that
+  was dropped, or whether a PII column reaches an egress point, cannot be decided from the
+  `.deepnote` files alone. The audit never connects to a warehouse.
 
 ## What leaves the process
 

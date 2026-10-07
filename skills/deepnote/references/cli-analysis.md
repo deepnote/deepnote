@@ -93,12 +93,16 @@ Audit a synced workspace — the tree `deepnote sync` writes. Answers what `lint
 from one project: which integrations exist and who uses them, where data leaves to, and which
 credentials are shared across projects. Everything is local: no warehouse connection, no Python.
 
-| Option                  | Description                                          |
-| ----------------------- | ---------------------------------------------------- |
-| `-o, --output <format>` | Output format: `json`, `llm`                         |
-| `--project <name>`      | Audit a single project, by name or id                |
-| `--issues`              | List every finding instead of a count per check      |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable) |
+| Option                  | Description                                                                 |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `-o, --output <format>` | Output format: `json`, `llm`                                                |
+| `--project <name>`      | Audit a single project, by name or id                                       |
+| `--issues`              | List every finding instead of a count per check                             |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                        |
+| `--divergence`          | List every consensus group with its variants and locations                  |
+| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable)                |
+| `--min-confidence <n>`  | Confidence below which a consensus group raises no finding (default `0.25`) |
+| `--skip-divergence`     | Do not run the consensus checks at all                                      |
 
 **Workspace-scoped checks:**
 
@@ -110,6 +114,7 @@ credentials are shared across projects. Everything is local: no warehouse connec
 | `credential-shared`              | The same credential is hardcoded in more than one project              | error    |
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                    | warning  |
 | `asset-stale`                    | A notebook untouched for three years or more                           | warning  |
+| `sql-divergence`                 | A query defines a join, filter or metric differently from the rest     | warning  |
 
 Every project is also run through the `lint --governance` checks, so one audit covers both scopes.
 Findings carry `projectId`, `projectName` and `path` on top of the usual lint issue fields.
@@ -119,6 +124,22 @@ Findings are **ranked**, not gated: `severity = signal × exposure × neglect ×
 referenced by 100 projects of which 12 are live is scored on the 12 — and neglect never lowers a
 score, so a credential in an abandoned notebook ranks above one in a live notebook (the key still
 works). `signal` and `exposure` are judgment constants, not measured precision.
+
+**Consensus (`sql-divergence`).** Three anchors, each something that means the same thing in every
+notebook: a **join** (a table pair; variants are the join keys), a **filter** (a table column most
+queries constrain; variants are presence or absence, never the literal value), and a **metric** (an
+output name; variants are the aggregate behind it). Spelling is normalised first — aliases resolved,
+operand order sorted, composite conditions merged per table pair, tables keyed by short name — so
+`FROM orders o JOIN users u ON o.user_id = u.id` and `FROM users JOIN orders ON users.id =
+orders.user_id` are one claim rather than two.
+
+Each group's `confidence` is the **Wilson lower bound** on its consensus share, which discounts a
+majority by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.49, 78-of-80 scores
+0.91. Groups above `--min-confidence` raise one finding per diverging block; the rest are still in
+`audit.divergence` and under `--divergence`, which is how the check's precision gets measured rather
+than asserted. A finding's `signal` is `confidence × a per-kind prior` (join 0.55, filter 0.5,
+metric 0.29), and `details` carries `observations`, `consensusCount`, `projectCount` and
+`confidence` so the ranking can be recomputed without re-running the audit.
 
 The report also inventories `tables` (name, `projectCount`, `liveProjectCount`, `blockCount`) and
 `staleness` (live / aging / cold / undated notebooks, median age). An undated notebook is never
@@ -130,7 +151,10 @@ data, not a drawing — render it however you need.
 
 **Limits the report states on every run:** egress only sees hosts written into block content, not
 ones assembled at run time; integration usage counts SQL blocks in notebooks only (dbt and BI tools
-are invisible); and cross-project consensus checks are not run below roughly 100 projects.
+are invisible); consensus thins out below roughly 100 projects, which the report states rather than
+using as a cutoff; divergence precision is unvalidated; and column-level checks (a query against a
+dropped column, a PII column reaching an egress point) need the warehouse catalogue, which the
+audit never connects to.
 
 **Exit codes:** 0 = the workspace was audited (findings never fail the command — audit is an
 inventory, not a gate; use `lint --governance` in CI), 1 = the workspace could not be read, 2 =
@@ -143,6 +167,8 @@ deepnote audit workspace
 deepnote audit workspace --issues
 deepnote audit workspace --project "Churn analysis"
 deepnote audit workspace -o json
+deepnote audit workspace --divergence
+deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
 ```
 
 ## `deepnote lint [path]`

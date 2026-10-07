@@ -1,0 +1,36 @@
+metadata:
+  createdAt: '2024-06-18T08:00:00.000Z'
+  modifiedAt: '2026-07-29T10:05:00.000Z'
+project:
+  id: 44444444-aaaa-4aaa-8aaa-444444444444
+  name: Sales pipeline
+  integrations:
+    - id: dddddddd-1111-4111-8111-dddddddddddd
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: dddd1111eeee2222ffff33334444aaaa
+      name: Bookings
+      blocks:
+        - blockGroup: dddd1111eeee2222ffff333344440001
+          id: dddd1111eeee2222ffff333344440001
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: revenue
+          content: |-
+            SELECT sum(o.amount) AS revenue
+            FROM orders o
+            JOIN users u ON o.user_id = u.id
+            WHERE o.is_test = FALSE
+        - blockGroup: dddd1111eeee2222ffff333344440002
+          id: dddd1111eeee2222ffff333344440002
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: all_orders
+          content: |-
+            SELECT count(*) FROM orders
+version: '1'

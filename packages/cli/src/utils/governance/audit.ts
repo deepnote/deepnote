@@ -21,6 +21,16 @@ import { getBlockLabel } from '../block-label'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
 import { type SeverityScore, scoreFinding } from './scoring'
+import {
+  DEFAULT_MIN_CONFIDENCE,
+  type DivergenceGroup,
+  type DivergenceKind,
+  dissenters,
+  divergenceSignal,
+  findDivergence,
+  type QueryObservation,
+} from './sql-divergence'
+import { extractQueryFacts } from './sql-facts'
 import { canonicalTableKey, findTableReferences, UNKNOWN_INTEGRATION_SCOPE } from './sql-tables'
 import { type AssetAge, assetAge, formatAge, medianAgeDays } from './staleness'
 import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
@@ -168,6 +178,9 @@ export interface WorkspaceAudit {
   }
   integrations: IntegrationUsage[]
   tables: TableUsage[]
+  /** Anchors the workspace disagrees on, best-attested first. Every variant and location included,
+   *  so the precision of this check can be measured rather than asserted. */
+  divergence: DivergenceGroup[]
   egress: EgressUsage[]
   staleness: StalenessSummary
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
@@ -185,6 +198,12 @@ export interface WorkspaceAudit {
 export interface AuditOptions {
   /** Restrict the audit to one project, matched by name or id. */
   project?: string
+  /** Skip the consensus checks entirely. They are the only ones whose precision is unvalidated. */
+  divergence?: boolean
+  /** Anchor families to look for. Defaults to all three. */
+  divergenceKinds?: DivergenceKind[]
+  /** Consensus confidence below which a divergence group is reported but raises no issue. */
+  minConfidence?: number
   /** Domains belonging to your own organization, so colleagues are not counted as data subjects. */
   internalDomains?: string[]
   /** Fixed clock, so tests and reproducible reports do not depend on the time of day. */
@@ -202,7 +221,13 @@ export interface AuditOptions {
  */
 export const CONSENSUS_PROJECT_FLOOR = 100
 
-const DIVERGENCE_NOTE = `Divergence checks need roughly ${CONSENSUS_PROJECT_FLOOR}+ projects before consensus means anything, and are not run here.`
+const DIVERGENCE_SCALE_NOTE =
+  `Divergence ran, but consensus thins out below roughly ${CONSENSUS_PROJECT_FLOOR} projects. ` +
+  'Weight each group by its confidence rather than by the fact that it was reported.'
+
+const DIVERGENCE_PRECISION_NOTE =
+  'Divergence precision is unvalidated. Run "deepnote audit --divergence" to see every group with ' +
+  'every variant and location, and judge it before acting on the ranking.'
 
 const EGRESS_LOWER_BOUND_NOTE =
   'Egress is a lower bound: it sees hosts written into block content, not hosts assembled from variables at run time.'
@@ -218,6 +243,8 @@ const SEVERITY = {
   'credential-shared': 'error',
   'pii-subject-scatter': 'warning',
   'asset-stale': 'warning',
+  // A warning, never an error: the check knows a query is unusual, not that it is wrong.
+  'sql-divergence': 'warning',
 } as const
 
 /**
@@ -426,6 +453,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   const tables = new Map<string, TableUsage>()
   /** Tables referenced by each block, so a SQL finding can be scored by what depends on them. */
   const tablesByBlock = new Map<string, string[]>()
+  /** Every SQL block's claims, which is the corpus the consensus checks run over. */
+  const observations: QueryObservation[] = []
 
   for (const project of projects) {
     projectAges.set(project.id, assetAge(project.modifiedAt, now))
@@ -511,6 +540,18 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
             usage.blockCount++
             tables.set(key, usage)
           }
+
+          observations.push({
+            location: {
+              projectId: project.id,
+              projectName: project.name,
+              notebookName: notebook.name,
+              path: notebook.path,
+              blockId: block.id,
+              blockLabel: blockMap.get(block.id)?.label ?? block.id,
+            },
+            facts: extractQueryFacts(content),
+          })
         }
         if (integrationId) {
           const usage: IntegrationUsage = integrations.get(integrationId) ?? {
@@ -779,6 +820,88 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     }
   }
 
+  // Consensus. This is the only check that cannot be decided from any one file: a query is
+  // "divergent" purely relative to what the rest of the workspace does with the same subject, so it
+  // runs last, over every SQL block the walk collected.
+  //
+  // Every qualifying group is reported, but only those whose consensus clears `minConfidence`
+  // become issues. The groups below the line are the ones a reviewer has to click through before
+  // the precision of this check is anything more than an assertion, which is why they are kept in
+  // the report rather than dropped.
+  const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE
+  const divergence =
+    options.divergence === false ? [] : findDivergence(observations, { kinds: options.divergenceKinds })
+
+  // Divergence anchors are short table names; the reach index is keyed by qualified name, because
+  // that is what a query writes. Folding it here keeps `analytics.public.orders` and `orders` one
+  // dependency rather than two.
+  const reachByShortName = new Map<string, { live: number; total: number }>()
+  for (const usage of tables.values()) {
+    const short = usage.name.slice(usage.name.lastIndexOf('.') + 1)
+    const existing = reachByShortName.get(short)
+    reachByShortName.set(short, {
+      live: Math.max(existing?.live ?? 0, usage.liveProjectCount),
+      total: Math.max(existing?.total ?? 0, usage.projectCount),
+    })
+  }
+
+  for (const group of divergence) {
+    if (group.confidence < minConfidence) {
+      continue
+    }
+    const consensusCount = group.consensus.members.length
+    const attestation = `${consensusCount} of ${group.observations} queries across ${group.projectCount} ${group.projectCount === 1 ? 'project' : 'projects'}`
+
+    for (const { variant, member } of dissenters(group)) {
+      const message =
+        group.kind === 'join'
+          ? `This query joins ${group.anchorLabel} on ${variant.label}. ${attestation} join them on ${group.consensus.label}.`
+          : group.kind === 'metric'
+            ? `${group.anchorLabel} is defined here as ${variant.label}. ${attestation} define it as ${group.consensus.label}.`
+            : `This query reads ${group.tables[0]} without constraining ${group.anchor}. ${attestation} do.`
+
+      issues.push({
+        severity: SEVERITY['sql-divergence'],
+        code: 'sql-divergence',
+        message,
+        blockId: member.location.blockId,
+        blockLabel: member.location.blockLabel,
+        notebookName: member.location.notebookName,
+        projectId: member.location.projectId,
+        projectName: member.location.projectName,
+        path: member.location.path,
+        score: scoreFinding('sql-divergence', {
+          age: ageFor(member.location.projectId, member.location.notebookName),
+          // What a disagreement costs is set by how much live work reads the tables it is about.
+          reach: group.tables.reduce(
+            (totals, table) => {
+              const reach = reachByShortName.get(table)
+              return reach
+                ? { live: Math.max(totals.live, reach.live), total: Math.max(totals.total, reach.total) }
+                : totals
+            },
+            { live: 0, total: 0 }
+          ),
+          signal: divergenceSignal(group),
+        }),
+        details: {
+          kind: group.kind,
+          anchor: group.anchor,
+          consensus: group.consensus.label,
+          variant: variant.label,
+          // The four numbers behind the ranking, so a reviewer can recompute it or disagree with
+          // one of them without re-running the audit.
+          observations: group.observations,
+          consensusCount,
+          projectCount: group.projectCount,
+          confidence: Number(group.confidence.toFixed(4)),
+          ...(member.evidence ? { evidence: member.evidence } : {}),
+          ...(member.line ? { line: member.line } : {}),
+        },
+      })
+    }
+  }
+
   // Score everything, then rank. Scoring happens here rather than at each push because three of the
   // four factors — neglect, and both halves of blast radius — are only knowable once the whole
   // workspace has been read.
@@ -815,9 +938,12 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   if (subjectIndex.summary.subjects > 0 && (options.internalDomains ?? []).length === 0) {
     notes.push('No --internal-domain was given, so colleagues and customers are counted alike as data subjects.')
   }
-  if (workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
+  if (divergence.length > 0) {
+    notes.push(DIVERGENCE_PRECISION_NOTE)
+  }
+  if (options.divergence !== false && workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
     notes.push(
-      `${DIVERGENCE_NOTE} This workspace has ${workspace.projects.length} project${workspace.projects.length === 1 ? '' : 's'}.`
+      `${DIVERGENCE_SCALE_NOTE} This workspace has ${workspace.projects.length} project${workspace.projects.length === 1 ? '' : 's'}.`
     )
   }
   if (options.project) {
@@ -850,6 +976,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         ).length,
       }))
       .sort((a, b) => b.blockCount - a.blockCount || (a.name ?? a.id).localeCompare(b.name ?? b.id)),
+    divergence,
     // Ranked by live reach, not by raw reach: a table twenty abandoned projects query is not a
     // bigger dependency than one three live projects query.
     tables: [...tables.values()].sort(

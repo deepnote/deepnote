@@ -381,6 +381,8 @@ interpreter, and nothing leaves the machine.
 - **Egress** — third-party hosts the code writes to, recovered from URLs in code blocks. Object
   store buckets count as their own destination.
 - **Credentials** — credentials hardcoded in more than one project, by fingerprint, never by value.
+- **Consensus** — subjects the workspace defines two ways: a table pair joined on different keys, a
+  column most queries filter and some do not, a metric name backed by different aggregates.
 - **Findings** — the workspace checks below, plus every `lint --governance` check run against each
   project.
 
@@ -392,21 +394,42 @@ interpreter, and nothing leaves the machine.
 | `credential-shared`              | The same credential is hardcoded in more than one project            |
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
 | `asset-stale`                    | A notebook untouched for three years or more                         |
+| `sql-divergence`                 | A query defines a join, filter or metric differently from the rest   |
 
 **Options:**
 
-| Option                  | Description                                          | Default |
-| ----------------------- | ---------------------------------------------------- | ------- |
-| `-o, --output <fmt>`    | Output format: `json` or `llm`                       | text    |
-| `--project <name>`      | Audit a single project, by name or id                |         |
-| `--issues`              | List every finding instead of a count per check      | off     |
-| `--internal-domain <d>` | A domain belonging to your organization (repeatable) |         |
+| Option                  | Description                                                  | Default |
+| ----------------------- | ------------------------------------------------------------ | ------- |
+| `-o, --output <fmt>`    | Output format: `json` or `llm`                               | text    |
+| `--project <name>`      | Audit a single project, by name or id                        |         |
+| `--issues`              | List every finding instead of a count per check              | off     |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable)         |         |
+| `--divergence`          | List every consensus group, with variants and locations      | off     |
+| `--divergence-kind <k>` | Limit consensus to `join`, `filter` or `metric` (repeatable) | all     |
+| `--min-confidence <n>`  | Confidence below which a group raises no finding             | `0.25`  |
+| `--skip-divergence`     | Do not run the consensus checks at all                       | off     |
 
 Findings are **ranked, never gated**: `severity = signal × exposure × neglect × blast radius`, and
 every issue carries all four factors so you can disagree with one rather than with the number. Blast
 radius is liveness-weighted — if a table is referenced by 100 projects of which 12 were edited this
 year, it is scored on the 12 — and neglect only ever raises severity, so a credential in an abandoned notebook
 ranks above one in a live notebook. The key still works.
+
+**Consensus.** Before two queries are compared they are normalised — aliases resolved to table
+names, operand order sorted, composite join conditions merged per table pair — so these are one
+claim rather than three:
+
+```sql
+FROM orders o JOIN users u ON o.user_id = u.id
+FROM users JOIN orders ON users.id = orders.user_id
+FROM analytics.public.orders AS a, prod.users AS b WHERE b.id = a.user_id
+```
+
+Each group's confidence is the Wilson lower bound on its consensus share, so a majority is
+discounted by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.49, 78-of-80 scores
+0.91. That replaces a minimum-sample threshold — thin evidence is ranked low rather than thrown
+away. `--divergence` prints every group with every variant and location, which is how this check's
+precision gets measured instead of asserted; it is currently judgement, not measurement.
 
 The report also inventories every table the workspace's SQL references, with its live and total
 project reach, and summarizes how much of the workspace is still maintained. A notebook with no
@@ -417,7 +440,8 @@ every connection — so the same report backs the terminal summary, a dashboard,
 
 The report states its own limits on every run: egress is a lower bound (a host assembled from
 variables at run time is invisible), integration usage counts SQL blocks in notebooks only, and
-cross-project consensus checks are not run below roughly 100 projects.
+consensus thins out below roughly 100 projects (stated, not used as a cutoff), divergence precision
+is unvalidated, and column-level checks need a warehouse catalogue the audit never connects to.
 
 **Exit codes:** `0` = the workspace was audited — findings never fail the command, because an audit
 is an inventory rather than a gate; use `deepnote lint --governance` in CI. `1` = the workspace could
@@ -434,6 +458,12 @@ deepnote audit ./workspace --issues
 
 # One project
 deepnote audit ./workspace --project "Churn analysis"
+
+# Every consensus group, with every variant and where it is used
+deepnote audit ./workspace --divergence
+
+# Only joins, and only where the consensus is well attested
+deepnote audit ./workspace --divergence --divergence-kind join --min-confidence 0.5
 
 # Full report, including the flow map
 deepnote audit ./workspace -o json
