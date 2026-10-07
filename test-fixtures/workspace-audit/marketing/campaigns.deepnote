@@ -26,6 +26,7 @@ project:
             SELECT c.id, c.spend, c.clicks
             FROM campaigns c
             WHERE c.ended_at IS NULL
+              AND c.owner_email = 'jane.doe@acme-corp.io'
         - blockGroup: aaaa1111bbbb2222cccc3333dddd4445
           id: aaaa1111bbbb2222cccc3333dddd4442
           type: code

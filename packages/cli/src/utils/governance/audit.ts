@@ -13,11 +13,14 @@
  * ranked list of findings over the same `LintIssue` shape the lint command already emits.
  */
 
+import crypto from 'node:crypto'
 import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
 import type { BlockInfo, LintIssue } from '../analysis'
 import { getBlockLabel } from '../block-label'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
+import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
+import { createSubjectFingerprinter, redactSubjects } from './subjects'
 import { type LoadedWorkspace, projectBlocks, type WorkspaceLoadError, type WorkspaceProject } from './workspace'
 
 /** A lint issue, placed in the workspace it was found in. */
@@ -84,6 +87,20 @@ export interface FlowEdge {
   blockCount: number
 }
 
+/** How many people the workspace holds data about, and how widely each is spread. */
+export interface SubjectSummary {
+  /** Distinct people identified across the workspace. */
+  total: number
+  /** Those whose domain is not one of `--internal-domain`. */
+  external: number
+  /** Those appearing in more than one notebook. */
+  scattered: number
+  /** Places a subject identifier was found. */
+  locations: number
+  /** Domains used to tell colleagues from customers; empty when none were given. */
+  internalDomains: string[]
+}
+
 export interface WorkspaceAudit {
   root: string
   scope: 'workspace'
@@ -98,6 +115,7 @@ export interface WorkspaceAudit {
   egress: EgressUsage[]
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
   credentials: CredentialUsage[]
+  subjects: SubjectSummary
   flow: { nodes: FlowNode[]; edges: FlowEdge[] }
   issues: AuditIssue[]
   issueCount: { errors: number; warnings: number; total: number }
@@ -110,6 +128,8 @@ export interface WorkspaceAudit {
 export interface AuditOptions {
   /** Restrict the audit to one project, matched by name or id. */
   project?: string
+  /** Domains belonging to your own organisation, so colleagues are not counted as data subjects. */
+  internalDomains?: string[]
 }
 
 /**
@@ -137,6 +157,7 @@ const SEVERITY = {
   'ingress-integration-undeclared': 'warning',
   'egress-external': 'warning',
   'credential-shared': 'error',
+  'pii-subject-scatter': 'warning',
 } as const
 
 /**
@@ -222,8 +243,9 @@ function blockMapFor(project: WorkspaceProject): Map<string, BlockInfo> {
     for (const block of notebook.blocks) {
       map.set(block.id, {
         id: block.id,
-        // Labels are the block's first line, which for a credential assignment is the credential.
-        label: redactSecrets(getBlockLabel(block)),
+        // Labels are the block's first line, which for a credential assignment is the credential and
+        // for `owner = "jane@acme.io"` is the person the finding is about.
+        label: redactSubjects(redactSecrets(getBlockLabel(block))),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,
@@ -262,8 +284,13 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   let sqlBlockCount = 0
   let codeBlockCount = 0
 
+  // Labels are kept per project so the scatter findings, which are decided after every project has
+  // been scanned, can still name the block they point at.
+  const blockLabelsByProject = new Map<string, Map<string, string>>()
+
   for (const project of projects) {
     const blockMap = blockMapFor(project)
+    blockLabelsByProject.set(project.id, new Map([...blockMap].map(([id, info]) => [id, info.label])))
     notebookCount += project.notebooks.length
 
     // Declared integrations are registered before any block is read, so an integration nobody uses
@@ -492,7 +519,48 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     }
   }
 
+  // Data subjects are fingerprinted under a salt generated for this run and discarded with it.
+  // Nothing here is persisted, so the salt never has to be managed — and an audit report cannot be
+  // turned back into a list of people even by whoever ran it. Answering "where is this person's
+  // data" needs an index that survives the run, which is what `deepnote subjects index` builds,
+  // under a salt the operator keeps.
+  const subjectIndex = buildSubjectIndex(projects, {
+    fingerprinter: createSubjectFingerprinter(crypto.randomBytes(32).toString('hex')),
+    internalDomains: options.internalDomains,
+    root: workspace.root,
+  })
+
+  for (const subject of subjectIndex.subjects) {
+    if (subject.notebookCount < SCATTER_NOTEBOOK_THRESHOLD) {
+      continue
+    }
+    const [first] = subject.locations
+    issues.push({
+      severity: SEVERITY['pii-subject-scatter'],
+      code: 'pii-subject-scatter',
+      message: `Data about one ${subject.internal ? 'internal' : 'external'} person at ${subject.domain} appears in ${subject.notebookCount} notebooks across ${subject.projectCount} ${subject.projectCount === 1 ? 'project' : 'projects'}. An erasure request would have to reach all of them.`,
+      blockId: first.blockId,
+      blockLabel: blockLabelsByProject.get(first.projectId)?.get(first.blockId) ?? first.blockId,
+      notebookName: first.notebookName,
+      projectId: first.projectId,
+      projectName: first.projectName,
+      path: first.path,
+      details: {
+        domain: subject.domain,
+        internal: subject.internal,
+        notebookCount: subject.notebookCount,
+        projectCount: subject.projectCount,
+        locationCount: subject.locations.length,
+        // Deliberately no fingerprint: this one is salted per run and would be meaningless — and
+        // misleading — in a report compared against another.
+      },
+    })
+  }
+
   const notes = [INTEGRATION_LOWER_BOUND_NOTE, EGRESS_LOWER_BOUND_NOTE]
+  if (subjectIndex.summary.subjects > 0 && (options.internalDomains ?? []).length === 0) {
+    notes.push('No --internal-domain was given, so colleagues and customers are counted alike as data subjects.')
+  }
   if (workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
     notes.push(
       `${DIVERGENCE_NOTE} This workspace has ${workspace.projects.length} project${workspace.projects.length === 1 ? '' : 's'}.`
@@ -522,6 +590,13 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     ),
     egress: [...egress.values()].sort((a, b) => b.blockCount - a.blockCount || a.host.localeCompare(b.host)),
     credentials: sharedCredentials.sort((a, b) => b.projects.length - a.projects.length),
+    subjects: {
+      total: subjectIndex.summary.subjects,
+      external: subjectIndex.summary.externalSubjects,
+      scattered: subjectIndex.summary.scattered,
+      locations: subjectIndex.summary.locations,
+      internalDomains: subjectIndex.internalDomains,
+    },
     flow: buildFlowMap(projects, [...integrations.values()], [...egress.values()]),
     issues,
     issueCount: {

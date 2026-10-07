@@ -1,0 +1,42 @@
+metadata:
+  createdAt: '2025-07-20T07:00:00.000Z'
+  modifiedAt: '2026-10-01T15:45:00.000Z'
+project:
+  id: 44444444-4444-4444-8444-444444444444
+  name: Support escalations
+  integrations:
+    - id: aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: 4444aaaa5555bbbb6666cccc7777dddd
+      name: Open escalations
+      blocks:
+        - blockGroup: dddd1111eeee2222ffff3333aaaa4444
+          id: dddd1111eeee2222ffff3333aaaa4441
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa
+            deepnote_variable_name: escalations
+          content: |-
+            SELECT t.id, t.subject, u.email
+            FROM tickets t
+            JOIN users u ON t.user_id = u.id
+            WHERE u.email IN ('jane.doe@acme-corp.io', 'sam.patel@globex.co')
+              AND t.resolved_at IS NULL
+        - blockGroup: dddd1111eeee2222ffff3333aaaa4445
+          id: dddd1111eeee2222ffff3333aaaa4442
+          type: code
+          sortingKey: a1
+          metadata: {}
+          content: |-
+            escalations.head()
+          outputs:
+            - output_type: execute_result
+              data:
+                text/plain: |-
+                  id  subject                 email
+                  17  Export failing          jane.doe@acme-corp.io
+                  22  Billing question        sam.patel@globex.co
+version: '1'

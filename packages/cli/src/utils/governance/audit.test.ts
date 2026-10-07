@@ -302,6 +302,85 @@ describe('auditWorkspace', () => {
     })
   })
 
+  describe('data subjects', () => {
+    it('counts people and flags the ones spread across notebooks', () => {
+      const audit = auditWorkspace(
+        workspace([
+          project('p1', 'Alpha', [
+            { name: 'One', blocks: [{ id: 'b1', type: 'code', content: 'owner = "jane@acme-corp.io"' }] },
+            { name: 'Two', blocks: [{ id: 'b2', type: 'code', content: 'owner = "jane@acme-corp.io"' }] },
+          ]),
+          project('p2', 'Bravo', [
+            { name: 'One', blocks: [{ id: 'b3', type: 'code', content: 'owner = "sam@globex.co"' }] },
+          ]),
+        ])
+      )
+
+      expect(audit.subjects).toMatchObject({ total: 2, scattered: 1, locations: 3 })
+      const scatter = issuesOf(audit, 'pii-subject-scatter')
+      expect(scatter).toHaveLength(1)
+      expect(scatter[0].details).toMatchObject({ domain: 'acme-corp.io', notebookCount: 2, projectCount: 1 })
+      expect(scatter[0].message).toContain('erasure request')
+    })
+
+    it('does not flag a person confined to one notebook', () => {
+      const audit = auditWorkspace(
+        workspace([
+          project('p1', 'Alpha', [
+            { name: 'One', blocks: [{ id: 'b1', type: 'code', content: 'a = "jane@acme-corp.io"' }] },
+          ]),
+        ])
+      )
+
+      expect(audit.subjects.scattered).toBe(0)
+      expect(issuesOf(audit, 'pii-subject-scatter')).toEqual([])
+    })
+
+    it('separates colleagues from customers when told which domains are internal', () => {
+      const audit = auditWorkspace(
+        workspace([
+          project('p1', 'Alpha', [
+            {
+              name: 'One',
+              blocks: [{ id: 'b1', type: 'code', content: 'a = "jane@acme-corp.io"\nb = "sam@globex.co"' }],
+            },
+          ]),
+        ]),
+        { internalDomains: ['globex.co'] }
+      )
+
+      expect(audit.subjects).toMatchObject({ total: 2, external: 1, internalDomains: ['globex.co'] })
+    })
+
+    it('never puts an address or a stable fingerprint in the report', () => {
+      const audit = auditWorkspace(
+        workspace([
+          project('p1', 'Alpha', [
+            { name: 'One', blocks: [{ id: 'b1', type: 'code', content: 'a = "jane@acme-corp.io"' }] },
+            { name: 'Two', blocks: [{ id: 'b2', type: 'code', content: 'a = "jane@acme-corp.io"' }] },
+          ]),
+        ])
+      )
+
+      // The salt is generated per run and discarded, so there is nothing to compare across reports
+      // and nothing to reverse. A persistent index is `deepnote subjects index`.
+      expect(JSON.stringify(audit)).not.toContain('jane@acme-corp.io')
+      expect(issuesOf(audit, 'pii-subject-scatter')[0].details?.fingerprint).toBeUndefined()
+    })
+
+    it('says when nobody was classified as internal', () => {
+      const audit = auditWorkspace(
+        workspace([
+          project('p1', 'Alpha', [
+            { name: 'One', blocks: [{ id: 'b1', type: 'code', content: 'a = "jane@acme-corp.io"' }] },
+          ]),
+        ])
+      )
+
+      expect(audit.notes.some(note => note.includes('No --internal-domain'))).toBe(true)
+    })
+  })
+
   describe('flow map', () => {
     it('links integrations into projects and projects out to hosts', () => {
       const audit = auditWorkspace(

@@ -11,6 +11,7 @@ export interface AuditOptions {
   output?: 'json'
   project?: string
   issues?: boolean
+  internalDomain?: string[]
 }
 
 /** Issues printed in the terminal summary before it collapses the rest into a count. */
@@ -67,7 +68,10 @@ export function createAuditAction(
         )
       }
 
-      const audit = auditWorkspace(workspace, { project: options.project })
+      const audit = auditWorkspace(workspace, {
+        project: options.project,
+        internalDomains: options.internalDomain,
+      })
 
       if (options.output === 'json') {
         outputJson(audit)
@@ -143,6 +147,11 @@ function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
+/** `plural` appends an `s`, which "person" does not take. */
+function people(count: number): string {
+  return count === 1 ? '1 person' : `${count} people`
+}
+
 /** `+ n more` for a list that was cut short, or nothing when it was not. */
 function remainder(total: number, shown: number): string | undefined {
   return total > shown ? `  … ${total - shown} more` : undefined
@@ -167,6 +176,7 @@ function outputAudit(audit: WorkspaceAudit, options: AuditOptions): void {
 
   outputIntegrations(audit)
   outputEgress(audit)
+  outputSubjects(audit)
   outputSharedCredentials(audit)
   outputIssues(audit, options)
   outputNotes(audit)
@@ -237,6 +247,30 @@ function outputEgress(audit: WorkspaceAudit): void {
   if (more) {
     output(c.dim(more))
   }
+  output('')
+}
+
+/** How many people the workspace holds data about, and how far each one is spread. */
+function outputSubjects(audit: WorkspaceAudit): void {
+  if (audit.subjects.total === 0) {
+    return
+  }
+  const c = getChalk()
+  const { total, external, scattered, locations, internalDomains } = audit.subjects
+
+  output(c.bold('Data subjects'))
+  const classification =
+    internalDomains.length > 0
+      ? `${external} external ${c.dim(`(internal: ${internalDomains.join(', ')})`)}`
+      : c.dim('unclassified — pass --internal-domain to separate colleagues from customers')
+  output(`  ${people(total)} in ${plural(locations, 'location')}, ${classification}`)
+  if (scattered > 0) {
+    output(
+      `  ${c.yellow('⚠')} ${people(scattered)} ${scattered === 1 ? 'appears' : 'appear'} in more than one notebook`
+    )
+  }
+  output(c.dim('  Identities are fingerprinted per run and discarded. For a persistent, searchable'))
+  output(c.dim('  index, run "deepnote subjects index".'))
   output('')
 }
 

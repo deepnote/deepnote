@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vite
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
-/** A three-project synced workspace with one of every workspace-scoped finding. */
+/** A four-project synced workspace with one of every workspace-scoped finding. */
 const WORKSPACE = join('test-fixtures', 'workspace-audit')
 
 /** The secret the fixture hardcodes in two projects. It must never reach the output. */
@@ -46,7 +46,7 @@ describe('audit command', () => {
       await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
 
       const output = getOutput(consoleSpy)
-      expect(output).toContain('3 projects, 3 notebooks')
+      expect(output).toContain('4 projects, 4 notebooks')
       expect(output).toContain('Ingress — integrations')
       expect(output).toContain('Warehouse (snowflake)')
       expect(output).toContain('Egress — external hosts')
@@ -75,7 +75,7 @@ describe('audit command', () => {
       const output = getOutput(consoleSpy)
       expect(output).toContain('Egress is a lower bound')
       expect(output).toContain('Divergence checks need roughly')
-      expect(output).toContain('This workspace has 3 projects')
+      expect(output).toContain('This workspace has 4 projects')
     })
 
     it('summarizes findings by check, and lists them with --issues', async () => {
@@ -95,6 +95,46 @@ describe('audit command', () => {
       await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
 
       expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('data subjects', () => {
+    it('counts the people the workspace holds data about, and how far they are spread', async () => {
+      await createAuditAction(program)(WORKSPACE, { internalDomain: ['globex.co'] })
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Data subjects')
+      expect(output).toContain('2 people in 5 locations, 1 external')
+      expect(output).toContain('1 person appears in more than one notebook')
+      expect(output).toContain('pii-subject-scatter')
+    })
+
+    it('never names the person, in text or in JSON', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+      const text = getOutput(consoleSpy)
+      consoleSpy.mockClear()
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      expect(text).not.toContain('jane.doe@acme-corp.io')
+      expect(getOutput(consoleSpy)).not.toContain('jane.doe@acme-corp.io')
+    })
+
+    it('says that nobody was classified when no internal domain was given', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('pass --internal-domain')
+      expect(output).toContain('No --internal-domain was given')
+    })
+
+    it('reports the scatter finding without a fingerprint, which would be per-run', async () => {
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      const report = JSON.parse(getOutput(consoleSpy))
+      const scatter = report.issues.find((issue: { code: string }) => issue.code === 'pii-subject-scatter')
+      expect(scatter.details).toMatchObject({ domain: 'acme-corp.io', notebookCount: 2, projectCount: 2 })
+      expect(scatter.details.fingerprint).toBeUndefined()
+      expect(report.subjects).toMatchObject({ total: 2, scattered: 1 })
     })
   })
 
@@ -146,10 +186,10 @@ describe('audit command', () => {
 
       const report = JSON.parse(getOutput(consoleSpy))
       expect(report.scope).toBe('workspace')
-      expect(report.summary.projects).toBe(3)
+      expect(report.summary.projects).toBe(4)
       expect(report.integrations).toHaveLength(3)
       expect(report.credentials).toHaveLength(1)
-      expect(report.flow.nodes.filter((n: { kind: string }) => n.kind === 'project')).toHaveLength(3)
+      expect(report.flow.nodes.filter((n: { kind: string }) => n.kind === 'project')).toHaveLength(4)
       expect(report.flow.edges.some((e: { kind: string }) => e.kind === 'writes')).toBe(true)
       expect(report.notes.length).toBeGreaterThan(0)
     })
