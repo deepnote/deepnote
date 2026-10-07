@@ -128,7 +128,7 @@ export interface WorkspaceAudit {
 export interface AuditOptions {
   /** Restrict the audit to one project, matched by name or id. */
   project?: string
-  /** Domains belonging to your own organisation, so colleagues are not counted as data subjects. */
+  /** Domains belonging to your own organization, so colleagues are not counted as data subjects. */
   internalDomains?: string[]
 }
 

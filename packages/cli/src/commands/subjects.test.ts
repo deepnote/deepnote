@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Command } from 'commander'
@@ -23,6 +23,30 @@ const SCATTERED_SUBJECT = 'jane.doe@acme-corp.io'
 function getOutput(spy: Mock<typeof console.log>): string {
   return spy.mock.calls.map(call => call.join(' ')).join('\n')
 }
+
+/**
+ * Fault injection for the index write.
+ *
+ * Off by default, so every other test in this file runs against the real filesystem. When armed,
+ * `writeFile` writes a truncated prefix and *then* throws — which is what a full disk or a killed
+ * process actually leaves behind, and the only way to tell an in-place write from an atomic one.
+ */
+const truncateAndFail = vi.hoisted(() => ({ armed: false }))
+
+vi.mock('node:fs/promises', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    default: actual,
+    writeFile: async (file: Parameters<typeof actual.writeFile>[0], data: Parameters<typeof actual.writeFile>[1]) => {
+      if (!truncateAndFail.armed) {
+        return actual.writeFile(file, data)
+      }
+      await actual.writeFile(file, String(data).slice(0, 10))
+      throw new Error('ENOSPC: no space left on device')
+    },
+  }
+})
 
 describe('subjects commands', () => {
   let program: Command
@@ -75,6 +99,31 @@ describe('subjects commands', () => {
       expect(index.summary).toMatchObject({ subjects: 2, locations: 5, scattered: 1 })
       expect(index.internalDomains).toEqual(['globex.co'])
       expect(getOutput(consoleSpy)).toContain('2 people in 5 locations')
+    })
+
+    it('leaves no temp file behind on a successful write', async () => {
+      await buildIndex()
+
+      expect((await readdir(workDir)).filter(name => name.endsWith('.tmp'))).toEqual([])
+    })
+
+    it('leaves the previous index intact when the write dies half way through', async () => {
+      // Writing in place truncates first, so a crash mid-write leaves a prefix of a JSON document
+      // where a valid index used to be — and the next lookup then reports no data about someone,
+      // which is indistinguishable from an honest answer. The target is only ever reached by
+      // `rename`, which is atomic within a directory.
+      await buildIndex()
+      const before = await readFile(indexPath, 'utf8')
+
+      truncateAndFail.armed = true
+      try {
+        await expect(buildIndex()).rejects.toThrow()
+      } finally {
+        truncateAndFail.armed = false
+      }
+
+      expect(await readFile(indexPath, 'utf8')).toBe(before)
+      expect((await readdir(workDir)).filter(name => name.endsWith('.tmp'))).toEqual([])
     })
 
     it('never writes an address or the salt into the index', async () => {

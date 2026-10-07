@@ -56,7 +56,7 @@ deepnote subjects index ./workspace --internal-domain acme.io --out ./governance
 | `[dir]`                      | Directory of synced `.deepnote` files (default: `.`)          |
 | `--out <path>`               | Where to write the index (default: `.deepnote-subjects.json`) |
 | `--salt-file <path>`         | Read the salt from a file instead of `DEEPNOTE_SUBJECT_SALT`  |
-| `--internal-domain <domain>` | A domain belonging to your organisation (repeatable)          |
+| `--internal-domain <domain>` | A domain belonging to your organization (repeatable)          |
 | `-o, --output <format>`      | `json` for a machine-readable summary                         |
 
 ```

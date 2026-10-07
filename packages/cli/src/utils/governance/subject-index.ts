@@ -21,6 +21,8 @@ export type SubjectSource = 'content' | 'output'
 export interface SubjectLocation {
   projectId: string
   projectName: string
+  /** Notebook id. Names are not unique within a project, so this is what counting keys on. */
+  notebookId: string
   notebookName: string
   blockId: string
   /** Workspace-root-relative path of the file. */
@@ -65,7 +67,7 @@ export interface SubjectIndex {
 
 export interface BuildSubjectIndexOptions {
   fingerprinter: SubjectFingerprinter
-  /** Domains belonging to the workspace's own organisation. */
+  /** Domains belonging to the workspace's own organization. */
   internalDomains?: string[]
   root?: string
   /** Fixed timestamp, so tests and reproducible builds do not depend on the clock. */
@@ -95,7 +97,7 @@ function outputsOf(block: DeepnoteBlock): string {
   try {
     return JSON.stringify(outputs)
   } catch {
-    // Circular or otherwise unserialisable outputs are not worth failing an index over.
+    // Circular or otherwise unserializable outputs are not worth failing an index over.
     return ''
   }
 }
@@ -131,6 +133,7 @@ export function buildSubjectIndex(projects: WorkspaceProject[], options: BuildSu
             entry.locations.push({
               projectId: project.id,
               projectName: project.name,
+              notebookId: notebook.id,
               notebookName: notebook.name,
               blockId: block.id,
               path: notebook.path,
@@ -147,7 +150,10 @@ export function buildSubjectIndex(projects: WorkspaceProject[], options: BuildSu
   const subjects = [...entries.values()].map(entry => ({
     ...entry,
     projectCount: new Set(entry.locations.map(location => location.projectId)).size,
-    notebookCount: new Set(entry.locations.map(location => `${location.projectId}:${location.notebookName}`)).size,
+    // Keyed on notebook id, not name: two notebooks in one project may share a name, and counting
+    // them as one understates how far a person's data is spread — which is the number an erasure
+    // request is scoped by.
+    notebookCount: new Set(entry.locations.map(location => `${location.projectId}:${location.notebookId}`)).size,
   }))
 
   // Most scattered first: the ranking is the work queue.

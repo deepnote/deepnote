@@ -98,7 +98,7 @@ credentials are shared across projects. Everything is local: no warehouse connec
 | `-o, --output <format>` | Output format: `json`, `llm`                         |
 | `--project <name>`      | Audit a single project, by name or id                |
 | `--issues`              | List every finding instead of a count per check      |
-| `--internal-domain <d>` | A domain belonging to your organisation (repeatable) |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable) |
 
 **Workspace-scoped checks:**
 

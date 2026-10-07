@@ -424,3 +424,28 @@ describe('runProjectGovernanceChecks — evidence known to hold a credential is 
     expect(finding?.message).toContain('u.deleted_at = NULL')
   })
 })
+
+describe('runProjectGovernanceChecks — what a finding carries out of the block', () => {
+  it('keeps the snippet to the comparison, so the rest of the query never travels with it', () => {
+    // This is the property that makes the snippet safe, and it is worth pinning: the span is the
+    // comparison, not the line and not the query. A literal elsewhere in the statement is simply
+    // not in it.
+    const { issues } = run([
+      {
+        id: 'b1',
+        type: 'sql',
+        content: "SELECT * FROM users WHERE owner = 'jane@acme-corp.io' AND deleted_at = NULL",
+      },
+    ])
+
+    expect(issues).toHaveLength(1)
+    expect(issues[0].details?.snippet).toBe('deleted_at = NULL')
+    expect(JSON.stringify(issues)).not.toContain('jane@acme-corp.io')
+  })
+
+  it('still reports a snippet with enough context to find the problem', () => {
+    const { issues } = run([{ id: 'b1', type: 'sql', content: 'SELECT * FROM users WHERE a.deleted_at = NULL' }])
+
+    expect(issues[0].details?.snippet).toContain('a.deleted_at = NULL')
+  })
+})

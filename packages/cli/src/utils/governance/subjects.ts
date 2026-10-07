@@ -15,7 +15,7 @@
 
 import crypto from 'node:crypto'
 
-/** The kinds of identifier recognised. Email is the one a DSAR arrives as. */
+/** The kinds of identifier recognized. Email is the one a DSAR arrives as. */
 export type SubjectKind = 'email'
 
 export interface SubjectMatch {

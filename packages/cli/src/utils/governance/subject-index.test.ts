@@ -66,6 +66,7 @@ describe('buildSubjectIndex', () => {
       {
         projectId: 'p1',
         projectName: 'Alpha',
+        notebookId: 'p1-n0',
         notebookName: 'One',
         blockId: 'b1',
         path: 'alpha/One.deepnote',
@@ -153,7 +154,7 @@ describe('buildSubjectIndex', () => {
     expect(index.summary.scattered).toBe(1)
   })
 
-  it('summarises the workspace it covered', () => {
+  it('summarizes the workspace it covered', () => {
     const index = build([
       project('p1', 'Alpha', [
         { name: 'One', blocks: [{ id: 'b1', content: 'a@acme-corp.io' }] },
@@ -180,7 +181,7 @@ describe('buildSubjectIndex', () => {
     expect(index.summary).toMatchObject({ subjects: 0, locations: 0, scattered: 0 })
   })
 
-  it('survives outputs that cannot be serialised', () => {
+  it('survives outputs that cannot be serialized', () => {
     const circular: Record<string, unknown> = {}
     circular.self = circular
 
@@ -230,5 +231,39 @@ describe('inferInternalDomain', () => {
 
   it('returns nothing when there are no subjects', () => {
     expect(inferInternalDomain([])).toBeUndefined()
+  })
+})
+
+describe('buildSubjectIndex — notebooks that share a name', () => {
+  it('counts two same-named notebooks in one project as two', () => {
+    // Notebook names are not unique within a project. Counting on the name collapsed them, which
+    // understates how far a person's data is spread — and that count is what scopes an erasure
+    // request and what `pii-subject-scatter` is scored by.
+    const index = build([
+      project('p1', 'Alpha', [
+        { name: 'Analysis', blocks: [{ id: 'b1', content: "e = 'jane@acme-corp.io'" }] },
+        { name: 'Analysis', blocks: [{ id: 'b2', content: "e = 'jane@acme-corp.io'" }] },
+      ]),
+    ])
+
+    expect(index.subjects[0].notebookCount).toBe(2)
+    expect(index.subjects[0].locations.map(location => location.notebookId)).toEqual(['p1-n0', 'p1-n1'])
+  })
+
+  it('still counts one notebook once however many blocks mention the person', () => {
+    const index = build([
+      project('p1', 'Alpha', [
+        {
+          name: 'Analysis',
+          blocks: [
+            { id: 'b1', content: "e = 'jane@acme-corp.io'" },
+            { id: 'b2', content: "also = 'jane@acme-corp.io'" },
+          ],
+        },
+      ]),
+    ])
+
+    expect(index.subjects[0].notebookCount).toBe(1)
+    expect(index.subjects[0].locations).toHaveLength(2)
   })
 })

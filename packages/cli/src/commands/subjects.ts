@@ -1,4 +1,5 @@
-import { readFile, stat, writeFile } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
+import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
@@ -117,6 +118,26 @@ function fail(error: unknown, isJson: boolean): never {
  * stores is the part that makes a subject access request answerable in minutes: domains, file
  * paths, notebook names, line numbers, counts.
  */
+/**
+ * Write the index by renaming a sibling temp file over the target.
+ *
+ * Writing in place truncates first, so a crash — or a full disk — mid-write leaves a half-written
+ * file where a valid index used to be. For a DSAR index that is the worst possible failure: the
+ * next lookup reports that it holds no data about someone, which is indistinguishable from an
+ * honest answer. `rename` within the same directory is atomic, so the file is either the old index
+ * or the new one and never a prefix of either.
+ */
+async function writeIndexAtomically(target: string, contents: string): Promise<void> {
+  const temporary = `${target}.${randomBytes(6).toString('hex')}.tmp`
+  try {
+    await writeFile(temporary, contents)
+    await rename(temporary, target)
+  } catch (error) {
+    await rm(temporary, { force: true }).catch(() => {})
+    throw error
+  }
+}
+
 export function createSubjectsIndexAction(
   _program: Command
 ): (path: string | undefined, options: SubjectsIndexOptions) => Promise<void> {
@@ -141,7 +162,7 @@ export function createSubjectsIndexAction(
       let inferred: ReturnType<typeof inferInternalDomain>
       if (!internalDomains || internalDomains.length === 0) {
         // Classify with the dominant domain so a first run is useful, but say that it is a guess.
-        // Whether a person is a colleague or a customer is a decision about the organisation, and
+        // Whether a person is a colleague or a customer is a decision about the organization, and
         // the tool is not entitled to make it silently.
         const preliminary = buildSubjectIndex(workspace.projects, { fingerprinter, root })
         const candidate = inferInternalDomain(preliminary.subjects)
@@ -156,7 +177,7 @@ export function createSubjectsIndexAction(
 
       const index = buildSubjectIndex(workspace.projects, { fingerprinter, internalDomains, root })
       const outPath = resolve(process.cwd(), options.out ?? DEFAULT_SUBJECT_INDEX_FILE)
-      await writeFile(outPath, `${JSON.stringify(index, null, 2)}\n`)
+      await writeIndexAtomically(outPath, `${JSON.stringify(index, null, 2)}\n`)
 
       if (isJson) {
         outputJson({
@@ -229,7 +250,7 @@ function outputIndexResult(
 /**
  * Creates the `subjects lookup` action: answer "where is this person's data?".
  *
- * The identifier is canonicalised and fingerprinted locally and is never written to the output — the
+ * The identifier is canonicalized and fingerprinted locally and is never written to the output — the
  * terminal already knows what was typed, and a transcript of DSAR lookups should not accumulate into
  * the list the index exists to avoid.
  */

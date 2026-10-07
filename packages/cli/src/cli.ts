@@ -1068,7 +1068,7 @@ ${c.bold('Examples:')}
     .option('--issues', 'List every finding instead of a count per check')
     .option(
       '--internal-domain <domain>',
-      'Email domain belonging to your organisation, so colleagues are not counted as external data subjects (repeatable)',
+      'Email domain belonging to your organization, so colleagues are not counted as external data subjects (repeatable)',
       (value: string, previous: string[] = []) => [...previous, value]
     )
     .addHelpText('after', () => {
@@ -1136,7 +1136,7 @@ ${c.bold('Examples:')}
     .option('--salt-file <path>', `Read the index salt from a file instead of ${SUBJECT_SALT_ENV}`)
     .option(
       '--internal-domain <domain>',
-      'Email domain belonging to your organisation (repeatable). Inferred when omitted',
+      'Email domain belonging to your organization (repeatable). Inferred when omitted',
       (value: string, previous: string[] = []) => [...previous, value]
     )
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))

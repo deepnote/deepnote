@@ -105,6 +105,10 @@ function blockContent(block: DeepnoteBlock): string {
  * Masked against the whole block, not against each field alone. Half the provider patterns need
  * surrounding context, so a URI password reused as a column name is invisible to a scan of that
  * column name by itself. The block is the evidence; a field lifted out of it is not.
+ *
+ * Subjects as well as secrets: `WHERE 'jane@acme.io' = NULL` is the same shape as
+ * `WHERE 'AKIA…' = NULL`, and a scatter finding that withholds a subject's fingerprint by design
+ * must not name them in the evidence beside it.
  */
 /**
  * Scan a block for credentials under the rules its type warrants.
@@ -178,7 +182,7 @@ function redactSqlFinding(
   details: Record<string, unknown>,
   content: string
 ): { message: string; details: Record<string, unknown> } {
-  const scrub = (text: string): string => redactSecretsWithContext(text, content)
+  const scrub = (text: string): string => redactSubjects(redactSecretsWithContext(text, content))
   const redacted: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(details)) {
     redacted[key] = typeof value === 'string' ? scrub(value) : value

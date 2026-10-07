@@ -399,7 +399,7 @@ interpreter, and nothing leaves the machine.
 | `-o, --output <fmt>`    | Output format: `json` or `llm`                       | text    |
 | `--project <name>`      | Audit a single project, by name or id                |         |
 | `--issues`              | List every finding instead of a count per check      | off     |
-| `--internal-domain <d>` | A domain belonging to your organisation (repeatable) |         |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable) |         |
 
 `-o json` includes a `flow` object — `nodes` for every integration, project and host, `edges` for
 every connection — so the same report backs the terminal summary, a dashboard, or a diagram.
