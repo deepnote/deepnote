@@ -66,6 +66,30 @@ const SECRET_NAME_PATTERN =
   /\b(\w*(?:api[_-]?key|secret|token|password|passwd|pwd|access[_-]?key|private[_-]?key|credential|auth[_-]?key)\w*)\b/i
 
 /**
+ * Weaker names — `SEGMENT_KEY`, `auth`, `credentials` — which are just as often a sort key or a
+ * dictionary of settings. These only count when the value itself looks like a key, so the name
+ * narrows the search and the value carries the evidence.
+ */
+const WEAK_SECRET_NAME_PATTERN = /\b(\w*(?:key|auth|credential)\w*)\b/i
+
+/** Minimum length for a value to carry the finding on its own, under a weak name. */
+const MIN_KEYLIKE_LENGTH = 16
+
+/**
+ * True when a literal has the shape of an issued key: long, unbroken, and mixing letters and
+ * digits. `daily_active_users_by_region` and `/data/exports/customers.csv` do not qualify; a
+ * twenty-character hex string does.
+ */
+function looksLikeKeyMaterial(value: string): boolean {
+  return (
+    value.length >= MIN_KEYLIKE_LENGTH &&
+    /^[A-Za-z0-9+/=_.-]+$/.test(value) &&
+    /[0-9]/.test(value) &&
+    /[A-Za-z]/.test(value)
+  )
+}
+
+/**
  * `name = 'value'` and `"name": "value"` in Python, JSON, and YAML — enough to cover what a
  * notebook actually contains without pulling in a parser per language.
  */
@@ -116,18 +140,25 @@ function isPlaceholder(value: string): boolean {
   return new Set(value.trim()).size <= 1
 }
 
+/** A finding together with where the secret sat in the scanned content. */
+interface LocatedSecret {
+  finding: SecretFinding
+  /** Offset of the secret itself (not the surrounding assignment) within the scanned content. */
+  start: number
+  end: number
+}
+
 /**
- * Scan `content` for hardcoded credentials.
+ * Scan `content` for hardcoded credentials, keeping each match's offsets.
  *
- * @param options.includeHeuristic Run the secret-named-assignment rule as well as the provider
- * patterns. Off for prose blocks, where `password: "something"` is far more likely to be an
- * instruction than a credential.
+ * Internal: the offsets are how `redactSecrets` masks a secret without any caller ever holding it.
+ * `findSecrets` drops them, so the public finding stays something you can serialise and share.
  */
-export function findSecrets(content: string, options: { includeHeuristic?: boolean } = {}): SecretFinding[] {
-  const findings: SecretFinding[] = []
+function scanSecrets(content: string, options: { includeHeuristic?: boolean } = {}): LocatedSecret[] {
+  const located: LocatedSecret[] = []
   const seen = new Set<string>()
 
-  const record = (finding: SecretFinding): void => {
+  const record = (finding: SecretFinding, start: number, end: number): void => {
     // One finding per (fingerprint, line): a key assigned to a secret-named variable matches both
     // rules, and reporting it twice would overstate how many credentials are actually in the file.
     const key = `${finding.fingerprint}:${finding.line}`
@@ -135,7 +166,7 @@ export function findSecrets(content: string, options: { includeHeuristic?: boole
       return
     }
     seen.add(key)
-    findings.push(finding)
+    located.push({ finding, start, end })
   }
 
   for (const { kind, pattern, group } of PROVIDER_PATTERNS) {
@@ -145,12 +176,17 @@ export function findSecrets(content: string, options: { includeHeuristic?: boole
     while (match !== null) {
       const secret = group === undefined ? match[0] : match[group]
       if (secret) {
-        record({
-          kind,
-          confidence: 'pattern',
-          fingerprint: fingerprintSecret(secret),
-          line: lineAt(content, match.index),
-        })
+        const offset = match.index + match[0].indexOf(secret)
+        record(
+          {
+            kind,
+            confidence: 'pattern',
+            fingerprint: fingerprintSecret(secret),
+            line: lineAt(content, match.index),
+          },
+          offset,
+          offset + secret.length
+        )
       }
       match = pattern.exec(content)
     }
@@ -162,23 +198,85 @@ export function findSecrets(content: string, options: { includeHeuristic?: boole
     while (match !== null) {
       const [, , name, , rawValue] = match
       const value = rawValue.replace(/\\(.)/g, '$1')
+      const named =
+        SECRET_NAME_PATTERN.test(name) || (WEAK_SECRET_NAME_PATTERN.test(name) && looksLikeKeyMaterial(value))
       if (
-        SECRET_NAME_PATTERN.test(name) &&
+        named &&
         value.length >= MIN_HEURISTIC_SECRET_LENGTH &&
         !isPlaceholder(value) &&
         !SECRET_NAME_PATTERN.test(value)
       ) {
-        record({
-          kind: 'Credential assigned to a secret-named variable',
-          confidence: 'heuristic',
-          fingerprint: fingerprintSecret(value),
-          line: lineAt(content, match.index),
-          variable: name,
-        })
+        const offset = match.index + match[0].lastIndexOf(rawValue)
+        record(
+          {
+            kind: 'Credential assigned to a secret-named variable',
+            confidence: 'heuristic',
+            fingerprint: fingerprintSecret(value),
+            line: lineAt(content, match.index),
+            variable: name,
+          },
+          offset,
+          offset + rawValue.length
+        )
       }
       match = ASSIGNMENT_PATTERN.exec(content)
     }
   }
 
-  return findings.sort((a, b) => a.line - b.line || a.kind.localeCompare(b.kind))
+  return located
+}
+
+/**
+ * Scan `content` for hardcoded credentials.
+ *
+ * @param options.includeHeuristic Run the secret-named-assignment rule as well as the provider
+ * patterns. Off for prose blocks, where `password: "something"` is far more likely to be an
+ * instruction than a credential.
+ */
+export function findSecrets(content: string, options: { includeHeuristic?: boolean } = {}): SecretFinding[] {
+  return scanSecrets(content, options)
+    .map(located => located.finding)
+    .sort((a, b) => a.line - b.line || a.kind.localeCompare(b.kind))
+}
+
+/** What a redacted secret is replaced with. */
+export const REDACTION_MARKER = '<redacted>'
+
+/**
+ * Mask, in `text`, every credential that `context` is known to contain — as well as any `text`
+ * reveals on its own.
+ *
+ * Needed because half the provider patterns need surrounding context to fire, so a string lifted
+ * out of a block is not the same evidence as the block. A URI password is recognizable in
+ * `postgres://admin:…@host/db` and unrecognizable on its own, so the same password reused as a
+ * column name survives `redactSecrets` applied to that column name alone — and gets published
+ * beside the fingerprint of the very same secret.
+ *
+ * The secret values never leave this module: the caller passes the context in rather than getting
+ * the values out.
+ */
+export function redactSecretsWithContext(text: string, context: string): string {
+  const values = [...new Set(scanSecrets(context).map(located => context.slice(located.start, located.end)))]
+  // Longest first, so a password that contains a shorter match is masked whole rather than in parts.
+  const masked = values
+    .sort((a, b) => b.length - a.length)
+    .reduce((current, value) => (value === '' ? current : current.split(value).join(REDACTION_MARKER)), text)
+  return redactSecrets(masked)
+}
+
+/**
+ * Mask every credential in `text`.
+ *
+ * Needed because a finding carries context that is itself derived from the content — a block label
+ * is the block's first line, and for a one-line `KEY = "…"` assignment that line *is* the secret.
+ * Fingerprinting the credential in `details` while printing it in the label beside it would defeat
+ * the whole arrangement.
+ */
+export function redactSecrets(text: string): string {
+  const located = scanSecrets(text).sort((a, b) => b.start - a.start)
+  let redacted = text
+  for (const { start, end } of located) {
+    redacted = redacted.slice(0, start) + REDACTION_MARKER + redacted.slice(end)
+  }
+  return redacted
 }

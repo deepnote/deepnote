@@ -5,6 +5,7 @@ import { Command, Option } from 'commander'
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
 import { createAnalyzeAction } from './commands/analyze'
+import { createAuditAction } from './commands/audit'
 import { createBlockTypeValidator, createCatAction, FILTERABLE_BLOCK_TYPES } from './commands/cat'
 import { createConvertAction } from './commands/convert'
 import { createDagDownstreamAction, createDagShowAction, createDagVarsAction } from './commands/dag'
@@ -1050,6 +1051,62 @@ ${c.bold('Examples:')}
 `
     })
     .action(createLintAction(program))
+
+  // Audit command - workspace-scoped governance pass over a synced tree
+  program
+    .command('audit')
+    .description('Audit a synced workspace: integration inventory, data egress, and governance findings')
+    .argument('[dir]', 'Directory of synced .deepnote files (defaults to current directory)')
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
+    .option('--project <name>', 'Audit a single project, by name or id')
+    .option('--issues', 'List every finding instead of a count per check')
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Reads the tree ${c.dim('deepnote sync')} writes — every project, every notebook — and
+  answers the questions a single project cannot: what integrations exist and who
+  uses them, where data leaves to, and which credentials are shared.
+
+  Everything is computed locally from the .deepnote files. No warehouse
+  connection, no Python interpreter, and nothing leaves the machine.
+
+${c.bold('What it reports:')}
+  ${c.underline('Ingress')}   Native integrations, the projects that query them, and orphans —
+            integrations declared but used by nobody, whose credentials are still live.
+  ${c.underline('Egress')}    Third-party hosts the code writes to, recovered from block content.
+  ${c.underline('Findings')}  ingress-integration-orphan, ingress-integration-undeclared,
+            egress-external, credential-shared, plus every ${c.dim('lint --governance')}
+            check run against each project.
+
+${c.bold('Limits it reports rather than hides:')}
+  - Egress is a lower bound: a host assembled from variables at run time is invisible.
+  - Integration usage counts SQL blocks in notebooks only; dbt, BI tools and other
+    consumers of the same warehouse are not visible from here.
+  - Divergence checks are not run: cross-project consensus needs a workspace an order
+    of magnitude larger than most before agreement means anything.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  The workspace was audited (findings do not fail the command — audit is an inventory,
+     not a gate; use ${c.dim('deepnote lint --governance')} in CI)
+  ${c.dim('1')}  The workspace could not be read
+  ${c.dim('2')}  Invalid usage (directory or project not found)
+
+${c.bold('Examples:')}
+  ${c.dim('# Audit a synced workspace')}
+  $ deepnote audit workspace
+
+  ${c.dim('# List every finding, not just counts')}
+  $ deepnote audit workspace --issues
+
+  ${c.dim('# One project, including its flow map')}
+  $ deepnote audit workspace --project "Churn analysis"
+
+  ${c.dim('# Full report, including the flow map nodes and edges')}
+  $ deepnote audit workspace -o json
+`
+    })
+    .action(createAuditAction(program))
 
   // Install-skills command - install agent skill files
   program

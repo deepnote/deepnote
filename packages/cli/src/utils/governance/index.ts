@@ -15,10 +15,10 @@
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import type { BlockInfo, IssueSeverity, LintIssue } from '../analysis'
 import { integrationTypesById, resolveDialect } from './dialect'
-import { findSecrets, type SecretFinding } from './secrets'
+import { findSecrets, redactSecretsWithContext, type SecretFinding } from './secrets'
 import { checkSqlQuery } from './sql-checks'
 
-export { fingerprintSecret } from './secrets'
+export { fingerprintSecret, redactSecrets, redactSecretsWithContext } from './secrets'
 
 /** Every code this module can emit, in report order. */
 export const GOVERNANCE_CHECK_CODES = [
@@ -89,18 +89,22 @@ function blockContent(block: DeepnoteBlock): string {
 }
 
 /**
- * A label for a block that holds a credential.
+ * Every string a SQL finding carries out of the block, with credentials masked.
  *
- * `BlockInfo.label` is the block's first non-empty line, so for the one-line `TOKEN = "…"`
- * assignment this check most often fires on, the label *is* the secret — printed in the same issue
- * as the fingerprint that exists precisely so the secret need not be written down again. Blocks
- * holding a credential are identified by type and id instead, which derive from nothing the user
- * typed and so need no masking.
+ * Three fields leaked here in turn before this existed — the block label, the snippet, and
+ * `details.column` — each found separately because each was reasoned about separately. They have
+ * one cause: every one of them is derived from block text, and block text is where credentials are.
+ * So this does not name the fields it protects. It walks the finished details object, and a key
+ * added to a check tomorrow is covered without anyone remembering to come back here.
+ *
+ * Masking in place rather than withholding, which is what this had to do before `redactSecrets`
+ * could locate the span: `'<redacted>' = NULL` keeps the shape of the comparison, which is the part
+ * of the evidence worth reading.
+ *
+ * Masked against the whole block, not against each field alone. Half the provider patterns need
+ * surrounding context, so a URI password reused as a column name is invisible to a scan of that
+ * column name by itself. The block is the evidence; a field lifted out of it is not.
  */
-function identityLabel(block: DeepnoteBlock): string {
-  return `${block.type} (${block.id.slice(0, 8)})`
-}
-
 /**
  * Scan a block for credentials under the rules its type warrants.
  *
@@ -133,70 +137,45 @@ export function findBlockSecrets(block: DeepnoteBlock): SecretFinding[] {
  * So the lint layer resolves every block's label through here before any rule sees it, rather than
  * each rule remembering. This is deliberately not gated on `--governance`: the leak is a property
  * of the block, not of which checks were asked for.
+ *
+ * Masked in place rather than replaced wholesale. The label is what makes a finding locatable in a
+ * notebook, so `SEGMENT_WRITE_KEY = "<redacted>"` is worth strictly more than the block's type and
+ * id, and `redactSecretsWithContext` can locate the span exactly. Masked against the whole block
+ * rather than the one line, because half the provider patterns need surrounding context: a URI
+ * password is recognizable in `postgres://admin:…@host/db` and unrecognizable on its own.
  */
 export function safeBlockLabel(block: DeepnoteBlock, label: string): string {
-  return findBlockSecrets(block).length > 0 ? identityLabel(block) : label
+  return redactSecretsWithContext(label, blockContent(block))
 }
 
-/** What a string withheld for holding a credential is replaced with. */
-const WITHHELD = '<redacted>'
-
 /**
- * A SQL finding's message and details, with every string that could carry a credential withheld.
+ * Every string a SQL finding carries out of the block, with credentials masked.
  *
- * Three fields have leaked here in turn — the block label, the snippet, and `details.columnName` —
- * each found separately because each was reasoned about separately. They have one cause: every one
- * of them is derived from block text, and block text is where credentials are. So this does not
- * name the fields it protects. It walks the finished details object, and a key added to a check
- * tomorrow is covered without anyone remembering to come back here.
+ * Three fields leaked here in turn before this existed — the block label, the snippet, and
+ * `details.column` — each found separately because each was reasoned about separately. They have
+ * one cause: every one of them is derived from block text, and block text is where credentials are.
+ * So this does not name the fields it protects. It walks the finished details object, and a key
+ * added to a check tomorrow is covered without anyone remembering to come back here.
  *
- * `blockHoldsSecret` is why the decision is made per block rather than per field. Re-scanning each
- * field on its own asks a different question from the one the block scan answered: half the
- * provider patterns need surrounding context to fire. A URI password is recognizable in
- * `postgres://admin:…@host/db` and unrecognizable on its own, so a password reused as a column name
- * matches nothing when `details.columnName` is scanned by itself — and is published beside the
- * fingerprint of the very same secret. The block already knows; this uses what it knows.
+ * Masking in place rather than withholding, which is what this had to do before `redactSecrets`
+ * could locate the span: `'<redacted>' = NULL` keeps the shape of the comparison, which is the part
+ * of the evidence worth reading.
  *
- * The cost is that a block containing a credential anywhere loses the text of its SQL evidence,
- * keeping only code, line and column. That is the same trade the block label already makes, it is
- * rare, and `redactSecrets` supersedes it one commit later by masking in place with real spans.
+ * Masked against the whole block, not against each field alone. Half the provider patterns need
+ * surrounding context, so a URI password reused as a column name is invisible to a scan of that
+ * column name by itself. The block is the evidence; a field lifted out of it is not.
  */
-function safeSqlFinding(
-  finding: { code: GovernanceCheckCode; message: string; snippet: string; line: number; verbatimDetails?: string[] },
+function redactSqlFinding(
+  message: string,
   details: Record<string, unknown>,
-  blockHoldsSecret: boolean
+  content: string
 ): { message: string; details: Record<string, unknown> } {
-  // `snippet` is always block text. Beyond that the check says which of its keys are, and a key no
-  // check declared is treated as block text — the safe direction for a field nobody has considered.
-  const declared = finding.verbatimDetails
-  const isVerbatim = (key: string): boolean =>
-    key !== 'integrationId' && (key === 'snippet' || declared === undefined || declared.includes(key))
-
-  const unsafe = (key: string, value: unknown): boolean =>
-    typeof value === 'string' && isVerbatim(key) && (blockHoldsSecret || findSecrets(value).length > 0)
-
-  const safeDetails: Record<string, unknown> = {}
+  const scrub = (text: string): string => redactSecretsWithContext(text, content)
+  const redacted: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(details)) {
-    safeDetails[key] = unsafe(key, value) ? WITHHELD : value
+    redacted[key] = typeof value === 'string' ? scrub(value) : value
   }
-
-  if (blockHoldsSecret) {
-    return {
-      message: `This ${finding.code} finding is in a block that also contains a credential, so the text it quotes is withheld. See line ${finding.line}.`,
-      details: safeDetails,
-    }
-  }
-
-  // The message quotes the snippet, so substituting it covers the usual shape; the guard after it
-  // covers a template that interpolates some other operand.
-  const substituted =
-    findSecrets(finding.snippet).length > 0 ? finding.message.split(finding.snippet).join(WITHHELD) : finding.message
-  const message =
-    findSecrets(substituted).length === 0
-      ? substituted
-      : `This ${finding.code} finding quotes a value matching a credential pattern, so its text is withheld. See line ${finding.line}.`
-
-  return { message, details: safeDetails }
+  return { message: scrub(message), details: redacted }
 }
 
 function integrationIdOf(block: DeepnoteBlock): string | undefined {
@@ -233,22 +212,27 @@ export function runProjectGovernanceChecks(
       continue
     }
 
-    // Secrets are scanned before anything is reported, because whether this block holds one decides
-    // what every finding on it is allowed to be labelled with — not just the credential findings.
-    // The lint layer already resolved `info.label` through `safeBlockLabel`; re-deriving it here
-    // keeps this function correct for callers that build their own block map.
     const isScannable = SOURCE_BLOCK_TYPES.has(block.type) || PROSE_BLOCK_TYPES.has(block.type)
     const secretFindings = findBlockSecrets(block)
 
-    const label = secretFindings.length > 0 ? identityLabel(block) : info.label
+    // The lint layer already resolved `info.label` through `safeBlockLabel`, so this is a no-op on
+    // the normal path. It is re-derived anyway because `runProjectGovernanceChecks` is exported and
+    // callers build their own block maps; the redaction is idempotent, so paying for it twice costs
+    // nothing and forgetting it once costs a credential.
+    //
+    // The same reasoning covers a SQL finding's evidence, for a less obvious reason: the snippet
+    // spans only the flagged comparison, but a literal that is itself an operand of that comparison
+    // is inside the span — `WHERE 'AKIA…' = NULL`. The message quotes the snippet verbatim, so both
+    // go through the scanner.
+    const label = safeBlockLabel(block, info.label)
 
     if (block.type === 'sql') {
       sqlBlocks++
       const integrationId = integrationIdOf(block)
       const dialect = resolveDialect(integrationId, typesById)
       for (const finding of checkSqlQuery(content, dialect)) {
-        const safe = safeSqlFinding(
-          finding,
+        const safe = redactSqlFinding(
+          finding.message,
           {
             line: finding.line,
             column: finding.column,
@@ -256,7 +240,7 @@ export function runProjectGovernanceChecks(
             ...(integrationId ? { integrationId } : {}),
             ...finding.details,
           },
-          secretFindings.length > 0
+          content
         )
         issues.push({
           severity: SEVERITY_BY_CODE[finding.code],

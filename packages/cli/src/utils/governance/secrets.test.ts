@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findSecrets, fingerprintSecret } from './secrets'
+import { findSecrets, fingerprintSecret, redactSecrets } from './secrets'
 
 /**
  * Synthetic credentials for the provider patterns, assembled from their prefix at runtime.
@@ -79,6 +79,18 @@ describe('findSecrets', () => {
       expect(findSecrets('client_secret: "abcdef0123456789"')).toHaveLength(1)
     })
 
+    it('flags a key-shaped value under a weaker name', () => {
+      expect(findSecrets('SEGMENT_KEY = "9f8e7d6c5b4a39281706"')).toHaveLength(1)
+      expect(findSecrets('auth = "a1b2c3d4e5f60718293a"')).toHaveLength(1)
+    })
+
+    it('does not flag a weaker name whose value is not key-shaped', () => {
+      expect(findSecrets('sort_key = "customer_region"')).toEqual([])
+      expect(findSecrets('partition_key = "created_at_month"')).toEqual([])
+      expect(findSecrets('key = "daily active users"')).toEqual([])
+      expect(findSecrets('cache_key = "report-2026-q1"')).toEqual([])
+    })
+
     it('does not flag values read from the environment', () => {
       expect(findSecrets('api_key = os.environ["API_KEY"]')).toEqual([])
       expect(findSecrets('token = os.getenv("GITHUB_TOKEN", "")')).toEqual([])
@@ -136,6 +148,39 @@ describe('findSecrets', () => {
     const findings = findSecrets('a = "AKIAIOSFODNN7EXAMPLE"\n\n\napi_key = "9f8e7d6c5b4a39281706"')
 
     expect(findings.map(f => f.line)).toEqual([1, 4])
+  })
+})
+
+describe('redactSecrets', () => {
+  it('masks a provider-pattern credential', () => {
+    expect(redactSecrets('key = "AKIAIOSFODNN7EXAMPLE"')).toBe('key = "<redacted>"')
+  })
+
+  it('masks a credential found by the heuristic rule', () => {
+    expect(redactSecrets('api_key = "9f8e7d6c5b4a39281706"')).toBe('api_key = "<redacted>"')
+  })
+
+  it('masks only the password inside a connection string', () => {
+    expect(redactSecrets('postgresql://admin:hunter2pass@db.internal/analytics')).toBe(
+      'postgresql://admin:<redacted>@db.internal/analytics'
+    )
+  })
+
+  it('masks every credential in a multi-line block', () => {
+    const redacted = redactSecrets('a = "AKIAIOSFODNN7EXAMPLE"\nb = "AKIAJ7PQRSTUVWXY2345"')
+
+    expect(redacted).toBe('a = "<redacted>"\nb = "<redacted>"')
+  })
+
+  it('leaves text without credentials unchanged', () => {
+    expect(redactSecrets('df = pd.read_csv("data.csv")')).toBe('df = pd.read_csv("data.csv")')
+    expect(redactSecrets('')).toBe('')
+  })
+
+  it('is idempotent', () => {
+    const once = redactSecrets('key = "AKIAIOSFODNN7EXAMPLE"')
+
+    expect(redactSecrets(once)).toBe(once)
   })
 })
 

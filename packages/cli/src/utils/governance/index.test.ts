@@ -72,6 +72,21 @@ describe('runProjectGovernanceChecks', () => {
       expect(summary.credentialFingerprints).toEqual([issues[0].details?.fingerprint])
     })
 
+    it('redacts the credential from the block label it would otherwise echo', () => {
+      const { issues } = run([{ id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }])
+      const blockMap = new Map([
+        ['b1', { id: 'b1', label: 'key = "AKIAIOSFODNN7EXAMPLE"', type: 'code', notebookName: 'Notebook' }],
+      ])
+      const labelled = runProjectGovernanceChecks(
+        [{ id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }] as unknown as DeepnoteBlock[],
+        blockMap
+      )
+
+      expect(issues).toHaveLength(1)
+      expect(labelled.issues[0].blockLabel).toBe('key = "<redacted>"')
+      expect(JSON.stringify(labelled.issues)).not.toContain('AKIAIOSFODNN7EXAMPLE')
+    })
+
     it('counts how many blocks share the same credential', () => {
       const { issues, summary } = run([
         { id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' },
