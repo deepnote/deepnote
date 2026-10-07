@@ -149,3 +149,37 @@ describe('runProjectGovernanceChecks', () => {
     expect(run([{ id: 'b1', type: 'sql', content: '   ' }]).issues).toEqual([])
   })
 })
+
+describe('runProjectGovernanceChecks — blocks it deliberately does not scan', () => {
+  it('skips a block that is neither source nor prose', () => {
+    // A chart or an input block carries configuration, not text somebody wrote a secret into.
+    // Scanning them would report their serialized settings as credentials.
+    const { issues, summary } = run([
+      { id: 'b1', type: 'chart-v2', content: 'api_key = "AKIAIOSFODNN7EXAMPLE"' },
+      { id: 'b2', type: 'input-text', content: 'api_key = "AKIAIOSFODNN7EXAMPLE"' },
+    ])
+
+    expect(issues).toEqual([])
+    expect(summary.scanned.contentBlocks).toBe(0)
+  })
+
+  it('treats a block with no string content as empty rather than throwing', () => {
+    const blocks = [
+      { id: 'b1', type: 'code' },
+      { id: 'b2', type: 'code', content: null },
+      { id: 'b3', type: 'code', content: { nested: 'object' } },
+    ] as unknown as TestBlock[]
+
+    expect(() => run(blocks)).not.toThrow()
+    expect(run(blocks).issues).toEqual([])
+  })
+
+  it('still scans the block types that do hold source or prose', () => {
+    const { summary } = run([
+      { id: 'b1', type: 'code', content: 'x = 1' },
+      { id: 'b2', type: 'markdown', content: 'some prose' },
+    ])
+
+    expect(summary.scanned.contentBlocks).toBe(2)
+  })
+})

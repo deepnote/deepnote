@@ -197,16 +197,24 @@ export function tokenizeSql(sql: string): SqlToken[] {
       continue
     }
 
-    // Numeric literal, including `1.5`, `1e9`, and `0x1f`.
+    // Numeric literal, including `1.5`, `1e9`, `1.5e-3`, and `0x1f`.
     if (/[0-9]/.test(char) || (char === '.' && /[0-9]/.test(sql[index + 1] ?? ''))) {
+      // The digit class has to admit `a`–`f` and `x` so hex literals scan in one piece, which also
+      // means it swallows the `e` of an exponent. A signed exponent therefore has to be recognized
+      // inside the loop: `1.5e-3` would otherwise end at `1.5e` and leave `-3` as an operator and a
+      // second number. Hex is excluded from that rule so `0xE-1` still stops before the `-`.
+      const isHex = /^0[xX]/.test(sql.slice(start, start + 2))
       while (index < sql.length && /[0-9A-Fa-fxX._]/.test(sql[index])) {
-        advance(1)
-      }
-      if (/[eE]/.test(sql[index] ?? '') && /[0-9+-]/.test(sql[index + 1] ?? '')) {
-        advance(2)
-        while (index < sql.length && /[0-9]/.test(sql[index])) {
-          advance(1)
+        if (
+          !isHex &&
+          /[eE]/.test(sql[index]) &&
+          /[+-]/.test(sql[index + 1] ?? '') &&
+          /[0-9]/.test(sql[index + 2] ?? '')
+        ) {
+          advance(2)
+          continue
         }
+        advance(1)
       }
       push('number', start, startLine, startColumn)
       continue

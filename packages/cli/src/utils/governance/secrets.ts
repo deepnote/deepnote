@@ -4,7 +4,7 @@
  * Two rules, kept apart because their precision is not comparable:
  *
  * 1. **Provider patterns** — a literal that is self-evidently a credential because its issuer gave
- *    it a recognisable shape (`AKIA…`, `ghp_…`, a PEM header). A match is a finding on its own.
+ *    it a recognizable shape (`AKIA…`, `ghp_…`, a PEM header). A match is a finding on its own.
  * 2. **Secret-named assignment** — a long string literal assigned to a name like `api_key`. This is
  *    a heuristic, so it is reported one severity lower and placeholders are filtered out hard.
  *
@@ -43,6 +43,9 @@ interface ProviderPattern {
  * vendor-assigned prefix and a fixed or near-fixed length, which is what keeps them from firing on
  * ordinary identifiers.
  */
+// The character classes below (`gh[pousr]_`, `xox[baprse]-`) are how each issuer spells its token
+// prefixes; the spell checker reads the class contents as words, which they are not.
+// cspell:ignore pousr baprse bxox
 const PROVIDER_PATTERNS: ProviderPattern[] = [
   { kind: 'AWS access key ID', pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g },
   { kind: 'GitHub token', pattern: /\bgh[pousr]_[A-Za-z0-9]{36,255}\b/g },

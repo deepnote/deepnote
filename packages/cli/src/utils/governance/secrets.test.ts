@@ -75,7 +75,7 @@ describe('findSecrets', () => {
     })
 
     it('flags secret-named keys in dict and YAML style', () => {
-      expect(findSecrets('config = {"db_password": "s3cret-value-01"}')).toHaveLength(1)
+      expect(findSecrets('config = {"db_password": "0f1e2d3c4b5a6978"}')).toHaveLength(1)
       expect(findSecrets('client_secret: "abcdef0123456789"')).toHaveLength(1)
     })
 

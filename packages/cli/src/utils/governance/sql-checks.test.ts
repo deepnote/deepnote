@@ -168,3 +168,24 @@ describe('checkSqlQuery', () => {
     })
   })
 })
+
+describe('checkSqlQuery — comparisons with no column on either side', () => {
+  it('does not report a boolean string compared to another literal', () => {
+    // Nothing to fix: there is no column whose type the literal disagrees with.
+    expect(checkSqlQuery("SELECT * FROM t WHERE 'true' = 'true'")).toEqual([])
+  })
+
+  it('does not report a boolean string compared to a function result', () => {
+    expect(checkSqlQuery("SELECT * FROM t WHERE lower(flag) = 'true'")).toEqual([])
+    expect(checkSqlQuery("SELECT * FROM t WHERE 'true' = coalesce(a, b)")).toEqual([])
+  })
+
+  it('still reports the comparison when the column is on the right', () => {
+    const [finding] = checkSqlQuery("SELECT * FROM t WHERE 'true' = t.flag")
+    expect(finding).toMatchObject({ code: 'sql-string-boolean' })
+  })
+
+  it('reads the dotted reference on both sides of a NULL comparison', () => {
+    expect(checkSqlQuery('SELECT * FROM t WHERE NULL = a.b.deleted_at')[0].snippet).toContain('a.b.deleted_at')
+  })
+})

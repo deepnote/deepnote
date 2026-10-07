@@ -318,7 +318,7 @@ deepnote lint my-project.deepnote
 | `credential-hardcoded` | A credential written into a block                                         |
 
 Credentials are reported by a truncated SHA-256 fingerprint, never by value, so the output is safe
-to paste into a ticket and the same key is still recognisable across blocks. The SQL checks read the
+to paste into a ticket and the same key is still recognizable across blocks. The SQL checks read the
 query text only: no warehouse connection, no schema, and no Python interpreter is required.
 
 `--governance` covers what a single project can answer on its own. The checks that compare projects

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readColumnReferenceEndingAt, readColumnReferenceStartingAt, tokenizeSql } from './sql-scanner'
+import { isKeyword, readColumnReferenceEndingAt, readColumnReferenceStartingAt, tokenizeSql } from './sql-scanner'
 
 /** `type:value` for every token, which is what the checks actually read. */
 function shapeOf(sql: string): string[] {
@@ -133,5 +133,61 @@ describe('column references', () => {
 
     expect(readColumnReferenceStartingAt(tokens, 1)).toBeUndefined()
     expect(readColumnReferenceEndingAt(tokens, -1)).toBeUndefined()
+  })
+})
+
+describe('tokenizeSql — edge cases that decide whether a query is scanned or skipped', () => {
+  it('reads a doubled quote inside a quoted identifier as one character', () => {
+    // `"odd""name"` is a single column called `odd"name`. Splitting it would end the identifier
+    // early and leave the rest of the query misaligned.
+    const tokens = tokenizeSql('SELECT "odd""name" FROM t')
+    expect(tokens[1]).toMatchObject({ type: 'quotedIdentifier', value: 'odd"name' })
+    expect(tokens[3]).toMatchObject({ type: 'word', value: 't' })
+  })
+
+  it('reads a backtick-quoted identifier containing a doubled backtick', () => {
+    expect(tokenizeSql('SELECT `a``b` FROM t')[1]).toMatchObject({ type: 'quotedIdentifier', value: 'a`b' })
+  })
+
+  it('reads scientific notation as one number, not a number and an identifier', () => {
+    for (const literal of ['1e9', '1.5e-3', '2E+10']) {
+      const tokens = tokenizeSql(`SELECT ${literal} FROM t`)
+      expect(tokens[1]).toMatchObject({ type: 'number', text: literal })
+      expect(tokens[2]).toMatchObject({ type: 'word', value: 'from' })
+    }
+  })
+
+  it('does not treat a trailing e as an exponent', () => {
+    // `1e` is not scientific notation; the `e` must be followed by digits or a sign.
+    expect(tokenizeSql('SELECT 1e FROM t')[1].text).toBe('1e')
+  })
+
+  it('emits an unrecognized character as an operator rather than dropping it', () => {
+    // Scanning must always make progress: a byte the lexer has no rule for still has to advance
+    // the cursor, or a dialect-specific character would hang or silently truncate the query.
+    const tokens = tokenizeSql('SELECT a § b FROM t')
+    expect(tokens.map(token => token.text)).toContain('§')
+    expect(tokens[tokens.length - 1]).toMatchObject({ value: 't' })
+  })
+
+  it('terminates on an unterminated quoted identifier instead of looping', () => {
+    expect(() => tokenizeSql('SELECT "unterminated FROM t')).not.toThrow()
+    expect(tokenizeSql('SELECT "unterminated FROM t')).toHaveLength(2)
+  })
+})
+
+describe('isKeyword', () => {
+  it('is false for a missing token, so callers can probe past the end of the query', () => {
+    expect(isKeyword(undefined, 'select')).toBe(false)
+  })
+
+  it('is false for a non-word token that happens to share the text', () => {
+    const [token] = tokenizeSql("'select'")
+    expect(token.type).toBe('string')
+    expect(isKeyword(token, 'select')).toBe(false)
+  })
+
+  it('is true for the bare keyword, whatever its case', () => {
+    expect(isKeyword(tokenizeSql('SELECT')[0], 'select')).toBe(true)
   })
 })
