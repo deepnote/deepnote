@@ -98,7 +98,7 @@ For example, see [3_integrations.deepnote](./3_integrations.deepnote) which incl
 
 **Agent blocks** let an AI agent read the notebook context, execute Python code, and add new blocks autonomously. You can use them in a `.deepnote` file or run ad-hoc from the CLI with `--prompt`.
 
-**Prerequisites:** Set the `OPENAI_API_KEY` environment variable (works with any OpenAI-compatible API). Optionally set `OPENAI_BASE_URL` for non-OpenAI providers and `OPENAI_MODEL` to override the default model.
+**Prerequisites:** Set the `OPENAI_API_KEY` environment variable, and optionally `OPENAI_MODEL` to override the default model. For Claude or other providers, see [agent block providers](../packages/runtime-core/README.md#agent-block-providers).
 
 ```bash
 # Run the demo agent block notebook
