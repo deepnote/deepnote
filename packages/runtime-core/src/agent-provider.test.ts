@@ -97,16 +97,6 @@ describe('parseAgentModel', () => {
   })
 })
 
-describe('getAgentApiKeyEnvVar', () => {
-  it.each<[AgentProviderId, string]>([
-    ['openai', 'OPENAI_API_KEY'],
-    ['anthropic', 'ANTHROPIC_API_KEY'],
-    ['openai-compatible', 'DEEPNOTE_AGENT_API_KEY'],
-  ])('names the variable %s falls back to', (providerId, envVar) => {
-    expect(getAgentApiKeyEnvVar(providerId)).toBe(envVar)
-  })
-})
-
 describe('resolveAgentModel', () => {
   it('keeps the documented openai default and reasoning summaries', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: {} })
@@ -191,6 +181,15 @@ describe('resolveAgentModel', () => {
 
     expect(request.headers['x-api-key']).toBe('anthropic-key')
   })
+
+  it.each<AgentProviderId>(['openai', 'anthropic', 'openai-compatible'])(
+    'falls back to the variable getAgentApiKeyEnvVar names for %s',
+    providerId => {
+      const env = { DEEPNOTE_AGENT_BASE_URL: 'https://example.test/v1', [getAgentApiKeyEnvVar(providerId)]: 'k' }
+
+      expect(() => resolveAgentModel({ spec: `${providerId}:some-model`, env })).not.toThrow()
+    }
+  )
 
   it.each([
     ['claude-opus-5-5', 'ANTHROPIC_API_KEY'],
