@@ -87,6 +87,19 @@ function blockContent(block: DeepnoteBlock): string {
   return typeof (block as { content?: unknown }).content === 'string' ? (block as { content: string }).content : ''
 }
 
+/**
+ * A label for a block that holds a credential.
+ *
+ * `BlockInfo.label` is the block's first non-empty line, so for the one-line `TOKEN = "…"`
+ * assignment this check most often fires on, the label *is* the secret — printed in the same issue
+ * as the fingerprint that exists precisely so the secret need not be written down again. Blocks
+ * holding a credential are identified by type and id instead, which derive from nothing the user
+ * typed and so need no masking.
+ */
+function identityLabel(block: DeepnoteBlock): string {
+  return `${block.type} (${block.id.slice(0, 8)})`
+}
+
 function integrationIdOf(block: DeepnoteBlock): string | undefined {
   const id = (block.metadata as Record<string, unknown> | undefined)?.sql_integration_id
   return typeof id === 'string' ? id : undefined
@@ -117,6 +130,14 @@ export function runProjectGovernanceChecks(
       continue
     }
 
+    // Secrets are scanned before anything is reported, because whether this block holds one decides
+    // what every finding on it is allowed to be labelled with — not just the credential findings.
+    const isSource = SOURCE_BLOCK_TYPES.has(block.type)
+    const isScannable = isSource || PROSE_BLOCK_TYPES.has(block.type)
+    const secretFindings = isScannable ? findSecrets(content, { includeHeuristic: isSource }) : []
+
+    const label = secretFindings.length > 0 ? identityLabel(block) : info.label
+
     if (block.type === 'sql') {
       sqlBlocks++
       const integrationId = integrationIdOf(block)
@@ -126,7 +147,7 @@ export function runProjectGovernanceChecks(
           code: finding.code,
           message: finding.message,
           blockId: block.id,
-          blockLabel: info.label,
+          blockLabel: label,
           notebookName: info.notebookName,
           details: {
             line: finding.line,
@@ -139,16 +160,15 @@ export function runProjectGovernanceChecks(
       }
     }
 
-    const isSource = SOURCE_BLOCK_TYPES.has(block.type)
-    if (!isSource && !PROSE_BLOCK_TYPES.has(block.type)) {
+    if (!isScannable) {
       continue
     }
     contentBlocks++
 
-    for (const finding of findSecrets(content, { includeHeuristic: isSource })) {
+    for (const finding of secretFindings) {
       const entry = secretsByFingerprint.get(finding.fingerprint) ?? { blockIds: new Set<string>(), findings: [] }
       entry.blockIds.add(block.id)
-      entry.findings.push({ block, info, finding })
+      entry.findings.push({ block, info: { ...info, label }, finding })
       secretsByFingerprint.set(finding.fingerprint, entry)
     }
   }

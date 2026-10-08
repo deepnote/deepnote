@@ -183,3 +183,86 @@ describe('runProjectGovernanceChecks — blocks it deliberately does not scan', 
     expect(summary.scanned.contentBlocks).toBe(2)
   })
 })
+
+/**
+ * The real-world label: `getBlockLabel` returns the block's first non-empty line, so a block whose
+ * first line is the credential has the credential for a label. These tests use that shape rather
+ * than the synthetic `block b1` label the suite above shares.
+ */
+function runWithContentLabels(blocks: TestBlock[]) {
+  const blockMap = new Map<string, BlockInfo>(
+    blocks.map(block => [
+      block.id,
+      {
+        id: block.id,
+        label: (block.content.split('\n').find(line => line.trim() !== '') ?? '').trim(),
+        type: block.type,
+        notebookName: 'Notebook',
+      },
+    ])
+  )
+  return runProjectGovernanceChecks(blocks as unknown as DeepnoteBlock[], blockMap)
+}
+
+/** Every contiguous run of `text` at least `minLength` long. */
+function runsOf(text: string, minLength: number): string[] {
+  const runs: string[] = []
+  for (let start = 0; start + minLength <= text.length; start++) {
+    for (let end = start + minLength; end <= text.length; end++) {
+      runs.push(text.slice(start, end))
+    }
+  }
+  return runs
+}
+
+describe('runProjectGovernanceChecks — a credential never reaches the report', () => {
+  const SECRET = 'AKIAIOSFODNN7EXAMPLE'
+
+  it('keeps the credential out of every field of the issue, not only out of details', () => {
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'code', content: `SEGMENT_WRITE_KEY = "${SECRET}"\nprint("sending")` },
+    ])
+
+    const credential = issues.find(issue => issue.code === 'credential-hardcoded')
+    expect(credential).toBeDefined()
+
+    // Asserted against the whole serialized issue rather than a named field. The leak arrived
+    // through `blockLabel` — a field that predates governance and was never a secrecy boundary —
+    // so a test naming the fields it trusts is a test that the next field added here can slip past.
+    const serialized = JSON.stringify(credential)
+    for (const run of runsOf(SECRET, 8)) {
+      expect(serialized).not.toContain(run)
+    }
+  })
+
+  it('labels a credential-bearing block by identity, so the label derives from nothing typed', () => {
+    const { issues } = runWithContentLabels([{ id: 'b1c2d3e4f5a6', type: 'code', content: `TOKEN = "${SECRET}"` }])
+
+    expect(issues[0].blockLabel).toBe('code (b1c2d3e4)')
+  })
+
+  it('redacts the label of every finding on the block, not just the credential finding', () => {
+    // A SQL block can hold both a broken predicate and a connection string. The SQL finding carries
+    // the same label field, so scoping the fix to `credential-hardcoded` would leave it open.
+    const { issues } = runWithContentLabels([
+      {
+        id: 'b1',
+        type: 'sql',
+        content: `-- postgres://admin:${SECRET}@warehouse.internal/db\nSELECT * FROM users WHERE deleted_at = NULL`,
+      },
+    ])
+
+    expect(issues.map(issue => issue.code)).toContain('sql-null-comparison')
+    for (const issue of issues) {
+      expect(issue.blockLabel).toBe('sql (b1)')
+    }
+  })
+
+  it('leaves the useful content label alone on blocks that hold no credential', () => {
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'sql', content: '-- active users\nSELECT * FROM users WHERE deleted_at = NULL' },
+    ])
+
+    expect(issues[0].blockLabel).toBe('-- active users')
+  })
+})
