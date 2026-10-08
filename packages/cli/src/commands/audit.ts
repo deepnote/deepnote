@@ -339,6 +339,35 @@ function outputStaleness(audit: WorkspaceAudit): void {
   output('')
 }
 
+/**
+ * How a finding reads before the path is considered: the project and notebook a reader sees.
+ *
+ * JSON-encoded rather than joined on a separator, because a notebook name is arbitrary text and any
+ * separator chosen for it is a separator somebody can type.
+ */
+function locationKey(issue: AuditIssue): string {
+  return JSON.stringify([issue.projectId, issue.notebookName])
+}
+
+/** The locations that more than one listed finding would print identically. */
+function duplicateLocations(issues: AuditIssue[]): Set<string> {
+  const seen = new Map<string, string>()
+  const duplicates = new Set<string>()
+  for (const issue of issues) {
+    if (!issue.notebookName) {
+      continue
+    }
+    const key = locationKey(issue)
+    const previous = seen.get(key)
+    if (previous === undefined) {
+      seen.set(key, issue.path)
+    } else if (previous !== issue.path) {
+      duplicates.add(key)
+    }
+  }
+  return duplicates
+}
+
 function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
   const c = getChalk()
   if (audit.issues.length === 0) {
@@ -352,13 +381,23 @@ function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
   // of the list is the same work either way.
   if (options.issues) {
     output(c.bold('Findings — ranked'))
-    for (const issue of audit.issues.slice(0, MAX_LISTED_ISSUES)) {
+    const listed = audit.issues.slice(0, MAX_LISTED_ISSUES)
+    // One project can hold several `.deepnote` files, so two notebooks in it can share a name. The
+    // path is the only unambiguous locator, but printing it on every row buries the readable part
+    // under a column of directories — so it is added only where the readable part repeats.
+    const ambiguous = duplicateLocations(listed)
+    for (const issue of listed) {
       const isError = issue.severity === 'error'
       const score = String(scoreOutOf100(issue.score)).padStart(3)
       output(
         `  ${c.bold(score)} ${isError ? c.red('✖') : c.yellow('⚠')} ${isError ? c.red(issue.code) : c.yellow(issue.code)}`
       )
-      output(`      ${c.dim(`${issue.projectName} · ${issue.notebookName || issue.path}`)} ${issue.message}`)
+      const where = issue.notebookName
+        ? ambiguous.has(locationKey(issue))
+          ? `${issue.notebookName} (${issue.path})`
+          : issue.notebookName
+        : issue.path
+      output(`      ${c.dim(`${issue.projectName} · ${where}`)} ${issue.message}`)
     }
     const listedMore = remainder(audit.issues.length, Math.min(audit.issues.length, MAX_LISTED_ISSUES))
     if (listedMore) {
