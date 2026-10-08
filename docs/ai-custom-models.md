@@ -1,11 +1,11 @@
 ---
 title: Custom AI Models
-description: Connect an OpenAI-compatible endpoint or bring your own OpenAI API key to Deepnote Agent.
+description: Connect your own OpenAI-compatible endpoints to use with Deepnote Agent.
 noIndex: false
 noContent: false
 ---
 
-Custom AI models allow Enterprise workspaces to connect their own OpenAI-compatible endpoints or use their own OpenAI API keys with Deepnote Agent. This feature gives you full control over the AI provider powering your data analysis workflows.
+Custom AI models allow Enterprise workspaces to connect their own OpenAI-compatible endpoints to use with Deepnote Agent. This feature gives you full control over the AI provider powering your data analysis workflows.
 
 <Callout status="info">
 Custom AI models are available exclusively on **Enterprise** plans.
@@ -17,13 +17,13 @@ Deepnote does not guarantee that Deepnote Agent will function as expected with c
 
 ## Overview
 
-Custom AI models enable you to use your own AI infrastructure or OpenAI credentials with Deepnote Agent instead of relying on Deepnote's managed model access. This is particularly useful for organizations that:
+Custom AI models enable you to use your own AI infrastructure with Deepnote Agent instead of relying on Deepnote's native providers (OpenAI and Anthropic). This is particularly useful for organizations that:
 
 - Need to use different providers for compliance or regional requirements
 - Want to leverage proprietary or fine-tuned models
 - Require data to stay within specific infrastructure boundaries
 
-Custom endpoints must support the OpenAI Chat Completions API. When you select **Use an OpenAI API key**, Deepnote connects directly to OpenAI using the Responses API and your chosen model ID.
+Your custom model endpoints must be OpenAI-compatible, meaning they follow the OpenAI API specification for chat completions. This ensures that Deepnote Agent can communicate with your endpoint using the same protocol it uses for native providers.
 
 Custom models work with all AI features including Deepnote Agent, single block edits, and prompt suggestions. However, code completions continue to use Deepnote's dedicated completions provider and are not affected by custom model configuration. If this is a consideration, code completions can be disabled altogether in your workspace settings.
 
@@ -41,14 +41,11 @@ To add a custom AI model to your workspace, you need workspace admin permissions
 
 5. In the modal that appears, fill in the required information:
    - **Custom model name**: A descriptive name for your model (e.g., "Azure GPT-4", "Llama Model")
-   - **Use an OpenAI API key**: Check this to connect directly to OpenAI with your own key. No endpoint URL is needed. Leave it unchecked to connect a custom endpoint.
-   - **Endpoint URL**: The base URL of your OpenAI-compatible API endpoint, required only when the OpenAI option is unchecked
-   - **Model ID**: The model identifier from OpenAI or your custom provider (e.g., "gpt-6-astra", "gpt-oss-120b", "deepseek-r1")
+   - **Endpoint URL**: The full URL to your OpenAI-compatible API endpoint
+   - **Model ID**: The model identifier that your endpoint expects (e.g., "gpt-4", "gpt-oss-120b", "deepseek-r1")
    - **API key**: Your authentication key for the endpoint
 
 6. Click **Connect model** to save your configuration.
-
-Existing models keep using Chat Completions until you enable **Use an OpenAI API key** when editing them. For an existing model already pointing to OpenAI, you can enable this option without entering the key again.
 
 ### Endpoint URL Examples
 
@@ -88,7 +85,7 @@ Deepnote Agent must be enabled in your workspace settings for custom models to b
 
 You can edit or delete custom models from the **Custom models** section in AI settings:
 
-- **Edit**: Click the edit icon next to a model to update its name, OpenAI option, endpoint URL, model ID, or API key. Leave the API key empty to keep the existing key when the endpoint host stays the same. Switching to a different host requires entering the key again.
+- **Edit**: Click the edit icon next to a model to update its name, endpoint URL, model ID, or API key. When editing, you can leave the API key field empty to keep the existing key, as long as the endpoint URL stays on the same host. If you change the endpoint to a different host, enter the API key again.
 - **Delete**: Click the delete icon to remove a custom model. If the model is currently set as the workspace default, the selection will revert to OpenAI.
 
 ## Custom vs Native Models
@@ -109,22 +106,22 @@ Native models are provided and managed by Deepnote:
 
 Custom models give you control but require more responsibility:
 
-- **Full control**: Use an OpenAI-compatible endpoint or your own OpenAI API key
-- **Configuration required**: Provide a model ID and API key, plus an endpoint URL when using a custom provider
+- **Full control**: Use any OpenAI-compatible endpoint
+- **Configuration required**: You must provide and maintain endpoint URLs, model IDs, and API keys
 - **OpenAI compatibility required**: Your endpoint must follow the OpenAI API specification
 - **No guarantee of functionality**: Deepnote does not guarantee that Agent will work as expected with your custom model
 - **Limited support**: Deepnote cannot troubleshoot issues specific to your model or endpoint
 
 ### Feature Comparison
 
-| Feature                      | Native Models         | Custom Models                                    |
-| ---------------------------- | --------------------- | ------------------------------------------------ |
-| Deepnote Agent compatibility | Guaranteed            | Not guaranteed                                   |
-| Configuration                | None required         | Model ID, API key; endpoint for custom providers |
-| Infrastructure               | Managed by Deepnote   | Your chosen provider                             |
-| Cost                         | Included in plan      | Billed by your provider                          |
-| Data location                | Deepnote's providers  | Your chosen provider                             |
-| Support                      | Full Deepnote support | Limited to configuration issues                  |
+| Feature                      | Native Models         | Custom Models                   |
+| ---------------------------- | --------------------- | ------------------------------- |
+| Deepnote Agent compatibility | Guaranteed            | Not guaranteed                  |
+| Configuration                | None required         | Endpoint, model ID, API key     |
+| Infrastructure               | Managed by Deepnote   | Managed by you                  |
+| Cost                         | Included in plan      | Billed by your provider         |
+| Data location                | Deepnote's providers  | Your infrastructure             |
+| Support                      | Full Deepnote support | Limited to configuration issues |
 
 ### When to Use Custom Models
 
