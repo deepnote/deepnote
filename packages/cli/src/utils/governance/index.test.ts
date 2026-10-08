@@ -291,14 +291,16 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     for (const run of runsOf(SECRET, 8)) {
       expect(serialized).not.toContain(run)
     }
-    // The block holds a credential, so the message says so rather than quoting text from it.
-    expect(sql[0].message).toContain('also contains a credential')
-    expect(sql[0].details?.snippet).toBe('<redacted>')
+    // Masked in place rather than withheld: the comparison's shape survives, which is the part of
+    // the evidence that is worth reading. Withholding it is what this had to do before
+    // `redactSecrets` could locate the span.
+    expect(sql[0].details?.snippet).toBe("'<redacted>' = NULL")
+    expect(sql[0].message).toContain('"\'<redacted>\' = NULL"')
   })
 
-  it('withholds any details field that carries a credential, not only the snippet', () => {
+  it('masks any details field that carries a credential, not only the snippet', () => {
     // `details.column` is the column name as written, so a quoted identifier puts arbitrary text
-    // there. The sanitizing pass walks the finished details object rather than naming the fields it
+    // there. The redaction pass walks the finished details object rather than naming the fields it
     // protects — three fields have leaked here in turn, each found separately, because each was
     // reasoned about separately.
     const { issues } = runWithContentLabels([
@@ -334,17 +336,17 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     expect(sql?.details?.columnName).toBe('<redacted>')
   })
 
-  it('keeps the values a check chose rather than copied, even in a block holding a secret', () => {
-    // Withholding everything would be safe and useless. `operator` and `suggestion` come from a
-    // closed vocabulary the check controls, so they are published; the check declares which of its
-    // keys are verbatim block text, and an undeclared key is treated as verbatim.
+  it('masks only the credential, leaving a clean finding in the same block intact', () => {
+    // Withholding the whole finding is what this had to do before the span scanner existed. With
+    // real spans, a block holding a credential elsewhere does not cost its other findings their
+    // evidence — the comparison is published, because nothing in it is a secret.
     const { issues } = runWithContentLabels([
       { id: 'b1', type: 'sql', content: `KEY = "${SECRET}"\nSELECT * FROM t WHERE a.x = NULL` },
     ])
 
     const sql = issues.find(issue => issue.code === 'sql-null-comparison')
-    expect(sql?.details).toMatchObject({ operator: '=', suggestion: 'IS NULL' })
-    expect(sql?.details?.snippet).toBe('<redacted>')
+    expect(sql?.details).toMatchObject({ operator: '=', suggestion: 'IS NULL', snippet: 'a.x = NULL' })
+    expect(JSON.stringify(issues)).not.toContain(SECRET)
   })
 
   it('keeps `details.column` a position, never a name', () => {
