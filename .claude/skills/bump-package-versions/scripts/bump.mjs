@@ -150,6 +150,10 @@ function remoteTagExists(tag) {
   return exitStatus('git', ['ls-remote', '--exit-code', '--tags', 'origin', `refs/tags/${tag}`], [2]) === 0
 }
 
+function isOnMain(tag) {
+  return exitStatus('git', ['merge-base', '--is-ancestor', tag, REF], [1]) === 0
+}
+
 function checkBaseline(pkg) {
   const tag = stableTag(pkg.name)
   const prereleases = releaseTags(pkg.name).filter(
@@ -171,8 +175,18 @@ function checkBaseline(pkg) {
   if (!remoteTagExists(tag.tag)) {
     return { ...result, status: 'tag-not-on-remote' }
   }
-  if (exitStatus('git', ['merge-base', '--is-ancestor', tag.tag, REF], [1]) !== 0) {
+  if (!isOnMain(tag.tag)) {
     return { ...result, status: 'tag-not-on-main' }
+  }
+  // A prerelease cut from main leaves package.json at its version, and cd.yml's publish (no --tag) can make it latest.
+  const current = prereleases.find(prerelease => prerelease.version === pkg.version)
+  if (
+    current &&
+    (npm === tag.version || npm === current.version) &&
+    remoteTagExists(current.tag) &&
+    isOnMain(current.tag)
+  ) {
+    return { ...result, status: 'prerelease' }
   }
   if (!npm || compareVersions(npm, tag.version) < 0) {
     return { ...result, status: 'publish-pending' }
