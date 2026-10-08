@@ -11,10 +11,15 @@ export {
   saveSyncManifest,
   sha256,
 } from './sync-manifest'
+export { isSafeRelativeFilePath, projectFilesDir } from './sync-paths'
 export {
-  isSafeRelativeFilePath,
-  type PlannedProjectPaths,
-  pathsOverlap,
-  planProjectPaths,
-  projectFilesDir,
-} from './sync-paths'
+  DEFAULT_SYNC_CONCURRENCY,
+  type ProjectSyncOutcome,
+  type SyncConflict,
+  type SyncConflictDecision,
+  type SyncConflictPolicy,
+  type SyncEvent,
+  syncWorkspace,
+  type WorkspaceSyncOptions,
+  type WorkspaceSyncResult,
+} from './sync-workspace'
