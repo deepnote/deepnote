@@ -100,33 +100,43 @@ function identityLabel(block: DeepnoteBlock): string {
   return `${block.type} (${block.id.slice(0, 8)})`
 }
 
-/** What a withheld snippet is replaced with inside a message. */
-const WITHHELD_SNIPPET = '<redacted>'
+/** What a string withheld for holding a credential is replaced with. */
+const WITHHELD = '<redacted>'
 
 /**
- * A SQL finding's message and evidence, with a credential kept out of both.
+ * A SQL finding's message and details, with every string that carries a credential withheld.
  *
- * The snippet spans the flagged comparison, which bounds it tightly — but a literal that is itself
- * an operand of that comparison is inside the span, so `WHERE 'AKIA…' = NULL` and
- * `WHERE 'postgres://u:…@h/db' = NULL` both put a credential in the evidence field. The span being
- * narrow is what makes this rare; it is not what makes it safe.
+ * Three fields have leaked here in turn — the block label, the snippet, and `details.column` — and
+ * each was found separately because each was reasoned about separately. The common cause is that
+ * every one of them is derived from block text, and a block's text is where credentials are. So
+ * this does not name the fields it protects: it walks the finished details object, so a key added
+ * to a check tomorrow is covered without anyone remembering to come back here.
  *
- * The message quotes the snippet verbatim, so masking only `details.snippet` would move the leak
- * one field over rather than close it. Both are handled here, together, for that reason.
+ * The snippet span is narrow, which makes a credential inside it rare rather than impossible: a
+ * literal that is itself an operand of the flagged comparison is inside the span, and a quoted
+ * identifier can be anything at all.
  *
- * `findSecrets` can tell whether the snippet holds a credential but not where it sits — locating a
- * span needs the scanner that arrives with `redactSecrets`, which supersedes this and masks in
- * place. Until then the snippet is withheld rather than published; `line` and `column` already
- * locate the finding, and the message keeps its shape.
+ * The message quotes the snippet, so substituting it covers the usual shape; the guard after it
+ * covers a template that interpolates some other operand. `findSecrets` reports presence but not
+ * position, so strings here are withheld whole. `redactSecrets` supersedes this and masks in place.
  */
-function safeSqlFinding(finding: { message: string; snippet: string }): {
-  message: string
-  details: { snippet: string } | Record<string, never>
-} {
-  if (findSecrets(finding.snippet).length === 0) {
-    return { message: finding.message, details: { snippet: finding.snippet } }
+function safeSqlFinding(
+  finding: { code: GovernanceCheckCode; message: string; snippet: string; line: number },
+  details: Record<string, unknown>
+): { message: string; details: Record<string, unknown> } {
+  const safeDetails: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(details)) {
+    safeDetails[key] = typeof value === 'string' && findSecrets(value).length > 0 ? WITHHELD : value
   }
-  return { message: finding.message.split(finding.snippet).join(WITHHELD_SNIPPET), details: {} }
+
+  const substituted =
+    findSecrets(finding.snippet).length > 0 ? finding.message.split(finding.snippet).join(WITHHELD) : finding.message
+  const message =
+    findSecrets(substituted).length === 0
+      ? substituted
+      : `This ${finding.code} finding quotes a value matching a credential pattern, so its text is withheld. See line ${finding.line}.`
+
+  return { message, details: safeDetails }
 }
 
 function integrationIdOf(block: DeepnoteBlock): string | undefined {
@@ -171,7 +181,13 @@ export function runProjectGovernanceChecks(
       sqlBlocks++
       const integrationId = integrationIdOf(block)
       for (const finding of checkSqlQuery(content)) {
-        const safe = safeSqlFinding(finding)
+        const safe = safeSqlFinding(finding, {
+          line: finding.line,
+          column: finding.column,
+          snippet: finding.snippet,
+          ...(integrationId ? { integrationId } : {}),
+          ...finding.details,
+        })
         issues.push({
           severity: SEVERITY_BY_CODE[finding.code],
           code: finding.code,
@@ -179,13 +195,7 @@ export function runProjectGovernanceChecks(
           blockId: block.id,
           blockLabel: label,
           notebookName: info.notebookName,
-          details: {
-            line: finding.line,
-            column: finding.column,
-            ...safe.details,
-            ...(integrationId ? { integrationId } : {}),
-            ...finding.details,
-          },
+          details: safe.details,
         })
       }
     }

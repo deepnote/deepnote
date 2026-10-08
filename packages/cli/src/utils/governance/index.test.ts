@@ -275,7 +275,36 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
       expect(serialized).not.toContain(run)
     }
     expect(sql[0].message).toContain('<redacted>')
-    expect(sql[0].details?.snippet).toBeUndefined()
+    expect(sql[0].details?.snippet).toBe('<redacted>')
+  })
+
+  it('withholds any details field that carries a credential, not only the snippet', () => {
+    // `details.column` is the column name as written, so a quoted identifier puts arbitrary text
+    // there. The sanitizing pass walks the finished details object rather than naming the fields it
+    // protects — three fields have leaked here in turn, each found separately, because each was
+    // reasoned about separately.
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'sql', content: `SELECT * FROM t WHERE ${SECRET} = 'true'` },
+    ])
+
+    const sql = issues.filter(issue => issue.code.startsWith('sql-'))
+    expect(sql).toHaveLength(1)
+    expect(sql[0].details?.columnName).toBe('<redacted>')
+
+    const serialized = JSON.stringify(issues)
+    for (const run of runsOf(SECRET, 8)) {
+      expect(serialized).not.toContain(run)
+    }
+  })
+
+  it('keeps `details.column` a position, never a name', () => {
+    // The two fields collided: the check's own `column` (a name) overwrote the lint position of the
+    // same name, so a consumer reading `details.column` got a number or a string depending on which
+    // check fired.
+    const { issues } = runWithContentLabels([{ id: 'b1', type: 'sql', content: "SELECT * FROM t WHERE flag = 'true'" }])
+
+    expect(typeof issues[0].details?.column).toBe('number')
+    expect(issues[0].details?.columnName).toBe('flag')
   })
 
   it('keeps a connection-string password out of the comparison it is quoted in', () => {

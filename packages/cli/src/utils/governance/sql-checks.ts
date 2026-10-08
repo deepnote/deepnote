@@ -200,7 +200,7 @@ function checkTautology(tokens: SqlToken[]): SqlFinding[] {
       line: operator.line,
       column: operator.column,
       snippet: snippetOf(tokens, left.startIndex, right.endIndex),
-      details: { column: left.text, operator: operator.text },
+      details: { columnName: left.text, operator: operator.text },
     })
   }
 
@@ -248,7 +248,7 @@ function checkStringBoolean(tokens: SqlToken[]): SqlFinding[] {
       line: operator.line,
       column: operator.column,
       snippet: snippetOf(tokens, start, end),
-      details: { column: column.text, literal: literal.value, suggestion: keyword },
+      details: { columnName: column.text, literal: literal.value, suggestion: keyword },
     })
   }
 

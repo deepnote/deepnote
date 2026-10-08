@@ -63,7 +63,7 @@ describe('checkSqlQuery', () => {
       expect(findings).toHaveLength(1)
       expect(findings[0].code).toBe('sql-tautology')
       expect(findings[0].snippet).toBe('a.user_id = a.user_id')
-      expect(findings[0].details).toMatchObject({ column: 'a.user_id' })
+      expect(findings[0].details).toMatchObject({ columnName: 'a.user_id' })
     })
 
     it('flags a bare column compared to itself', () => {
@@ -114,7 +114,7 @@ describe('checkSqlQuery', () => {
 
       expect(findings).toHaveLength(1)
       expect(findings[0].code).toBe('sql-string-boolean')
-      expect(findings[0].details).toMatchObject({ column: 'is_active', literal: 'true', suggestion: 'TRUE' })
+      expect(findings[0].details).toMatchObject({ columnName: 'is_active', literal: 'true', suggestion: 'TRUE' })
     })
 
     it('flags the literal on either side and in any case', () => {
