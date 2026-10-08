@@ -1072,6 +1072,40 @@ describe('DAG', () => {
       })
     })
 
+    it('should create a DAG edge for a variable published by a walrus in a comprehension', async () => {
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content: 'items = [1, 2, 3]\nout = [(last := i) for i in items]',
+        },
+        {
+          id: '2',
+          type: 'code',
+          content: 'result = last + 1',
+        },
+      ])
+
+      const { dag } = await getDagForBlocks(blocks)
+
+      expect(dag).toEqual({
+        modulesEdges: [],
+        nodes: [
+          expect.objectContaining({
+            id: '1',
+            inputVariables: [],
+            outputVariables: ['items', 'last', 'out'],
+          }),
+          expect.objectContaining({
+            id: '2',
+            inputVariables: ['last'],
+            outputVariables: ['result'],
+          }),
+        ],
+        edges: [expect.objectContaining({ from: '1', inputVariables: ['last'], to: '2' })],
+      })
+    })
+
     it('should return a DAG with imported modules', async () => {
       const blocks = createBlocks([
         {

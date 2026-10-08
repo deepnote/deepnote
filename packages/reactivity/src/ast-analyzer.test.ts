@@ -177,6 +177,36 @@ describe('AstAnalyzer', () => {
           usedVariables: ['rows', 'threshold'],
         },
         {
+          name: 'publishes a walrus target from a comprehension as a module-level definition',
+          content: 'out = [(x := i) for i in items]',
+          definedVariables: ['out', 'x'],
+          usedVariables: ['items'],
+        },
+        {
+          name: 'publishes a walrus target from a generator expression condition',
+          content: 'kept = [r for r in rows if (seen := r) > 0]',
+          definedVariables: ['kept', 'seen'],
+          usedVariables: ['rows'],
+        },
+        {
+          name: 'publishes a walrus target escaping nested comprehensions',
+          content: 'grid = [[(cell := j) for j in row] for row in rows]',
+          definedVariables: ['cell', 'grid'],
+          usedVariables: ['rows'],
+        },
+        {
+          name: 'keeps a walrus target inside a function-level comprehension local',
+          content: 'def f():\n    [(x := i) for i in items]\n    return x',
+          definedVariables: ['f'],
+          usedVariables: ['items'],
+        },
+        {
+          name: 'keeps a walrus target inside a lambda local',
+          content: 'f = lambda n: (t := n) + 1',
+          definedVariables: ['f'],
+          usedVariables: [],
+        },
+        {
           name: 'keeps lambda parameters local',
           content: 'double = lambda x: x * 2',
           definedVariables: ['double'],
