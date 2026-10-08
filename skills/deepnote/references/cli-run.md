@@ -181,19 +181,24 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json
 
 **Environment variables for `--prompt` / agent blocks:**
 
-The provider comes from the `provider:model` prefix on `deepnote_agent_model` (`anthropic:claude-opus-5-5`);
-a bare model name or `"auto"` means `openai`.
+Bare Claude ids such as `claude-opus-5-5` select Anthropic; other bare names select OpenAI.
+`auto`, Cloud's `default` sentinel, and an omitted model use the local OpenAI default.
+Local execution also accepts an explicit `provider:model` prefix.
 
 For `auto`, the provider's model environment variable overrides the default: `gpt-6.1-sol` for
 `openai`, `claude-opus-5-5` for `anthropic`. The `openai-compatible` provider requires an explicit
-model or model environment variable. Setting `OPENAI_BASE_URL` switches from Responses to Chat
-Completions; also select a model that supports tool calls through that endpoint. GPT-6.1 Sol
-requires Responses for tool calls.
+model or model environment variable. Direct OpenAI access and GPT-6 models use Responses,
+including through `OPENAI_BASE_URL` proxies. Other models on custom URLs retain Chat Completions.
+
+For Cloud execution, use `auto` or a bare model id from Cloud's catalog (for example
+`claude-opus-5-5`). Cloud falls back to workspace settings for unsupported names, including local
+provider prefixes and currently `gpt-6.1-sol`. `auto` uses Cloud workspace settings; local provider
+keys and endpoints do not configure Cloud.
 
 | Variable                  | Provider            | Required | Description                                                    |
 | ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
 | `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
-| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; switches the SDK to Chat Completions          |
+| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; GPT-6 models require Responses                |
 | `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
 | `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
 | `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |

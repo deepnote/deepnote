@@ -280,15 +280,16 @@ The `--prompt` flag appends an agent block to the notebook (or creates one from 
 
 **Choosing a provider:**
 
-`deepnote_agent_model` takes an optional `provider:model` prefix:
+`deepnote_agent_model` accepts a bare model id or a local `provider:model` prefix:
 
 | Provider id         | Package                     | Use for                                           |
 | ------------------- | --------------------------- | ------------------------------------------------- |
-| `openai`            | `@ai-sdk/openai`            | OpenAI (the default when no provider is named)    |
+| `openai`            | `@ai-sdk/openai`            | OpenAI (the default for `auto`)                   |
 | `anthropic`         | `@ai-sdk/anthropic`         | Claude                                            |
 | `openai-compatible` | `@ai-sdk/openai-compatible` | OpenRouter, Ollama, LiteLLM, vLLM, Together, Groq |
 
-A bare model name (`gpt-6.1-sol`) or `auto` means `openai`. Explicit model names in existing notebooks are preserved; `auto` follows the defaults below.
+Bare Claude ids such as `claude-opus-5-5` select `anthropic`; other bare model names select `openai`.
+`auto`, Cloud's `default` sentinel, and an omitted model use the local OpenAI default below.
 
 ```bash
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
@@ -298,19 +299,27 @@ OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sal
 
 - The API key variable for the chosen provider must be set (see the table below).
 - Model selection precedence, per provider:
-  - If the agent block names a model after the prefix, that model is used.
-  - If the model is `"auto"` (or omitted), the provider's `*_MODEL` variable is used when set.
+  - If the agent block names a model, bare or after a prefix, that model is used.
+  - If the model is `"auto"`, `"default"`, or omitted, the provider's `*_MODEL` variable is used when set.
   - Otherwise the provider default applies: `gpt-6.1-sol` for `openai`, `claude-opus-5-5` for `anthropic`. `openai-compatible` has no default and errors instead of guessing.
   - A base URL only changes the endpoint; it does not change the precedence above.
 
-Direct OpenAI access uses the Responses API, which GPT-6.1 Sol requires for tool calls. Setting `OPENAI_BASE_URL` switches to Chat Completions; also set `OPENAI_MODEL` (or the block's model) to a model that supports tool calls through that endpoint.
+Direct OpenAI access and GPT-6 models use Responses, including through `OPENAI_BASE_URL` proxies.
+Other models on custom base URLs retain Chat Completions. For a Chat Completions-only endpoint,
+use `openai-compatible` with a model that supports tools through that endpoint.
+
+For notebooks shared with Cloud, use `auto` or a bare model id from Cloud's supported catalog
+(for example `claude-opus-5-5`). Provider prefixes are local-only; Cloud falls back to workspace
+settings for unsupported names, including prefixes and currently `gpt-6.1-sol`. `auto` uses
+workspace settings in Cloud and the defaults above locally. Local keys and endpoints do not
+configure Cloud.
 
 **Environment variables:**
 
 | Variable                  | Provider            | Required | Description                                                    |
 | ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
 | `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
-| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; switches the SDK to Chat Completions          |
+| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; GPT-6 models require Responses                |
 | `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
 | `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
 | `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |

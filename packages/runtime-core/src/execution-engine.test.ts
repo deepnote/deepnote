@@ -1135,6 +1135,45 @@ describe('ExecutionEngine', () => {
       expect(mockExecuteAgentBlock).toHaveBeenCalledTimes(1)
     })
 
+    it.each([undefined, '', 'provider-key'])(
+      'resolves the compatible provider API key when its own key is %s',
+      async compatibleKey => {
+        vi.stubEnv('DEEPNOTE_AGENT_API_KEY', compatibleKey)
+        vi.stubEnv('OPENAI_API_KEY', 'fallback-key')
+        const file = structuredClone(AGENT_FIXTURE)
+        const block = findBlockByType(file, 'agent')
+        if (block.type !== 'agent') throw new Error('Expected an agent block')
+        block.metadata.deepnote_agent_model = 'openai-compatible:llama4'
+
+        await engine.start()
+        const result = await engine.runProject(file)
+
+        expect(result.failedBlocks).toBe(0)
+        expect(mockExecuteAgentBlock).toHaveBeenCalledWith(
+          block,
+          expect.objectContaining({ apiKey: compatibleKey || 'fallback-key' })
+        )
+      }
+    )
+
+    it.each(['claude-opus-5-5', 'claude-sonnet-5-5'])(
+      'uses Anthropic credentials for the Cloud model id %s',
+      async modelName => {
+        vi.stubEnv('OPENAI_API_KEY', undefined)
+        vi.stubEnv('ANTHROPIC_API_KEY', 'anthropic-key')
+        const file = structuredClone(AGENT_FIXTURE)
+        const block = findBlockByType(file, 'agent')
+        if (block.type !== 'agent') throw new Error('Expected an agent block')
+        block.metadata.deepnote_agent_model = modelName
+
+        await engine.start()
+        const result = await engine.runProject(file)
+
+        expect(result.failedBlocks).toBe(0)
+        expect(mockExecuteAgentBlock).toHaveBeenCalledWith(block, expect.objectContaining({ apiKey: 'anthropic-key' }))
+      }
+    )
+
     it('passes the agent block to executeAgentBlock', async () => {
       await engine.start()
       await engine.runProject(AGENT_FIXTURE)

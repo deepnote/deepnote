@@ -4,9 +4,8 @@ import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import type { JSONValue, LanguageModel } from 'ai'
 
 /**
- * Providers an agent block can run against. The id is the optional prefix of
- * `deepnote_agent_model` (`anthropic:claude-opus-5-5`); a bare model name means
- * `openai`, so files written before prefixes existed keep working.
+ * Providers a local agent block can run against. Bare Claude model ids select
+ * Anthropic, matching Cloud. Provider prefixes are a local runtime extension.
  */
 export const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
 
@@ -14,6 +13,11 @@ export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number]
 
 /** Model name meaning "whatever the provider defaults to". */
 export const AGENT_MODEL_AUTO = 'auto'
+
+// Only force adaptive thinking for models whose support we have verified.
+// Other Claude models (including older models and custom deployment ids) use
+// their API defaults instead of receiving potentially unsupported options.
+const SUMMARIZED_ADAPTIVE_MODELS = new Set(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'])
 
 /** `ai` keeps its own `ProviderOptions` internal, so mirror the shape the agent accepts. */
 export type AgentProviderOptions = Record<string, Record<string, JSONValue>>
@@ -95,13 +99,12 @@ function isAgentProviderId(value: string): value is AgentProviderId {
  * Splits `deepnote_agent_model` into a provider and a model name.
  *
  * Only a known provider id counts as a prefix. Anything else is treated as a
- * whole model name on `openai`, which keeps unprefixed values such as
- * `gpt-5.6-sol` working and leaves slash-separated aggregator ids
- * (`anthropic/claude-opus-5.5`) intact.
+ * whole model name. Bare Claude ids select Anthropic; other bare names retain
+ * the OpenAI route. Slash-separated aggregator ids are left intact.
  */
 export function parseAgentModel(spec: string | undefined): ParsedAgentModel {
   const trimmed = spec?.trim()
-  if (!trimmed) {
+  if (!trimmed || trimmed === 'default') {
     return { providerId: 'openai', modelName: AGENT_MODEL_AUTO }
   }
 
@@ -110,11 +113,11 @@ export function parseAgentModel(spec: string | undefined): ParsedAgentModel {
     const candidate = trimmed.slice(0, separatorIndex)
     if (isAgentProviderId(candidate)) {
       const modelName = trimmed.slice(separatorIndex + 1).trim()
-      return { providerId: candidate, modelName: modelName === '' ? AGENT_MODEL_AUTO : modelName }
+      return { providerId: candidate, modelName: !modelName || modelName === 'default' ? AGENT_MODEL_AUTO : modelName }
     }
   }
 
-  return { providerId: 'openai', modelName: trimmed }
+  return { providerId: trimmed.startsWith('claude-') ? 'anthropic' : 'openai', modelName: trimmed }
 }
 
 /** Env var that must hold the API key for `providerId`. Used in error messages. */
@@ -136,6 +139,24 @@ function readEnv(
     return fallback === '' ? undefined : fallback
   }
   return undefined
+}
+
+/** Resolve the provider's key, including the compatible provider's OpenAI fallback. */
+export function resolveAgentApiKey(
+  providerId: AgentProviderId,
+  env: Record<string, string | undefined> = process.env
+): string {
+  const apiKey = readEnv(env, providerId, 'apiKeyVar')
+  if (apiKey) return apiKey
+
+  const fallback = providerId === 'openai-compatible' ? ' (or OPENAI_API_KEY)' : ''
+  throw new Error(
+    `${apiKeyEnvVarFor(providerId)}${fallback} environment variable is required for agent blocks using the "${providerId}" provider.`
+  )
+}
+
+function isDirectOpenAIEndpoint(baseURL: string | undefined): boolean {
+  return baseURL == null || baseURL.replace(/\/+$/, '') === 'https://api.openai.com/v1'
 }
 
 /**
@@ -164,9 +185,9 @@ export function resolveAgentModel({ spec, apiKey, env = process.env }: ResolveAg
       const anthropic = createAnthropic({ apiKey, baseURL })
       return {
         model: anthropic(modelName),
-        // `summarized` so reasoning reaches `onAgentEvent` as it does on OpenAI;
-        // the Anthropic default omits it and the UI would show a silent pause.
-        providerOptions: { anthropic: { thinking: { type: 'adaptive', display: 'summarized' } } },
+        providerOptions: SUMMARIZED_ADAPTIVE_MODELS.has(modelName)
+          ? { anthropic: { thinking: { type: 'adaptive', display: 'summarized' } } }
+          : {},
         providerId,
         modelName,
       }
@@ -183,13 +204,14 @@ export function resolveAgentModel({ spec, apiKey, env = process.env }: ResolveAg
     }
     default: {
       const openai = createOpenAI({ apiKey, baseURL })
-      // Use the Responses API for direct OpenAI access (supports reasoning
-      // summaries), but fall back to Chat Completions for custom base URLs
-      // since most OpenAI-compatible providers don't implement the Responses API.
-      const model = baseURL ? openai.chat(modelName) : openai(modelName)
+      // GPT-6 tool calls need Responses with the default reasoning settings,
+      // including when a proxy is configured. Preserve Chat Completions for
+      // other models on legacy OPENAI_BASE_URL-compatible endpoints.
+      const useResponses = isDirectOpenAIEndpoint(baseURL) || /^gpt-6(?:[.-]|$)/.test(modelName)
+      const model = useResponses ? openai(modelName) : openai.chat(modelName)
       return {
         model,
-        providerOptions: baseURL ? {} : { openai: { reasoningSummary: 'auto' } },
+        providerOptions: useResponses ? { openai: { reasoningSummary: 'auto' } } : {},
         providerId,
         modelName,
       }

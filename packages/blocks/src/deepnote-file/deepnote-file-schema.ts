@@ -273,9 +273,10 @@ const agentBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       /**
-       * Model the agent block runs on, optionally prefixed with a provider:
-       * `anthropic:claude-opus-5-5`, `openai-compatible:llama4`. A bare name
-       * (`gpt-6.1-sol`) or `'auto'` means the `openai` provider.
+       * Model the agent block runs on. Use a bare id such as `claude-opus-5-5`
+       * for notebooks shared with Cloud, which selects from its model catalog.
+       * Local execution also accepts provider prefixes (`openai-compatible:llama4`);
+       * these are not understood by Cloud. `auto`/`default` use runtime defaults.
        */
       deepnote_agent_model: z.string().default('auto'),
       deepnote_mcp_servers: z.array(mcpServerSchema).optional(),

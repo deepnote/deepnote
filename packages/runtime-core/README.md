@@ -71,9 +71,10 @@ try {
 
 ## Agent block providers
 
-A block's `deepnote_agent_model` takes an optional `provider:model` prefix, resolved by
-`resolveAgentModel()`. A bare model name (`gpt-6.1-sol`) or `auto` means `openai`. Explicit model
-names in existing notebooks are preserved; `auto` follows the defaults below.
+A block's `deepnote_agent_model` accepts a bare model id. Claude ids such as `claude-opus-5-5`
+select Anthropic; other bare names select OpenAI. `auto`, Cloud's `default` sentinel, and an
+omitted model use the local OpenAI default below. Local execution also accepts an explicit
+`provider:model` prefix, such as `openai-compatible:llama4`.
 
 | Provider id         | Default model                | API key                  | Base URL                  |
 | ------------------- | ---------------------------- | ------------------------ | ------------------------- |
@@ -87,10 +88,24 @@ when the block says `auto`.
 
 The defaults use [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and
 [Claude Opus 5.5](https://platform.claude.com/docs/en/models/opus-5-5/overview).
-Direct OpenAI access uses the Responses API, which GPT-6.1 Sol requires for tool calls.
-Setting `OPENAI_BASE_URL` switches to Chat Completions; also set `OPENAI_MODEL` (or the block's
-model) to a model that supports tool calls through that endpoint. OpenRouter uses its own model
-ids, for example `openai-compatible:anthropic/claude-opus-5.5`.
+Direct OpenAI access and GPT-6 models use the Responses API, including through `OPENAI_BASE_URL`
+proxies. The proxy must support Responses for these models. Other models on custom base URLs
+retain Chat Completions. Use `openai-compatible` for an endpoint that only supports Chat Completions
+and select a model that supports tools there. OpenRouter uses its own model ids, for example
+`openai-compatible:anthropic/claude-opus-5.5`.
+
+Summarized adaptive thinking is enabled for Opus, Sonnet, and Haiku 5.5. Other Anthropic models
+use their API defaults, so older models do not receive unsupported thinking options.
+
+### Sharing notebooks with Cloud
+
+Use bare ids from Cloud's supported catalog, such as `claude-opus-5-5`, `claude-sonnet-5-5`,
+`gpt-6-sol`, or `gpt-6-luna`. Cloud chooses the provider for those ids. Provider prefixes are a
+local extension: Cloud does not parse them and falls back to workspace settings for unsupported
+names. GPT-6.1 Sol is available locally but is not in Cloud's catalog as of October 8, 2026.
+For portable automatic selection, use `auto`: local execution uses the defaults above, while
+Cloud uses workspace settings. Provider keys and custom endpoints configured locally do not
+configure Cloud.
 
 ## Result shape
 

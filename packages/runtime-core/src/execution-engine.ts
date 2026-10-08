@@ -26,7 +26,7 @@ import {
   executeAgentBlock,
   serializeNotebookContext,
 } from './agent-handler'
-import { apiKeyEnvVarFor, parseAgentModel } from './agent-provider'
+import { parseAgentModel, resolveAgentApiKey } from './agent-provider'
 import { toPythonLiteral } from './javascript'
 import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './kernel-client'
 import {
@@ -340,14 +340,7 @@ export class ExecutionEngine {
           }
 
           const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
-          const apiKeyEnvVar = apiKeyEnvVarFor(providerId)
-          const apiKey = process.env[apiKeyEnvVar]
-          if (!apiKey) {
-            throw new Error(
-              `${apiKeyEnvVar} environment variable is required for agent blocks using the "${providerId}" provider.\n` +
-                'Prefix the block model with a provider to use a different one, for example `anthropic:claude-opus-5-5`.'
-            )
-          }
+          const apiKey = resolveAgentApiKey(providerId)
 
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 

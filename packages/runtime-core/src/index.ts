@@ -13,6 +13,7 @@ export {
   AGENT_PROVIDER_IDS,
   apiKeyEnvVarFor,
   parseAgentModel,
+  resolveAgentApiKey,
   resolveAgentModel,
 } from './agent-provider'
 export type { ExecutionEngineOptions, ExecutionOptions } from './execution-engine'
