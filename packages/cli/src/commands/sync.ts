@@ -15,6 +15,20 @@ import {
   type SyncProject,
   uploadProjectFile,
 } from '@deepnote/cloud'
+import {
+  assertNoSymbolicLinkAncestors,
+  baselineDiverged,
+  isSafeRelativeFilePath,
+  loadSyncManifest,
+  type ManifestFileRecord,
+  type ManifestProjectRecord,
+  type PlannedProjectPaths,
+  pathsOverlap,
+  planProjectPaths,
+  SYNC_MANIFEST_FILENAME,
+  saveSyncManifest,
+  sha256,
+} from '@deepnote/cloud-sync'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
 import { type Command, InvalidArgumentError } from 'commander'
@@ -23,17 +37,6 @@ import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { isErrnoENOENT } from '../utils/file-resolver'
-import {
-  assertNoSymbolicLinkAncestors,
-  baselineDiverged,
-  loadSyncManifest,
-  type ManifestFileRecord,
-  type ManifestProjectRecord,
-  SYNC_MANIFEST_FILENAME,
-  saveSyncManifest,
-  sha256,
-} from '../utils/sync-manifest'
-import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planProjectPaths } from '../utils/sync-paths'
 
 /**
  * `deepnote sync` — mirror the workspace's projects into a local directory and pull cloud edits down.
