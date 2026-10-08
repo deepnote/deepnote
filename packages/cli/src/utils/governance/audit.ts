@@ -408,8 +408,14 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // are resolved up front, per notebook as well as per project: sync writes one file per notebook,
   // so a live project can still contain notebooks nobody has opened in four years.
   const now = options.now ?? new Date()
-  /** Keyed by notebook id, which is the only thing unique within a project. */
+  /**
+   * Keyed by `projectId:notebookId`. The id alone is unique only *within* a project, and this map
+   * spans the workspace — two projects sharing a notebook id, which is what forking one produces,
+   * had the later read overwrite the earlier. The fork's fresh age then hid the original's
+   * `asset-stale` finding entirely, and `staleness` counted one notebook where there were two.
+   */
   const notebookAges = new Map<string, AssetAge>()
+  const notebookAgeKey = (projectId: string, notebookId: string): string => `${projectId}:${notebookId}`
   /**
    * Keyed by `projectId:notebookName`, for findings that record only the name. `undefined` marks a
    * name two notebooks share: which of them a finding sits in is then genuinely unknown, so it
@@ -425,7 +431,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     projectAges.set(project.id, assetAge(project.modifiedAt, now))
     for (const notebook of project.notebooks) {
       const age = assetAge(notebookLastTouchedAt(notebook), now)
-      notebookAges.set(notebook.id, age)
+      notebookAges.set(notebookAgeKey(project.id, notebook.id), age)
       const nameKey = `${project.id}:${notebook.name}`
       agesByName.set(nameKey, agesByName.has(nameKey) ? undefined : age)
     }
@@ -753,7 +759,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // is the multiplier the others are already scored by rather than a problem in its own right.
   for (const project of projects) {
     for (const notebook of project.notebooks) {
-      const age = notebookAges.get(notebook.id)
+      const age = notebookAges.get(notebookAgeKey(project.id, notebook.id))
       if (age?.liveness !== 'cold' || age.ageDays === undefined) {
         continue
       }

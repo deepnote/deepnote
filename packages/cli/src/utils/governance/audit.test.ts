@@ -1187,3 +1187,28 @@ describe('auditWorkspace — one table identity, shared with the divergence anch
     expect(issuesOf(audit, 'sql-null-comparison')[0].score.blastRadius).toBeGreaterThan(0.75)
   })
 })
+
+describe('auditWorkspace — notebook ages are scoped to their project', () => {
+  /** Two projects sharing a notebook id, which is what forking a project produces. */
+  function forkedWorkspace(): LoadedWorkspace {
+    const withNotebookId = (id: string, modifiedAt: string): WorkspaceProject => {
+      const built = datedProject(id, id, modifiedAt, [
+        { name: 'Report', blocks: [{ id: `${id}-b`, type: 'code', content: 'x = 1' }] },
+      ])
+      return { ...built, notebooks: built.notebooks.map(notebook => ({ ...notebook, id: 'shared-notebook-id' })) }
+    }
+    return workspace([withNotebookId('original', daysAgo(2000)), withNotebookId('fork', daysAgo(5))])
+  }
+
+  it('does not let a fork hide the original notebook staleness', () => {
+    // Keyed on the notebook id alone, the fork's fresh age overwrote the original's — so the
+    // three-year-old notebook raised no `asset-stale` finding at all, and the maintenance summary
+    // counted one notebook where there were two.
+    const audit = auditWorkspace(forkedWorkspace(), { now: NOW })
+
+    expect(audit.staleness.dated).toBe(2)
+    expect(audit.staleness.cold).toBe(1)
+    expect(audit.staleness.live).toBe(1)
+    expect(issuesOf(audit, 'asset-stale').map(issue => issue.projectId)).toEqual(['original'])
+  })
+})
