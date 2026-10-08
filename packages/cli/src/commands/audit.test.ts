@@ -1,10 +1,10 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
-import { type AuditOptions, createAuditAction } from './audit'
+import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
 /** A three-project synced workspace with one of every workspace-scoped finding. */
 const WORKSPACE = join('test-fixtures', 'workspace-audit')
@@ -114,12 +114,28 @@ describe('audit command', () => {
       expect(getOutput(consoleSpy)).toContain('1 project, 1 notebook')
     })
 
-    it('fails with invalid usage and lists the projects when the name is unknown', async () => {
+    it('fails with invalid usage and offers the nearest name when the name is close', async () => {
+      await expect(createAuditAction(program)(WORKSPACE, { project: 'Marketing' })).rejects.toThrow(
+        'process.exit called'
+      )
+
+      const stderr = consoleErrorSpy.mock.calls.flat().join('\n')
+      expect(stderr).toContain('Project "Marketing" not found')
+      expect(stderr).toContain('"Marketing campaigns"')
+      expect(exitSpy).toHaveBeenCalledWith(2)
+    })
+
+    it('does not list the whole workspace when the name resembles nothing', async () => {
       await expect(createAuditAction(program)(WORKSPACE, { project: 'Nope' })).rejects.toThrow('process.exit called')
 
       const stderr = consoleErrorSpy.mock.calls.flat().join('\n')
       expect(stderr).toContain('Project "Nope" not found')
-      expect(stderr).toContain('"Marketing campaigns"')
+      // Listing every project was the old behaviour: unreadable on a real workspace, and a
+      // needless disclosure in a CI log, where the names themselves can be the sensitive part.
+      expect(stderr).not.toContain('"Marketing campaigns"')
+      // Not the exact count: later branches add projects to this fixture, and what matters is
+      // that the message reports a total instead of enumerating it.
+      expect(stderr).toMatch(/\d+ projects in this workspace/)
       expect(exitSpy).toHaveBeenCalledWith(2)
     })
   })
@@ -185,5 +201,96 @@ describe('audit command', () => {
 
       expect(getOutput(consoleSpy)).toContain('1 project, 1 notebook')
     })
+  })
+
+  describe('audit command — the redaction boundary reaches the text output too', () => {
+    const DSN = 'postgres://svc:hunter2correct@warehouse.internal:5432/analytics'
+
+    /** Two projects sharing one hardcoded credential, so every report section is populated. */
+    async function leakyWorkspace(): Promise<string> {
+      const root = await mkdtemp(join(tmpdir(), 'deepnote-audit-redaction-'))
+      const projects = [
+        { dir: 'alpha', id: '44444444-4444-4444-8444-444444444444', name: `Export ${DSN}` },
+        { dir: 'beta', id: '55555555-5555-4555-8555-555555555555', name: 'Second' },
+      ]
+      for (const [index, { dir, id, name }] of projects.entries()) {
+        await mkdir(join(root, dir), { recursive: true })
+        await writeFile(
+          join(root, dir, 'project.deepnote'),
+          [
+            'metadata:',
+            "  createdAt: '2025-06-02T09:14:00.000Z'",
+            "  modifiedAt: '2026-02-11T16:40:00.000Z'",
+            'project:',
+            `  id: ${id}`,
+            `  name: ${JSON.stringify(name)}`,
+            '  notebooks:',
+            `    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5${index}`,
+            `      name: ${JSON.stringify(`Notes ${DSN}`)}`,
+            '      blocks:',
+            `        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f8${index}`,
+            `          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f${index}`,
+            '          type: code',
+            '          sortingKey: a0',
+            `          content: ${JSON.stringify(`DSN = "${DSN}"`)}`,
+            "version: '1'",
+          ].join('\n')
+        )
+      }
+      return root
+    }
+
+    it('prints no credential in the default text report', async () => {
+      setOutputConfig({ color: false })
+      const root = await leakyWorkspace()
+      try {
+        await createAuditAction(program)(root, { issues: true })
+
+        // The shared-credentials section prints project names directly, so the text renderer is a
+        // second output path that could have been forgotten. It cannot be: the report is already
+        // redacted by the time either renderer sees it.
+        expect(getOutput(consoleSpy)).not.toContain('hunter2correct')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+
+    it('prints no credential in the JSON report', async () => {
+      const root = await leakyWorkspace()
+      try {
+        await createAuditAction(program)(root, { output: 'json' })
+
+        expect(getOutput(consoleSpy)).not.toContain('hunter2correct')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+  })
+})
+
+describe('describeNearest', () => {
+  const names = ['Revenue reporting', 'Marketing campaigns', 'Churn analysis', 'Finance', 'Archive']
+
+  it('offers a name the query is a prefix of', () => {
+    expect(describeNearest('Revenue', names)).toContain('"Revenue reporting"')
+  })
+
+  it('matches case-insensitively', () => {
+    expect(describeNearest('finance', names)).toContain('"Finance"')
+  })
+
+  it('offers nothing when the query resembles nothing, but still says how many there are', () => {
+    const message = describeNearest('zzz', names)
+
+    expect(message).not.toContain('"Revenue reporting"')
+    expect(message).toContain('5 projects in this workspace')
+  })
+
+  it('caps the suggestions rather than listing the workspace', () => {
+    const many = Array.from({ length: 200 }, (_, index) => `Report ${index}`)
+    const message = describeNearest('Report', many)
+
+    expect(message.match(/"/g)).toHaveLength(10)
+    expect(message).toContain('200 projects in this workspace')
   })
 })

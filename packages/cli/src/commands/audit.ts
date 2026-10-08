@@ -52,11 +52,13 @@ export function createAuditAction(
           p => p.id === options.project || p.name.toLowerCase() === options.project?.toLowerCase()
         )
       ) {
-        const available = workspace.projects.map(p => `"${p.name}"`).join(', ')
         throw new FileResolutionError(
-          available
-            ? `Project "${options.project}" not found in ${root}. Available projects: ${available}`
-            : `Project "${options.project}" not found: no .deepnote files under ${root}`
+          workspace.projects.length === 0
+            ? `Project "${options.project}" not found: no .deepnote files under ${root}`
+            : `Project "${options.project}" not found in ${root}. ${describeNearest(
+                options.project,
+                workspace.projects.map(p => p.name)
+              )}`
         )
       }
 
@@ -79,6 +81,57 @@ export function createAuditAction(
       process.exit(exitCode)
     }
   }
+}
+
+/** How many near-miss project names a "not found" message offers. */
+const MAX_SUGGESTED_PROJECTS = 5
+
+/**
+ * Score how close `candidate` is to what the user typed. Higher is closer; 0 is unrelated.
+ *
+ * Deliberately crude — a prefix/substring test rather than an edit distance. The job is to catch
+ * the realistic misses (a truncated name, the wrong case, a forgotten suffix), not to rank the
+ * whole workspace, and a name sharing no run of characters with the query is no better a guess
+ * than any other.
+ */
+function nameAffinity(query: string, candidate: string): number {
+  const q = query.toLowerCase()
+  const c = candidate.toLowerCase()
+  if (c === q) {
+    return 4
+  }
+  if (c.startsWith(q) || q.startsWith(c)) {
+    return 3
+  }
+  if (c.includes(q) || q.includes(c)) {
+    return 2
+  }
+  // A shared leading run, so `Revenu` still finds `Revenue reporting`.
+  let shared = 0
+  while (shared < q.length && shared < c.length && q[shared] === c[shared]) {
+    shared++
+  }
+  return shared >= 3 ? 1 : 0
+}
+
+/**
+ * The tail of a "project not found" message: the closest few names, and how many there are.
+ *
+ * Listing every project was the original behaviour. On a workspace of any size that is tens of
+ * kilobytes of names into stderr — unreadable as help, and a needless disclosure in a CI log,
+ * where a project name can itself be the sensitive part.
+ */
+export function describeNearest(query: string, names: string[]): string {
+  const nearest = names
+    .map(name => ({ name, score: nameAffinity(query, name) }))
+    .filter(entry => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .slice(0, MAX_SUGGESTED_PROJECTS)
+
+  const total = `${plural(names.length, 'project')} in this workspace`
+  return nearest.length === 0
+    ? `${total}; pass --project with an exact name or id, or -o json to list them.`
+    : `Closest ${nearest.length === 1 ? 'match' : 'matches'}: ${nearest.map(entry => `"${entry.name}"`).join(', ')} (${total}).`
 }
 
 function plural(count: number, noun: string): string {

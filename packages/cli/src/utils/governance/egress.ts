@@ -126,6 +126,33 @@ function hostOf(authority: string): string {
   return host.toLowerCase()
 }
 
+/**
+ * A literal hostname or bucket name: letters, digits, dots, hyphens, underscores — or a complete
+ * bracketed IPv6 literal. Nothing else is legal in a host, so anything else is a sign the URI was
+ * assembled at run time.
+ *
+ * The IPv6 arm is defensive rather than reachable today: `URI_PATTERN` excludes `]` so the
+ * authority stops at `[2001:db8::1`, which this correctly rejects as the fragment it is. Written
+ * out so that widening the scanner later does not silently start dropping real addresses.
+ */
+const LITERAL_HOST_PATTERN = /^[a-z0-9._-]+$|^\[[0-9a-f:.]*]$/
+
+/**
+ * True when `host` is a name the author actually wrote, rather than a fragment of one they built.
+ *
+ * `f"https://api.{env}.example.com/x"` leaves `api.{env` once the scanner stops at the brace, and
+ * `"https://api-%s.example.com/x" % env` leaves `api-%s.example.com`. Both look like hosts —
+ * `api.{env` even has a dot, so it clears the external-host test — and both would be recorded in
+ * an inventory whose whole value is that the names in it are real.
+ *
+ * Recording nothing is the right trade. The egress list is already documented as a lower bound,
+ * and a host nobody can act on is worse than a gap someone knows is there: a fragment invites
+ * someone to search for a host that does not exist.
+ */
+function isLiteralHost(host: string): boolean {
+  return LITERAL_HOST_PATTERN.test(host)
+}
+
 /** True when `host` is somewhere data could actually leave to. */
 function isExternalHost(host: string): boolean {
   if (host === '' || LOCAL_HOST_PATTERN.test(host) || FIRST_PARTY_HOST_PATTERN.test(host)) {
@@ -193,6 +220,9 @@ export function findExternalEndpoints(content: string): ExternalEndpoint[] {
 
     const isBucket = BUCKET_SCHEMES.has(scheme)
     const rawHost = hostOf(authority)
+    if (!isLiteralHost(rawHost)) {
+      continue
+    }
     if (!isBucket && !isExternalHost(rawHost)) {
       continue
     }

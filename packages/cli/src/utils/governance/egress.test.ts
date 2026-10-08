@@ -148,3 +148,36 @@ describe('findExternalEndpoints — evidence redaction', () => {
     expect(endpoint.evidence).toBe('https://api.segment.io/v1/track')
   })
 })
+
+describe('findExternalEndpoints — a host assembled at run time is not a host', () => {
+  it.each([
+    ['an f-string placeholder inside the host', 'requests.post(f"https://api.{env}.example.com/ingest", data=df)'],
+    ['a printf placeholder', 'requests.post("https://api-%s.example.com/ingest" % env, data=df)'],
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the placeholder is the subject under test
+    ['a JS template placeholder', 'fetch(`https://api.${env}.example.com/x`, { method: "POST" })'],
+    ['a Deepnote parameter', 'requests.post("https://api.{{ region }}.example.com/x", data=df)'],
+  ])('records nothing for %s', (_name, content) => {
+    // `api.{env` has a dot, so it passes the external-host test and would be inventoried as a real
+    // destination. A name nobody can act on is worse than a gap someone knows is there — egress is
+    // already documented as a lower bound.
+    expect(findExternalEndpoints(content)).toEqual([])
+  })
+
+  it('still records the literal hosts around them', () => {
+    const endpoints = findExternalEndpoints(
+      [
+        'requests.post(f"https://api.{env}.example.com/a", data=df)',
+        'requests.post("https://hooks.example.com/b")',
+      ].join('\n')
+    )
+
+    expect(endpoints.map(endpoint => endpoint.host)).toEqual(['hooks.example.com'])
+  })
+
+  it('leaves literal hosts with ports, hyphens and bucket names alone', () => {
+    expect(findExternalEndpoints('requests.post("https://api-eu.example.com:8443/x")')[0].host).toBe(
+      'api-eu.example.com'
+    )
+    expect(findExternalEndpoints('df.to_csv("s3://exports-bucket/retained.csv")')[0].host).toBe('s3://exports-bucket')
+  })
+})

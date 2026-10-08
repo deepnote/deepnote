@@ -250,3 +250,30 @@ describe('redactSecretsWithContext', () => {
     expect(redactSecretsWithContext('AKIAIOSFODNN7EXAMPLEsuffix', context)).toBe('<redacted>')
   })
 })
+
+describe('redactSecrets — every occurrence, not just the first', () => {
+  const DSN = 'postgres://svc:hunter2correct@warehouse.internal:5432/analytics'
+
+  it('masks a credential repeated on one line', () => {
+    // The scanner deduplicates findings per (fingerprint, line) so a credential is counted once.
+    // Redaction needs the opposite: a second occurrence left in place publishes the password just
+    // as well as the first, and a filesystem path that embeds the same DSN twice is a real shape.
+    const redacted = redactSecrets(`from ${DSN} to ${DSN}`)
+
+    expect(redacted).not.toContain('hunter2correct')
+    expect(redacted.match(/<redacted>/g)).toHaveLength(2)
+  })
+
+  it('masks a credential repeated across lines', () => {
+    const redacted = redactSecrets(`a = "${DSN}"\nb = "${DSN}"`)
+
+    expect(redacted).not.toContain('hunter2correct')
+  })
+
+  it('still reports the repeated credential as one finding', () => {
+    // The dedupe moved to the reporting side rather than being dropped: a key that matches both
+    // the heuristic and a provider pattern must not read as two separate credentials.
+    expect(findSecrets(`from ${DSN} to ${DSN}`)).toHaveLength(1)
+    expect(findSecrets('AWS_SECRET = "AKIAIOSFODNN7EXAMPLE"', { includeHeuristic: true })).toHaveLength(1)
+  })
+})

@@ -139,6 +139,78 @@ const SEVERITY = {
   'credential-shared': 'error',
 } as const
 
+/**
+ * Mask every credential in one user-facing string.
+ *
+ * Applied whole first, then per `/`-separated segment. A URI password is only recognizable with
+ * its scheme and host around it, so the whole-string pass has to come first; the segment pass then
+ * catches patterns that deliberately refuse to match across a `/`, which is how a value buried in
+ * a filesystem path or a URL would otherwise survive. Masking is idempotent, so running both
+ * costs nothing on a string that has no secret in it.
+ */
+function scrubText(text: string): string {
+  const whole = redactSecrets(text)
+  return whole.includes('/') ? whole.split('/').map(redactSecrets).join('/') : whole
+}
+
+/**
+ * Subtrees the boundary pass must leave alone, by dotted key path with `*` for an array index.
+ *
+ * Empty here. The entry that matters arrives with the subject index, which is sensitive *by
+ * design*: its whole purpose is to answer "which notebooks hold this person's data", and a
+ * location with the project and notebook masked answers nothing. Anything added to this set is a
+ * deliberate exception and needs a reason written beside it.
+ */
+const BOUNDARY_EXEMPT_PATHS = new Set<string>()
+
+function isExemptPath(path: readonly string[]): boolean {
+  return BOUNDARY_EXEMPT_PATHS.has(path.join('.'))
+}
+
+/**
+ * Mask every string in `value`, recursing through arrays and plain objects.
+ *
+ * Deliberately not a list of fields. Unredacted text has now escaped through four fields in turn —
+ * a block label, a SQL snippet, an egress evidence URI, a suppressed finding — and each was found
+ * by review rather than by design, because each was added by someone who had no reason to think of
+ * that field as a place a credential or a person's name could reach. A project *name* routinely
+ * contains an address, so the set of fields that can leak is not knowable in advance; what is
+ * knowable is that they are all strings in one report.
+ *
+ * Masking a field that needed no masking is free — the scrubbers only replace what they match — so
+ * the default is to cover everything and name the exceptions.
+ */
+function redactDeep<T>(value: T, path: readonly string[] = []): T {
+  if (isExemptPath(path)) {
+    return value
+  }
+  if (typeof value === 'string') {
+    return scrubText(value) as unknown as T
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => redactDeep(item, [...path, '*'])) as unknown as T
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = redactDeep(item, [...path, key])
+    }
+    return out as unknown as T
+  }
+  return value
+}
+
+/**
+ * The single point where an assembled report becomes output.
+ *
+ * Must run *after* scoring. Severity is weighted by how recently an asset was touched, and the
+ * scorer looks assets up by notebook name — a masked name matches nothing, and every finding would
+ * silently score as though its notebook had never been edited.
+ */
+export function redactAuditReport(report: WorkspaceAudit): WorkspaceAudit {
+  return redactDeep(report)
+}
+
 function blockMapFor(project: WorkspaceProject): Map<string, BlockInfo> {
   const map = new Map<string, BlockInfo>()
   for (const notebook of project.notebooks) {
@@ -414,7 +486,10 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     )
   }
 
-  return {
+  // Every section of the report goes through the boundary pass together, at the one point where it
+  // is finished and before anything can serialize it. Sections added by later branches inherit it
+  // without touching this line.
+  return redactAuditReport({
     root: workspace.root,
     scope: 'workspace',
     summary: {
@@ -438,7 +513,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     },
     errors: workspace.errors,
     notes,
-  }
+  })
 }
 
 /**

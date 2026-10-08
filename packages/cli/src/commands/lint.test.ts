@@ -714,10 +714,11 @@ describe('lint command', () => {
         expect(serialized).not.toContain(secret.slice(0, length))
       }
 
-      // The block is still identifiable — it is withholding the label, not the finding.
+      // The label is masked in place rather than withheld, so the finding stays locatable: the
+      // variable name is what identifies the line, and only the literal is lost.
       const issues = JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string; blockLabel: string }>
       const unused = issues.find(issue => issue.code === 'unused-variable')
-      expect(unused?.blockLabel).toBe('code (9f1a2b3c)')
+      expect(unused?.blockLabel).toBe('SEGMENT_WRITE_KEY = "<redacted>"')
     })
 
     it('reads a double-quoted boolean literal through the block integration dialect', async () => {

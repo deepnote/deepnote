@@ -415,3 +415,81 @@ describe('auditWorkspace', () => {
     expect(audit.flow).toEqual({ nodes: [], edges: [] })
   })
 })
+
+describe('auditWorkspace — the redaction boundary covers the whole report', () => {
+  // A connection string: `redactSecrets` recognizes the password only with the scheme and host
+  // around it, which is why the boundary pass scrubs whole strings before it scrubs path segments.
+  const SECRET = 'postgres://svc:hunter2correct@warehouse.internal:5432/analytics'
+
+  function leakyWorkspace(): LoadedWorkspace {
+    return {
+      root: `/srv/${SECRET}`,
+      fileCount: 1,
+      errors: [{ path: `broken/${SECRET}.deepnote`, message: `could not parse ${SECRET}` }],
+      projects: [
+        project(
+          'p1',
+          `Export ${SECRET}`,
+          [
+            {
+              name: `Notes ${SECRET}`,
+              blocks: [
+                { id: 'b1', type: 'sql', content: 'SELECT id FROM users', integrationId: 'warehouse' },
+                { id: 'b2', type: 'code', content: `requests.post("https://hooks.example.com/${SECRET}", data=df)` },
+                { id: 'b3', type: 'code', content: `DSN = "${SECRET}"` },
+              ],
+            },
+          ],
+          [{ id: 'warehouse', name: `Warehouse ${SECRET}`, type: 'postgres' }]
+        ),
+        project('p2', 'Second', [
+          { name: 'Reuse', blocks: [{ id: 'b4', type: 'code', content: `DSN = "${SECRET}"` }] },
+        ]),
+      ],
+    }
+  }
+
+  it('leaves no credential anywhere in the serialized report, at any depth', () => {
+    const audit = auditWorkspace(leakyWorkspace())
+
+    // Asserted over the whole report rather than a named set of fields. Four fields have leaked in
+    // turn, each one added by someone with no reason to think of it as a place a secret could
+    // reach — so the test cannot be a list of the fields anyone has thought of so far.
+    expect(JSON.stringify(audit)).not.toContain('hunter2correct')
+  })
+
+  it('reaches the sections that sit beside issues[], not just issues[] itself', () => {
+    const audit = auditWorkspace(leakyWorkspace())
+
+    // Each of these is a separate structure assembled by its own code path, and none of them is an
+    // AuditIssue — the shape the original redaction pass was written for.
+    expect(audit.integrations[0].consumers[0].projectName).not.toContain('hunter2correct')
+    expect(audit.egress[0].projects[0].projectName).not.toContain('hunter2correct')
+    expect(audit.credentials[0].projects[0].projectName).not.toContain('hunter2correct')
+    expect(JSON.stringify(audit.flow)).not.toContain('hunter2correct')
+    expect(JSON.stringify(audit.errors)).not.toContain('hunter2correct')
+    expect(audit.root).not.toContain('hunter2correct')
+  })
+
+  it('masks the credential rather than discarding the text around it', () => {
+    const audit = auditWorkspace(leakyWorkspace())
+
+    // The project is still identifiable; only the password is gone.
+    expect(audit.credentials[0].projects[0].projectName).toContain('Export')
+    expect(audit.credentials[0].projects[0].projectName).toContain('warehouse.internal')
+  })
+
+  it('still scores and counts off the raw names, so redaction cannot change the findings', () => {
+    const clean = auditWorkspace(
+      workspace([
+        project('p1', 'Export', [{ name: 'Notes', blocks: [{ id: 'b3', type: 'code', content: 'DSN = "x"' }] }]),
+      ])
+    )
+    const leaky = auditWorkspace(leakyWorkspace())
+
+    // The leaky workspace has the same shape plus a second project, so the credential is shared.
+    expect(leaky.credentials).toHaveLength(1)
+    expect(leaky.credentials[0].projects).toHaveLength(2)
+    expect(clean.credentials).toHaveLength(0)
+  })
+})

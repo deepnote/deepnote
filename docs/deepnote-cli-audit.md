@@ -112,13 +112,27 @@ The audit reports its own blind spots on every run, because an audit that hides 
 clean bill of health:
 
 - **Egress is a lower bound.** It sees hosts written into block content. A URL assembled from
-  variables at run time is invisible.
+  variables at run time is invisible, and a URL whose host is only partly literal —
+  `f"https://api.{env}.example.com/x"` — is skipped rather than recorded as `api.{env`. A
+  destination nobody can act on would be worse than a gap you know is there.
 - **Integration usage counts SQL blocks in notebooks only.** dbt models, BI tools and other
   consumers of the same warehouse are not visible from a Deepnote workspace.
 - **Consensus checks are not run.** Finding the same metric defined two different ways needs a
   workspace large enough for agreement to mean something — roughly 100 projects, as an order of
   magnitude rather than a measured threshold. Below that, a ranking of "divergent" definitions is
   noise presented as signal.
+
+## What leaves the process
+
+Everything the audit prints passes through one redaction step, applied to the assembled report as
+a whole rather than to each section as it is built. Credentials are masked in place wherever they
+appear — in a finding, a project or notebook name, an integration name, a flow-map label, a parse
+error — so a section added to the report later inherits the masking without anyone remembering to
+wire it up.
+
+This is why names in the output may be partly masked: a project called after a connection string
+is reported with the password replaced and the rest of the name intact, which keeps the finding
+locatable without reproducing the secret.
 
 ## Audit is not a gate
 

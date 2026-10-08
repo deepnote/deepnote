@@ -156,16 +156,14 @@ interface LocatedSecret {
  */
 function scanSecrets(content: string, options: { includeHeuristic?: boolean } = {}): LocatedSecret[] {
   const located: LocatedSecret[] = []
-  const seen = new Set<string>()
 
+  // Every occurrence is recorded, including repeats of the same value. Deduplicating here would be
+  // the natural place for it — a key assigned to a secret-named variable matches both rules, and
+  // counting it twice overstates how many credentials a file holds — but this function has two
+  // callers with opposite needs. Reporting wants one finding per credential; redaction wants every
+  // span, because masking the first `postgres://svc:…@host/db` and leaving the second publishes
+  // the password just the same. So the dedupe lives in `findSecrets`, which is the reporting side.
   const record = (finding: SecretFinding, start: number, end: number): void => {
-    // One finding per (fingerprint, line): a key assigned to a secret-named variable matches both
-    // rules, and reporting it twice would overstate how many credentials are actually in the file.
-    const key = `${finding.fingerprint}:${finding.line}`
-    if (seen.has(key)) {
-      return
-    }
-    seen.add(key)
     located.push({ finding, start, end })
   }
 
@@ -234,9 +232,19 @@ function scanSecrets(content: string, options: { includeHeuristic?: boolean } = 
  * instruction than a credential.
  */
 export function findSecrets(content: string, options: { includeHeuristic?: boolean } = {}): SecretFinding[] {
-  return scanSecrets(content, options)
-    .map(located => located.finding)
-    .sort((a, b) => a.line - b.line || a.kind.localeCompare(b.kind))
+  // One finding per (fingerprint, line): a key assigned to a secret-named variable matches both the
+  // heuristic and a provider pattern, and reporting it twice would overstate how many credentials
+  // are actually in the file. `scanSecrets` keeps every span because redaction needs them all.
+  const seen = new Set<string>()
+  const unique: SecretFinding[] = []
+  for (const { finding } of scanSecrets(content, options)) {
+    const key = `${finding.fingerprint}:${finding.line}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      unique.push(finding)
+    }
+  }
+  return unique.sort((a, b) => a.line - b.line || a.kind.localeCompare(b.kind))
 }
 
 /** What a redacted secret is replaced with. */
