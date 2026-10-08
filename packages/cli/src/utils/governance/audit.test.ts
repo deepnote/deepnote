@@ -1057,3 +1057,133 @@ describe('holderReach', () => {
     expect(holderReach(undefined, ages)).toEqual({ live: 0, total: 1 })
   })
 })
+
+describe('auditWorkspace — one table identity, shared with the divergence anchors', () => {
+  it('merges a qualified and a bare reference to the same table', () => {
+    // Keyed on the name as written, these were two rows with two reach counts — while the join
+    // anchors, which fold to the short name, treated them as one table. Reach is the multiplier
+    // the whole ranking rests on, so the split under-counted every finding on either row.
+    const audit = auditWorkspace(
+      workspace([
+        project(
+          'p1',
+          'Qualified',
+          [
+            {
+              name: 'A',
+              blocks: [{ id: 'b1', type: 'sql', content: 'SELECT * FROM analytics.users', integrationId: 'wh' }],
+            },
+          ],
+          [{ id: 'wh', name: 'Warehouse', type: 'snowflake' }]
+        ),
+        project(
+          'p2',
+          'Bare',
+          [{ name: 'B', blocks: [{ id: 'b2', type: 'sql', content: 'SELECT * FROM users', integrationId: 'wh' }] }],
+          [{ id: 'wh', name: 'Warehouse', type: 'snowflake' }]
+        ),
+      ])
+    )
+
+    const users = audit.tables.filter(table => table.name === 'users')
+    expect(users).toHaveLength(1)
+    expect(users[0].projectCount).toBe(2)
+    expect(users[0].blockCount).toBe(2)
+    // Both spellings are kept, so the merge is visible rather than silent.
+    expect(users[0].qualifiedNames).toEqual(['analytics.users', 'users'])
+  })
+
+  it('keeps same-named tables behind two integrations apart', () => {
+    const audit = auditWorkspace(
+      workspace([
+        project(
+          'p1',
+          'Prod',
+          [
+            {
+              name: 'A',
+              blocks: [{ id: 'b1', type: 'sql', content: 'SELECT * FROM analytics.users', integrationId: 'prod' }],
+            },
+          ],
+          [{ id: 'prod', name: 'Prod warehouse', type: 'snowflake' }]
+        ),
+        project(
+          'p2',
+          'Staging',
+          [
+            {
+              name: 'B',
+              blocks: [{ id: 'b2', type: 'sql', content: 'SELECT * FROM staging.users', integrationId: 'stg' }],
+            },
+          ],
+          [{ id: 'stg', name: 'Staging warehouse', type: 'snowflake' }]
+        ),
+      ])
+    )
+
+    const users = audit.tables.filter(table => table.name === 'users')
+    expect(users).toHaveLength(2)
+    expect(users.map(table => table.integrationId).sort()).toEqual(['prod', 'stg'])
+    expect(users.every(table => table.projectCount === 1)).toBe(true)
+  })
+
+  it('keeps a block that declares no integration out of a known integration bucket', () => {
+    const audit = auditWorkspace(
+      workspace([
+        project(
+          'p1',
+          'Declared',
+          [{ name: 'A', blocks: [{ id: 'b1', type: 'sql', content: 'SELECT * FROM users', integrationId: 'wh' }] }],
+          [{ id: 'wh', name: 'Warehouse', type: 'snowflake' }]
+        ),
+        project('p2', 'Undeclared', [
+          { name: 'B', blocks: [{ id: 'b2', type: 'sql', content: 'SELECT * FROM users' }] },
+        ]),
+      ])
+    )
+
+    const users = audit.tables.filter(table => table.name === 'users')
+    expect(users).toHaveLength(2)
+    expect(users.map(table => table.integrationId).sort()).toEqual(['unknown', 'wh'])
+  })
+
+  it('scores a finding against the merged reach, not half of it', () => {
+    const qualified = (id: string, name: string) =>
+      datedProject(
+        id,
+        name,
+        daysAgo(10),
+        [
+          {
+            name: 'N',
+            blocks: [
+              {
+                id: `${id}-b`,
+                type: 'sql',
+                content: 'SELECT * FROM analytics.users WHERE deleted_at = NULL',
+                integrationId: 'wh',
+              },
+            ],
+          },
+        ],
+        [{ id: 'wh', name: 'Warehouse', type: 'snowflake' }]
+      )
+    const bare = (id: string, name: string) =>
+      datedProject(
+        id,
+        name,
+        daysAgo(10),
+        [{ name: 'N', blocks: [{ id: `${id}-b`, type: 'sql', content: 'SELECT * FROM users', integrationId: 'wh' }] }],
+        [{ id: 'wh', name: 'Warehouse', type: 'snowflake' }]
+      )
+
+    const audit = auditWorkspace(
+      workspace([qualified('p1', 'One'), ...['p2', 'p3', 'p4', 'p5'].map(id => bare(id, id))]),
+      { now: NOW }
+    )
+
+    // The four bare readers count towards the reach of the one qualified writer's finding.
+    expect(audit.tables.filter(table => table.name === 'users')).toHaveLength(1)
+    expect(issuesOf(audit, 'sql-null-comparison')[0].score.blastRadius).toBeGreaterThan(0.75)
+  })
+})

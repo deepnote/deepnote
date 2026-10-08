@@ -232,6 +232,11 @@ function outputTables(audit: WorkspaceAudit): void {
   output(c.bold('Tables — ranked by live reach'))
 
   const shown = audit.tables.slice(0, MAX_LISTED_ROWS)
+  // A short name is only unique within one integration, so it is qualified in the output whenever
+  // the same name appears behind more than one — otherwise two different tables print identically.
+  const ambiguous = new Set(
+    audit.tables.map(table => table.name).filter((name, index, names) => names.indexOf(name) !== index)
+  )
   for (const table of shown) {
     // Both numbers, always. The raw count is the one people quote; the live count is the one that
     // is true, and printing them together is what stops a blast radius being read as 8× its size.
@@ -239,7 +244,8 @@ function outputTables(audit: WorkspaceAudit): void {
       table.liveProjectCount === table.projectCount
         ? `${plural(table.projectCount, 'project')}`
         : `${table.liveProjectCount} live of ${plural(table.projectCount, 'project')}`
-    output(`  ${table.name} ${c.dim(`— ${reach}, ${plural(table.blockCount, 'SQL block')}`)}`)
+    const label = ambiguous.has(table.name) ? `${table.name} ${c.dim(`(${table.integrationId})`)}` : table.name
+    output(`  ${label} ${c.dim(`— ${reach}, ${plural(table.blockCount, 'SQL block')}`)}`)
   }
   const more = remainder(audit.tables.length, shown.length)
   if (more) {

@@ -176,3 +176,38 @@ export function findTableReferences(sql: string): TableReference[] {
 
   return references
 }
+
+/** The integration bucket a block with no `sql_integration_id` falls into. */
+export const UNKNOWN_INTEGRATION_SCOPE = 'unknown'
+
+/**
+ * Separator between the integration scope and the table name in a canonical key.
+ *
+ * A character no identifier and no integration id can contain. Spelled as a named constant rather
+ * than inlined so the one place it is defined is the one place to change it.
+ */
+const KEY_SEPARATOR = '\u241F'
+
+/**
+ * The key two table references must share to count as the same table.
+ *
+ * Two decisions, and the second only became available once queries were scoped per integration.
+ *
+ * **Short name, not the name as written.** `FROM analytics.users` and `FROM users` are the same
+ * table, and keying on the written form split them into two rows with two separate reach counts —
+ * while the divergence anchors, which already fold to the short name, merged them. The same tool
+ * answered "what is this table" two different ways in two sections, and reach is the multiplier
+ * the whole severity ranking rests on, so the split mis-ranked everything downstream.
+ *
+ * **Scoped by integration.** Folding to the short name globally conflates a `users` in one
+ * warehouse with a `users` in another, which are not the same table by any reading. Scoping by
+ * integration removes that case entirely. What it does not remove is `analytics.users` and
+ * `staging.users` behind the *same* integration, which still merge: distinguishing them needs to
+ * know whether the unqualified `users` in a third query meant one or the other, and that is a
+ * question about the warehouse search path rather than about the query text. Merging is the
+ * direction that under-counts rather than invents, and every qualified spelling observed is kept
+ * on the row so the conflation is visible rather than silent.
+ */
+export function canonicalTableKey(shortName: string, integrationId: string | undefined): string {
+  return `${integrationId ?? UNKNOWN_INTEGRATION_SCOPE}${KEY_SEPARATOR}${shortName.toLowerCase()}`
+}

@@ -21,7 +21,7 @@ import { getBlockLabel } from '../block-label'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
 import { type SeverityScore, scoreFinding } from './scoring'
-import { findTableReferences } from './sql-tables'
+import { canonicalTableKey, findTableReferences, UNKNOWN_INTEGRATION_SCOPE } from './sql-tables'
 import { type AssetAge, assetAge, formatAge, medianAgeDays } from './staleness'
 import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
 import { createSubjectFingerprinter, redactSubjects } from './subjects'
@@ -70,8 +70,21 @@ export interface IntegrationUsage {
 
 /** A table referenced by the workspace's SQL, and how much live work depends on it. */
 export interface TableUsage {
-  /** Name as written, lower-cased: `analytics.public.users`. */
+  /** The table's short name, lower-cased: `users` for `analytics.public.users`. */
   name: string
+  /**
+   * The integration this row is scoped to, or `unknown` for blocks that declare none.
+   *
+   * A `users` behind two warehouses is two rows, because it is two tables.
+   */
+  integrationId: string
+  /**
+   * Every qualified spelling seen for this table, sorted. `['users']` when nobody qualified it.
+   *
+   * Present so that merging `analytics.users` with a bare `users` is visible rather than silent —
+   * two schemas behind one integration will show up here as two entries on one row.
+   */
+  qualifiedNames: string[]
   /** Projects whose SQL references it. */
   projectCount: number
   /** Of those, the ones edited within the past year. */
@@ -460,17 +473,27 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         if (block.type === 'sql') {
           sqlBlockCount++
           const referenced = findTableReferences(content)
+          // Keyed through `canonicalTableKey` so that `analytics.users` and a bare `users` behind
+          // the same integration are one row with one reach count — the same identity the
+          // divergence anchors use, rather than a second answer to the same question.
           tablesByBlock.set(
             block.id,
-            referenced.map(reference => reference.name)
+            referenced.map(reference => canonicalTableKey(reference.shortName, integrationId))
           )
-          for (const { name } of referenced) {
-            const usage = tables.get(name) ?? {
-              name,
+          for (const { name, shortName } of referenced) {
+            const key = canonicalTableKey(shortName, integrationId)
+            const usage = tables.get(key) ?? {
+              name: shortName.toLowerCase(),
+              integrationId: integrationId ?? UNKNOWN_INTEGRATION_SCOPE,
+              qualifiedNames: [],
               projectCount: 0,
               liveProjectCount: 0,
               blockCount: 0,
               projects: [],
+            }
+            if (!usage.qualifiedNames.includes(name)) {
+              usage.qualifiedNames.push(name)
+              usage.qualifiedNames.sort()
             }
             if (!usage.projects.some(entry => entry.projectId === project.id)) {
               usage.projects.push({ projectId: project.id, projectName: project.name, live: projectIsLive })
@@ -480,7 +503,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
               }
             }
             usage.blockCount++
-            tables.set(name, usage)
+            tables.set(key, usage)
           }
         }
         if (integrationId) {
@@ -825,7 +848,12 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     // bigger dependency than one three live projects query.
     tables: [...tables.values()].sort(
       (a, b) =>
-        b.liveProjectCount - a.liveProjectCount || b.projectCount - a.projectCount || a.name.localeCompare(b.name)
+        b.liveProjectCount - a.liveProjectCount ||
+        b.projectCount - a.projectCount ||
+        a.name.localeCompare(b.name) ||
+        // The short name is no longer unique now that rows are scoped per integration, so the
+        // scope is the final tie-break. Without it two warehouses' `users` would sort unstably.
+        a.integrationId.localeCompare(b.integrationId)
     ),
     staleness,
     egress: [...egress.values()].sort((a, b) => b.blockCount - a.blockCount || a.host.localeCompare(b.host)),
