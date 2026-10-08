@@ -23,6 +23,10 @@ const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
 // A project that deliberately contains one of every project-scoped governance finding.
 const GOVERNANCE_FILE = join('test-fixtures', 'governance-findings.deepnote')
 
+// A project whose first block is a one-line credential assignment — so the block's content-derived
+// label *is* the secret — alongside SQL blocks on a coercing and an identifier-quoting warehouse.
+const BLOCK_LABELS_FILE = join('test-fixtures', 'governance-block-labels.deepnote')
+
 // The (only) SQL integration id referenced by the SQL block in 3_integrations.deepnote. Tests that
 // want this integration to read as "missing" unset its generated SQL_* env var via vi.stubEnv.
 const INTEGRATIONS_FILE_SQL_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
@@ -689,6 +693,50 @@ describe('lint command', () => {
       expect(output).toContain('sql-tautology')
       expect(output).toContain('sql-string-boolean')
       expect(output).toContain('credential-hardcoded')
+    })
+
+    it.each([
+      ['without --governance', {}],
+      ['with --governance', { governance: true }],
+    ])('keeps a hardcoded credential out of every field of every issue, %s', async (_name, governanceOption) => {
+      setOutputConfig({ color: false })
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), BLOCK_LABELS_FILE), { ...governanceOption, output: 'json' })
+
+      // Asserted over the whole serialized issue list rather than a hand-picked set of fields: the
+      // leak has now arrived through four fields in turn, each one added without anyone thinking of
+      // it as a place a secret could reach. A field added here tomorrow fails this test.
+      const serialized = JSON.stringify(JSON.parse(getOutput(consoleSpy)).issues)
+      const secret = 'AKIAIOSFODNN7EXAMPLE'
+      for (let length = secret.length; length >= 12; length--) {
+        expect(serialized).not.toContain(secret.slice(0, length))
+      }
+
+      // The block is still identifiable — it is withholding the label, not the finding.
+      const issues = JSON.parse(getOutput(consoleSpy)).issues as Array<{ code: string; blockLabel: string }>
+      const unused = issues.find(issue => issue.code === 'unused-variable')
+      expect(unused?.blockLabel).toBe('code (9f1a2b3c)')
+    })
+
+    it('reads a double-quoted boolean literal through the block integration dialect', async () => {
+      setOutputConfig({ color: false })
+      allowExit()
+      const action = createLintAction(program)
+
+      await action(resolve(process.cwd(), BLOCK_LABELS_FILE), { governance: true, output: 'json' })
+
+      const issues = JSON.parse(getOutput(consoleSpy)).issues as Array<{
+        code: string
+        blockId: string
+        details?: { literal?: string }
+      }>
+      const flagged = issues.filter(issue => issue.code === 'sql-string-boolean').map(issue => issue.blockId)
+
+      // The MySQL block and the single-quoted PostgreSQL block, but not the double-quoted
+      // PostgreSQL block, where `"true"` names a column rather than quoting a string.
+      expect(flagged).toEqual(['8f1a2b3c4d5e6f708192a3b4c5d6e7f8', '6f1a2b3c4d5e6f708192a3b4c5d6e7f8'])
     })
 
     it('does not run the governance checks unless asked', async () => {

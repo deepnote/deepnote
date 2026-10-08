@@ -123,7 +123,15 @@ value, and `details.blockCount` says how many blocks share that fingerprint. Nev
 credential back into a notebook, a commit message, or a ticket.
 
 The SQL checks tokenize the query text, so they run without a warehouse connection, a schema, or a
-Python interpreter, and they apply to every dialect.
+Python interpreter. `sql-null-comparison` and `sql-tautology` hold in every dialect.
+`sql-string-boolean` consults the block's `sql_integration_id`: a double-quoted `"true"` is a
+string literal on MySQL, MariaDB and BigQuery and is reported, and a quoted _column name_ on the
+identifier-quoting dialects, where it is not. A block with no integration, or one the project does
+not declare, is treated as identifier-quoting and not reported.
+
+A block that holds a credential is labelled `<type> (<short id>)` instead of its first line, in
+every issue raised against it by any rule. For the one-line `TOKEN = "…"` assignment the credential
+checks most often fire on, that first line is the secret itself.
 
 `--governance` is project-scoped. The workspace-scoped checks — duplicated metric definitions,
 personal data scattered across notebooks, writes to third-party hosts, abandoned assets — compare

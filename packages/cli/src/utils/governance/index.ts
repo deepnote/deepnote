@@ -14,6 +14,7 @@
 
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import type { BlockInfo, IssueSeverity, LintIssue } from '../analysis'
+import { integrationTypesById, resolveDialect } from './dialect'
 import { findSecrets, type SecretFinding } from './secrets'
 import { checkSqlQuery } from './sql-checks'
 
@@ -100,6 +101,43 @@ function identityLabel(block: DeepnoteBlock): string {
   return `${block.type} (${block.id.slice(0, 8)})`
 }
 
+/**
+ * Scan a block for credentials under the rules its type warrants.
+ *
+ * The heuristic rule — a long literal assigned to a secret-looking name — is applied only to
+ * blocks holding executable source, where such a literal usually is a key. In prose it is usually
+ * an example.
+ */
+export function findBlockSecrets(block: DeepnoteBlock): SecretFinding[] {
+  const content = blockContent(block)
+  if (content.trim() === '') {
+    return []
+  }
+  const isSource = SOURCE_BLOCK_TYPES.has(block.type)
+  if (!isSource && !PROSE_BLOCK_TYPES.has(block.type)) {
+    return []
+  }
+  return findSecrets(content, { includeHeuristic: isSource })
+}
+
+/**
+ * The label any lint rule may use for `block`, given the content-derived `label` it would use.
+ *
+ * Whether a block holds a credential decides what may be quoted about it, and that decision cannot
+ * belong to the rule doing the quoting. `credential-hardcoded` reports a fingerprint precisely so
+ * the secret need not be written down — but it is one rule among many reporting the same block
+ * into the same output, and a sibling rule quoting the block's first line publishes what the
+ * fingerprint was protecting. `unused-variable` on a one-line `TOKEN = "…"` assignment does
+ * exactly that.
+ *
+ * So the lint layer resolves every block's label through here before any rule sees it, rather than
+ * each rule remembering. This is deliberately not gated on `--governance`: the leak is a property
+ * of the block, not of which checks were asked for.
+ */
+export function safeBlockLabel(block: DeepnoteBlock, label: string): string {
+  return findBlockSecrets(block).length > 0 ? identityLabel(block) : label
+}
+
 /** What a string withheld for holding a credential is replaced with. */
 const WITHHELD = '<redacted>'
 
@@ -174,8 +212,12 @@ function integrationIdOf(block: DeepnoteBlock): string | undefined {
  */
 export function runProjectGovernanceChecks(
   blocks: DeepnoteBlock[],
-  blockMap: Map<string, BlockInfo>
+  blockMap: Map<string, BlockInfo>,
+  integrations?: ReadonlyArray<{ id: string; type?: string }>
 ): GovernanceResult {
+  // The project's integration list is what turns `sql_integration_id` into a dialect. Absent it
+  // every block resolves to the unknown dialect, which is the silent-rather-than-guessing default.
+  const typesById = integrationTypesById(integrations)
   const issues: LintIssue[] = []
   const secretsByFingerprint = new Map<
     string,
@@ -193,16 +235,18 @@ export function runProjectGovernanceChecks(
 
     // Secrets are scanned before anything is reported, because whether this block holds one decides
     // what every finding on it is allowed to be labelled with — not just the credential findings.
-    const isSource = SOURCE_BLOCK_TYPES.has(block.type)
-    const isScannable = isSource || PROSE_BLOCK_TYPES.has(block.type)
-    const secretFindings = isScannable ? findSecrets(content, { includeHeuristic: isSource }) : []
+    // The lint layer already resolved `info.label` through `safeBlockLabel`; re-deriving it here
+    // keeps this function correct for callers that build their own block map.
+    const isScannable = SOURCE_BLOCK_TYPES.has(block.type) || PROSE_BLOCK_TYPES.has(block.type)
+    const secretFindings = findBlockSecrets(block)
 
     const label = secretFindings.length > 0 ? identityLabel(block) : info.label
 
     if (block.type === 'sql') {
       sqlBlocks++
       const integrationId = integrationIdOf(block)
-      for (const finding of checkSqlQuery(content)) {
+      const dialect = resolveDialect(integrationId, typesById)
+      for (const finding of checkSqlQuery(content, dialect)) {
         const safe = safeSqlFinding(
           finding,
           {

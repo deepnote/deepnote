@@ -318,8 +318,15 @@ deepnote lint my-project.deepnote
 | `credential-hardcoded` | A credential written into a block                                         |
 
 Credentials are reported by a truncated SHA-256 fingerprint, never by value, so the output is safe
-to paste into a ticket and the same key is still recognizable across blocks. The SQL checks read the
-query text only: no warehouse connection, no schema, and no Python interpreter is required.
+to paste into a ticket and the same key is still recognizable across blocks. A block holding a
+credential is labelled by its type and id rather than by its first line, for every rule reporting
+it — not just the governance ones — because that first line is often the assignment itself.
+
+The SQL checks read the query text only: no warehouse connection, no schema, and no Python
+interpreter is required. Where the same characters mean different things to different warehouses,
+the block's `sql_integration_id` decides. `flag = "true"` is a string comparison on MySQL, MariaDB
+and BigQuery and so is flagged there; on the identifier-quoting dialects it names a column and is
+left alone, as it is when the block declares no integration.
 
 `--governance` covers what a single project can answer on its own. The checks that compare projects
 against each other — duplicated metric definitions, personal data scattered across notebooks, writes

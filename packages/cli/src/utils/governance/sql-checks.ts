@@ -11,6 +11,7 @@
  * project is not evidence. They belong to the workspace-scoped surface.
  */
 
+import { type SqlDialect, UNKNOWN_DIALECT } from './dialect'
 import {
   COMPARISON_OPERATORS,
   type ColumnReference,
@@ -63,10 +64,16 @@ const NON_COLUMN_WORDS = new Set([
   'localtimestamp',
 ])
 
-/** Run every single-query check against one SQL query. */
-export function checkSqlQuery(sql: string): SqlFinding[] {
+/**
+ * Run every single-query check against one SQL query.
+ *
+ * `dialect` is consulted only where the same characters mean different things to different
+ * warehouses; it defaults to the unknown dialect, under which every check behaves as it did before
+ * integration types were threaded through.
+ */
+export function checkSqlQuery(sql: string, dialect: SqlDialect = UNKNOWN_DIALECT): SqlFinding[] {
   const tokens = tokenizeSql(sql)
-  return [...checkNullComparison(tokens), ...checkTautology(tokens), ...checkStringBoolean(tokens)]
+  return [...checkNullComparison(tokens), ...checkTautology(tokens), ...checkStringBoolean(tokens, dialect)]
 }
 
 /** Render the tokens from `start` to `end` inclusive as a one-line snippet. */
@@ -168,8 +175,14 @@ function boundsOperand(token: SqlToken | undefined): boolean {
 
 /**
  * `a.x = a.x`: a column compared to itself. In a join condition this makes the join a no-op (every
- * row matches every row, except where the column is NULL); in a filter it is dead weight that
- * usually marks a copy-paste where one side's alias was never updated.
+ * row matches every row, except where the column is NULL); in a filter it is dead weight.
+ *
+ * Written as it appears in the query, this is rare — rare enough that no claim is made here about
+ * how often it occurs. The shape turns up far more readily in *processed* SQL: a normalizer that
+ * resolves aliases will collapse a table self-joined under two of them into what reads as a
+ * tautology, and that artifact is a property of the normalizer, not of the query. This check sees
+ * only the tokens the author wrote, so it does not produce that artifact and does not inherit
+ * whatever rate one would measure downstream of a normalizer.
  *
  * Only identical column references count. `1 = 1`, `true = true`, and comparisons between different
  * columns are left alone.
@@ -222,9 +235,32 @@ function checkTautology(tokens: SqlToken[]): SqlFinding[] {
  * means — PostgreSQL coerces the literal, MySQL casts the boolean to a number and compares it to 0,
  * BigQuery rejects the query outright — so the same notebook gives different answers against
  * different warehouses. The intended spelling is the bare keyword `TRUE` / `FALSE`.
+ *
+ * Double quotes are where this stops being answerable from the text. `flag = "true"` is the same
+ * defect in MySQL, MariaDB and BigQuery, where `"true"` is a string; in the identifier-quoting
+ * dialects it is a comparison against a column *named* `true`, which is unusual but not wrong.
+ * The scanner cannot tell them apart — both are `quotedIdentifier` — so the dialect decides, and
+ * an unknown dialect decides against flagging.
  */
-function checkStringBoolean(tokens: SqlToken[]): SqlFinding[] {
+function checkStringBoolean(tokens: SqlToken[], dialect: SqlDialect): SqlFinding[] {
   const findings: SqlFinding[] = []
+
+  const isBooleanStringLiteral = (token: SqlToken | undefined): boolean => {
+    if (token === undefined) {
+      return false
+    }
+    // A `quotedIdentifier` only counts where the dialect reads double quotes as a string, and only
+    // when the quote actually used was a double quote — backticks and brackets are identifier
+    // quotes in every dialect, including the three that coerce.
+    const quotesAString =
+      token.type === 'string' ||
+      (token.type === 'quotedIdentifier' && dialect.doubleQuotesAreStrings && token.text.startsWith('"'))
+    if (!quotesAString) {
+      return false
+    }
+    const value = token.value.toLowerCase()
+    return value === 'true' || value === 'false'
+  }
 
   for (let i = 0; i < tokens.length; i++) {
     const operator = tokens[i]
@@ -234,10 +270,7 @@ function checkStringBoolean(tokens: SqlToken[]): SqlFinding[] {
 
     const before = tokens[i - 1]
     const after = tokens[i + 1]
-    const literal = [before, after].find(
-      token =>
-        token?.type === 'string' && (token.value.toLowerCase() === 'true' || token.value.toLowerCase() === 'false')
-    )
+    const literal = [before, after].find(isBooleanStringLiteral)
     if (!literal) {
       continue
     }

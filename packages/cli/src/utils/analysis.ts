@@ -9,7 +9,7 @@ import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integ
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
-import { type GovernanceSummary, runProjectGovernanceChecks } from './governance'
+import { type GovernanceSummary, runProjectGovernanceChecks, safeBlockLabel } from './governance'
 import { isBuiltinOrGlobal } from './python-builtins'
 
 // ============================================================================
@@ -197,7 +197,7 @@ export async function checkForIssues(
       allBlocks.push(block)
       blockMap.set(block.id, {
         id: block.id,
-        label: getBlockLabel(block),
+        label: safeBlockLabel(block, getBlockLabel(block)),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,
@@ -234,7 +234,7 @@ export async function checkForIssues(
   // they run on the blocks directly, so they need neither the DAG nor a Python interpreter.
   let governance: GovernanceSummary | undefined
   if (options.governance) {
-    const governanceResult = runProjectGovernanceChecks(allBlocks, blockMap)
+    const governanceResult = runProjectGovernanceChecks(allBlocks, blockMap, file.project.integrations)
     issues.push(...governanceResult.issues)
     governance = governanceResult.summary
   }
@@ -824,7 +824,7 @@ export function buildBlockMap(file: DeepnoteFile, options: AnalysisOptions = {})
     for (const block of notebook.blocks) {
       blockMap.set(block.id, {
         id: block.id,
-        label: getBlockLabel(block),
+        label: safeBlockLabel(block, getBlockLabel(block)),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { resolveDialect, UNKNOWN_DIALECT } from './dialect'
 import { checkSqlQuery } from './sql-checks'
 
 /** The codes reported for a query, in order. */
@@ -224,5 +225,65 @@ describe('checkSqlQuery — the null-safe operator is not a defect', () => {
   it('still calls `x != x` a contradiction', () => {
     expect(checkSqlQuery('SELECT * FROM t JOIN u ON t.x != t.x')[0].message).toContain('never true')
     expect(checkSqlQuery('SELECT * FROM t JOIN u ON t.x <> t.x')[0].message).toContain('never true')
+  })
+})
+
+describe('sql-string-boolean — double quotes mean different things to different dialects', () => {
+  const mysql = resolveDialect('i1', new Map([['i1', 'mysql']]))
+  const bigQuery = resolveDialect('i1', new Map([['i1', 'big-query']]))
+  const postgres = resolveDialect('i1', new Map([['i1', 'pgsql']]))
+
+  it.each(['mysql', 'mariadb', 'big-query'])('flags a double-quoted boolean literal on %s', type => {
+    const dialect = resolveDialect('i1', new Map([['i1', type]]))
+    const findings = checkSqlQuery('SELECT * FROM users WHERE is_active = "true"', dialect)
+
+    expect(findings.map(f => f.code)).toEqual(['sql-string-boolean'])
+    expect(findings[0].details).toMatchObject({ columnName: 'is_active', literal: 'true', suggestion: 'TRUE' })
+  })
+
+  it.each(['pgsql', 'snowflake', 'redshift', 'trino', 'sql-server'])(
+    'does not flag a double-quoted boolean on %s, where it names a column',
+    type => {
+      const dialect = resolveDialect('i1', new Map([['i1', type]]))
+
+      expect(checkSqlQuery('SELECT * FROM users WHERE is_active = "true"', dialect)).toEqual([])
+    }
+  )
+
+  it('does not flag a double-quoted boolean when the block declares no integration', () => {
+    expect(checkSqlQuery('SELECT * FROM users WHERE is_active = "true"')).toEqual([])
+  })
+
+  it('does not flag a double-quoted boolean for an integration the project never declared', () => {
+    expect(checkSqlQuery('SELECT * FROM users WHERE is_active = "true"', resolveDialect('missing', new Map()))).toEqual(
+      []
+    )
+  })
+
+  it('still flags a single-quoted boolean in every dialect, including identifier-quoting ones', () => {
+    for (const dialect of [mysql, bigQuery, postgres, UNKNOWN_DIALECT]) {
+      expect(checkSqlQuery("SELECT * FROM users WHERE is_active = 'true'", dialect).map(f => f.code)).toEqual([
+        'sql-string-boolean',
+      ])
+    }
+  })
+
+  it('leaves backtick- and bracket-quoted identifiers alone even where double quotes are strings', () => {
+    // Backticks are MySQL's identifier quote and brackets are T-SQL's, so neither is ever a string
+    // literal — not even in the dialects that coerce a double-quoted one.
+    expect(checkSqlQuery('SELECT * FROM users WHERE is_active = `true`', mysql)).toEqual([])
+    expect(checkSqlQuery('SELECT * FROM users WHERE is_active = [true]', mysql)).toEqual([])
+  })
+
+  it('does not flag Databricks, where the answer depends on a session setting', () => {
+    const databricks = resolveDialect('i1', new Map([['i1', 'databricks']]))
+
+    expect(checkSqlQuery('SELECT * FROM users WHERE is_active = "true"', databricks)).toEqual([])
+  })
+
+  it('reads the literal through the dialect on both sides of the operator', () => {
+    expect(checkSqlQuery('SELECT * FROM users WHERE "false" = is_active', bigQuery).map(f => f.code)).toEqual([
+      'sql-string-boolean',
+    ])
   })
 })
