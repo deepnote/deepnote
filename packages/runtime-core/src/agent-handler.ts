@@ -15,7 +15,7 @@ export type AgentStreamEvent =
 export interface AgentBlockContext {
   /** API key for the provider named by the block's `deepnote_agent_model`. */
   apiKey?: string
-  /** @deprecated Use {@link AgentBlockContext.apiKey}. Kept so existing callers keep working. */
+  /** @deprecated Use {@link AgentBlockContext.apiKey}. Only used for OpenAI models. */
   openAiToken?: string
   mcpServers: McpServerConfig[]
   notebookContext: string
@@ -153,9 +153,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   // Before any resource acquisition — a pre-aborted call must not spawn MCP subprocesses
   context.signal?.throwIfAborted()
 
-  const apiKey = context.apiKey ?? context.openAiToken
+  const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
+  // The deprecated alias only ever held an OpenAI key; never send it to another provider.
+  const apiKey = context.apiKey ?? (providerId === 'openai' ? context.openAiToken : undefined)
   if (!apiKey) {
-    const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
     throw new Error(`Pass your ${apiKeyEnvVarFor(providerId)} as context.apiKey.`)
   }
 

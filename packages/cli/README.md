@@ -303,8 +303,9 @@ deepnote run my-project.deepnote
 ```
 
 Compatible providers need a key, endpoint, and model. You can also set the model with
-`DEEPNOTE_AGENT_MODEL` when the block uses `openai-compatible:auto`. The corresponding `OPENAI_*`
-variables work as fallbacks. See [provider configuration](../runtime-core/README.md#agent-block-providers)
+`DEEPNOTE_AGENT_MODEL` when the block uses `openai-compatible:auto`. Without
+`DEEPNOTE_AGENT_BASE_URL`, the corresponding `OPENAI_*` variables work as fallbacks. See
+[provider configuration](../runtime-core/README.md#agent-block-providers)
 for all settings and endpoint requirements.
 
 For Cloud, use `auto` or a supported model ID without a provider prefix. Unsupported names,

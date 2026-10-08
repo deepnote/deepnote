@@ -91,8 +91,10 @@ Use `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` to override a provider's endpoint.
 
 Compatible providers such as OpenRouter, Ollama, and LiteLLM need a key, endpoint
 (`DEEPNOTE_AGENT_BASE_URL`), and model. Set the model in the block or use
-`openai-compatible:auto` with `DEEPNOTE_AGENT_MODEL`. Each `DEEPNOTE_AGENT_*` variable falls back
-to its `OPENAI_*` counterpart. Use the endpoint's model IDs; for OpenRouter, for example,
+`openai-compatible:auto` with `DEEPNOTE_AGENT_MODEL`. When `DEEPNOTE_AGENT_BASE_URL` is unset, each
+`DEEPNOTE_AGENT_*` variable falls back to its `OPENAI_*` counterpart. Once it is set, the
+`OPENAI_*` variables are ignored, so `OPENAI_API_KEY` is never sent to that endpoint. Use the
+endpoint's model IDs; for OpenRouter, for example,
 `openai-compatible:anthropic/claude-opus-5.5`.
 
 Direct OpenAI access and GPT-6 models use Responses, including through custom `OPENAI_BASE_URL`

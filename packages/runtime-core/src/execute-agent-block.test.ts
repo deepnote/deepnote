@@ -98,6 +98,16 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
+describe('executeAgentBlock credentials', () => {
+  it('does not send the deprecated OpenAI token to another provider', async () => {
+    const block: AgentBlock = { ...AGENT_BLOCK, metadata: { deepnote_agent_model: 'claude-opus-5-5' } }
+
+    await expect(executeAgentBlock(block, makeContext({ openAiToken: 'openai-key' }))).rejects.toThrow(
+      /ANTHROPIC_API_KEY/
+    )
+  })
+})
+
 describe('executeAgentBlock streaming', () => {
   it('forwards reasoning, tool calls, tool outputs, and final text in order', async () => {
     const onAgentEvent = vi.fn()

@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { apiKeyEnvVarFor, parseAgentModel, resolveAgentApiKey, resolveAgentModel } from './agent-provider'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
+})
 
 describe('parseAgentModel', () => {
   it('defaults to openai/auto when no model is set', () => {
@@ -84,6 +87,15 @@ describe('resolveAgentApiKey', () => {
 
   it('does not use another provider’s credentials for Anthropic', () => {
     expect(() => resolveAgentApiKey('anthropic', { OPENAI_API_KEY: 'openai-key' })).toThrow(/ANTHROPIC_API_KEY/)
+  })
+
+  it('does not send OPENAI_API_KEY to DEEPNOTE_AGENT_BASE_URL', () => {
+    expect(() =>
+      resolveAgentApiKey('openai-compatible', {
+        DEEPNOTE_AGENT_BASE_URL: 'https://openrouter.ai/api/v1',
+        OPENAI_API_KEY: 'openai-key',
+      })
+    ).toThrow('Set DEEPNOTE_AGENT_API_KEY to run this agent block.')
   })
 
   it('names both accepted variables when the compatible key is missing', () => {
@@ -261,5 +273,13 @@ describe('resolveAgentModel', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_MODEL: '' } })
 
     expect(resolved.modelName).toBe('gpt-6.1-sol')
+  })
+
+  it('ignores an empty OPENAI_BASE_URL', () => {
+    vi.stubEnv('OPENAI_BASE_URL', '')
+
+    const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k' })
+
+    expect(resolved.model).toMatchObject({ provider: 'openai.responses', modelId: 'gpt-6.1-sol' })
   })
 })
