@@ -181,30 +181,12 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json
 
 **Environment variables for `--prompt` / agent blocks:**
 
-Bare Claude ids such as `claude-opus-5-5` select Anthropic; other bare names select OpenAI.
-`auto`, Cloud's `default` sentinel, and an omitted model use the local OpenAI default.
-Local execution also accepts an explicit `provider:model` prefix.
+For local runs, `--prompt` needs `OPENAI_API_KEY` and uses `OPENAI_MODEL` (default `gpt-6.1-sol`).
+To use Claude or another provider, set `metadata.deepnote_agent_model` on an existing agent block
+and run the notebook. See [agent block providers](blocks-agent.md#providers) for models, keys,
+and custom endpoints.
 
-For `auto`, the provider's model environment variable overrides the default: `gpt-6.1-sol` for
-`openai`, `claude-opus-5-5` for `anthropic`. The `openai-compatible` provider requires an explicit
-model or model environment variable. Direct OpenAI access and GPT-6 models use Responses,
-including through `OPENAI_BASE_URL` proxies. Other models on custom URLs retain Chat Completions.
-
-For Cloud execution, use `auto` or a bare model id from Cloud's catalog (for example
-`claude-opus-5-5`). Cloud falls back to workspace settings for unsupported names, including local
-provider prefixes and currently `gpt-6.1-sol`. `auto` uses Cloud workspace settings; local provider
-keys and endpoints do not configure Cloud.
-
-| Variable                  | Provider            | Required | Description                                                    |
-| ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
-| `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
-| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; GPT-6 models require Responses                |
-| `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
-| `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
-| `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |
-| `ANTHROPIC_MODEL`         | `anthropic`         | no       | Model when the block says `auto`; otherwise the block wins     |
-| `DEEPNOTE_AGENT_API_KEY`  | `openai-compatible` | yes      | API key; falls back to `OPENAI_API_KEY`                        |
-| `DEEPNOTE_AGENT_BASE_URL` | `openai-compatible` | yes      | Endpoint; falls back to `OPENAI_BASE_URL`                      |
-| `DEEPNOTE_AGENT_MODEL`    | `openai-compatible` | no       | Model when the block says `auto`; falls back to `OPENAI_MODEL` |
+Cloud uses workspace settings for `auto` and unsupported model names. Local provider keys and
+endpoints do not configure Cloud; see [Cloud model support](blocks-agent.md#sharing-notebooks-with-cloud).
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.

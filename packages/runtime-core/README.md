@@ -71,41 +71,47 @@ try {
 
 ## Agent block providers
 
-A block's `deepnote_agent_model` accepts a bare model id. Claude ids such as `claude-opus-5-5`
-select Anthropic; other bare names select OpenAI. `auto`, Cloud's `default` sentinel, and an
-omitted model use the local OpenAI default below. Local execution also accepts an explicit
-`provider:model` prefix, such as `openai-compatible:llama4`.
+Set `metadata.deepnote_agent_model` to a model ID. Names starting with `claude-` select Anthropic;
+other names select OpenAI. For local runs, use `provider:model` to choose a provider explicitly,
+such as `anthropic:auto` or `openai-compatible:llama4`.
 
-| Provider id         | Default model                | API key                  | Base URL                  |
-| ------------------- | ---------------------------- | ------------------------ | ------------------------- |
-| `openai`            | `gpt-6.1-sol`                | `OPENAI_API_KEY`         | `OPENAI_BASE_URL`         |
-| `anthropic`         | `claude-opus-5-5`            | `ANTHROPIC_API_KEY`      | `ANTHROPIC_BASE_URL`      |
-| `openai-compatible` | none — errors if unspecified | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_BASE_URL` |
+Without a provider prefix, `auto` or an omitted model selects OpenAI. `default` is an alias for
+`auto`. An explicit model overrides the provider's model environment variable; otherwise that
+variable or the default below is used.
 
-`openai-compatible` covers OpenRouter, Ollama, LiteLLM, vLLM, Together and Groq, and falls back to
-the `OPENAI_*` variables when its own are unset. Each provider also reads a `*_MODEL` variable used
-when the block says `auto`.
+| Provider            | Default model                                                                     | API key                  | Model override         |
+| ------------------- | --------------------------------------------------------------------------------- | ------------------------ | ---------------------- |
+| `openai`            | [`gpt-6.1-sol`](https://developers.openai.com/api/docs/models/gpt-6.1-sol)        | `OPENAI_API_KEY`         | `OPENAI_MODEL`         |
+| `anthropic`         | [`claude-opus-5-5`](https://platform.claude.com/docs/en/models/opus-5-5/overview) | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      |
+| `openai-compatible` | Must be set                                                                       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` |
 
-The defaults use [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and
-[Claude Opus 5.5](https://platform.claude.com/docs/en/models/opus-5-5/overview).
-Direct OpenAI access and GPT-6 models use the Responses API, including through `OPENAI_BASE_URL`
-proxies. The proxy must support Responses for these models. Other models on custom base URLs
-retain Chat Completions. Use `openai-compatible` for an endpoint that only supports Chat Completions
-and select a model that supports tools there. OpenRouter uses its own model ids, for example
+### Custom endpoints
+
+Use `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` to override a provider's endpoint.
+
+Compatible providers such as OpenRouter, Ollama, and LiteLLM need a key, endpoint
+(`DEEPNOTE_AGENT_BASE_URL`), and model. Set the model in the block or use
+`openai-compatible:auto` with `DEEPNOTE_AGENT_MODEL`. Each `DEEPNOTE_AGENT_*` variable falls back
+to its `OPENAI_*` counterpart. Use the endpoint's model IDs; for OpenRouter, for example,
 `openai-compatible:anthropic/claude-opus-5.5`.
 
-Summarized adaptive thinking is enabled for Opus, Sonnet, and Haiku 5.5. Other Anthropic models
-use their API defaults, so older models do not receive unsupported thinking options.
+Direct OpenAI access and GPT-6 models use Responses, including through custom `OPENAI_BASE_URL`
+proxies. Other models on custom OpenAI endpoints use Chat Completions. The `openai-compatible`
+provider always uses Chat Completions and requires a model that supports tool calling through it.
+
+### Reasoning
+
+Anthropic Opus, Sonnet, and Haiku 5.5 use summarized adaptive thinking. Other Anthropic models use
+their API defaults.
 
 ### Sharing notebooks with Cloud
 
-Use bare ids from Cloud's supported catalog, such as `claude-opus-5-5`, `claude-sonnet-5-5`,
-`gpt-6-sol`, or `gpt-6-luna`. Cloud chooses the provider for those ids. Provider prefixes are a
-local extension: Cloud does not parse them and falls back to workspace settings for unsupported
-names. GPT-6.1 Sol is available locally but is not in Cloud's catalog as of October 8, 2026.
-For portable automatic selection, use `auto`: local execution uses the defaults above, while
-Cloud uses workspace settings. Provider keys and custom endpoints configured locally do not
-configure Cloud.
+Use `auto` or a supported model ID without a provider prefix, such as `claude-opus-5-5`,
+`claude-sonnet-5-5`, `gpt-6-sol`, or `gpt-6-luna`. Unsupported names, including provider prefixes,
+use workspace settings instead. GPT-6.1 Sol is not in Cloud's catalog as of October 8, 2026.
+
+`auto` uses workspace settings in Cloud and the defaults above locally. Local keys and endpoints
+do not configure Cloud.
 
 ## Result shape
 

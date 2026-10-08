@@ -156,7 +156,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   const apiKey = context.apiKey ?? context.openAiToken
   if (!apiKey) {
     const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
-    throw new Error(`No API key supplied for the "${providerId}" agent provider (${apiKeyEnvVarFor(providerId)}).`)
+    throw new Error(`Pass your ${apiKeyEnvVarFor(providerId)} as context.apiKey.`)
   }
 
   const { model, providerOptions } = resolveAgentModel({

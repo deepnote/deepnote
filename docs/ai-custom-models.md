@@ -23,7 +23,7 @@ Custom AI models enable you to use your own AI infrastructure with Deepnote Agen
 - Want to leverage proprietary or fine-tuned models
 - Require data to stay within specific infrastructure boundaries
 
-Your custom model endpoints must be OpenAI-compatible, meaning they follow the OpenAI API specification for chat completions and support tool calling. Select a model that supports tools through that endpoint; for example, GPT-6.1 Sol requires the Responses API for tool calls and cannot use this Chat Completions integration.
+Your endpoint must be OpenAI-compatible and support tool calling.
 
 Custom models work with all AI features including Deepnote Agent, single block edits, and prompt suggestions. However, code completions continue to use Deepnote's dedicated completions provider and are not affected by custom model configuration. If this is a consideration, code completions can be disabled altogether in your workspace settings.
 

@@ -150,9 +150,7 @@ export function resolveAgentApiKey(
   if (apiKey) return apiKey
 
   const fallback = providerId === 'openai-compatible' ? ' (or OPENAI_API_KEY)' : ''
-  throw new Error(
-    `${apiKeyEnvVarFor(providerId)}${fallback} environment variable is required for agent blocks using the "${providerId}" provider.`
-  )
+  throw new Error(`Set ${apiKeyEnvVarFor(providerId)}${fallback} to run this agent block.`)
 }
 
 function isDirectOpenAIEndpoint(baseURL: string | undefined): boolean {
@@ -175,8 +173,7 @@ export function resolveAgentModel({ spec, apiKey, env = process.env }: ResolveAg
 
   if (modelName === '') {
     throw new Error(
-      `No model configured for the "${providerId}" agent provider.\n` +
-        `Set the block's model explicitly, or set ${PROVIDER_ENV[providerId].modelVar}.`
+      `Set the block's deepnote_agent_model or ${PROVIDER_ENV[providerId].modelVar} to choose a model for "${providerId}".`
     )
   }
 
@@ -195,8 +192,7 @@ export function resolveAgentModel({ spec, apiKey, env = process.env }: ResolveAg
     case 'openai-compatible': {
       if (baseURL == null) {
         throw new Error(
-          'The "openai-compatible" agent provider needs an endpoint.\n' +
-            `Set ${PROVIDER_ENV[providerId].baseUrlVar} to the provider's base URL (for example https://openrouter.ai/api/v1).`
+          `Set ${PROVIDER_ENV[providerId].baseUrlVar} (or OPENAI_BASE_URL) to your provider's base URL, e.g. https://openrouter.ai/api/v1.`
         )
       }
       const provider = createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })

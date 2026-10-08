@@ -276,59 +276,42 @@ Without `--python`, the CLI also picks up a `.venv` or `venv` next to (or above)
 
 #### Agent Block (`--prompt` and agent blocks)
 
-The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
+`--prompt` adds an agent block and runs the notebook. Without a file, it creates a new notebook.
+The agent can read outputs, run Python, and add code and text blocks.
 
-**Choosing a provider:**
-
-`deepnote_agent_model` accepts a bare model id or a local `provider:model` prefix:
-
-| Provider id         | Package                     | Use for                                           |
-| ------------------- | --------------------------- | ------------------------------------------------- |
-| `openai`            | `@ai-sdk/openai`            | OpenAI (the default for `auto`)                   |
-| `anthropic`         | `@ai-sdk/anthropic`         | Claude                                            |
-| `openai-compatible` | `@ai-sdk/openai-compatible` | OpenRouter, Ollama, LiteLLM, vLLM, Together, Groq |
-
-Bare Claude ids such as `claude-opus-5-5` select `anthropic`; other bare model names select `openai`.
-`auto`, Cloud's `default` sentinel, and an omitted model use the local OpenAI default below.
+**OpenAI:**
 
 ```bash
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 ```
 
-**Requirements:**
+`--prompt` uses OpenAI with `OPENAI_MODEL`, or `gpt-6.1-sol` if unset.
 
-- The API key variable for the chosen provider must be set (see the table below).
-- Model selection precedence, per provider:
-  - If the agent block names a model, bare or after a prefix, that model is used.
-  - If the model is `"auto"`, `"default"`, or omitted, the provider's `*_MODEL` variable is used when set.
-  - Otherwise the provider default applies: `gpt-6.1-sol` for `openai`, `claude-opus-5-5` for `anthropic`. `openai-compatible` has no default and errors instead of guessing.
-  - A base URL only changes the endpoint; it does not change the precedence above.
+**Claude:** Set `metadata.deepnote_agent_model` to `claude-opus-5-5` on an existing agent block, then run the notebook:
 
-Direct OpenAI access and GPT-6 models use Responses, including through `OPENAI_BASE_URL` proxies.
-Other models on custom base URLs retain Chat Completions. For a Chat Completions-only endpoint,
-use `openai-compatible` with a model that supports tools through that endpoint.
+```bash
+ANTHROPIC_API_KEY=sk-ant-... deepnote run my-project.deepnote
+```
 
-For notebooks shared with Cloud, use `auto` or a bare model id from Cloud's supported catalog
-(for example `claude-opus-5-5`). Provider prefixes are local-only; Cloud falls back to workspace
-settings for unsupported names, including prefixes and currently `gpt-6.1-sol`. `auto` uses
-workspace settings in Cloud and the defaults above locally. Local keys and endpoints do not
-configure Cloud.
+**OpenRouter or another compatible provider:** Set the block's `metadata.deepnote_agent_model` to
+`openai-compatible:<model-id>`. For example, use `openai-compatible:anthropic/claude-opus-5.5` with:
 
-**Environment variables:**
+```bash
+DEEPNOTE_AGENT_API_KEY=... \
+DEEPNOTE_AGENT_BASE_URL=https://openrouter.ai/api/v1 \
+deepnote run my-project.deepnote
+```
 
-| Variable                  | Provider            | Required | Description                                                    |
-| ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
-| `OPENAI_API_KEY`          | `openai`            | yes      | API key                                                        |
-| `OPENAI_BASE_URL`         | `openai`            | no       | Custom endpoint; GPT-6 models require Responses                |
-| `OPENAI_MODEL`            | `openai`            | no       | Model when the block says `auto`; otherwise the block wins     |
-| `ANTHROPIC_API_KEY`       | `anthropic`         | yes      | API key                                                        |
-| `ANTHROPIC_BASE_URL`      | `anthropic`         | no       | Custom endpoint                                                |
-| `ANTHROPIC_MODEL`         | `anthropic`         | no       | Model when the block says `auto`; otherwise the block wins     |
-| `DEEPNOTE_AGENT_API_KEY`  | `openai-compatible` | yes      | API key; falls back to `OPENAI_API_KEY`                        |
-| `DEEPNOTE_AGENT_BASE_URL` | `openai-compatible` | yes      | Endpoint; falls back to `OPENAI_BASE_URL`                      |
-| `DEEPNOTE_AGENT_MODEL`    | `openai-compatible` | no       | Model when the block says `auto`; falls back to `OPENAI_MODEL` |
+Compatible providers need a key, endpoint, and model. You can also set the model with
+`DEEPNOTE_AGENT_MODEL` when the block uses `openai-compatible:auto`. The corresponding `OPENAI_*`
+variables work as fallbacks. See [provider configuration](../runtime-core/README.md#agent-block-providers)
+for all settings and endpoint requirements.
 
-When database integrations are configured, the agent is automatically made aware of them and can query them using `deepnote-toolkit`.
+For Cloud, use `auto` or a supported model ID without a provider prefix. Unsupported names,
+including provider prefixes, use workspace settings instead. Local keys and endpoints do not
+configure Cloud. See [Cloud model support](../runtime-core/README.md#sharing-notebooks-with-cloud).
+
+The agent can also query configured database integrations using `deepnote-toolkit`.
 
 ### `lint <path>`
 
