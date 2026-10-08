@@ -25,26 +25,34 @@ Workspace ./workspace
 
 Ingress — integrations
   Warehouse (snowflake) — 3 projects, 3 SQL blocks
+  cccccccc-3333-4333-8333-cccccccccccc — 1 project, 1 SQL block · undeclared in 1
   ⚠ Legacy Redshift (redshift) — declared in 1 project, used by none
 
 Egress — external hosts
   → writes  api.segment.io — 2 projects, 2 blocks
+  → writes  hooks.slack.com — 1 project, 1 block
+  → writes  s3://finance-exports — 1 project, 1 block
   → writes  s3://marketing-exports — 1 project, 1 block
   ← reads   gs://raw-events — 1 project, 1 block
 
 Data subjects
-  2 people in 5 locations, 1 external (internal: acme.io)
+  2 people in 5 locations, unclassified — pass --internal-domain to separate colleagues from customers
   ⚠ 1 person appears in more than one notebook
+  Identities are fingerprinted per run and discarded. For a persistent, searchable
+  index, run "deepnote subjects index".
 
 Credentials shared across projects
-  ✖ 2d24bb7a7685f122 — 2 projects: Marketing campaigns, Revenue reporting
+  ✖ 2d24bb7a7685f122 (Credential assigned to a secret-named variable) — 2 projects: Marketing campaigns, Revenue reporting
 
 Findings
   ⚠ egress-external: 5 in 2 projects
+  ⚠ credential-hardcoded: 2 in 2 projects
   ✖ credential-shared: 2 in 2 projects
   ⚠ ingress-integration-orphan: 1 in 1 project
+  ⚠ ingress-integration-undeclared: 1 in 1 project
   ⚠ pii-subject-scatter: 1 in 1 project
   ✖ sql-null-comparison: 1 in 1 project
+  ⚠ sql-string-boolean: 1 in 1 project
 
 Summary: 3 errors, 11 warnings
 ```
