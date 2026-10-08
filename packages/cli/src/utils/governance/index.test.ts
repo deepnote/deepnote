@@ -427,9 +427,10 @@ describe('runProjectGovernanceChecks — evidence known to hold a credential is 
 
 describe('runProjectGovernanceChecks — what a finding carries out of the block', () => {
   it('keeps the snippet to the comparison, so the rest of the query never travels with it', () => {
-    // This is the property that makes the snippet safe, and it is worth pinning: the span is the
-    // comparison, not the line and not the query. A literal elsewhere in the statement is simply
-    // not in it.
+    // The span is the comparison, not the line and not the query, so a literal elsewhere in the
+    // statement is not in it. Worth pinning — but it is not what makes the snippet safe. A literal
+    // that is itself an operand *is* in the span, which is why the snippet is redacted as well;
+    // see the credential cases above.
     const { issues } = run([
       {
         id: 'b1',
