@@ -135,6 +135,49 @@ describe('subjects commands', () => {
       expect(raw).not.toContain(SALT)
     })
 
+    it('keeps a location raw even when the name it holds is itself an address', async () => {
+      // The audit report masks every name it prints. This index must not: its whole purpose is to
+      // answer "where is this person's data", and a location whose project and notebook are
+      // redacted answers nothing. The per-subject fingerprint is what keeps the index from being a
+      // second copy of the data it indexes — the location is the answer, not the exposure.
+      //
+      // The names here carry addresses deliberately. A fixture whose names hold none would pass
+      // this test against a redacting implementation too, and so would prove nothing.
+      const root = await mkdtemp(join(tmpdir(), 'deepnote-subjects-dsar-'))
+      try {
+        await writeFile(
+          join(root, 'project.deepnote'),
+          [
+            'metadata:',
+            "  createdAt: '2025-06-02T09:14:00.000Z'",
+            "  modifiedAt: '2026-02-11T16:40:00.000Z'",
+            'project:',
+            '  id: 77777777-7777-4777-8777-777777777777',
+            '  name: Report for alice.smith@customer-corp.example',
+            '  notebooks:',
+            '    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5d',
+            '      name: Notes bob.jones@partner.example',
+            '      blocks:',
+            '        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f80',
+            '          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+            '          type: sql',
+            '          sortingKey: a0',
+            `          content: SELECT id FROM users WHERE owner = 'carol@customer-corp.example'`,
+            "version: '1'",
+          ].join('\n')
+        )
+        await createSubjectsIndexAction(program)(root, { out: indexPath })
+
+        const locations = (await readIndex()).subjects.flatMap(subject => subject.locations)
+
+        expect(locations.length).toBeGreaterThan(0)
+        expect(locations[0].projectName).toBe('Report for alice.smith@customer-corp.example')
+        expect(locations[0].notebookName).toBe('Notes bob.jones@partner.example')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+
     it('keeps the domain, which is a company rather than a person', async () => {
       await buildIndex()
 

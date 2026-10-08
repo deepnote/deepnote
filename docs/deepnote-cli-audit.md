@@ -145,14 +145,21 @@ clean bill of health:
 ## What leaves the process
 
 Everything the audit prints passes through one redaction step, applied to the assembled report as
-a whole rather than to each section as it is built. Credentials are masked in place wherever they
-appear — in a finding, a project or notebook name, an integration name, a flow-map label, a parse
-error — so a section added to the report later inherits the masking without anyone remembering to
-wire it up.
+a whole rather than to each section as it is built. Credentials **and email addresses** are masked
+in place wherever they appear — in a finding, a project or notebook name, an integration name, a
+flow-map label, a file path, a parse error — so a section added to the report later inherits the
+masking without anyone remembering to wire it up.
 
-This is why names in the output may be partly masked: a project called after a connection string
-is reported with the password replaced and the rest of the name intact, which keeps the finding
-locatable without reproducing the secret.
+This is why names in the output may be partly masked: a notebook called
+`Churn for dana@customer.example` is reported as `Churn for <redacted>`, which keeps the finding
+locatable without naming the person it is about. A `pii-subject-scatter` finding withholds the
+subject's fingerprint by design, and it would be pointless to do that while printing their address
+in the field beside it.
+
+`deepnote subjects index` is the deliberate exception. It is the one output whose purpose is to
+say where a named person's data is, so its locations keep the real project, notebook and path. The
+index is sensitive by design and should be handled as such — see
+[`deepnote subjects`](./deepnote-cli-subjects.md).
 
 ## Audit is not a gate
 

@@ -359,6 +359,84 @@ describe('audit command', () => {
       }
     })
   })
+
+  describe('audit command — personal data in a name is masked everywhere it appears', () => {
+    // A project and a notebook named after the people the work is for. Both are ordinary workspace
+    // hygiene, and both put an address into fields nobody classifies as sensitive.
+    const CUSTOMER = 'alice.smith@customer-corp.example'
+    const PARTNER = 'bob.jones@partner.example'
+
+    async function namedWorkspace(): Promise<string> {
+      const root = await mkdtemp(join(tmpdir(), 'deepnote-audit-subjects-'))
+      await mkdir(join(root, 'reports'), { recursive: true })
+      await writeFile(
+        join(root, 'reports', 'project.deepnote'),
+        [
+          'metadata:',
+          "  createdAt: '2025-06-02T09:14:00.000Z'",
+          "  modifiedAt: '2026-02-11T16:40:00.000Z'",
+          'project:',
+          '  id: 66666666-6666-4666-8666-666666666666',
+          `  name: ${JSON.stringify(`Report for ${CUSTOMER}`)}`,
+          '  notebooks:',
+          '    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5d',
+          `      name: ${JSON.stringify(`Notes ${PARTNER}`)}`,
+          '      blocks:',
+          '        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: code',
+          '          sortingKey: a0',
+          '          content: TOKEN = "AKIAIOSFODNN7EXAMPLE"',
+          '        - blockGroup: c2a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 8f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: code',
+          '          sortingKey: a1',
+          '          content: requests.post("https://hooks.example.com/ingest", data=df)',
+          '        - blockGroup: c3a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 7f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: sql',
+          '          sortingKey: a2',
+          `          content: ${JSON.stringify(`SELECT id FROM users WHERE owner = '${CUSTOMER}'`)}`,
+          "version: '1'",
+        ].join('\n')
+      )
+      return root
+    }
+
+    it.each([
+      ['the JSON report', { output: 'json' } as AuditOptions],
+      ['the default text report', { issues: true } as AuditOptions],
+    ])('names nobody in %s, at any depth', async (_name, options) => {
+      setOutputConfig({ color: false })
+      const root = await namedWorkspace()
+      try {
+        await createAuditAction(program)(root, options)
+
+        // Every field at every depth, not a hand-picked list. The project name reaches
+        // `credentials[].projects[]`, `egress[].projects[]`, `integrations[].consumers[]` and the
+        // flow-map labels; the notebook name reaches `issues[].notebookName` and `path`.
+        const serialized = getOutput(consoleSpy)
+        expect(serialized).not.toContain(CUSTOMER)
+        expect(serialized).not.toContain(PARTNER)
+        expect(serialized).not.toContain('alice.smith')
+        expect(serialized).not.toContain('bob.jones')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+
+    it('still names the project and notebook, with only the address removed', async () => {
+      const root = await namedWorkspace()
+      try {
+        await createAuditAction(program)(root, { output: 'json' })
+        const report = JSON.parse(getOutput(consoleSpy)) as { issues: Array<{ notebookName: string }> }
+
+        expect(report.issues[0].notebookName).toContain('Notes')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+  })
 })
 
 describe('describeNearest', () => {
