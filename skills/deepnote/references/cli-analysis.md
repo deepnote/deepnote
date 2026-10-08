@@ -161,17 +161,6 @@ constant. `details` carries `observations`, `consensusCount`, `projectCount` and
 ranking can be recomputed without re-running the audit, and `signalSource` says which number
 produced it.
 
-**Dependencies (`packages`).** Collected from `environment.packages` (the resolved lockfile),
-`project.settings.requirements`, and `!pip install` / `%pip install` / `conda install` lines inside
-code blocks. The lockfile is authoritative — a loose `requirements` entry beside a locked version is
-not a finding — **except** where a block re-installs the package, which runs after the environment
-is built and overrides it. Per-package rows carry `name`, `versions`, `maintainedVersions`, `pin`
-(`pinned` / `ranged` / `unpinned`), `purl` and the projects that declare it.
-
-`dependency-drift` counts only projects that are still maintained: a notebook abandoned in 2021
-pinning the 2021 version is pinning working, not disagreement. `--sbom` replaces the report with a
-CycloneDX 1.5 document, one component per package _version_ so each `purl` is matchable by a
-vulnerability scanner.
 **Scoping.** Anchors are keyed by integration, so `users` behind one connection is never compared
 with `users` behind another. `--divergence-scope type` relaxes to the integration type; `none`
 pools everything. Blocks with no `sql_integration_id` form their own bucket and are never compared
@@ -191,6 +180,18 @@ blocks or outputs; the payload is bounded by finding count. Verdicts (`real`,
 replaces the default in `signal`, with the displaced number kept in `details.prior`.
 `false-positive` moves the finding from `issues` to `suppressed`. Any failure warns once and the
 deterministic score stands; triage never fails a run.
+
+**Dependencies (`packages`).** Collected from `environment.packages` (the resolved lockfile),
+`project.settings.requirements`, and `!pip install` / `%pip install` / `conda install` lines inside
+code blocks. The lockfile is authoritative — a loose `requirements` entry beside a locked version is
+not a finding — **except** where a block re-installs the package, which runs after the environment
+is built and overrides it. Per-package rows carry `name`, `versions`, `maintainedVersions`, `pin`
+(`pinned` / `ranged` / `unpinned`), `purl` and the projects that declare it.
+
+`dependency-drift` counts only projects that are still maintained: a notebook abandoned in 2021
+pinning the 2021 version is pinning working, not disagreement. `--sbom` replaces the report with a
+CycloneDX 1.5 document, one component per package _version_ so each `purl` is matchable by a
+vulnerability scanner.
 
 The report also inventories `tables` (name, `projectCount`, `liveProjectCount`, `blockCount`) and
 `staleness` (live / aging / cold / undated notebooks, median age). An undated notebook is never
