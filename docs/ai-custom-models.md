@@ -85,7 +85,7 @@ Deepnote Agent must be enabled in your workspace settings for custom models to b
 
 You can edit or delete custom models from the **Custom models** section in AI settings:
 
-- **Edit**: Click the edit icon next to a model to update its name, endpoint URL, model ID, or API key. When editing, you can leave the API key field empty to keep the existing key.
+- **Edit**: Click the edit icon next to a model to update its name, endpoint URL, model ID, or API key. When editing, you can leave the API key field empty to keep the existing key, as long as the endpoint URL stays on the same host. If you change the endpoint to a different host, enter the API key again.
 - **Delete**: Click the delete icon to remove a custom model. If the model is currently set as the workspace default, the selection will revert to OpenAI.
 
 ## Custom vs Native Models
