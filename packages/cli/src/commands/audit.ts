@@ -168,7 +168,7 @@ function outputEgress(audit: WorkspaceAudit): void {
   const shown = ordered.slice(0, MAX_LISTED_ROWS)
   for (const host of shown) {
     // Padded to a common width so the host column lines up: the three markers are 8, 7 and 6
-    // characters, and colouring them first would make `padEnd` count the escape codes.
+    // characters, and coloring them first would make `padEnd` count the escape codes.
     const label = host.direction === 'write' ? '→ writes' : host.direction === 'read' ? '← reads' : '· refs'
     const marker = (host.direction === 'write' ? c.yellow : c.dim)(label.padEnd(EGRESS_MARKER_WIDTH))
     output(
