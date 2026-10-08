@@ -145,9 +145,12 @@ Each group's `confidence` is the **Wilson lower bound** on its consensus share, 
 majority by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.49, 78-of-80 scores
 0.91. Groups above `--min-confidence` raise one finding per diverging block; the rest are still in
 `audit.divergence` and under `--divergence`, which is how the check's precision gets measured rather
-than asserted. A finding's `signal` is `confidence × a per-kind prior` (join 0.55, filter 0.5,
-metric 0.29), and `details` carries `observations`, `consensusCount`, `projectCount` and
-`confidence` so the ranking can be recomputed without re-running the audit.
+than asserted. A finding's `signal` is `confidence × a per-kind prior` — `KIND_PRECISION_PRIOR` in
+`sql-divergence.ts`, where joins start above metrics because a table pair means one thing while an
+output name is a convention. The magnitudes are not restated here, so they cannot drift from the
+constant. `details` carries `observations`, `consensusCount`, `projectCount` and `confidence` so the
+ranking can be recomputed without re-running the audit, and `signalSource` says which number
+produced it.
 
 **Scoping.** Anchors are keyed by integration, so `users` behind one connection is never compared
 with `users` behind another. `--divergence-scope type` relaxes to the integration type; `none`

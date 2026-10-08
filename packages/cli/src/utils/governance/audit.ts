@@ -967,6 +967,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   // A model verdict of `false-positive` takes a finding out of the work queue but not out of the
   // report. Suppression that cannot be inspected is indistinguishable from a check that quietly
   // stopped working, which in a compliance tool is the expensive kind of silence.
+  //
+  // Both halves of this split reach the report, and both go through the boundary pass on the way
+  // out. A notebook name does not stop naming a person because the finding that located it was
+  // downranked, and `suppressed` was the fourth field to escape redaction by sitting beside the
+  // array someone had remembered to cover.
   const suppressed = allScored.filter(issue => issue.details?.verdict === 'false-positive')
   const scoredIssues = allScored.filter(issue => issue.details?.verdict !== 'false-positive')
 

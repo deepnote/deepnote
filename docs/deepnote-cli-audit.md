@@ -35,6 +35,9 @@ Tables — ranked by live reach
   tickets — 1 project, 1 SQL block
   users — 1 project, 1 SQL block
 
+Consensus — divergence
+  No anchor is defined two ways, or the corpus is too small to tell.
+
 Egress — external hosts
   → writes  api.segment.io — 2 projects, 2 blocks
   → writes  hooks.slack.com — 1 project, 1 block

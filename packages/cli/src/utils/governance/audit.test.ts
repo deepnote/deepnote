@@ -2,6 +2,7 @@ import type { DeepnoteBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import { auditWorkspace, CONSENSUS_PROJECT_FLOOR, holderReach } from './audit'
 import type { AssetAge } from './staleness'
+import { runTriage, type TriageProvider } from './triage'
 import type { LoadedWorkspace, WorkspaceProject } from './workspace'
 
 interface TestBlock {
@@ -1475,5 +1476,80 @@ describe('auditWorkspace — notebook ages are scoped to their project', () => {
     expect(audit.staleness.cold).toBe(1)
     expect(audit.staleness.live).toBe(1)
     expect(issuesOf(audit, 'asset-stale').map(issue => issue.projectId)).toEqual(['original'])
+  })
+})
+
+describe('auditWorkspace — a suppressed finding is still a published finding', () => {
+  function sqlProject(id: string, name: string, queries: string[]): WorkspaceProject {
+    return datedProject(id, name, daysAgo(30), [
+      {
+        name: 'Queries',
+        blocks: queries.map((content, index) => ({ id: `${id}-b${index}`, type: 'sql', content })),
+      },
+    ])
+  }
+
+  const JOIN = 'SELECT * FROM orders o JOIN users u ON o.user_id = u.id'
+  const JOIN_DIVERGENT = 'SELECT * FROM orders o JOIN users u ON o.email = u.email'
+  const SUBJECT = 'jane.doe@acme-corp.io'
+
+  /** Answers every candidate the same way, so no network is involved. */
+  const rejectAll: TriageProvider = {
+    async triage(batch) {
+      return batch.map(candidate => ({
+        id: candidate.id,
+        verdict: 'false-positive' as const,
+        reason: 'the two joins answer different questions',
+      }))
+    },
+  }
+
+  it('redacts the locating metadata of findings the model suppressed, not only of ranked ones', async () => {
+    // The diverging query sits in a notebook named after the person it is about, which is how an
+    // address reaches `notebookName` and `path` in the first place.
+    const projects = [
+      sqlProject('p1', 'Alpha', [JOIN]),
+      sqlProject('p2', 'Beta', [JOIN]),
+      sqlProject('p3', 'Gamma', [JOIN]),
+      datedProject('p4', 'Delta', daysAgo(30), [
+        { name: `churn for ${SUBJECT}`, blocks: [{ id: 'p4-b0', type: 'sql', content: JOIN_DIVERGENT }] },
+      ]),
+    ]
+    const tree = workspace(projects)
+
+    const deterministic = auditWorkspace(tree, { now: NOW })
+    const { results } = await runTriage(deterministic.divergence, { provider: rejectAll })
+    const audit = auditWorkspace(tree, { now: NOW, triage: results })
+
+    // Suppression takes the finding out of the work queue, not out of the report.
+    expect(issuesOf(audit, 'sql-divergence')).toEqual([])
+    expect(audit.suppressed).toHaveLength(1)
+    expect(audit.suppressed[0].details).toMatchObject({ verdict: 'false-positive' })
+
+    expect(audit.suppressed[0].notebookName).not.toContain(SUBJECT)
+    expect(audit.suppressed[0].path).not.toContain(SUBJECT)
+    expect(JSON.stringify(audit.suppressed)).not.toContain(SUBJECT)
+  })
+
+  it('redacts it the same way it redacts a ranked one', async () => {
+    const projects = [
+      sqlProject('p1', 'Alpha', [JOIN]),
+      sqlProject('p2', 'Beta', [JOIN]),
+      sqlProject('p3', 'Gamma', [JOIN]),
+      datedProject('p4', 'Delta', daysAgo(30), [
+        { name: `churn for ${SUBJECT}`, blocks: [{ id: 'p4-b0', type: 'sql', content: JOIN_DIVERGENT }] },
+      ]),
+    ]
+    const tree = workspace(projects)
+
+    const ranked = issuesOf(auditWorkspace(tree, { now: NOW }), 'sql-divergence')[0]
+    const { results } = await runTriage(auditWorkspace(tree, { now: NOW }).divergence, { provider: rejectAll })
+    const suppressed = auditWorkspace(tree, { now: NOW, triage: results }).suppressed[0]
+
+    // Same finding, same block, one verdict apart: the two must not disagree about what is safe to
+    // print, which is the property that makes a single redaction pass worth having.
+    expect(suppressed.blockId).toBe(ranked.blockId)
+    expect(suppressed.notebookName).toBe(ranked.notebookName)
+    expect(suppressed.path).toBe(ranked.path)
   })
 })
