@@ -148,6 +148,9 @@ function outputIntegrations(audit: WorkspaceAudit): void {
   output('')
 }
 
+/** Width of the widest egress direction marker (`→ writes`), so the host column lines up. */
+const EGRESS_MARKER_WIDTH = 8
+
 /** Egress: third-party hosts the code reaches, writes first. */
 function outputEgress(audit: WorkspaceAudit): void {
   const c = getChalk()
@@ -164,8 +167,10 @@ function outputEgress(audit: WorkspaceAudit): void {
   })
   const shown = ordered.slice(0, MAX_LISTED_ROWS)
   for (const host of shown) {
-    const marker =
-      host.direction === 'write' ? c.yellow('→ writes') : host.direction === 'read' ? c.dim('← reads') : c.dim('· refs')
+    // Padded to a common width so the host column lines up: the three markers are 8, 7 and 6
+    // characters, and colouring them first would make `padEnd` count the escape codes.
+    const label = host.direction === 'write' ? '→ writes' : host.direction === 'read' ? '← reads' : '· refs'
+    const marker = (host.direction === 'write' ? c.yellow : c.dim)(label.padEnd(EGRESS_MARKER_WIDTH))
     output(
       `  ${marker}  ${host.host} ${c.dim(`— ${plural(host.projects.length, 'project')}, ${plural(host.blockCount, 'block')}`)}`
     )

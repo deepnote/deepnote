@@ -250,10 +250,12 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     }
   })
 
-  it('labels a credential-bearing block by identity, so the label derives from nothing typed', () => {
+  it('masks the credential in place, keeping the rest of the label', () => {
     const { issues } = runWithContentLabels([{ id: 'b1c2d3e4f5a6', type: 'code', content: `TOKEN = "${SECRET}"` }])
 
-    expect(issues[0].blockLabel).toBe('code (b1c2d3e4)')
+    // Before `redactSecrets` existed this check discarded the whole label and reported the block by
+    // identity. Masking only the literal is strictly better: the finding stays locatable.
+    expect(issues[0].blockLabel).toBe('TOKEN = "<redacted>"')
   })
 
   it('redacts the label of every finding on the block, not just the credential finding', () => {
@@ -269,7 +271,7 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
 
     expect(issues.map(issue => issue.code)).toContain('sql-null-comparison')
     for (const issue of issues) {
-      expect(issue.blockLabel).toBe('sql (b1)')
+      expect(issue.blockLabel).toBe('-- postgres://admin:<redacted>@warehouse.internal/db')
     }
   })
 
