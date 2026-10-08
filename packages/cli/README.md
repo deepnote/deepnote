@@ -276,19 +276,19 @@ Without `--python`, the CLI also picks up a `.venv` or `venv` next to (or above)
 
 #### Agent Block (`--prompt` and agent blocks)
 
-The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
+`--prompt` adds an agent block and runs the notebook. Without a file, it creates a new notebook.
+The agent can read outputs, run Python, and add code and text blocks.
 
-**Requirements:**
+```bash
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
+```
 
-- `OPENAI_API_KEY` environment variable must be set (works with any OpenAI-compatible API)
-- Optionally set `OPENAI_BASE_URL` for non-OpenAI providers (Ollama, LiteLLM, etc.)
-- Model selection precedence:
-  - If the agent block sets `deepnote_agent_model` to a specific model, that model is used.
-  - If `deepnote_agent_model` is `"auto"` (or omitted), `OPENAI_MODEL` is used when set.
-  - If neither a block-specific model nor `OPENAI_MODEL` is set, the runtime falls back to `gpt-5`.
-  - `OPENAI_BASE_URL` only changes the provider endpoint; it does not change the precedence above or the final `gpt-5` fallback.
+`--prompt` uses OpenAI with `OPENAI_MODEL`, or `gpt-6.1-sol` if unset. To use Claude or another
+provider, set `metadata.deepnote_agent_model` on an existing agent block, such as `claude-opus-5-5`
+with `ANTHROPIC_API_KEY`. See [agent block providers](../runtime-core/README.md#agent-block-providers)
+for all providers and custom endpoints, and [Cloud model support](../runtime-core/README.md#sharing-notebooks-with-cloud).
 
-When database integrations are configured, the agent is automatically made aware of them and can query them using `deepnote-toolkit`.
+The agent can also query configured database integrations using `deepnote-toolkit`.
 
 ### `lint <path>`
 

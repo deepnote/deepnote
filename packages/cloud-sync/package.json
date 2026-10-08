@@ -1,0 +1,51 @@
+{
+  "name": "@deepnote/cloud-sync",
+  "version": "0.1.0",
+  "description": "Sync and publish local folders with Deepnote Cloud (Node.js)",
+  "keywords": [
+    "deepnote",
+    "cloud",
+    "sync",
+    "publish"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/cloud-sync"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch"
+  },
+  "dependencies": {
+    "@deepnote/cloud": "workspace:*",
+    "zod": "3.25.76"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
