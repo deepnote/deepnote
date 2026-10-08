@@ -132,6 +132,12 @@ describe('executeAgentBlock streaming', () => {
     ])
   })
 
+  it('rejects with the provider error instead of a generic no-output error', async () => {
+    modelRef.current = stepModel([{ type: 'error', error: new Error('404 page not found') }])
+
+    await expect(executeAgentBlock(AGENT_BLOCK, makeContext())).rejects.toThrow('404 page not found')
+  })
+
   it('stops after ten steps even if the model keeps requesting tools', async () => {
     const codeSpy = vi.fn(async () => 'code ok')
     modelRef.current = stepModel(

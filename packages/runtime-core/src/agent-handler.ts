@@ -241,6 +241,9 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         const toolOutput = 'output' in part ? part.output : undefined
         const outputStr = typeof toolOutput === 'string' ? toolOutput : (JSON.stringify(toolOutput) ?? '')
         await context.onAgentEvent?.({ type: 'tool_output', toolName: part.toolName, output: outputStr })
+      } else if (part.type === 'error') {
+        // Otherwise `.text` rejects with a generic "No output generated" and the provider's message is lost.
+        throw part.error
       }
     }
 
