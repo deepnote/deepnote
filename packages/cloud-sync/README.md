@@ -2,8 +2,8 @@
 
 Node.js workflows between a local folder and Deepnote Cloud. Today it owns workspace sync
 (`syncWorkspace`, the engine behind `deepnote sync`), the sync manifest (`.deepnote-sync.json`) that
-it writes, and the planning of local paths for synced projects. App publishing and Streamlit app
-registration move here next.
+it writes, the planning of local paths for synced projects, and Streamlit app registration
+(`createOrFindStreamlitApp`). App publishing moves here next.
 
 Used by `@deepnote/cli`.
 
@@ -158,6 +158,51 @@ cancelled:
   is ignored.
 - Once every worker has settled, `syncWorkspace` rejects with the error the policy rejected with, and
   no engine work is still running.
+
+### Streamlit apps
+
+`normalizeStreamlitEntrypoint(path)` normalizes a project-relative file path for use as a Streamlit
+entrypoint and returns it, or `null` when the path is unsafe: it has leading or trailing whitespace,
+contains a NUL byte or a backslash, ends with `/`, has a `..` segment, or normalizes to nothing
+(`''`, `.`, `/`). Empty and `.` segments are collapsed and leading slashes stripped, so `/apps/x.py`
+becomes `apps/x.py` and `./app.py` becomes `app.py`. The file extension is not checked.
+
+`createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)` registers the entrypoint as a
+Streamlit app of the project, or finds the app that already serves it. Pass an entrypoint from
+`normalizeStreamlitEntrypoint`.
+
+```ts
+import { waitForStreamlitApp } from "@deepnote/cloud";
+import {
+  createOrFindStreamlitApp,
+  normalizeStreamlitEntrypoint,
+} from "@deepnote/cloud-sync";
+
+const entrypoint = normalizeStreamlitEntrypoint("apps/dashboard.py");
+if (!entrypoint) {
+  throw new Error("Streamlit entrypoint must be a project-relative file path");
+}
+
+const { app, created } = await createOrFindStreamlitApp(
+  baseUrl,
+  token,
+  projectId,
+  entrypoint,
+);
+await waitForStreamlitApp(baseUrl, token, app.id, {
+  onStatus: (status) => console.log(status),
+});
+console.log(created ? "Created" : "Already served by", app.url);
+```
+
+It resolves with a `PublishedStreamlitApp`, `{ app, created }`: `created` is `true` for a new app and
+`false` when an app for the entrypoint already existed, in which case nothing was changed.
+
+- **Creating an app restarts the project machine**, which interrupts anyone working in the project.
+- **Waiting is separate.** Wait for the app to run with `waitForStreamlitApp` from `@deepnote/cloud`.
+- **Errors:** when creation fails because an app for the entrypoint already exists (409) but the
+  project's app list has no match, it rejects with that original `ApiError`. Every other failure,
+  including a failing list call, rejects with the underlying error.
 
 ### Sync manifest
 
