@@ -100,6 +100,35 @@ function identityLabel(block: DeepnoteBlock): string {
   return `${block.type} (${block.id.slice(0, 8)})`
 }
 
+/** What a withheld snippet is replaced with inside a message. */
+const WITHHELD_SNIPPET = '<redacted>'
+
+/**
+ * A SQL finding's message and evidence, with a credential kept out of both.
+ *
+ * The snippet spans the flagged comparison, which bounds it tightly — but a literal that is itself
+ * an operand of that comparison is inside the span, so `WHERE 'AKIA…' = NULL` and
+ * `WHERE 'postgres://u:…@h/db' = NULL` both put a credential in the evidence field. The span being
+ * narrow is what makes this rare; it is not what makes it safe.
+ *
+ * The message quotes the snippet verbatim, so masking only `details.snippet` would move the leak
+ * one field over rather than close it. Both are handled here, together, for that reason.
+ *
+ * `findSecrets` can tell whether the snippet holds a credential but not where it sits — locating a
+ * span needs the scanner that arrives with `redactSecrets`, which supersedes this and masks in
+ * place. Until then the snippet is withheld rather than published; `line` and `column` already
+ * locate the finding, and the message keeps its shape.
+ */
+function safeSqlFinding(finding: { message: string; snippet: string }): {
+  message: string
+  details: { snippet: string } | Record<string, never>
+} {
+  if (findSecrets(finding.snippet).length === 0) {
+    return { message: finding.message, details: { snippet: finding.snippet } }
+  }
+  return { message: finding.message.split(finding.snippet).join(WITHHELD_SNIPPET), details: {} }
+}
+
 function integrationIdOf(block: DeepnoteBlock): string | undefined {
   const id = (block.metadata as Record<string, unknown> | undefined)?.sql_integration_id
   return typeof id === 'string' ? id : undefined
@@ -142,17 +171,18 @@ export function runProjectGovernanceChecks(
       sqlBlocks++
       const integrationId = integrationIdOf(block)
       for (const finding of checkSqlQuery(content)) {
+        const safe = safeSqlFinding(finding)
         issues.push({
           severity: SEVERITY_BY_CODE[finding.code],
           code: finding.code,
-          message: finding.message,
+          message: safe.message,
           blockId: block.id,
           blockLabel: label,
           notebookName: info.notebookName,
           details: {
             line: finding.line,
             column: finding.column,
-            snippet: finding.snippet,
+            ...safe.details,
             ...(integrationId ? { integrationId } : {}),
             ...finding.details,
           },

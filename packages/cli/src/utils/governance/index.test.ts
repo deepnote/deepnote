@@ -258,6 +258,44 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     }
   })
 
+  it('keeps a credential out of a SQL finding, which quotes the comparison it flags', () => {
+    // The snippet spans the comparison, which is narrow — but a literal that is itself an operand
+    // is inside it. `'AKIA…' = NULL` is a real shape: a placeholder key compared the wrong way.
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'sql', content: `SELECT * FROM t WHERE '${SECRET}' = NULL` },
+    ])
+
+    const sql = issues.filter(issue => issue.code.startsWith('sql-'))
+    expect(sql).toHaveLength(1)
+
+    // The message quotes the snippet verbatim, so asserting on `details.snippet` alone would have
+    // passed while the credential sat in the sentence beside it.
+    const serialized = JSON.stringify(issues)
+    for (const run of runsOf(SECRET, 8)) {
+      expect(serialized).not.toContain(run)
+    }
+    expect(sql[0].message).toContain('<redacted>')
+    expect(sql[0].details?.snippet).toBeUndefined()
+  })
+
+  it('keeps a connection-string password out of the comparison it is quoted in', () => {
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'sql', content: "SELECT * FROM t WHERE dsn = 'postgres://u:n0tRealSecretValue@h/d' = NULL" },
+    ])
+
+    expect(JSON.stringify(issues)).not.toContain('n0tRealSecretValue')
+  })
+
+  it('publishes the snippet whenever it holds no credential', () => {
+    // Withholding is for the rare case. The evidence field is the point of the check otherwise.
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'sql', content: 'SELECT * FROM t WHERE a.deleted_at = NULL' },
+    ])
+
+    expect(issues[0].details?.snippet).toBe('a.deleted_at = NULL')
+    expect(issues[0].message).toContain('a.deleted_at = NULL')
+  })
+
   it('leaves the useful content label alone on blocks that hold no credential', () => {
     const { issues } = runWithContentLabels([
       { id: 'b1', type: 'sql', content: '-- active users\nSELECT * FROM users WHERE deleted_at = NULL' },
