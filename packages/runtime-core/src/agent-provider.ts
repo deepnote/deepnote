@@ -5,7 +5,7 @@ import type { JSONValue, LanguageModel } from 'ai'
 
 /**
  * Providers an agent block can run against. The id is the optional prefix of
- * `deepnote_agent_model` (`anthropic:claude-opus-5`); a bare model name means
+ * `deepnote_agent_model` (`anthropic:claude-opus-5-5`); a bare model name means
  * `openai`, so files written before prefixes existed keep working.
  */
 export const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
@@ -57,13 +57,13 @@ const PROVIDER_ENV: Record<AgentProviderId, ProviderEnvConfig> = {
     apiKeyVar: 'OPENAI_API_KEY',
     baseUrlVar: 'OPENAI_BASE_URL',
     modelVar: 'OPENAI_MODEL',
-    defaultModel: 'gpt-5',
+    defaultModel: 'gpt-6.1-sol',
   },
   anthropic: {
     apiKeyVar: 'ANTHROPIC_API_KEY',
     baseUrlVar: 'ANTHROPIC_BASE_URL',
     modelVar: 'ANTHROPIC_MODEL',
-    defaultModel: 'claude-opus-5',
+    defaultModel: 'claude-opus-5-5',
   },
   'openai-compatible': {
     apiKeyVar: 'DEEPNOTE_AGENT_API_KEY',
@@ -97,7 +97,7 @@ function isAgentProviderId(value: string): value is AgentProviderId {
  * Only a known provider id counts as a prefix. Anything else is treated as a
  * whole model name on `openai`, which keeps unprefixed values such as
  * `gpt-5.6-sol` working and leaves slash-separated aggregator ids
- * (`anthropic/claude-opus-5`) intact.
+ * (`anthropic/claude-opus-5.5`) intact.
  */
 export function parseAgentModel(spec: string | undefined): ParsedAgentModel {
   const trimmed = spec?.trim()

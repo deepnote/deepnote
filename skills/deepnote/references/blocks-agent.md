@@ -6,14 +6,14 @@
 
 Agentic block that takes a user prompt, reads the full notebook context (including prior block outputs), calls an LLM, and autonomously adds new code and markdown blocks to the notebook.
 
-The agent block uses the OpenAI Agents SDK and can connect to external MCP servers for additional tools.
+The agent block uses AI SDK 7 and can connect to external MCP servers for additional tools.
 
 **Metadata fields:**
 
-| Field                  | Type     | Default  | Description                                 |
-| ---------------------- | -------- | -------- | ------------------------------------------- |
-| `deepnote_agent_model` | `string` | `"auto"` | LLM model name (e.g. `gpt-5`, `gpt-5-mini`) |
-| `deepnote_mcp_servers` | `array`  | -        | Block-level MCP server configs (see below)  |
+| Field                  | Type     | Default  | Description                                       |
+| ---------------------- | -------- | -------- | ------------------------------------------------- |
+| `deepnote_agent_model` | `string` | `"auto"` | LLM model name (e.g. `gpt-6.1-sol`, `gpt-6-luna`) |
+| `deepnote_mcp_servers` | `array`  | -        | Block-level MCP server configs (see below)        |
 
 **MCP server config** (each entry in `deepnote_mcp_servers` or `project.settings.mcpServers`):
 
@@ -26,8 +26,16 @@ The agent block uses the OpenAI Agents SDK and can connect to external MCP serve
 
 **Providers:**
 
-`deepnote_agent_model` takes an optional `provider:model` prefix (`anthropic:claude-opus-5`). A bare
+`deepnote_agent_model` takes an optional `provider:model` prefix (`anthropic:claude-opus-5-5`). A bare
 model name or `"auto"` means `openai`.
+
+For `auto`, the provider's model environment variable overrides the default: `gpt-6.1-sol` for
+`openai`, `claude-opus-5-5` for `anthropic`. The `openai-compatible` provider requires an explicit
+model or model environment variable. OpenRouter uses `anthropic/claude-opus-5.5` as its Opus 5.5 id.
+
+Direct OpenAI access uses Responses, which GPT-6.1 Sol requires for tool calls. Setting
+`OPENAI_BASE_URL` switches to Chat Completions; also set `OPENAI_MODEL` (or the block's model) to a
+model that supports tool calls through that endpoint.
 
 | Provider id         | Package                     | Use for                                           |
 | ------------------- | --------------------------- | ------------------------------------------------- |
@@ -60,7 +68,7 @@ model name or `"auto"` means `openai`.
   type: agent
   content: "Analyze the data loaded above and create a visualization of the top 10 categories"
   metadata:
-    deepnote_agent_model: gpt-5
+    deepnote_agent_model: gpt-6.1-sol
     deepnote_mcp_servers:
       - name: filesystem
         command: npx

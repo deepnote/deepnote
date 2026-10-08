@@ -345,7 +345,7 @@ export class ExecutionEngine {
           if (!apiKey) {
             throw new Error(
               `${apiKeyEnvVar} environment variable is required for agent blocks using the "${providerId}" provider.\n` +
-                'Prefix the block model with a provider to use a different one, for example `anthropic:claude-opus-5`.'
+                'Prefix the block model with a provider to use a different one, for example `anthropic:claude-opus-5-5`.'
             )
           }
 

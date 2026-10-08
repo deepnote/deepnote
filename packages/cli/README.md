@@ -288,10 +288,10 @@ The `--prompt` flag appends an agent block to the notebook (or creates one from 
 | `anthropic`         | `@ai-sdk/anthropic`         | Claude                                            |
 | `openai-compatible` | `@ai-sdk/openai-compatible` | OpenRouter, Ollama, LiteLLM, vLLM, Together, Groq |
 
-A bare model name (`gpt-5`) or `auto` means `openai`, so notebooks written before prefixes existed are unaffected.
+A bare model name (`gpt-6.1-sol`) or `auto` means `openai`. Explicit model names in existing notebooks are preserved; `auto` follows the defaults below.
 
 ```bash
-ANTHROPIC_API_KEY=sk-ant-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 ```
 
 **Requirements:**
@@ -300,8 +300,10 @@ ANTHROPIC_API_KEY=sk-ant-... deepnote run my-project.deepnote --prompt "Analyze 
 - Model selection precedence, per provider:
   - If the agent block names a model after the prefix, that model is used.
   - If the model is `"auto"` (or omitted), the provider's `*_MODEL` variable is used when set.
-  - Otherwise the provider default applies: `gpt-5` for `openai`, `claude-opus-5` for `anthropic`. `openai-compatible` has no default and errors instead of guessing.
+  - Otherwise the provider default applies: `gpt-6.1-sol` for `openai`, `claude-opus-5-5` for `anthropic`. `openai-compatible` has no default and errors instead of guessing.
   - A base URL only changes the endpoint; it does not change the precedence above.
+
+Direct OpenAI access uses the Responses API, which GPT-6.1 Sol requires for tool calls. Setting `OPENAI_BASE_URL` switches to Chat Completions; also set `OPENAI_MODEL` (or the block's model) to a model that supports tool calls through that endpoint.
 
 **Environment variables:**
 

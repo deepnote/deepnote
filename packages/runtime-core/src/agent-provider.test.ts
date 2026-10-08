@@ -10,26 +10,27 @@ describe('parseAgentModel', () => {
 
   it('treats a bare model name as openai, so existing files keep working', () => {
     expect(parseAgentModel('auto')).toEqual({ providerId: 'openai', modelName: 'auto' })
+    expect(parseAgentModel('gpt-6.1-sol')).toEqual({ providerId: 'openai', modelName: 'gpt-6.1-sol' })
     expect(parseAgentModel('gpt-5')).toEqual({ providerId: 'openai', modelName: 'gpt-5' })
     expect(parseAgentModel('gpt-5.6-sol')).toEqual({ providerId: 'openai', modelName: 'gpt-5.6-sol' })
   })
 
   it('splits a known provider prefix', () => {
-    expect(parseAgentModel('anthropic:claude-opus-5')).toEqual({
+    expect(parseAgentModel('anthropic:claude-opus-5-5')).toEqual({
       providerId: 'anthropic',
-      modelName: 'claude-opus-5',
+      modelName: 'claude-opus-5-5',
     })
-    expect(parseAgentModel('openai:gpt-5')).toEqual({ providerId: 'openai', modelName: 'gpt-5' })
-    expect(parseAgentModel('openai-compatible:llama3')).toEqual({
+    expect(parseAgentModel('openai:gpt-6.1-sol')).toEqual({ providerId: 'openai', modelName: 'gpt-6.1-sol' })
+    expect(parseAgentModel('openai-compatible:llama4')).toEqual({
       providerId: 'openai-compatible',
-      modelName: 'llama3',
+      modelName: 'llama4',
     })
   })
 
   it('leaves slash-separated aggregator ids intact', () => {
-    expect(parseAgentModel('openai-compatible:anthropic/claude-opus-5')).toEqual({
+    expect(parseAgentModel('openai-compatible:anthropic/claude-opus-5.5')).toEqual({
       providerId: 'openai-compatible',
-      modelName: 'anthropic/claude-opus-5',
+      modelName: 'anthropic/claude-opus-5.5',
     })
   })
 
@@ -43,13 +44,13 @@ describe('parseAgentModel', () => {
   })
 
   it('ignores a leading colon rather than reading an empty provider', () => {
-    expect(parseAgentModel(':gpt-5')).toEqual({ providerId: 'openai', modelName: ':gpt-5' })
+    expect(parseAgentModel(':gpt-6.1-sol')).toEqual({ providerId: 'openai', modelName: ':gpt-6.1-sol' })
   })
 
   it('trims surrounding whitespace', () => {
-    expect(parseAgentModel('  anthropic:claude-opus-5  ')).toEqual({
+    expect(parseAgentModel('  anthropic:claude-opus-5-5  ')).toEqual({
       providerId: 'anthropic',
-      modelName: 'claude-opus-5',
+      modelName: 'claude-opus-5-5',
     })
   })
 })
@@ -67,20 +68,22 @@ describe('resolveAgentModel', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: {} })
 
     expect(resolved.providerId).toBe('openai')
-    expect(resolved.modelName).toBe('gpt-5')
+    expect(resolved.modelName).toBe('gpt-6.1-sol')
+    // GPT-6.1 Sol requires Responses for tool calls.
+    expect(resolved.model).toMatchObject({ provider: 'openai.responses', modelId: 'gpt-6.1-sol' })
     expect(resolved.providerOptions).toEqual({ openai: { reasoningSummary: 'auto' } })
   })
 
   it('lets OPENAI_MODEL override the openai default', () => {
-    const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-4o' } })
+    const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-6-luna' } })
 
-    expect(resolved.modelName).toBe('gpt-4o')
+    expect(resolved.modelName).toBe('gpt-6-luna')
   })
 
   it('prefers the block model over OPENAI_MODEL', () => {
-    const resolved = resolveAgentModel({ spec: 'gpt-5', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-4o' } })
+    const resolved = resolveAgentModel({ spec: 'gpt-6.1-sol', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-6-luna' } })
 
-    expect(resolved.modelName).toBe('gpt-5')
+    expect(resolved.modelName).toBe('gpt-6.1-sol')
   })
 
   it('drops reasoning summaries when OPENAI_BASE_URL points elsewhere', () => {
@@ -89,17 +92,19 @@ describe('resolveAgentModel', () => {
     const resolved = resolveAgentModel({
       spec: 'auto',
       apiKey: 'k',
-      env: { OPENAI_BASE_URL: 'https://example.test/v1' },
+      env: { OPENAI_BASE_URL: 'https://example.test/v1', OPENAI_MODEL: 'custom-chat-model' },
     })
 
     expect(resolved.providerOptions).toEqual({})
+    expect(resolved.model).toMatchObject({ provider: 'openai.chat', modelId: 'custom-chat-model' })
   })
 
   it('resolves anthropic with a Claude default and summarized thinking', () => {
     const resolved = resolveAgentModel({ spec: 'anthropic:auto', apiKey: 'k', env: {} })
 
     expect(resolved.providerId).toBe('anthropic')
-    expect(resolved.modelName).toBe('claude-opus-5')
+    expect(resolved.modelName).toBe('claude-opus-5-5')
+    expect(resolved.model).toMatchObject({ provider: 'anthropic.messages', modelId: 'claude-opus-5-5' })
     expect(resolved.providerOptions).toEqual({
       anthropic: { thinking: { type: 'adaptive', display: 'summarized' } },
     })
@@ -109,26 +114,29 @@ describe('resolveAgentModel', () => {
     const resolved = resolveAgentModel({
       spec: 'anthropic:auto',
       apiKey: 'k',
-      env: { ANTHROPIC_MODEL: 'claude-sonnet-5' },
+      env: { ANTHROPIC_MODEL: 'claude-sonnet-5-5' },
     })
 
-    expect(resolved.modelName).toBe('claude-sonnet-5')
+    expect(resolved.modelName).toBe('claude-sonnet-5-5')
   })
 
   it('does not let OPENAI_MODEL leak into another provider', () => {
-    const resolved = resolveAgentModel({ spec: 'anthropic:auto', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-4o' } })
+    const resolved = resolveAgentModel({ spec: 'anthropic:auto', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-6-luna' } })
 
-    expect(resolved.modelName).toBe('claude-opus-5')
+    expect(resolved.modelName).toBe('claude-opus-5-5')
   })
 
   it('resolves openai-compatible from its own variables', () => {
     const resolved = resolveAgentModel({
       spec: 'openai-compatible:auto',
       apiKey: 'k',
-      env: { DEEPNOTE_AGENT_BASE_URL: 'https://openrouter.ai/api/v1', DEEPNOTE_AGENT_MODEL: 'anthropic/claude-opus-5' },
+      env: {
+        DEEPNOTE_AGENT_BASE_URL: 'https://openrouter.ai/api/v1',
+        DEEPNOTE_AGENT_MODEL: 'anthropic/claude-opus-5.5',
+      },
     })
 
-    expect(resolved.modelName).toBe('anthropic/claude-opus-5')
+    expect(resolved.modelName).toBe('anthropic/claude-opus-5.5')
     expect(resolved.providerOptions).toEqual({})
   })
 
@@ -136,14 +144,14 @@ describe('resolveAgentModel', () => {
     const resolved = resolveAgentModel({
       spec: 'openai-compatible:auto',
       apiKey: 'k',
-      env: { OPENAI_BASE_URL: 'http://localhost:11434/v1', OPENAI_MODEL: 'llama3' },
+      env: { OPENAI_BASE_URL: 'http://localhost:11434/v1', OPENAI_MODEL: 'llama4' },
     })
 
-    expect(resolved.modelName).toBe('llama3')
+    expect(resolved.modelName).toBe('llama4')
   })
 
   it('names the variable to set when openai-compatible has no endpoint', () => {
-    expect(() => resolveAgentModel({ spec: 'openai-compatible:llama3', apiKey: 'k', env: {} })).toThrow(
+    expect(() => resolveAgentModel({ spec: 'openai-compatible:llama4', apiKey: 'k', env: {} })).toThrow(
       /DEEPNOTE_AGENT_BASE_URL/
     )
   })
@@ -161,6 +169,6 @@ describe('resolveAgentModel', () => {
   it('ignores empty env values instead of treating them as configured', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_MODEL: '' } })
 
-    expect(resolved.modelName).toBe('gpt-5')
+    expect(resolved.modelName).toBe('gpt-6.1-sol')
   })
 })

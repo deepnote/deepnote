@@ -50,7 +50,7 @@ RUN_TARGET=local OPENAI_API_KEY=sk-... pnpm example:local-runner
 environment with `deepnote-toolkit[server]` — the same prerequisite as `deepnote run` — and an
 OpenAI key for the notebook's **agent block**. Without a key the dashboard still renders in full and
 only the agent block reports the problem: it runs last, and the engine stops at the first failing
-block. `deepnote_agent_model: auto` resolves to `$OPENAI_MODEL` (default `gpt-5`) locally; in the
+block. `deepnote_agent_model: auto` resolves to `$OPENAI_MODEL` (default `gpt-6.1-sol`) locally; in the
 cloud Deepnote picks the model.
 
 ## Schedule recurring cloud runs

@@ -72,18 +72,25 @@ try {
 ## Agent block providers
 
 A block's `deepnote_agent_model` takes an optional `provider:model` prefix, resolved by
-`resolveAgentModel()`. A bare model name (`gpt-5`) or `auto` means `openai`, so notebooks written
-before prefixes existed are unaffected.
+`resolveAgentModel()`. A bare model name (`gpt-6.1-sol`) or `auto` means `openai`. Explicit model
+names in existing notebooks are preserved; `auto` follows the defaults below.
 
 | Provider id         | Default model                | API key                  | Base URL                  |
 | ------------------- | ---------------------------- | ------------------------ | ------------------------- |
-| `openai`            | `gpt-5`                      | `OPENAI_API_KEY`         | `OPENAI_BASE_URL`         |
-| `anthropic`         | `claude-opus-5`              | `ANTHROPIC_API_KEY`      | `ANTHROPIC_BASE_URL`      |
+| `openai`            | `gpt-6.1-sol`                | `OPENAI_API_KEY`         | `OPENAI_BASE_URL`         |
+| `anthropic`         | `claude-opus-5-5`            | `ANTHROPIC_API_KEY`      | `ANTHROPIC_BASE_URL`      |
 | `openai-compatible` | none — errors if unspecified | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_BASE_URL` |
 
 `openai-compatible` covers OpenRouter, Ollama, LiteLLM, vLLM, Together and Groq, and falls back to
 the `OPENAI_*` variables when its own are unset. Each provider also reads a `*_MODEL` variable used
 when the block says `auto`.
+
+The defaults use [GPT-6.1 Sol](https://developers.openai.com/api/docs/models/gpt-6.1-sol) and
+[Claude Opus 5.5](https://platform.claude.com/docs/en/models/opus-5-5/overview).
+Direct OpenAI access uses the Responses API, which GPT-6.1 Sol requires for tool calls.
+Setting `OPENAI_BASE_URL` switches to Chat Completions; also set `OPENAI_MODEL` (or the block's
+model) to a model that supports tool calls through that endpoint. OpenRouter uses its own model
+ids, for example `openai-compatible:anthropic/claude-opus-5.5`.
 
 ## Result shape
 

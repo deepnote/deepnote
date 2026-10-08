@@ -181,8 +181,14 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json
 
 **Environment variables for `--prompt` / agent blocks:**
 
-The provider comes from the `provider:model` prefix on `deepnote_agent_model` (`anthropic:claude-opus-5`);
+The provider comes from the `provider:model` prefix on `deepnote_agent_model` (`anthropic:claude-opus-5-5`);
 a bare model name or `"auto"` means `openai`.
+
+For `auto`, the provider's model environment variable overrides the default: `gpt-6.1-sol` for
+`openai`, `claude-opus-5-5` for `anthropic`. The `openai-compatible` provider requires an explicit
+model or model environment variable. Setting `OPENAI_BASE_URL` switches from Responses to Chat
+Completions; also select a model that supports tool calls through that endpoint. GPT-6.1 Sol
+requires Responses for tool calls.
 
 | Variable                  | Provider            | Required | Description                                                    |
 | ------------------------- | ------------------- | -------- | -------------------------------------------------------------- |
