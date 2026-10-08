@@ -550,3 +550,51 @@ describe('auditWorkspace — egress blockCount counts blocks', () => {
     expect(issuesOf(audit, 'egress-external')).toHaveLength(2)
   })
 })
+
+describe('auditWorkspace — the per-project checks get the project integrations', () => {
+  it('reads a double-quoted boolean through the block dialect, as lint does', () => {
+    // Omitting the integration list made the audit quietly weaker than the lint it subsumes:
+    // every dialect-dependent finding resolved to the unknown dialect and stayed silent.
+    const audit = auditWorkspace(
+      workspace([
+        project(
+          'p1',
+          'Alpha',
+          [
+            {
+              name: 'N',
+              blocks: [
+                { id: 'b1', type: 'sql', content: 'SELECT * FROM users WHERE is_active = "true"', integrationId: 'wh' },
+              ],
+            },
+          ],
+          [{ id: 'wh', name: 'Warehouse', type: 'mysql' }]
+        ),
+      ])
+    )
+
+    expect(issuesOf(audit, 'sql-string-boolean')).toHaveLength(1)
+  })
+
+  it('leaves the same query alone on an identifier-quoting warehouse', () => {
+    const audit = auditWorkspace(
+      workspace([
+        project(
+          'p1',
+          'Alpha',
+          [
+            {
+              name: 'N',
+              blocks: [
+                { id: 'b1', type: 'sql', content: 'SELECT * FROM users WHERE is_active = "true"', integrationId: 'wh' },
+              ],
+            },
+          ],
+          [{ id: 'wh', name: 'Warehouse', type: 'pgsql' }]
+        ),
+      ])
+    )
+
+    expect(issuesOf(audit, 'sql-string-boolean')).toEqual([])
+  })
+})

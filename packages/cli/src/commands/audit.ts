@@ -4,7 +4,7 @@ import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, isErrnoENOENT } from '../utils/file-resolver'
-import { type AuditIssue, auditWorkspace, type WorkspaceAudit } from '../utils/governance/audit'
+import { type AuditIssue, auditWorkspace, scrubText, type WorkspaceAudit } from '../utils/governance/audit'
 import { loadWorkspace } from '../utils/governance/workspace'
 
 export interface AuditOptions {
@@ -52,13 +52,18 @@ export function createAuditAction(
           p => p.id === options.project || p.name.toLowerCase() === options.project?.toLowerCase()
         )
       ) {
+        // Scrubbed like everything else the command prints. This path never reaches
+        // `auditWorkspace`, so it does not inherit the report's redaction boundary — and it names
+        // the workspace root and the closest project names, either of which can hold a credential.
         throw new FileResolutionError(
-          workspace.projects.length === 0
-            ? `Project "${options.project}" not found: no .deepnote files under ${root}`
-            : `Project "${options.project}" not found in ${root}. ${describeNearest(
-                options.project,
-                workspace.projects.map(p => p.name)
-              )}`
+          scrubText(
+            workspace.projects.length === 0
+              ? `Project "${options.project}" not found: no .deepnote files under ${root}`
+              : `Project "${options.project}" not found in ${root}. ${describeNearest(
+                  options.project,
+                  workspace.projects.map(p => p.name)
+                )}`
+          )
         )
       }
 

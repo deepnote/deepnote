@@ -142,13 +142,18 @@ const SEVERITY = {
 /**
  * Mask every credential in one user-facing string.
  *
+ * Exported because not every string the audit command prints comes out of a report. The
+ * "project not found" message names the workspace root and the closest project names, and a
+ * project name can be a connection string — so a mistyped `--project` printed a password into a
+ * CI log, from the very helper whose comment warns about disclosing names.
+ *
  * Applied whole first, then per `/`-separated segment. A URI password is only recognizable with
  * its scheme and host around it, so the whole-string pass has to come first; the segment pass then
  * catches patterns that deliberately refuse to match across a `/`, which is how a value buried in
  * a filesystem path or a URL would otherwise survive. Masking is idempotent, so running both
  * costs nothing on a string that has no secret in it.
  */
-function scrubText(text: string): string {
+export function scrubText(text: string): string {
   const whole = redactSecrets(text)
   return whole.includes('/') ? whole.split('/').map(redactSecrets).join('/') : whole
 }
@@ -375,7 +380,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     // `deepnote lint --governance` would report for each project, attributed to its project.
     const projectResult = runProjectGovernanceChecks(
       project.notebooks.flatMap(notebook => notebook.blocks),
-      blockMap
+      blockMap,
+      // The integration list is what turns `sql_integration_id` into a dialect. Omitting it here
+      // made the audit quietly weaker than the lint it is supposed to subsume: every
+      // dialect-dependent finding resolved to the unknown dialect and stayed silent.
+      project.integrations
     )
     const notebookByBlockId = new Map(projectBlocks(project).map(({ block, notebook }) => [block.id, notebook]))
     for (const issue of projectResult.issues) {

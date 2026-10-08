@@ -266,6 +266,59 @@ describe('audit command', () => {
       }
     })
   })
+
+  describe('audit command — the error paths are redacted too', () => {
+    const DSN = 'postgres://svc:hunter2correct@warehouse.internal:5432/analytics'
+
+    async function namedWorkspace(): Promise<string> {
+      const root = await mkdtemp(join(tmpdir(), 'deepnote-audit-notfound-'))
+      await mkdir(join(root, 'alpha'), { recursive: true })
+      await writeFile(
+        join(root, 'alpha', 'project.deepnote'),
+        [
+          'metadata:',
+          "  createdAt: '2025-06-02T09:14:00.000Z'",
+          "  modifiedAt: '2026-02-11T16:40:00.000Z'",
+          'project:',
+          '  id: 44444444-4444-4444-8444-444444444444',
+          `  name: ${JSON.stringify(`Export ${DSN}`)}`,
+          '  notebooks:',
+          '    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5d',
+          '      name: N',
+          '      blocks:',
+          '        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: code',
+          '          sortingKey: a0',
+          '          content: x = 1',
+          "version: '1'",
+        ].join('\n')
+      )
+      return root
+    }
+
+    it.each([
+      ['stderr', {} as AuditOptions, () => consoleErrorSpy.mock.calls.flat().join('\n')],
+      ['stdout under -o json', { output: 'json' } as AuditOptions, () => getOutput(consoleSpy)],
+    ])('masks a credential in the "project not found" message on %s', async (_name, options, read) => {
+      setOutputConfig({ color: false })
+      const root = await namedWorkspace()
+      try {
+        await expect(createAuditAction(program)(root, { ...options, project: 'Export postgres' })).rejects.toThrow(
+          'process.exit called'
+        )
+
+        // This path never reaches `auditWorkspace`, so it inherits nothing from the report's
+        // redaction boundary — and it names the closest project, which can be a connection string.
+        const written = read()
+        expect(written).not.toContain('hunter2correct')
+        // Still useful: the name is masked, not withheld.
+        expect(written).toContain('Closest match')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+  })
 })
 
 describe('describeNearest', () => {
