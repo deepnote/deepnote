@@ -12,6 +12,8 @@ npm install @deepnote/runtime-core
 
 ## Prerequisites
 
+Node.js 22.14.0 or later is required. Agent blocks use AI SDK 7 and its matching provider packages.
+
 You must have `deepnote-toolkit` with the `server` extra installed in your Python environment:
 
 ```bash

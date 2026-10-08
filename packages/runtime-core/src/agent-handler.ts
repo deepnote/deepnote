@@ -2,7 +2,7 @@ import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
 import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { extractOutputsText } from '@deepnote/blocks'
-import { stepCountIs, ToolLoopAgent, tool } from 'ai'
+import { isStepCount, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
 import { apiKeyEnvVarFor, parseAgentModel, resolveAgentModel } from './agent-provider'
 
@@ -230,13 +230,13 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         add_markdown_block: addMarkdownBlockTool,
         ...mcpTools,
       },
-      stopWhen: stepCountIs(maxTurns),
+      stopWhen: isStepCount(maxTurns),
       ...(Object.keys(providerOptions).length > 0 ? { providerOptions } : {}),
     })
 
     const streamResult = await agent.stream({ prompt: block.content ?? '', abortSignal: context.signal })
 
-    for await (const part of streamResult.fullStream) {
+    for await (const part of streamResult.stream) {
       if (part.type === 'text-delta') {
         await context.onAgentEvent?.({ type: 'text_delta', text: part.text })
       } else if (part.type === 'reasoning-delta') {
