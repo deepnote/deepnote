@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findSecrets, fingerprintSecret, redactSecrets } from './secrets'
+import { findSecrets, fingerprintSecret, redactSecrets, redactSecretsWithContext } from './secrets'
 
 /**
  * Synthetic credentials for the provider patterns, assembled from their prefix at runtime.
@@ -222,5 +222,31 @@ describe('redactSecrets — overlapping matches', () => {
 
   it('leaves text with no secrets exactly as it was', () => {
     expect(redactSecrets('SELECT * FROM users WHERE id = 1')).toBe('SELECT * FROM users WHERE id = 1')
+  })
+})
+
+describe('redactSecretsWithContext', () => {
+  const DSN = 'postgres://admin:hunter2longPassPhrase@warehouse/db'
+
+  it('masks a credential the text alone gives no reason to suspect', () => {
+    // The password is recognizable inside the URI and is an ordinary identifier outside it, so
+    // `redactSecrets` applied to the lifted string alone finds nothing to mask.
+    expect(redactSecrets('hunter2longPassPhrase = true')).toBe('hunter2longPassPhrase = true')
+    expect(redactSecretsWithContext('hunter2longPassPhrase = true', `-- ${DSN}`)).toBe('<redacted> = true')
+  })
+
+  it('still masks what the text reveals on its own, with or without useful context', () => {
+    expect(redactSecretsWithContext('key = "AKIAIOSFODNN7EXAMPLE"', 'unrelated content')).toBe('key = "<redacted>"')
+  })
+
+  it('leaves text alone when neither it nor its context holds a credential', () => {
+    expect(redactSecretsWithContext('a.deleted_at = NULL', 'SELECT * FROM users')).toBe('a.deleted_at = NULL')
+  })
+
+  it('masks a longer secret whole rather than in parts', () => {
+    // Two matches can nest — the URI password and a provider pattern inside it — and replacing the
+    // shorter one first would leave the rest of the longer one in place.
+    const context = 'postgres://admin:AKIAIOSFODNN7EXAMPLEsuffix@warehouse/db'
+    expect(redactSecretsWithContext('AKIAIOSFODNN7EXAMPLEsuffix', context)).toBe('<redacted>')
   })
 })
