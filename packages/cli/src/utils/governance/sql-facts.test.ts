@@ -199,3 +199,36 @@ describe('extractQueryFacts — robustness', () => {
     expect(joinsIn('SELECT * FROM a JOIN b ON a.x = b.x -- AND a.y = b.y')).toEqual(['a↔b [a.x=b.x]'])
   })
 })
+
+describe('extractQueryFacts — an alias declared in two query blocks', () => {
+  it('invents no join when a subquery shadows an outer alias', () => {
+    // `o` is `orders` outside and `users` inside. With one flat alias map the inner declaration wins,
+    // so `o.customer_id = c.id` used to resolve to `users.customer_id = customers.id`: the real
+    // `orders ↔ customers` join disappeared and a join between two tables that never met appeared in
+    // its place. A phantom anchor is worse than a missing one — other queries get measured against it.
+    expect(
+      joinsIn(
+        'SELECT * FROM orders o JOIN customers c ON o.customer_id = c.id WHERE EXISTS (SELECT 1 FROM users o WHERE o.id = c.id)'
+      )
+    ).toEqual([])
+  })
+
+  it('leaves an alias declared once in two blocks alone', () => {
+    // Shadowing is the thing that cannot be resolved. The same alias meaning the same table twice
+    // is not ambiguous, and must keep resolving.
+    expect(
+      joinsIn('SELECT * FROM orders o JOIN customers c ON o.id = c.order_id WHERE o.id IN (SELECT id FROM orders o)')
+    ).toEqual(['customers↔orders [customers.order_id=orders.id]'])
+  })
+
+  it('still resolves every alias in a query with nested blocks and no shadowing', () => {
+    // Two claims, both real: the outer join, and the correlated `EXISTS` relating users to
+    // customers. The same query with the inner alias renamed to `o` yields neither, which is the
+    // cost of having no grammar — but a dropped claim is recoverable and a phantom one is not.
+    expect(
+      joinsIn(
+        'SELECT * FROM orders o JOIN customers c ON o.customer_id = c.id WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = c.id)'
+      )
+    ).toEqual(['customers↔orders [customers.id=orders.customer_id]', 'customers↔users [customers.id=users.id]'])
+  })
+})

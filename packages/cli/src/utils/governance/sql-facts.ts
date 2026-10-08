@@ -548,7 +548,19 @@ function makeResolver(
   for (const item of items) {
     if (item.alias) {
       // A subquery alias maps to `undefined`: known to be in scope, known not to be a table.
-      byAlias.set(item.alias, item.qualified ? shortName(item.qualified) : undefined)
+      const target = item.qualified ? shortName(item.qualified) : undefined
+      // The same alias declared twice means one query block shadows another — `FROM orders o …
+      // WHERE EXISTS (SELECT 1 FROM users o …)`. There is one flat alias map here because there is
+      // no grammar to build scopes from, so the second declaration would silently overwrite the
+      // first and every outer reference to `o` would resolve to the inner table. That does not
+      // just drop the real join, it invents one between two tables that never met, and a phantom
+      // anchor is worse than a missing one: it becomes a consensus other queries get measured
+      // against. A shadowed alias resolves to nothing instead.
+      if (byAlias.has(item.alias) && byAlias.get(item.alias) !== target) {
+        byAlias.set(item.alias, undefined)
+      } else {
+        byAlias.set(item.alias, target)
+      }
     }
     if (item.qualified) {
       const short = shortName(item.qualified)
