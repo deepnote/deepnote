@@ -1758,3 +1758,54 @@ describe('auditWorkspace — attributing SQL blocks that declare no integration'
     expect(audit.integrations.find(usage => usage.id === 'wh')?.orphan).toBe(true)
   })
 })
+
+describe('auditWorkspace — blast radius stays inside the group integration scope', () => {
+  const JOIN = 'SELECT * FROM orders o JOIN users u ON o.user_id = u.id'
+  const JOIN_DIVERGENT = 'SELECT * FROM orders o JOIN users u ON o.email = u.email'
+
+  function scoped(id: string, integrationId: string, sql: string): WorkspaceProject {
+    return datedProject(
+      id,
+      id,
+      daysAgo(10),
+      [{ name: 'Q', blocks: [{ id: `${id}-b`, type: 'sql', content: sql, integrationId }] }],
+      [{ id: integrationId, name: integrationId, type: 'snowflake' }]
+    )
+  }
+
+  /** A large production warehouse and a small staging one, both with a `users` table. */
+  function twoSizes(): LoadedWorkspace {
+    return workspace([
+      ...Array.from({ length: 30 }, (_, index) => scoped(`prod${index}`, 'prod', JOIN)),
+      ...Array.from({ length: 5 }, (_, index) => scoped(`stg${index}`, 'staging', JOIN)),
+      scoped('stgX', 'staging', JOIN_DIVERGENT),
+    ])
+  }
+
+  it('scores a staging disagreement on staging reach, not production reach', () => {
+    // `tables` holds one row per (short name, integration). Merging those rows by short name and
+    // taking the maximum gave a six-project staging finding the reach of a thirty-project
+    // production table — the cross-warehouse mixing that integration scoping exists to prevent.
+    const audit = auditWorkspace(twoSizes(), { now: NOW })
+
+    const rows = audit.tables.filter(table => table.name === 'users')
+    expect(rows.map(row => row.projectCount).sort((a, b) => a - b)).toEqual([6, 30])
+
+    const finding = audit.issues.find(issue => issue.code === 'sql-divergence')
+    expect(finding?.details?.scopeKey).toBe('staging')
+    // Six live projects, not thirty. Thirty saturates the radius to within a rounding error of 1,
+    // so the threshold has to be well below that to tell the two apart.
+    expect(finding?.score.blastRadius).toBeLessThan(0.95)
+  })
+
+  it('merges across integrations when the scope deliberately spans them', () => {
+    // `--divergence-scope none` pools every warehouse, so the group really is about both tables
+    // and the merged reach is the right answer for it.
+    const audit = auditWorkspace(twoSizes(), { now: NOW, divergenceScope: 'none' })
+
+    const finding = audit.issues.find(issue => issue.code === 'sql-divergence')
+    expect(finding?.details?.scopeRule).toBe('none')
+    // All 36 projects read the one pooled `users`, so the radius saturates.
+    expect(finding?.score.blastRadius).toBeGreaterThan(0.99)
+  })
+})

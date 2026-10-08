@@ -405,11 +405,12 @@ interpreter, and nothing leaves the machine.
 | `--issues`               | List every finding instead of a count per check              | off           |
 | `--internal-domain <d>`  | A domain belonging to your organization (repeatable)         |               |
 | `--divergence`           | List every consensus group, with variants and locations      | off           |
-| `--divergence-kind <k>`  | Limit consensus to `join`, `filter` or `metric` (repeatable) | all           |
+| `--divergence-kind <k>`  | Anchors to look for: `join`, `metric`, `filter` (repeatable) | join, metric  |
 | `--min-confidence <n>`   | Confidence below which a group raises no finding             | `0.25`        |
 | `--skip-divergence`      | Do not run the consensus checks at all                       | off           |
 | `--divergence-scope <s>` | Compare only within `integration`, `type`, or `none`         | `integration` |
 | `--triage`               | Ask a model whether each group is a real defect              | off           |
+| &nbsp;                   | Judges `metric` anchors unless `--divergence-kind` is given  |               |
 | `--export-review <f>`    | Write every group with a blank verdict, for review           |               |
 | `--import-review <f>`    | Use measured precision instead of the defaults               |               |
 
@@ -435,9 +436,16 @@ discounted by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.4
 away. `--divergence` prints every group with every variant and location, which is how this check's
 precision gets measured instead of asserted; it is currently judgment, not measurement.
 
+**Anchors.** Join and metric run by default. The `filter` anchor is opt-in via
+`--divergence-kind filter`: it is the lowest-precision of the three and produces most of the
+output, and the case it reliably catches — a comparison against NULL — is already caught per query
+by `sql-null-comparison`.
+
 **Scoping.** Anchors are keyed by integration: `users` behind one connection is not compared with
-`users` behind another, because those are two tables that happen to share a name. Within a scope,
-dialect synonyms are folded, so `nvl(x, 0)` and `coalesce(x, 0)` are one claim.
+`users` behind another, because those are two tables that happen to share a name. A block naming no
+integration is attributed to its project's, when the project declares exactly one; otherwise it
+stays unscoped and is never compared against a named warehouse. Within a scope, dialect synonyms
+are folded, so `nvl(x, 0)` and `coalesce(x, 0)` are one claim.
 
 **Precision is measurable, not asserted.** `--export-review` writes every group with a blank
 verdict; `--import-review` reads them back and uses the measured precision per kind in place of the

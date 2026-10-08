@@ -98,7 +98,6 @@ Common table expressions are not counted — a CTE is local to its query, and tr
 would invent a dependency between two notebooks that happen to use the same name for a scratch
 result.
 
-<<<<<<< HEAD
 **What counts as the same table.** A table is identified by its short name within one integration,
 so `FROM analytics.users` and `FROM users` against the same warehouse are one row with one reach
 count — the same identity the divergence anchors use, rather than a second answer to the same
@@ -108,7 +107,6 @@ own. Every qualified spelling seen is listed in `qualifiedNames`, so the one cas
 conflates — `analytics.users` and `staging.users` behind a _single_ integration — is visible on
 the row rather than silent. Telling those apart would mean knowing which schema an unqualified
 `users` resolved to, which is a property of the warehouse's search path and not of the query.
-=======
 
 ### Consensus — where definitions disagree
 
@@ -255,8 +253,6 @@ table pair means exactly one thing, while two teams may legitimately mean differ
 `revenue`. That ordering is built into the ranking as a per-kind prior, reported in the JSON
 alongside the confidence so you can disagree with it without re-running the audit. Use
 `--skip-divergence` to leave the consensus checks out entirely.
-
-> > > > > > > 6b72017 (feat(cli): find SQL divergence across a workspace, ranked by Wilson confidence)
 
 ### Maintenance
 

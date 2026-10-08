@@ -910,14 +910,27 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
       ? []
       : findDivergence(observations, { kinds: options.divergenceKinds, scope: options.divergenceScope })
 
-  // Divergence anchors are short table names; the reach index is keyed by qualified name, because
-  // that is what a query writes. Folding it here keeps `analytics.public.orders` and `orders` one
-  // dependency rather than two.
+  // Two reach indexes, because a group's scope decides which one answers its question.
+  //
+  // `tables` already holds one row per (short name, integration) — the same identity the anchors
+  // use. An `integration`-scoped group is about exactly one warehouse, so it reads that row and no
+  // other: merging across integrations and taking the maximum would score a disagreement in a
+  // three-project staging warehouse with the reach of a thirty-project production one, which is
+  // the cross-warehouse mixing integration scoping exists to prevent.
+  //
+  // `type` and `none` groups genuinely span integrations, so they fall back to the merged index.
+  // That still over-counts for `type` — it merges every integration rather than every integration
+  // of that type — but those scopes are the deliberate relaxations, and over-counting reach inside
+  // a scope the user widened on purpose is the lesser error.
+  const reachByTableKey = new Map<string, { live: number; total: number }>()
   const reachByShortName = new Map<string, { live: number; total: number }>()
   for (const usage of tables.values()) {
-    const short = usage.name.slice(usage.name.lastIndexOf('.') + 1)
-    const existing = reachByShortName.get(short)
-    reachByShortName.set(short, {
+    reachByTableKey.set(canonicalTableKey(usage.name, usage.integrationId), {
+      live: usage.liveProjectCount,
+      total: usage.projectCount,
+    })
+    const existing = reachByShortName.get(usage.name)
+    reachByShortName.set(usage.name, {
       live: Math.max(existing?.live ?? 0, usage.liveProjectCount),
       total: Math.max(existing?.total ?? 0, usage.projectCount),
     })
@@ -930,6 +943,10 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     // A verdict, when `--triage` ran, replaces the per-kind prior in `signal`. Both numbers are
     // recorded on the finding so a reviewer can always tell which one they are reading.
     const verdict = options.triage?.get(toCandidate(group).id)
+    const reachFor = (table: string): { live: number; total: number } | undefined =>
+      group.scopeRule === 'integration'
+        ? reachByTableKey.get(canonicalTableKey(table, group.scopeKey))
+        : reachByShortName.get(table)
     const measured = options.measuredPrecision ?? {}
     const prior = divergenceSignal(group, measured)
     const signal = verdict ? group.confidence * VERDICT_SIGNAL[verdict.verdict] : prior
@@ -959,7 +976,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           // What a disagreement costs is set by how much live work reads the tables it is about.
           reach: group.tables.reduce(
             (totals, table) => {
-              const reach = reachByShortName.get(table)
+              const reach = reachFor(table)
               return reach
                 ? { live: Math.max(totals.live, reach.live), total: Math.max(totals.total, reach.total) }
                 : totals

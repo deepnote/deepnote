@@ -93,24 +93,24 @@ Audit a synced workspace — the tree `deepnote sync` writes. Answers what `lint
 from one project: which integrations exist and who uses them, where data leaves to, and which
 credentials are shared across projects. Everything is local: no warehouse connection, no Python.
 
-| Option                   | Description                                                                 |
-| ------------------------ | --------------------------------------------------------------------------- |
-| `-o, --output <format>`  | Output format: `json`, `llm`                                                |
-| `--project <name>`       | Audit a single project, by name or id                                       |
-| `--issues`               | List every finding instead of a count per check                             |
-| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)                        |
-| `--divergence`           | List every consensus group with its variants and locations                  |
-| `--divergence-kind <k>`  | Limit consensus to `join`, `filter` or `metric` (repeatable)                |
-| `--min-confidence <n>`   | Confidence below which a consensus group raises no finding (default `0.25`) |
-| `--skip-divergence`      | Do not run the consensus checks at all                                      |
-| `--divergence-scope <s>` | Compare only within `integration` (default), `type`, or `none`              |
-| `--triage`               | Ask a model whether each group is a real defect                             |
-| `--triage-base-url <u>`  | OpenAI-compatible endpoint (or `DEEPNOTE_TRIAGE_BASE_URL`)                  |
-| `--triage-model <n>`     | Model name (or `DEEPNOTE_TRIAGE_MODEL`)                                     |
-| `--triage-limit <n>`     | Triage only the n most confident groups                                     |
-| `--no-triage-cache`      | Ignore cached verdicts                                                      |
-| `--export-review <f>`    | Write every group with a blank verdict, for review                          |
-| `--import-review <f>`    | Read verdicts back; measured precision replaces the defaults                |
+| Option                   | Description                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `-o, --output <format>`  | Output format: `json`, `llm`                                                      |
+| `--project <name>`       | Audit a single project, by name or id                                             |
+| `--issues`               | List every finding instead of a count per check                                   |
+| `--internal-domain <d>`  | A domain belonging to your organization (repeatable)                              |
+| `--divergence`           | List every consensus group with its variants and locations                        |
+| `--divergence-kind <k>`  | Anchors to look for: `join`, `metric`, `filter` (repeatable; default join+metric) |
+| `--min-confidence <n>`   | Confidence below which a consensus group raises no finding (default `0.25`)       |
+| `--skip-divergence`      | Do not run the consensus checks at all                                            |
+| `--divergence-scope <s>` | Compare only within `integration` (default), `type`, or `none`                    |
+| `--triage`               | Ask a model whether each group is a real defect; judges `metric` by default       |
+| `--triage-base-url <u>`  | OpenAI-compatible endpoint (or `DEEPNOTE_TRIAGE_BASE_URL`)                        |
+| `--triage-model <n>`     | Model name (or `DEEPNOTE_TRIAGE_MODEL`)                                           |
+| `--triage-limit <n>`     | Triage only the n most confident groups                                           |
+| `--no-triage-cache`      | Ignore cached verdicts                                                            |
+| `--export-review <f>`    | Write every group with a blank verdict, for review                                |
+| `--import-review <f>`    | Read verdicts back; measured precision replaces the defaults                      |
 
 **Workspace-scoped checks:**
 
@@ -134,12 +134,18 @@ score, so a credential in an abandoned notebook ranks above one in a live notebo
 works). `signal` and `exposure` are judgment constants, not measured precision.
 
 **Consensus (`sql-divergence`).** Three anchors, each something that means the same thing in every
-notebook: a **join** (a table pair; variants are the join keys), a **filter** (a table column most
-queries constrain; variants are presence or absence, never the literal value), and a **metric** (an
-output name; variants are the aggregate behind it). Spelling is normalized first — aliases resolved,
-operand order sorted, composite conditions merged per table pair, tables keyed by short name — so
+notebook: a **join** (a table pair; variants are the join keys), a **metric** (an output name;
+variants are the aggregate behind it), and a **filter** (a table column most queries constrain;
+variants are presence or absence, never the literal value). Only join and metric run by default —
+`filter` needs `--divergence-kind filter`, because it is the lowest-precision anchor and produces
+most of the output, and the case it reliably catches is already covered per query by
+`sql-null-comparison`.
+
+Spelling is normalized first — aliases resolved, operand order sorted, composite conditions merged
+per table pair, tables keyed by short name within one integration — so
 `FROM orders o JOIN users u ON o.user_id = u.id` and `FROM users JOIN orders ON users.id =
-orders.user_id` are one claim rather than two.
+orders.user_id` are one claim rather than two. That table identity is shared with the `tables`
+section rather than invented here, so reach is counted once.
 
 Each group's `confidence` is the **Wilson lower bound** on its consensus share, which discounts a
 majority by how little of it was seen: 2-of-3 scores 0.21, 20-of-30 scores 0.49, 78-of-80 scores
