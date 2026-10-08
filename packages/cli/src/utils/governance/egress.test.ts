@@ -181,3 +181,44 @@ describe('findExternalEndpoints — a host assembled at run time is not a host',
     expect(findExternalEndpoints('df.to_csv("s3://exports-bucket/retained.csv")')[0].host).toBe('s3://exports-bucket')
   })
 })
+
+describe('findExternalEndpoints — a query string is not part of the authority', () => {
+  it('does not read an address in the query as the host', () => {
+    // Cutting the authority at `/` alone left the whole query inside it, so the `@` of
+    // `?email=a@b.co` looked like a userinfo separator and `b.co` — an address's domain — was
+    // inventoried as a host somebody writes data to.
+    const endpoints = findExternalEndpoints('requests.post("https://api.example.com?email=a@b.co", data=df)')
+
+    expect(endpoints.map(endpoint => endpoint.host)).toEqual(['api.example.com'])
+    expect(endpoints[0].evidence).toBe('https://api.example.com')
+  })
+
+  it('does not drop a URL whose query follows the host directly', () => {
+    // The host came out as `api.example.com?token=x`, which is not a literal host, so the endpoint
+    // was discarded without a word — the silent direction, in an inventory.
+    expect(findExternalEndpoints('requests.post("https://api.example.com?token=x", data=df)').map(e => e.host)).toEqual(
+      ['api.example.com']
+    )
+  })
+
+  it('stops at a fragment as well', () => {
+    expect(findExternalEndpoints('requests.post("https://api.example.com#section", data=df)').map(e => e.host)).toEqual(
+      ['api.example.com']
+    )
+  })
+
+  it('keeps the path and drops the query and fragment after it', () => {
+    expect(findExternalEndpoints('requests.post("https://api.example.com/v1?token=x", data=df)')[0].evidence).toBe(
+      'https://api.example.com/v1'
+    )
+    expect(findExternalEndpoints('requests.post("https://api.example.com/v1#frag", data=df)')[0].evidence).toBe(
+      'https://api.example.com/v1'
+    )
+  })
+
+  it('still strips userinfo from a URL that has a real path', () => {
+    expect(findExternalEndpoints('requests.post("https://user:pw@api.example.com/v1", data=df)')[0].evidence).toBe(
+      'https://api.example.com/v1'
+    )
+  })
+})

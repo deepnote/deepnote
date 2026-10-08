@@ -314,6 +314,12 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         }
         codeBlockCount++
 
+        // `findExternalEndpoints` returns one endpoint per line and direction, so a block posting
+        // to the same host twice yields two. The counter is called `blockCount`, the output says
+        // "n blocks" and the docs agree — so a host is counted once per block it appears in, not
+        // once per mention. The direction merge and the per-write findings stay per occurrence:
+        // each line is a separate place to change.
+        const countedHostsInBlock = new Set<string>()
         for (const endpoint of findExternalEndpoints(content)) {
           const usage = egress.get(endpoint.host) ?? {
             host: endpoint.host,
@@ -329,13 +335,16 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           } else if (usage.direction === 'unknown') {
             usage.direction = endpoint.direction
           }
-          const entry = usage.projects.find(p => p.projectId === project.id)
-          if (entry) {
-            entry.blockCount++
-          } else {
-            usage.projects.push({ projectId: project.id, projectName: project.name, blockCount: 1 })
+          if (!countedHostsInBlock.has(endpoint.host)) {
+            countedHostsInBlock.add(endpoint.host)
+            const entry = usage.projects.find(p => p.projectId === project.id)
+            if (entry) {
+              entry.blockCount++
+            } else {
+              usage.projects.push({ projectId: project.id, projectName: project.name, blockCount: 1 })
+            }
+            usage.blockCount++
           }
-          usage.blockCount++
           egress.set(endpoint.host, usage)
 
           if (endpoint.direction === 'write') {

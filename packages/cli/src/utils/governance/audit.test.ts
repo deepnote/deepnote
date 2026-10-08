@@ -493,3 +493,60 @@ describe('auditWorkspace — the redaction boundary covers the whole report', ()
     expect(clean.credentials).toHaveLength(0)
   })
 })
+
+describe('auditWorkspace — egress blockCount counts blocks', () => {
+  it('counts a host once per block, not once per mention', () => {
+    // `findExternalEndpoints` returns one endpoint per line and direction. Incrementing per
+    // endpoint made one block posting twice read as two blocks — in the field called
+    // `blockCount`, in the `— n blocks` line of the report, and on the flow edge.
+    const audit = auditWorkspace(
+      workspace([
+        project('p1', 'Alpha', [
+          {
+            name: 'N',
+            blocks: [
+              {
+                id: 'b1',
+                type: 'code',
+                content: [
+                  'requests.post("https://hooks.example.com/a", data=df)',
+                  'requests.post("https://hooks.example.com/b", data=df)',
+                ].join('\n'),
+              },
+              { id: 'b2', type: 'code', content: 'requests.post("https://hooks.example.com/c", data=df)' },
+            ],
+          },
+        ]),
+      ])
+    )
+
+    expect(audit.egress).toHaveLength(1)
+    expect(audit.egress[0].blockCount).toBe(2)
+    expect(audit.egress[0].projects[0].blockCount).toBe(2)
+    expect(audit.flow.edges.filter(edge => edge.kind === 'writes').map(edge => edge.blockCount)).toEqual([2])
+  })
+
+  it('still raises one finding per line, because each is a separate place to change', () => {
+    const audit = auditWorkspace(
+      workspace([
+        project('p1', 'Alpha', [
+          {
+            name: 'N',
+            blocks: [
+              {
+                id: 'b1',
+                type: 'code',
+                content: [
+                  'requests.post("https://hooks.example.com/a", data=df)',
+                  'requests.post("https://hooks.example.com/b", data=df)',
+                ].join('\n'),
+              },
+            ],
+          },
+        ]),
+      ])
+    )
+
+    expect(issuesOf(audit, 'egress-external')).toHaveLength(2)
+  })
+})

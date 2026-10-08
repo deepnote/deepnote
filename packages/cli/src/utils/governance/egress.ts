@@ -113,9 +113,14 @@ function lineAt(content: string, offset: number): number {
  * module's output is an inventory meant to be shared.
  */
 function hostOf(authority: string): string {
-  // Only the segment before the first `/` is the authority; an `@` later in the URI belongs to the
-  // path or query string (`?email=a@b.c`) and must not be mistaken for a credentials separator.
-  const authorityOnly = authority.split('/')[0]
+  // Only the segment before the first `/`, `?` or `#` is the authority; an `@` later in the URI
+  // belongs to the path, the query or the fragment and must not be mistaken for a credentials
+  // separator. Cutting at `/` alone was not enough: a URL with a query and no path kept the whole
+  // query inside the authority, so `https://api.example.com?email=a@b.co` was inventoried with
+  // `b.co` as the host — an address's domain reported as a destination somebody writes data to —
+  // and `https://api.example.com?token=x` was silently dropped, because the host it produced was
+  // not a literal one.
+  const authorityOnly = authority.split(/[/?#]/)[0]
   const hostAndPort = authorityOnly.includes('@')
     ? authorityOnly.slice(authorityOnly.lastIndexOf('@') + 1)
     : authorityOnly
@@ -244,8 +249,11 @@ export function findExternalEndpoints(content: string): ExternalEndpoint[] {
     // a route (`/v1/ghp_…/export`) survives dropping the query, so the assembled evidence goes
     // through the same redaction as every other string this layer reports. `rawHost` already has
     // any `user:pass@` userinfo stripped by `hostOf`.
-    const pathStart = authority.indexOf('/')
-    const path = pathStart === -1 ? '' : authority.slice(pathStart).split('?')[0]
+    // The path runs from the first `/` to the query or the fragment, whichever comes first. Both
+    // are dropped: a query string is where tokens and personal identifiers end up, and a fragment
+    // identifies nothing about the destination.
+    const pathStart = authority.search(/[/?#]/)
+    const path = pathStart === -1 || authority[pathStart] !== '/' ? '' : authority.slice(pathStart).split(/[?#]/)[0]
     const evidence = redactSecrets(`${scheme}://${rawHost}${path}`)
 
     endpoints.push({ host, scheme, direction, line, evidence })
