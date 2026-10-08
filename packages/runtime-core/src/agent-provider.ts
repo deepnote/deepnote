@@ -7,7 +7,7 @@ import type { JSONValue, LanguageModel } from 'ai'
  * Providers a local agent block can run against. Bare Claude model ids select
  * Anthropic, matching Cloud. Provider prefixes are a local runtime extension.
  */
-const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
+export const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
 
 export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number]
 

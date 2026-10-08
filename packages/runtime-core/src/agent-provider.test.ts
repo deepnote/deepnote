@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  type AgentProviderId,
+  AGENT_PROVIDER_IDS,
   getAgentApiKeyEnvVar,
   parseAgentModel,
   type ResolvedAgentModel,
@@ -182,14 +182,11 @@ describe('resolveAgentModel', () => {
     expect(request.headers['x-api-key']).toBe('anthropic-key')
   })
 
-  it.each<AgentProviderId>(['openai', 'anthropic', 'openai-compatible'])(
-    'falls back to the variable getAgentApiKeyEnvVar names for %s',
-    providerId => {
-      const env = { DEEPNOTE_AGENT_BASE_URL: 'https://example.test/v1', [getAgentApiKeyEnvVar(providerId)]: 'k' }
+  it.each(AGENT_PROVIDER_IDS)('falls back to the variable getAgentApiKeyEnvVar names for %s', providerId => {
+    const env = { DEEPNOTE_AGENT_BASE_URL: 'https://example.test/v1', [getAgentApiKeyEnvVar(providerId)]: 'k' }
 
-      expect(() => resolveAgentModel({ spec: `${providerId}:some-model`, env })).not.toThrow()
-    }
-  )
+    expect(() => resolveAgentModel({ spec: `${providerId}:some-model`, env })).not.toThrow()
+  })
 
   it.each([
     ['claude-opus-5-5', 'ANTHROPIC_API_KEY'],
