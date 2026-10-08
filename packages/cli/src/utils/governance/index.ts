@@ -17,7 +17,7 @@ import type { DeepnoteBlock } from '@deepnote/blocks'
 import type { BlockInfo, IssueSeverity, LintIssue } from '../analysis'
 import { collectDependencies, type PackageEntry, type ProjectEnvironment, reconcile } from './dependencies'
 import { integrationTypesById, resolveDialect } from './dialect'
-import { findSecrets, redactSecrets, redactSecretsWithContext, type SecretFinding } from './secrets'
+import { findSecrets, redactSecretsWithContext, type SecretFinding } from './secrets'
 import { checkSqlQuery } from './sql-checks'
 import { redactSubjects } from './subjects'
 
@@ -398,10 +398,9 @@ function checkDependencies(
     redactSubjects(redactSecretsWithContext(label, contentById.get(blockId) ?? label))
 
   for (const entry of entries) {
-    // Where to file it: the install command's block when there is one, otherwise the project's
-    // declared environment, which belongs to no notebook.
     // Attribute the finding to the declaration that caused it: an install command's block when
-    // that is what broke the pin, and the project's declared environment otherwise.
+    // that is what broke the pin, and the project's declared environment otherwise, which belongs
+    // to no notebook.
     const blamesBlock = entry.weakestSource === 'install-command' && entry.blockId !== undefined
     const info = blamesBlock ? blockMap.get(entry.blockId as string) : undefined
     const where = {
