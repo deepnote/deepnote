@@ -26,7 +26,6 @@ import {
   executeAgentBlock,
   serializeNotebookContext,
 } from './agent-handler'
-import { parseAgentModel, resolveAgentApiKey } from './agent-provider'
 import { toPythonLiteral } from './javascript'
 import { type ExecutionCallbacks, type ExecutionResult, KernelClient } from './kernel-client'
 import {
@@ -339,9 +338,6 @@ export class ExecutionEngine {
             throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
-          const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
-          const apiKey = resolveAgentApiKey(providerId)
-
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
           let agentDeadline: number | undefined
@@ -433,7 +429,6 @@ export class ExecutionEngine {
           }
 
           const agentContext: AgentBlockContext = {
-            apiKey,
             mcpServers: projectMcpServers,
             notebookContext,
             addAndExecuteCodeBlock,

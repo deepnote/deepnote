@@ -7,15 +7,8 @@ export {
   serializeNotebookContext,
   serializeNotebookContextFromBlocks,
 } from './agent-handler'
-export type { AgentProviderId, AgentProviderOptions, ParsedAgentModel, ResolvedAgentModel } from './agent-provider'
-export {
-  AGENT_MODEL_AUTO,
-  AGENT_PROVIDER_IDS,
-  apiKeyEnvVarFor,
-  parseAgentModel,
-  resolveAgentApiKey,
-  resolveAgentModel,
-} from './agent-provider'
+export type { AgentProviderId, ParsedAgentModel } from './agent-provider'
+export { parseAgentModel } from './agent-provider'
 export type { ExecutionEngineOptions, ExecutionOptions } from './execution-engine'
 export { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
 export type { ExecutionCallbacks, ExecutionResult, KernelConnectOptions, KernelExecuteOptions } from './kernel-client'

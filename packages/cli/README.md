@@ -279,38 +279,14 @@ Without `--python`, the CLI also picks up a `.venv` or `venv` next to (or above)
 `--prompt` adds an agent block and runs the notebook. Without a file, it creates a new notebook.
 The agent can read outputs, run Python, and add code and text blocks.
 
-**OpenAI:**
-
 ```bash
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 ```
 
-`--prompt` uses OpenAI with `OPENAI_MODEL`, or `gpt-6.1-sol` if unset.
-
-**Claude:** Set `metadata.deepnote_agent_model` to `claude-opus-5-5` on an existing agent block, then run the notebook:
-
-```bash
-ANTHROPIC_API_KEY=sk-ant-... deepnote run my-project.deepnote
-```
-
-**OpenRouter or another compatible provider:** Set the block's `metadata.deepnote_agent_model` to
-`openai-compatible:<model-id>`. For example, use `openai-compatible:anthropic/claude-opus-5.5` with:
-
-```bash
-DEEPNOTE_AGENT_API_KEY=... \
-DEEPNOTE_AGENT_BASE_URL=https://openrouter.ai/api/v1 \
-deepnote run my-project.deepnote
-```
-
-Compatible providers need a key, endpoint, and model. You can also set the model with
-`DEEPNOTE_AGENT_MODEL` when the block uses `openai-compatible:auto`. Without
-`DEEPNOTE_AGENT_BASE_URL`, the corresponding `OPENAI_*` variables work as fallbacks. See
-[provider configuration](../runtime-core/README.md#agent-block-providers)
-for all settings and endpoint requirements.
-
-For Cloud, use `auto` or a supported model ID without a provider prefix. Unsupported names,
-including provider prefixes, use workspace settings instead. Local keys and endpoints do not
-configure Cloud. See [Cloud model support](../runtime-core/README.md#sharing-notebooks-with-cloud).
+`--prompt` uses OpenAI with `OPENAI_MODEL`, or `gpt-6.1-sol` if unset. To use Claude or another
+provider, set `metadata.deepnote_agent_model` on an existing agent block, such as `claude-opus-5-5`
+with `ANTHROPIC_API_KEY`. See [agent block providers](../runtime-core/README.md#agent-block-providers)
+for all providers and custom endpoints, and [Cloud model support](../runtime-core/README.md#sharing-notebooks-with-cloud).
 
 The agent can also query configured database integrations using `deepnote-toolkit`.
 

@@ -23,7 +23,7 @@ Custom AI models enable you to use your own AI infrastructure with Deepnote Agen
 - Want to leverage proprietary or fine-tuned models
 - Require data to stay within specific infrastructure boundaries
 
-Your endpoint must be OpenAI-compatible and support tool calling.
+Your custom model endpoints must be OpenAI-compatible, meaning they follow the OpenAI API specification for chat completions. This ensures that Deepnote Agent can communicate with your endpoint using the same protocol it uses for native providers.
 
 Custom models work with all AI features including Deepnote Agent, single block edits, and prompt suggestions. However, code completions continue to use Deepnote's dedicated completions provider and are not affected by custom model configuration. If this is a consideration, code completions can be disabled altogether in your workspace settings.
 
@@ -40,9 +40,9 @@ To add a custom AI model to your workspace, you need workspace admin permissions
 4. Click the **Add model** button.
 
 5. In the modal that appears, fill in the required information:
-   - **Custom model name**: A descriptive name for your model (e.g., "DeepSeek V4.1 Flash", "Llama 4")
+   - **Custom model name**: A descriptive name for your model (e.g., "Azure GPT-4", "Llama Model")
    - **Endpoint URL**: The full URL to your OpenAI-compatible API endpoint
-   - **Model ID**: The model identifier that your endpoint expects (e.g., "gpt-oss-120b", "deepseek-flash", "llama4")
+   - **Model ID**: The model identifier that your endpoint expects (e.g., "gpt-4", "gpt-oss-120b", "deepseek-r1")
    - **API key**: Your authentication key for the endpoint
 
 6. Click **Connect model** to save your configuration.

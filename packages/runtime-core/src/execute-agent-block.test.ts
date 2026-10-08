@@ -15,7 +15,7 @@ vi.mock('@ai-sdk/openai', () => {
     return modelRef.current
   }
   return {
-    createOpenAI: () => Object.assign((_id: string) => getModel(), { chat: (_id: string) => getModel() }),
+    createOpenAI: () => (_id: string) => getModel(),
   }
 })
 vi.mock('@ai-sdk/mcp', () => ({ createMCPClient: createMCPClientMock }))
@@ -85,8 +85,6 @@ const makeContext = (overrides: Partial<AgentBlockContext> = {}): AgentBlockCont
 })
 
 beforeEach(() => {
-  // Pins the Responses API path regardless of the developer's environment.
-  vi.stubEnv('OPENAI_BASE_URL', undefined)
   modelRef.current = null
   createMCPClientMock.mockReset()
   createMCPClientMock.mockImplementation(() => {
@@ -100,6 +98,7 @@ afterEach(() => {
 
 describe('executeAgentBlock credentials', () => {
   it('does not send the deprecated OpenAI token to another provider', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', undefined)
     const block: AgentBlock = { ...AGENT_BLOCK, metadata: { deepnote_agent_model: 'claude-opus-5-5' } }
 
     await expect(executeAgentBlock(block, makeContext({ openAiToken: 'openai-key' }))).rejects.toThrow(
@@ -177,22 +176,6 @@ describe('executeAgentBlock streaming', () => {
 })
 
 describe('executeAgentBlock abort', () => {
-  it('runs tools and returns the final text', async () => {
-    const codeSpy = vi.fn(async () => 'code ok')
-    modelRef.current = stepModel(
-      [toolCall('add_code_block', { code: 'print(1)' }), finish('tool-calls')],
-      [...text('All done'), finish('stop')]
-    )
-
-    const result = await executeAgentBlock(
-      AGENT_BLOCK,
-      makeContext({ signal: new AbortController().signal, addAndExecuteCodeBlock: codeSpy })
-    )
-
-    expect(result).toEqual({ finalOutput: 'All done' })
-    expect(codeSpy).toHaveBeenCalledWith({ code: 'print(1)' })
-  })
-
   it('throws before spawning MCP clients or calling the model when pre-aborted', async () => {
     const reason = new Error('cancelled before start')
     const controller = new AbortController()

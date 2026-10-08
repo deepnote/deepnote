@@ -186,7 +186,6 @@ To use Claude or another provider, set `metadata.deepnote_agent_model` on an exi
 and run the notebook. See [agent block providers](blocks-agent.md#providers) for models, keys,
 and custom endpoints.
 
-Cloud uses workspace settings for `auto` and unsupported model names. Local provider keys and
-endpoints do not configure Cloud; see [Cloud model support](blocks-agent.md#sharing-notebooks-with-cloud).
+Cloud ignores local provider keys and endpoints; see [Cloud model support](blocks-agent.md#sharing-notebooks-with-cloud).
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.

@@ -4,7 +4,7 @@ import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@
 import { extractOutputsText } from '@deepnote/blocks'
 import { isStepCount, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
-import { apiKeyEnvVarFor, parseAgentModel, resolveAgentModel } from './agent-provider'
+import { parseAgentModel, resolveAgentModel } from './agent-provider'
 
 export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
@@ -13,7 +13,7 @@ export type AgentStreamEvent =
   | { type: 'reasoning_delta'; text: string }
 
 export interface AgentBlockContext {
-  /** API key for the provider named by the block's `deepnote_agent_model`. */
+  /** API key for the provider named by the block's `deepnote_agent_model`. Read from env when omitted. */
   apiKey?: string
   /** @deprecated Use {@link AgentBlockContext.apiKey}. Only used for OpenAI models. */
   openAiToken?: string
@@ -153,17 +153,10 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   // Before any resource acquisition — a pre-aborted call must not spawn MCP subprocesses
   context.signal?.throwIfAborted()
 
-  const { providerId } = parseAgentModel(block.metadata.deepnote_agent_model)
+  const spec = block.metadata.deepnote_agent_model
   // The deprecated alias only ever held an OpenAI key; never send it to another provider.
-  const apiKey = context.apiKey ?? (providerId === 'openai' ? context.openAiToken : undefined)
-  if (!apiKey) {
-    throw new Error(`Pass your ${apiKeyEnvVarFor(providerId)} as context.apiKey.`)
-  }
-
-  const { model, providerOptions } = resolveAgentModel({
-    spec: block.metadata.deepnote_agent_model,
-    apiKey,
-  })
+  const legacyKey = parseAgentModel(spec).providerId === 'openai' ? context.openAiToken : undefined
+  const { model, providerOptions } = resolveAgentModel({ spec, apiKey: context.apiKey ?? legacyKey })
   const maxTurns = 10
 
   const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
@@ -232,7 +225,7 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         ...mcpTools,
       },
       stopWhen: isStepCount(maxTurns),
-      ...(Object.keys(providerOptions).length > 0 ? { providerOptions } : {}),
+      providerOptions,
     })
 
     const streamResult = await agent.stream({ prompt: block.content ?? '', abortSignal: context.signal })

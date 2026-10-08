@@ -29,9 +29,8 @@ Locally, model IDs starting with `claude-` select Anthropic; other names select 
 Use `provider:model` to choose a provider explicitly, such as `anthropic:auto` or
 `openai-compatible:llama4`.
 
-Without a provider prefix, `auto` or an omitted model selects OpenAI. `default` is an alias for
-`auto`. An explicit model overrides the provider's model environment variable; otherwise that
-variable or the default below is used.
+Without a provider prefix, `auto` or an omitted model selects OpenAI. An explicit model overrides
+the provider's model environment variable; otherwise that variable or the default below is used.
 
 | Provider            | Default model     | API key                  | Model override         |
 | ------------------- | ----------------- | ------------------------ | ---------------------- |
@@ -40,22 +39,20 @@ variable or the default below is used.
 | `openai-compatible` | Must be set       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` |
 
 Use `OPENAI_BASE_URL` (including `/v1`) or `ANTHROPIC_BASE_URL` (with or without `/v1`) to override
-a provider's endpoint.
-Compatible providers need a key, endpoint (`DEEPNOTE_AGENT_BASE_URL`), and model. Set the model
-in the block or use `openai-compatible:auto` with `DEEPNOTE_AGENT_MODEL`. When
-`DEEPNOTE_AGENT_BASE_URL` is unset, each `DEEPNOTE_AGENT_*` variable falls back to its `OPENAI_*`
-counterpart; once it is set, the `OPENAI_*` variables are ignored. OpenRouter uses its own model IDs, such as
-`openai-compatible:anthropic/claude-opus-5.5`.
+a provider's endpoint. The `openai` provider always uses the Responses API, so its endpoint must
+support it.
 
-Direct OpenAI access and GPT-6 models use Responses, including through `OPENAI_BASE_URL` proxies.
-Other models on custom OpenAI endpoints use Chat Completions. The `openai-compatible` provider
-always uses Chat Completions and requires a model that supports tool calling through it.
+Other endpoints, such as OpenRouter, Ollama, and LiteLLM, use the `openai-compatible` provider. It
+uses Chat Completions and needs a key, endpoint (`DEEPNOTE_AGENT_BASE_URL`), and a model that
+supports tool calling. Set the model in the block or use `openai-compatible:auto` with
+`DEEPNOTE_AGENT_MODEL`. OpenRouter uses its own model IDs, such as
+`openai-compatible:anthropic/claude-opus-5.5`.
 
 ### Sharing notebooks with Cloud
 
 Use `auto` or a supported model ID without a provider prefix, such as `claude-opus-5-5`,
 `claude-sonnet-5-5`, `gpt-6-sol`, or `gpt-6-luna`. Unsupported names, including provider prefixes,
-use workspace settings instead. GPT-6.1 Sol is not in Cloud's catalog as of October 8, 2026.
+use workspace settings instead.
 
 `auto` uses workspace settings in Cloud and the defaults above locally. Local keys and endpoints
 do not configure Cloud.

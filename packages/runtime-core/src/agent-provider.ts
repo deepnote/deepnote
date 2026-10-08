@@ -7,12 +7,12 @@ import type { JSONValue, LanguageModel } from 'ai'
  * Providers a local agent block can run against. Bare Claude model ids select
  * Anthropic, matching Cloud. Provider prefixes are a local runtime extension.
  */
-export const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
+const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
 
 export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number]
 
 /** Model name meaning "whatever the provider defaults to". */
-export const AGENT_MODEL_AUTO = 'auto'
+const AGENT_MODEL_AUTO = 'auto'
 
 // Only force adaptive thinking for models whose support we have verified.
 // Other Claude models (including older models and custom deployment ids) use
@@ -31,8 +31,8 @@ export interface ParsedAgentModel {
 export interface ResolveAgentModelOptions {
   /** Raw `deepnote_agent_model` value. */
   spec: string | undefined
-  /** API key for the resolved provider. */
-  apiKey: string
+  /** API key for the resolved provider. Read from the provider's env var when omitted. */
+  apiKey?: string
   /** Defaults to `process.env`; injected in tests. */
   env?: Record<string, string | undefined>
 }
@@ -40,9 +40,6 @@ export interface ResolveAgentModelOptions {
 export interface ResolvedAgentModel {
   model: LanguageModel
   providerOptions: AgentProviderOptions
-  providerId: AgentProviderId
-  /** Concrete model name after `'auto'` resolution. */
-  modelName: string
 }
 
 interface ProviderEnvConfig {
@@ -80,17 +77,6 @@ const PROVIDER_ENV: Record<AgentProviderId, ProviderEnvConfig> = {
   },
 }
 
-/**
- * `openai-compatible` falls back to the `OPENAI_*` variables so the existing
- * "point `OPENAI_BASE_URL` at Ollama" setups keep working after they switch to
- * the explicit provider id.
- */
-const OPENAI_COMPATIBLE_FALLBACK_VARS: Record<keyof Omit<ProviderEnvConfig, 'defaultModel'>, string> = {
-  apiKeyVar: 'OPENAI_API_KEY',
-  baseUrlVar: 'OPENAI_BASE_URL',
-  modelVar: 'OPENAI_MODEL',
-}
-
 // Passed explicitly because the SDKs otherwise re-read their base URL from
 // `process.env`, bypassing the injected `env` and rejecting empty values.
 const OPENAI_API_URL = 'https://api.openai.com/v1'
@@ -125,46 +111,13 @@ export function parseAgentModel(spec: string | undefined): ParsedAgentModel {
   return { providerId: trimmed.startsWith('claude-') ? 'anthropic' : 'openai', modelName: trimmed }
 }
 
-/** Env var that must hold the API key for `providerId`. Used in error messages. */
-export function apiKeyEnvVarFor(providerId: AgentProviderId): string {
-  return PROVIDER_ENV[providerId].apiKeyVar
-}
-
-function readVar(env: Record<string, string | undefined>, name: string): string | undefined {
-  const value = env[name]
-  return value === '' ? undefined : value
-}
-
-/**
- * The `OPENAI_*` fallback applies as a group, only while `DEEPNOTE_AGENT_BASE_URL`
- * is unset. Otherwise `OPENAI_API_KEY` would be sent to that other endpoint.
- */
-function usesOpenAIFallback(env: Record<string, string | undefined>, providerId: AgentProviderId): boolean {
-  return providerId === 'openai-compatible' && readVar(env, PROVIDER_ENV[providerId].baseUrlVar) == null
-}
-
 function readEnv(
   env: Record<string, string | undefined>,
   providerId: AgentProviderId,
   key: keyof Omit<ProviderEnvConfig, 'defaultModel'>
 ): string | undefined {
-  const value = readVar(env, PROVIDER_ENV[providerId][key])
-  if (value != null) {
-    return value
-  }
-  return usesOpenAIFallback(env, providerId) ? readVar(env, OPENAI_COMPATIBLE_FALLBACK_VARS[key]) : undefined
-}
-
-/** Resolve the provider's key, including the compatible provider's OpenAI fallback. */
-export function resolveAgentApiKey(
-  providerId: AgentProviderId,
-  env: Record<string, string | undefined> = process.env
-): string {
-  const apiKey = readEnv(env, providerId, 'apiKeyVar')
-  if (apiKey) return apiKey
-
-  const fallback = usesOpenAIFallback(env, providerId) ? ' (or OPENAI_API_KEY)' : ''
-  throw new Error(`Set ${apiKeyEnvVarFor(providerId)}${fallback} to run this agent block.`)
+  const value = env[PROVIDER_ENV[providerId][key]]
+  return value === '' ? undefined : value
 }
 
 /**
@@ -175,10 +128,6 @@ function anthropicApiUrl(baseURL: string | undefined): string {
   return `${(baseURL ?? ANTHROPIC_API_URL).replace(/\/+$/, '').replace(/\/v1$/, '')}/v1`
 }
 
-function isDirectOpenAIEndpoint(baseURL: string | undefined): boolean {
-  return baseURL == null || baseURL.replace(/\/+$/, '') === OPENAI_API_URL
-}
-
 /**
  * Builds the language model and provider-specific options for an agent block.
  *
@@ -186,53 +135,41 @@ function isDirectOpenAIEndpoint(baseURL: string | undefined): boolean {
  */
 export function resolveAgentModel({ spec, apiKey, env = process.env }: ResolveAgentModelOptions): ResolvedAgentModel {
   const { providerId, modelName: requestedModel } = parseAgentModel(spec)
-  const baseURL = readEnv(env, providerId, 'baseUrlVar')
+  const config = PROVIDER_ENV[providerId]
 
-  const modelName =
-    requestedModel === AGENT_MODEL_AUTO
-      ? (readEnv(env, providerId, 'modelVar') ?? PROVIDER_ENV[providerId].defaultModel)
-      : requestedModel
-
-  if (modelName === '') {
-    throw new Error(
-      `Set the block's deepnote_agent_model or ${PROVIDER_ENV[providerId].modelVar} to choose a model for "${providerId}".`
-    )
+  const key = apiKey ?? readEnv(env, providerId, 'apiKeyVar')
+  if (!key) {
+    throw new Error(`Set ${config.apiKeyVar} to run this agent block.`)
   }
 
+  const modelName =
+    requestedModel === AGENT_MODEL_AUTO ? (readEnv(env, providerId, 'modelVar') ?? config.defaultModel) : requestedModel
+  if (modelName === '') {
+    throw new Error(`Set the block's deepnote_agent_model or ${config.modelVar} to choose a model for "${providerId}".`)
+  }
+
+  const baseURL = readEnv(env, providerId, 'baseUrlVar')
   switch (providerId) {
     case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey, baseURL: anthropicApiUrl(baseURL) })
+      const anthropic = createAnthropic({ apiKey: key, baseURL: anthropicApiUrl(baseURL) })
       return {
         model: anthropic(modelName),
         providerOptions: SUMMARIZED_ADAPTIVE_MODELS.has(modelName)
           ? { anthropic: { thinking: { type: 'adaptive', display: 'summarized' } } }
           : {},
-        providerId,
-        modelName,
       }
     }
     case 'openai-compatible': {
       if (baseURL == null) {
-        throw new Error(
-          `Set ${PROVIDER_ENV[providerId].baseUrlVar} (or OPENAI_BASE_URL) to your provider's base URL, e.g. https://openrouter.ai/api/v1.`
-        )
+        throw new Error(`Set ${config.baseUrlVar} to your provider's base URL, e.g. https://openrouter.ai/api/v1.`)
       }
-      const provider = createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey })
-      return { model: provider(modelName), providerOptions: {}, providerId, modelName }
+      const provider = createOpenAICompatible({ name: 'openai-compatible', baseURL, apiKey: key })
+      return { model: provider(modelName), providerOptions: {} }
     }
     default: {
-      const openai = createOpenAI({ apiKey, baseURL: baseURL ?? OPENAI_API_URL })
-      // GPT-6 tool calls need Responses with the default reasoning settings,
-      // including when a proxy is configured. Preserve Chat Completions for
-      // other models on legacy OPENAI_BASE_URL-compatible endpoints.
-      const useResponses = isDirectOpenAIEndpoint(baseURL) || /^gpt-6(?:[.-]|$)/.test(modelName)
-      const model = useResponses ? openai(modelName) : openai.chat(modelName)
-      return {
-        model,
-        providerOptions: useResponses ? { openai: { reasoningSummary: 'auto' } } : {},
-        providerId,
-        modelName,
-      }
+      // Always the Responses API; endpoints with only Chat Completions use `openai-compatible`.
+      const openai = createOpenAI({ apiKey: key, baseURL: baseURL ?? OPENAI_API_URL })
+      return { model: openai(modelName), providerOptions: { openai: { reasoningSummary: 'auto' } } }
     }
   }
 }

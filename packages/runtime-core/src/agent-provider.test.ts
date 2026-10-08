@@ -1,10 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiKeyEnvVarFor, parseAgentModel, resolveAgentApiKey, resolveAgentModel } from './agent-provider'
+import { parseAgentModel, type ResolvedAgentModel, resolveAgentModel } from './agent-provider'
 
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
 })
+
+/** Sends one request with the network disabled and returns what would have been sent. */
+async function captureRequest({ model, providerOptions }: ResolvedAgentModel) {
+  const fetch = vi.fn<typeof globalThis.fetch>().mockRejectedValue(new Error('Network disabled in test'))
+  vi.stubGlobal('fetch', fetch)
+  if (typeof model === 'string' || model.specificationVersion !== 'v4') {
+    throw new Error('Expected a v4 provider')
+  }
+  await expect(
+    model.doGenerate({
+      prompt: [{ role: 'user', content: [{ type: 'text', text: 'Use the tool' }] }],
+      tools: [{ type: 'function', name: 'noop', inputSchema: { type: 'object', properties: {} } }],
+      providerOptions,
+    })
+  ).rejects.toThrow('Network disabled in test')
+  expect(fetch).toHaveBeenCalledOnce()
+  const [url, init] = fetch.mock.calls[0] ?? []
+  return { url, headers: init?.headers as Record<string, string>, body: JSON.parse(init?.body as string) }
+}
 
 describe('parseAgentModel', () => {
   it('defaults to openai/auto when no model is set', () => {
@@ -72,52 +91,10 @@ describe('parseAgentModel', () => {
   })
 })
 
-describe('resolveAgentApiKey', () => {
-  it.each([undefined, ''])('falls back to OPENAI_API_KEY when the compatible key is %s', key => {
-    expect(resolveAgentApiKey('openai-compatible', { DEEPNOTE_AGENT_API_KEY: key, OPENAI_API_KEY: 'fallback' })).toBe(
-      'fallback'
-    )
-  })
-
-  it('prefers the compatible provider key over the fallback', () => {
-    expect(
-      resolveAgentApiKey('openai-compatible', { DEEPNOTE_AGENT_API_KEY: 'primary', OPENAI_API_KEY: 'fallback' })
-    ).toBe('primary')
-  })
-
-  it('does not use another provider’s credentials for Anthropic', () => {
-    expect(() => resolveAgentApiKey('anthropic', { OPENAI_API_KEY: 'openai-key' })).toThrow(/ANTHROPIC_API_KEY/)
-  })
-
-  it('does not send OPENAI_API_KEY to DEEPNOTE_AGENT_BASE_URL', () => {
-    expect(() =>
-      resolveAgentApiKey('openai-compatible', {
-        DEEPNOTE_AGENT_BASE_URL: 'https://openrouter.ai/api/v1',
-        OPENAI_API_KEY: 'openai-key',
-      })
-    ).toThrow('Set DEEPNOTE_AGENT_API_KEY to run this agent block.')
-  })
-
-  it('names both accepted variables when the compatible key is missing', () => {
-    expect(() => resolveAgentApiKey('openai-compatible', {})).toThrow(/DEEPNOTE_AGENT_API_KEY \(or OPENAI_API_KEY\)/)
-  })
-})
-
-describe('apiKeyEnvVarFor', () => {
-  it('names the variable each provider reads', () => {
-    expect(apiKeyEnvVarFor('openai')).toBe('OPENAI_API_KEY')
-    expect(apiKeyEnvVarFor('anthropic')).toBe('ANTHROPIC_API_KEY')
-    expect(apiKeyEnvVarFor('openai-compatible')).toBe('DEEPNOTE_AGENT_API_KEY')
-  })
-})
-
 describe('resolveAgentModel', () => {
   it('keeps the documented openai default and reasoning summaries', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: {} })
 
-    expect(resolved.providerId).toBe('openai')
-    expect(resolved.modelName).toBe('gpt-6.1-sol')
-    // GPT-6.1 Sol requires Responses for tool calls.
     expect(resolved.model).toMatchObject({ provider: 'openai.responses', modelId: 'gpt-6.1-sol' })
     expect(resolved.providerOptions).toEqual({ openai: { reasoningSummary: 'auto' } })
   })
@@ -125,66 +102,28 @@ describe('resolveAgentModel', () => {
   it('lets OPENAI_MODEL override the openai default', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-6-luna' } })
 
-    expect(resolved.modelName).toBe('gpt-6-luna')
+    expect(resolved.model).toMatchObject({ modelId: 'gpt-6-luna' })
   })
 
   it('prefers the block model over OPENAI_MODEL', () => {
     const resolved = resolveAgentModel({ spec: 'gpt-6.1-sol', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-6-luna' } })
 
-    expect(resolved.modelName).toBe('gpt-6.1-sol')
+    expect(resolved.model).toMatchObject({ modelId: 'gpt-6.1-sol' })
   })
 
-  it('drops reasoning summaries when OPENAI_BASE_URL points elsewhere', () => {
-    // Most OpenAI-compatible endpoints have no Responses API, so the handler
-    // falls back to Chat Completions and the option would be rejected.
-    const resolved = resolveAgentModel({
-      spec: 'auto',
-      apiKey: 'k',
-      env: { OPENAI_BASE_URL: 'https://example.test/v1', OPENAI_MODEL: 'custom-chat-model' },
-    })
+  it.each([
+    ['auto', undefined, 'https://api.openai.com/v1/responses'],
+    ['llama4', 'http://localhost:11434/v1/', 'http://localhost:11434/v1/responses'],
+  ])('sends %s with OPENAI_BASE_URL=%s to the Responses API', async (spec, baseURL, expectedUrl) => {
+    const request = await captureRequest(resolveAgentModel({ spec, apiKey: 'k', env: { OPENAI_BASE_URL: baseURL } }))
 
-    expect(resolved.providerOptions).toEqual({})
-    expect(resolved.model).toMatchObject({ provider: 'openai.chat', modelId: 'custom-chat-model' })
-  })
-
-  it.each(['https://api.openai.com/v1', 'https://api.openai.com/v1/', 'https://proxy.example/v1'])(
-    'sends default-model tools to Responses with OPENAI_BASE_URL=%s',
-    async baseURL => {
-      const fetch = vi.fn<typeof globalThis.fetch>().mockRejectedValue(new Error('Network disabled in test'))
-      vi.stubGlobal('fetch', fetch)
-      const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_BASE_URL: baseURL } })
-      if (typeof resolved.model === 'string' || resolved.model.specificationVersion !== 'v4') {
-        throw new Error('Expected a v4 provider')
-      }
-      await expect(
-        resolved.model.doGenerate({
-          prompt: [{ role: 'user', content: [{ type: 'text', text: 'Use the tool' }] }],
-          tools: [{ type: 'function', name: 'noop', inputSchema: { type: 'object', properties: {} } }],
-          providerOptions: resolved.providerOptions,
-        })
-      ).rejects.toThrow('Network disabled in test')
-      expect(fetch).toHaveBeenCalledOnce()
-      expect(fetch.mock.calls[0]?.[0]).toBe(`${baseURL.replace(/\/+$/, '')}/responses`)
-      const body = JSON.parse(fetch.mock.calls[0]?.[1]?.body as string)
-      expect(body.model).toBe('gpt-6.1-sol')
-      expect(body.tools).toEqual([expect.objectContaining({ name: 'noop' })])
-    }
-  )
-
-  it.each(['gpt-6-sol', 'gpt-6-luna', 'gpt-6.1-sol'])('keeps %s on Responses through a proxy', modelName => {
-    const resolved = resolveAgentModel({
-      spec: modelName,
-      apiKey: 'k',
-      env: { OPENAI_BASE_URL: 'https://proxy.example/v1' },
-    })
-    expect(resolved.model).toMatchObject({ provider: 'openai.responses', modelId: modelName })
+    expect(request.url).toBe(expectedUrl)
+    expect(request.body.tools).toEqual([expect.objectContaining({ name: 'noop' })])
   })
 
   it('resolves anthropic with a Claude default and summarized thinking', () => {
     const resolved = resolveAgentModel({ spec: 'anthropic:auto', apiKey: 'k', env: {} })
 
-    expect(resolved.providerId).toBe('anthropic')
-    expect(resolved.modelName).toBe('claude-opus-5-5')
     expect(resolved.model).toMatchObject({ provider: 'anthropic.messages', modelId: 'claude-opus-5-5' })
     expect(resolved.providerOptions).toEqual({
       anthropic: { thinking: { type: 'adaptive', display: 'summarized' } },
@@ -196,21 +135,11 @@ describe('resolveAgentModel', () => {
     ['https://gateway.example', 'https://gateway.example/v1/messages'],
     ['https://gateway.example/v1/', 'https://gateway.example/v1/messages'],
   ])('accepts ANTHROPIC_BASE_URL=%s with or without /v1', async (baseURL, expectedUrl) => {
-    const fetch = vi.fn<typeof globalThis.fetch>().mockRejectedValue(new Error('Network disabled in test'))
-    vi.stubGlobal('fetch', fetch)
-    const resolved = resolveAgentModel({ spec: 'claude-opus-5-5', apiKey: 'k', env: { ANTHROPIC_BASE_URL: baseURL } })
-    if (typeof resolved.model === 'string' || resolved.model.specificationVersion !== 'v4') {
-      throw new Error('Expected a v4 provider')
-    }
+    const request = await captureRequest(
+      resolveAgentModel({ spec: 'claude-opus-5-5', apiKey: 'k', env: { ANTHROPIC_BASE_URL: baseURL } })
+    )
 
-    await expect(
-      resolved.model.doGenerate({
-        prompt: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
-        providerOptions: resolved.providerOptions,
-      })
-    ).rejects.toThrow('Network disabled in test')
-
-    expect(fetch.mock.calls[0]?.[0]).toBe(expectedUrl)
+    expect(request.url).toBe(expectedUrl)
   })
 
   it('lets ANTHROPIC_MODEL override the anthropic default', () => {
@@ -220,35 +149,43 @@ describe('resolveAgentModel', () => {
       env: { ANTHROPIC_MODEL: 'claude-sonnet-5-5' },
     })
 
-    expect(resolved.modelName).toBe('claude-sonnet-5-5')
+    expect(resolved.model).toMatchObject({ modelId: 'claude-sonnet-5-5' })
   })
 
   it.each(['claude-haiku-4-5', 'claude-opus-4-5', 'custom-deployment'])(
     'does not send adaptive thinking for %s',
     async modelName => {
-      const fetch = vi.fn<typeof globalThis.fetch>().mockRejectedValue(new Error('Network disabled in test'))
-      vi.stubGlobal('fetch', fetch)
-      const resolved = resolveAgentModel({ spec: `anthropic:${modelName}`, apiKey: 'k', env: {} })
-      if (typeof resolved.model === 'string' || resolved.model.specificationVersion !== 'v4') {
-        throw new Error('Expected a v4 provider')
-      }
-      await expect(
-        resolved.model.doGenerate({
-          prompt: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
-          providerOptions: resolved.providerOptions,
-        })
-      ).rejects.toThrow('Network disabled in test')
-      expect(fetch).toHaveBeenCalledOnce()
-      const body = JSON.parse(fetch.mock.calls[0]?.[1]?.body as string)
-      expect(body.model).toBe(modelName)
-      expect(body).not.toHaveProperty('thinking')
+      const request = await captureRequest(resolveAgentModel({ spec: `anthropic:${modelName}`, apiKey: 'k', env: {} }))
+
+      expect(request.body.model).toBe(modelName)
+      expect(request.body).not.toHaveProperty('thinking')
     }
   )
 
   it('does not let OPENAI_MODEL leak into another provider', () => {
     const resolved = resolveAgentModel({ spec: 'anthropic:auto', apiKey: 'k', env: { OPENAI_MODEL: 'gpt-6-luna' } })
 
-    expect(resolved.modelName).toBe('claude-opus-5-5')
+    expect(resolved.model).toMatchObject({ modelId: 'claude-opus-5-5' })
+  })
+
+  it('reads the API key from the provider variable when none is passed', async () => {
+    const request = await captureRequest(
+      resolveAgentModel({ spec: 'claude-opus-5-5', env: { ANTHROPIC_API_KEY: 'anthropic-key' } })
+    )
+
+    expect(request.headers['x-api-key']).toBe('anthropic-key')
+  })
+
+  it.each([
+    ['claude-opus-5-5', 'ANTHROPIC_API_KEY'],
+    ['openai-compatible:llama4', 'DEEPNOTE_AGENT_API_KEY'],
+  ])('does not use OPENAI_* credentials for %s', (spec, keyVar) => {
+    expect(() =>
+      resolveAgentModel({
+        spec,
+        env: { OPENAI_API_KEY: 'openai-key', OPENAI_BASE_URL: 'http://localhost:11434/v1' },
+      })
+    ).toThrow(`Set ${keyVar} to run this agent block.`)
   })
 
   it('resolves openai-compatible from its own variables', () => {
@@ -261,24 +198,18 @@ describe('resolveAgentModel', () => {
       },
     })
 
-    expect(resolved.modelName).toBe('anthropic/claude-opus-5.5')
+    expect(resolved.model).toMatchObject({ modelId: 'anthropic/claude-opus-5.5' })
     expect(resolved.providerOptions).toEqual({})
   })
 
-  it('falls back to the OPENAI_* variables for openai-compatible', () => {
-    const resolved = resolveAgentModel({
-      spec: 'openai-compatible:auto',
-      apiKey: 'k',
-      env: { OPENAI_BASE_URL: 'http://localhost:11434/v1', OPENAI_MODEL: 'llama4' },
-    })
-
-    expect(resolved.modelName).toBe('llama4')
-  })
-
   it('names the variable to set when openai-compatible has no endpoint', () => {
-    expect(() => resolveAgentModel({ spec: 'openai-compatible:llama4', apiKey: 'k', env: {} })).toThrow(
-      /DEEPNOTE_AGENT_BASE_URL/
-    )
+    expect(() =>
+      resolveAgentModel({
+        spec: 'openai-compatible:llama4',
+        apiKey: 'k',
+        env: { OPENAI_BASE_URL: 'http://localhost:11434/v1' },
+      })
+    ).toThrow(/DEEPNOTE_AGENT_BASE_URL/)
   })
 
   it('refuses to guess a model for openai-compatible', () => {
@@ -294,7 +225,7 @@ describe('resolveAgentModel', () => {
   it('ignores empty env values instead of treating them as configured', () => {
     const resolved = resolveAgentModel({ spec: 'auto', apiKey: 'k', env: { OPENAI_MODEL: '' } })
 
-    expect(resolved.modelName).toBe('gpt-6.1-sol')
+    expect(resolved.model).toMatchObject({ modelId: 'gpt-6.1-sol' })
   })
 
   it('ignores an empty OPENAI_BASE_URL', () => {
