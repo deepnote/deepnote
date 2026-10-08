@@ -90,9 +90,15 @@ const PLACEHOLDER_DOMAIN_PATTERN =
 /**
  * Email addresses. Deliberately narrower than RFC 5322: the aim is to find the addresses people
  * actually paste into notebooks, not to validate every address a standard permits.
+ *
+ * The final label must begin with a letter, which is what every real top-level domain does. The
+ * version half of a pinned dependency otherwise reads as one: `numpy@1.26.0` matched, so the
+ * package inventory came out with its versions masked and the generated SBOM named components
+ * nothing could resolve. A bare IP-literal domain (`user@192.168.1.1`) stops matching too, which
+ * is the right trade — it identifies a host, and this pattern exists to identify people.
  */
 const EMAIL_PATTERN =
-  /(^|[^A-Za-z0-9._%+\-/@])([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+)/g
+  /(^|[^A-Za-z0-9._%+\-/@])([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z][A-Za-z0-9-]*[A-Za-z0-9])/g
 
 /**
  * Reduce an address to one form per person.

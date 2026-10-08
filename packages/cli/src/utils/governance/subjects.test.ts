@@ -134,3 +134,25 @@ describe('createSubjectFingerprinter', () => {
     expect(() => createSubjectFingerprinter('x'.repeat(MIN_SALT_LENGTH))).not.toThrow()
   })
 })
+
+describe('redactSubjects — a version is not a domain', () => {
+  it.each(['numpy@1.26.0', 'pandas@2.0.1', 'scikit-learn@1.4'])('leaves the pinned dependency %s alone', pinned => {
+    // The version half matched the domain pattern, so a package inventory came out with its
+    // versions masked and the generated SBOM named components nothing could resolve.
+    expect(redactSubjects(pinned)).toBe(pinned)
+  })
+
+  it('leaves a bare IP-literal domain alone, which identifies a host rather than a person', () => {
+    expect(redactSubjects('svc@192.168.1.1')).toBe('svc@192.168.1.1')
+  })
+
+  it.each([
+    'jane.doe@acme-corp.io',
+    'a@b.co',
+    'bob.jones@partner.example',
+    'z@sub.domain.co.uk',
+    'x@xn--80ak6aa92e.com',
+  ])('still masks %s', address => {
+    expect(redactSubjects(address)).toBe('<redacted>')
+  })
+})
