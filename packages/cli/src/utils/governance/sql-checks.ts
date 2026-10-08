@@ -33,6 +33,14 @@ export interface SqlFinding {
   /** The comparison as written, e.g. `status = NULL`. */
   snippet: string
   details?: Record<string, unknown>
+  /**
+   * Which `details` keys hold text copied verbatim from the block, as opposed to values this check
+   * chose from a closed vocabulary (`=`, `IS NULL`, `TRUE`).
+   *
+   * Declared by the check because only the check knows. The consumer treats an undeclared key as
+   * verbatim, so forgetting to list one fails towards withholding it rather than publishing it.
+   */
+  verbatimDetails?: string[]
 }
 
 /**
@@ -132,6 +140,7 @@ function checkNullComparison(tokens: SqlToken[]): SqlFinding[] {
       column: operator.column,
       snippet,
       details: { operator: operator.text, ...(replacement ? { suggestion: replacement } : {}) },
+      verbatimDetails: [],
     })
   }
 
@@ -201,6 +210,7 @@ function checkTautology(tokens: SqlToken[]): SqlFinding[] {
       column: operator.column,
       snippet: snippetOf(tokens, left.startIndex, right.endIndex),
       details: { columnName: left.text, operator: operator.text },
+      verbatimDetails: ['columnName'],
     })
   }
 
@@ -249,6 +259,7 @@ function checkStringBoolean(tokens: SqlToken[]): SqlFinding[] {
       column: operator.column,
       snippet: snippetOf(tokens, start, end),
       details: { columnName: column.text, literal: literal.value, suggestion: keyword },
+      verbatimDetails: ['columnName', 'literal'],
     })
   }
 

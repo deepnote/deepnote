@@ -274,7 +274,8 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     for (const run of runsOf(SECRET, 8)) {
       expect(serialized).not.toContain(run)
     }
-    expect(sql[0].message).toContain('<redacted>')
+    // The block holds a credential, so the message says so rather than quoting text from it.
+    expect(sql[0].message).toContain('also contains a credential')
     expect(sql[0].details?.snippet).toBe('<redacted>')
   })
 
@@ -295,6 +296,38 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     for (const run of runsOf(SECRET, 8)) {
       expect(serialized).not.toContain(run)
     }
+  })
+
+  it('withholds a secret the field alone cannot recognize, because the block could', () => {
+    // Half the provider patterns need surrounding context. A URI password is recognizable in
+    // `postgres://admin:…@host/db` and unrecognizable on its own, so re-scanning `details.columnName`
+    // by itself asks a different question from the one the block scan already answered — and
+    // publishes the password beside the fingerprint of the very same secret.
+    const { issues } = runWithContentLabels([
+      {
+        id: 'b1',
+        type: 'sql',
+        content:
+          "-- dsn: postgres://admin:hunter2longPassPhrase@warehouse/db\nSELECT * FROM t WHERE hunter2longPassPhrase = 'true'",
+      },
+    ])
+
+    expect(JSON.stringify(issues)).not.toContain('hunter2longPassPhrase')
+    const sql = issues.find(issue => issue.code.startsWith('sql-'))
+    expect(sql?.details?.columnName).toBe('<redacted>')
+  })
+
+  it('keeps the values a check chose rather than copied, even in a block holding a secret', () => {
+    // Withholding everything would be safe and useless. `operator` and `suggestion` come from a
+    // closed vocabulary the check controls, so they are published; the check declares which of its
+    // keys are verbatim block text, and an undeclared key is treated as verbatim.
+    const { issues } = runWithContentLabels([
+      { id: 'b1', type: 'sql', content: `KEY = "${SECRET}"\nSELECT * FROM t WHERE a.x = NULL` },
+    ])
+
+    const sql = issues.find(issue => issue.code === 'sql-null-comparison')
+    expect(sql?.details).toMatchObject({ operator: '=', suggestion: 'IS NULL' })
+    expect(sql?.details?.snippet).toBe('<redacted>')
   })
 
   it('keeps `details.column` a position, never a name', () => {

@@ -104,31 +104,53 @@ function identityLabel(block: DeepnoteBlock): string {
 const WITHHELD = '<redacted>'
 
 /**
- * A SQL finding's message and details, with every string that carries a credential withheld.
+ * A SQL finding's message and details, with every string that could carry a credential withheld.
  *
- * Three fields have leaked here in turn — the block label, the snippet, and `details.column` — and
- * each was found separately because each was reasoned about separately. The common cause is that
- * every one of them is derived from block text, and a block's text is where credentials are. So
- * this does not name the fields it protects: it walks the finished details object, so a key added
- * to a check tomorrow is covered without anyone remembering to come back here.
+ * Three fields have leaked here in turn — the block label, the snippet, and `details.columnName` —
+ * each found separately because each was reasoned about separately. They have one cause: every one
+ * of them is derived from block text, and block text is where credentials are. So this does not
+ * name the fields it protects. It walks the finished details object, and a key added to a check
+ * tomorrow is covered without anyone remembering to come back here.
  *
- * The snippet span is narrow, which makes a credential inside it rare rather than impossible: a
- * literal that is itself an operand of the flagged comparison is inside the span, and a quoted
- * identifier can be anything at all.
+ * `blockHoldsSecret` is why the decision is made per block rather than per field. Re-scanning each
+ * field on its own asks a different question from the one the block scan answered: half the
+ * provider patterns need surrounding context to fire. A URI password is recognizable in
+ * `postgres://admin:…@host/db` and unrecognizable on its own, so a password reused as a column name
+ * matches nothing when `details.columnName` is scanned by itself — and is published beside the
+ * fingerprint of the very same secret. The block already knows; this uses what it knows.
  *
- * The message quotes the snippet, so substituting it covers the usual shape; the guard after it
- * covers a template that interpolates some other operand. `findSecrets` reports presence but not
- * position, so strings here are withheld whole. `redactSecrets` supersedes this and masks in place.
+ * The cost is that a block containing a credential anywhere loses the text of its SQL evidence,
+ * keeping only code, line and column. That is the same trade the block label already makes, it is
+ * rare, and `redactSecrets` supersedes it one commit later by masking in place with real spans.
  */
 function safeSqlFinding(
-  finding: { code: GovernanceCheckCode; message: string; snippet: string; line: number },
-  details: Record<string, unknown>
+  finding: { code: GovernanceCheckCode; message: string; snippet: string; line: number; verbatimDetails?: string[] },
+  details: Record<string, unknown>,
+  blockHoldsSecret: boolean
 ): { message: string; details: Record<string, unknown> } {
+  // `snippet` is always block text. Beyond that the check says which of its keys are, and a key no
+  // check declared is treated as block text — the safe direction for a field nobody has considered.
+  const declared = finding.verbatimDetails
+  const isVerbatim = (key: string): boolean =>
+    key !== 'integrationId' && (key === 'snippet' || declared === undefined || declared.includes(key))
+
+  const unsafe = (key: string, value: unknown): boolean =>
+    typeof value === 'string' && isVerbatim(key) && (blockHoldsSecret || findSecrets(value).length > 0)
+
   const safeDetails: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(details)) {
-    safeDetails[key] = typeof value === 'string' && findSecrets(value).length > 0 ? WITHHELD : value
+    safeDetails[key] = unsafe(key, value) ? WITHHELD : value
   }
 
+  if (blockHoldsSecret) {
+    return {
+      message: `This ${finding.code} finding is in a block that also contains a credential, so the text it quotes is withheld. See line ${finding.line}.`,
+      details: safeDetails,
+    }
+  }
+
+  // The message quotes the snippet, so substituting it covers the usual shape; the guard after it
+  // covers a template that interpolates some other operand.
   const substituted =
     findSecrets(finding.snippet).length > 0 ? finding.message.split(finding.snippet).join(WITHHELD) : finding.message
   const message =
@@ -181,13 +203,17 @@ export function runProjectGovernanceChecks(
       sqlBlocks++
       const integrationId = integrationIdOf(block)
       for (const finding of checkSqlQuery(content)) {
-        const safe = safeSqlFinding(finding, {
-          line: finding.line,
-          column: finding.column,
-          snippet: finding.snippet,
-          ...(integrationId ? { integrationId } : {}),
-          ...finding.details,
-        })
+        const safe = safeSqlFinding(
+          finding,
+          {
+            line: finding.line,
+            column: finding.column,
+            snippet: finding.snippet,
+            ...(integrationId ? { integrationId } : {}),
+            ...finding.details,
+          },
+          secretFindings.length > 0
+        )
         issues.push({
           severity: SEVERITY_BY_CODE[finding.code],
           code: finding.code,
