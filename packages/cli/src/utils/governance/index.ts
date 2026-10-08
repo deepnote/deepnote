@@ -389,6 +389,14 @@ function checkDependencies(
   const issues: LintIssue[] = []
   let untracked = 0
 
+  // Block labels here get the same treatment the SQL findings get: masked against the block they
+  // came from rather than against the one line lifted out of it, because half the provider patterns
+  // need the surrounding text to fire. An install command is as able to carry an index URL with a
+  // token in it as any other line.
+  const contentById = new Map(blocks.map(block => [block.id, blockContent(block)]))
+  const scrubLabel = (blockId: string, label: string): string =>
+    redactSubjects(redactSecretsWithContext(label, contentById.get(blockId) ?? label))
+
   for (const entry of entries) {
     // Where to file it: the install command's block when there is one, otherwise the project's
     // declared environment, which belongs to no notebook.
@@ -398,7 +406,9 @@ function checkDependencies(
     const info = blamesBlock ? blockMap.get(entry.blockId as string) : undefined
     const where = {
       blockId: info ? (entry.blockId as string) : '',
-      blockLabel: info ? redactSubjects(redactSecrets(info.label)) : SOURCE_LABEL[entry.weakestSource ?? 'environment'],
+      blockLabel: info
+        ? scrubLabel(entry.blockId as string, info.label)
+        : SOURCE_LABEL[entry.weakestSource ?? 'environment'],
       notebookName: info?.notebookName ?? ENVIRONMENT_SCOPE,
     }
 
@@ -434,7 +444,9 @@ function checkDependencies(
         code: 'dependency-untracked',
         message: `"${entry.rawName}" is installed by a block but is not in environment.packages, so it is missing from every inventory built from this project and is re-installed on every run.`,
         blockId: installInfo ? (entry.blockId as string) : '',
-        blockLabel: installInfo ? redactSubjects(redactSecrets(installInfo.label)) : SOURCE_LABEL['install-command'],
+        blockLabel: installInfo
+          ? scrubLabel(entry.blockId as string, installInfo.label)
+          : SOURCE_LABEL['install-command'],
         notebookName: installInfo?.notebookName ?? ENVIRONMENT_SCOPE,
         details: {
           package: entry.name,
