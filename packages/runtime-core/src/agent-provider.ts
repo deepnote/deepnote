@@ -111,6 +111,14 @@ export function parseAgentModel(spec: string | undefined): ParsedAgentModel {
   return { providerId: trimmed.startsWith('claude-') ? 'anthropic' : 'openai', modelName: trimmed }
 }
 
+/**
+ * Returns the name of the environment variable `resolveAgentModel` reads the
+ * provider's API key from when no `apiKey` is passed.
+ */
+export function getAgentApiKeyEnvVar(providerId: AgentProviderId): string {
+  return PROVIDER_ENV[providerId].apiKeyVar
+}
+
 function readEnv(
   env: Record<string, string | undefined>,
   providerId: AgentProviderId,

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { parseAgentModel, type ResolvedAgentModel, resolveAgentModel } from './agent-provider'
+import {
+  type AgentProviderId,
+  getAgentApiKeyEnvVar,
+  parseAgentModel,
+  type ResolvedAgentModel,
+  resolveAgentModel,
+} from './agent-provider'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -88,6 +94,16 @@ describe('parseAgentModel', () => {
       providerId: 'anthropic',
       modelName: 'claude-opus-5-5',
     })
+  })
+})
+
+describe('getAgentApiKeyEnvVar', () => {
+  it.each<[AgentProviderId, string]>([
+    ['openai', 'OPENAI_API_KEY'],
+    ['anthropic', 'ANTHROPIC_API_KEY'],
+    ['openai-compatible', 'DEEPNOTE_AGENT_API_KEY'],
+  ])('names the variable %s falls back to', (providerId, envVar) => {
+    expect(getAgentApiKeyEnvVar(providerId)).toBe(envVar)
   })
 })
 
