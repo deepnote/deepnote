@@ -420,6 +420,37 @@ function notebookLastTouchedAt(notebook: WorkspaceProject['notebooks'][number]):
   return latest
 }
 
+/** How a SQL block's integration was determined. */
+export type IntegrationSource = 'declared' | 'inferred' | 'unknown'
+
+/**
+ * The integration a SQL block runs against.
+ *
+ * A sizeable minority of SQL blocks carry no `sql_integration_id`. Comparing those only against
+ * each other is the right default — two tables of the same name behind two connections are not
+ * the same table, and guessing would merge them.
+ *
+ * But the ambiguity is not always there. When the project declares exactly one integration, every
+ * SQL block in it runs against that one; there is nothing else for it to run against. Attributing
+ * the block is then not a guess, and leaving it in the unknown bucket costs real comparisons: the
+ * block is excluded from its own warehouse's consensus and pooled instead with blocks from
+ * projects it has nothing to do with.
+ *
+ * Projects declaring none, or more than one, keep their blocks in the unknown bucket. The rule
+ * that applied is recorded on every finding, so the inference is auditable rather than invisible.
+ */
+export function resolveBlockIntegration(
+  declared: string | undefined,
+  projectIntegrationIds: readonly string[]
+): { id?: string; source: IntegrationSource } {
+  if (declared !== undefined) {
+    return { id: declared, source: 'declared' }
+  }
+  return projectIntegrationIds.length === 1
+    ? { id: projectIntegrationIds[0], source: 'inferred' }
+    : { source: 'unknown' }
+}
+
 /** `--project` matches a project by exact id, or by name case-insensitively. */
 function matchesProject(project: WorkspaceProject, filter: string): boolean {
   return project.id === filter || project.name.toLowerCase() === filter.toLowerCase()
@@ -497,6 +528,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   for (const project of projects) {
     const blockMap = blockMapFor(project)
     const projectIsLive = projectAges.get(project.id)?.liveness === 'live'
+    // A project declaring exactly one integration leaves its undeclared SQL blocks unambiguous.
+    const projectIntegrationIds = project.integrations.map(integration => integration.id)
     blockLabelsByProject.set(project.id, new Map([...blockMap].map(([id, info]) => [id, info.label])))
     notebookCount += project.notebooks.length
 
@@ -528,7 +561,14 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         const content =
           typeof (block as { content?: unknown }).content === 'string' ? (block as { content: string }).content : ''
 
-        const integrationId = sqlIntegrationIdOf(block)
+        const declaredIntegrationId = sqlIntegrationIdOf(block)
+        // Blocks that name their integration keep it; blocks in a single-integration project are
+        // attributed to it. Everything else stays unscoped. The tables section and the divergence
+        // anchors both read this, so they continue to agree on what a table is.
+        const { id: integrationId, source: integrationSource } = resolveBlockIntegration(
+          declaredIntegrationId,
+          projectIntegrationIds
+        )
         if (block.type === 'sql') {
           sqlBlockCount++
           const referenced = findTableReferences(content)
@@ -573,6 +613,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
               path: notebook.path,
               blockId: block.id,
               blockLabel: blockMap.get(block.id)?.label ?? block.id,
+              integrationSource,
             },
             // Which warehouse the query runs against. Two tables called `users` behind two
             // connections are not one subject, so the consensus checks scope on this.
@@ -584,7 +625,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
             }),
           })
         }
-        if (integrationId) {
+        // The inventory counts what a block actually names. An inferred attribution is good enough
+        // to scope a comparison; it is not evidence that the block ran against the integration,
+        // and counting it as usage would make an orphan look used.
+        if (declaredIntegrationId) {
+          const integrationId = declaredIntegrationId
           const usage: IntegrationUsage = integrations.get(integrationId) ?? {
             id: integrationId,
             consumers: [],
@@ -939,6 +984,9 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
           // Which queries were allowed into this comparison, and on what rule.
           scopeRule: group.scopeRule,
           scopeKey: group.scopeKey,
+          // And how *this* query came to be in that scope: its block named the integration, or
+          // the project declared exactly one and it was attributed.
+          ...(member.location.integrationSource ? { integrationSource: member.location.integrationSource } : {}),
           signalSource: verdict ? 'triage' : measured[group.kind] !== undefined ? 'measured' : 'prior',
           prior: Number(prior.toFixed(4)),
           ...(measured[group.kind] !== undefined ? { measuredPrecision: measured[group.kind] } : {}),
@@ -970,8 +1018,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   //
   // Both halves of this split reach the report, and both go through the boundary pass on the way
   // out. A notebook name does not stop naming a person because the finding that located it was
-  // downranked, and `suppressed` was the fourth field to escape redaction by sitting beside the
-  // array someone had remembered to cover.
+  // ranked out of the queue, and `suppressed` was the fourth field to escape redaction by sitting
+  // beside the array someone had remembered to cover.
   const suppressed = allScored.filter(issue => issue.details?.verdict === 'false-positive')
   const scoredIssues = allScored.filter(issue => issue.details?.verdict !== 'false-positive')
 
@@ -1007,9 +1055,17 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     notes.push(DIVERGENCE_PRECISION_NOTE)
   }
   const unscopedQueries = observations.filter(observation => !observation.facts.integrationId).length
+  const inferredQueries = observations.filter(
+    observation => observation.location.integrationSource === 'inferred'
+  ).length
   if (options.divergence !== false && unscopedQueries > 0) {
     notes.push(
-      `${unscopedQueries} of ${observations.length} SQL blocks declare no integration. They are compared only with each other, never against a known warehouse, because two tables of the same name behind two connections are not the same table.`
+      `${unscopedQueries} of ${observations.length} SQL blocks could not be attributed to an integration — their block names none and their project declares none or several. They are compared only with each other, never against a known warehouse, because two tables of the same name behind two connections are not the same table.`
+    )
+  }
+  if (options.divergence !== false && inferredQueries > 0) {
+    notes.push(
+      `${inferredQueries} SQL blocks name no integration but sit in a project that declares exactly one, so they are attributed to it. Each affected finding records this in details.integrationSource.`
     )
   }
   if (options.divergence !== false && workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {

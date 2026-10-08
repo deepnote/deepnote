@@ -117,12 +117,19 @@ describe('toCandidate', () => {
 
     expect(toCandidate(a).id).toBe(toCandidate(b).id)
     // Form order must not change the id, or a cache hit would depend on iteration order.
-    expect(candidateId('join', 's', ['a', 'b'])).toBe(candidateId('join', 's', ['b', 'a']))
+    expect(candidateId('join', 'wh', 's', ['a', 'b'])).toBe(candidateId('join', 'wh', 's', ['b', 'a']))
   })
 
   it('gives different ids to different subjects', () => {
-    expect(candidateId('join', 'a ↔ b', ['x'])).not.toBe(candidateId('join', 'a ↔ c', ['x']))
-    expect(candidateId('join', 'a ↔ b', ['x'])).not.toBe(candidateId('metric', 'a ↔ b', ['x']))
+    expect(candidateId('join', 'wh', 'a ↔ b', ['x'])).not.toBe(candidateId('join', 'wh', 'a ↔ c', ['x']))
+    expect(candidateId('join', 'wh', 'a ↔ b', ['x'])).not.toBe(candidateId('metric', 'wh', 'a ↔ b', ['x']))
+  })
+
+  it('gives different ids to the same disagreement behind two integrations', () => {
+    // Groups are scoped per integration, so the same table pair can diverge the same way in two
+    // warehouses. Without the scope in the tuple they hash identically, and both the review
+    // import and the verdict cache would treat one warehouse's answer as the other's.
+    expect(candidateId('join', 'prod', 'a ↔ b', ['x'])).not.toBe(candidateId('join', 'staging', 'a ↔ b', ['x']))
   })
 
   it('never carries a block or an output, only the grouped forms', () => {

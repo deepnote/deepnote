@@ -16,7 +16,12 @@ import {
   usablePrecision,
 } from '../utils/governance/review'
 import { scoreOutOf100 } from '../utils/governance/scoring'
-import { ABSENT_VARIANT, type DivergenceKind, type DivergenceScope } from '../utils/governance/sql-divergence'
+import {
+  ABSENT_VARIANT,
+  type DivergenceGroup,
+  type DivergenceKind,
+  type DivergenceScope,
+} from '../utils/governance/sql-divergence'
 import { COLD_DAYS, formatAge } from '../utils/governance/staleness'
 import {
   createOpenAiCompatibleProvider,
@@ -138,10 +143,9 @@ export function createAuditAction(
       }
 
       const deterministic = auditWorkspace(workspace, auditOptions)
-      const triageResults =
-        options.triage && deterministic.divergence.length > 0
-          ? await triageDivergence(deterministic, options)
-          : undefined
+      // Not gated on the group count: `triageDivergence` resolves the configuration first, so a
+      // `--triage` run that is pointed at nothing fails rather than passing quietly.
+      const triageResults = options.triage ? await triageDivergence(deterministic, options) : undefined
       const audit = triageResults
         ? auditWorkspace(workspace, { ...auditOptions, triage: triageResults })
         : deterministic
@@ -239,30 +243,72 @@ const IRREGULAR_PLURALS: Record<string, string> = { query: 'queries', person: 'p
  * way to tell them. Everything else about this is fail-soft — a bad endpoint, a timeout or a
  * nonsense response all end with the deterministic score standing and the audit exiting 0.
  */
+/**
+ * The anchors `--triage` judges when `--divergence-kind` was not given.
+ *
+ * Metric anchors are the bulk of the output and the ones where the question is about intent:
+ * whether `sum(amount)` and `sum(amount_gross)` were meant to be the same number is not visible
+ * in the tokens. Join anchors are few enough that a person reads them directly, and they are
+ * structural — the deterministic layer decides them about as well as a model would. Spending a
+ * model call on them buys little and costs the thing triage is supposed to save.
+ *
+ * An explicit `--divergence-kind` overrides this: what the audit looked for is what gets judged.
+ */
+const DEFAULT_TRIAGE_KINDS: readonly DivergenceKind[] = ['metric']
+
+/** The groups `--triage` will judge, given what the user asked the audit to look for. */
+function groupsToTriage(audit: WorkspaceAudit, options: AuditOptions): DivergenceGroup[] {
+  if (options.divergenceKind && options.divergenceKind.length > 0) {
+    return audit.divergence
+  }
+  return audit.divergence.filter(group => DEFAULT_TRIAGE_KINDS.includes(group.kind))
+}
+
+/**
+ * Run the model over the divergence groups and return its verdicts.
+ *
+ * Resolves and *prints* the endpoint before the first request — and before deciding whether there
+ * is anything to send. Resolution used to be lazy, so on a workspace that yielded no groups
+ * `--triage` with nothing configured exited 0 and never mentioned triage at all: a CI job
+ * misconfigured for weeks would read as a clean pass. Configuration is a property of the
+ * invocation, not of what the corpus happened to contain.
+ *
+ * Everything after that is fail-soft: a bad endpoint, a timeout or a nonsense response all end
+ * with the deterministic score standing and the audit exiting 0.
+ */
 async function triageDivergence(audit: WorkspaceAudit, options: AuditOptions): Promise<Map<string, TriageResult>> {
   const c = getChalk()
+  const groups = groupsToTriage(audit, options)
 
   // Tests inject a provider directly; production resolves one from flags and environment.
   if (options.triageProvider) {
-    const run = await runTriage(audit.divergence, {
+    const run = await runTriage(groups, {
       provider: options.triageProvider,
       limit: options.triageLimit,
     })
     return run.results
   }
 
+  // Before the group count is consulted, so a missing endpoint is an error either way.
   const config = resolveTriageConfig({ baseUrl: options.triageBaseUrl, model: options.triageModel })
 
   // Under `-o json` stdout is one document a caller parses, so these go to stderr rather than in
   // front of it. They are not dropped: saying where the SQL is being sent, before it is sent, is a
   // guarantee this command makes, and the automated path is the one where nobody is watching.
   const status = options.output === 'json' ? (message: string) => console.error(message) : output
-  status(c.dim(`Triage: sending ${plural(audit.divergence.length, 'group')} to ${config.baseUrl} (${config.model})`))
+
+  if (groups.length === 0) {
+    status(c.dim(`Triage: configured for ${config.baseUrl} (${config.model}), but there is nothing to judge.`))
+    status('')
+    return new Map()
+  }
+
+  status(c.dim(`Triage: sending ${plural(groups.length, 'group')} to ${config.baseUrl} (${config.model})`))
   status(c.dim('Variant forms only — no blocks, no outputs — redacted the same way the report is.'))
 
   const cache =
     options.triageCache === false ? undefined : new TriageCache(join(audit.root, TRIAGE_CACHE_PATH), config.model)
-  const run = await runTriage(audit.divergence, {
+  const run = await runTriage(groups, {
     provider: createOpenAiCompatibleProvider(config),
     cache,
     limit: options.triageLimit,

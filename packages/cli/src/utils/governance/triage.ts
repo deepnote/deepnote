@@ -168,9 +168,16 @@ function scrub(text: string): string {
  *
  * Built from the redacted forms, so the id of a candidate is a function of exactly what the model
  * is shown — which is what lets a cached verdict be trusted.
+ *
+ * `scopeKey` is part of the tuple because queries are grouped per integration. Two warehouses can
+ * each hold the same table pair diverging the same way, and without the scope those two groups
+ * hash identically. Both failures are silent: `--import-review` keys verdicts by id, so one
+ * reviewer's judgement would govern both groups and the other's would be dropped from the
+ * precision denominator; and `TriageCache` keys `${model}:${id}`, so a verdict obtained about one
+ * warehouse would be served from cache for a different one.
  */
-export function candidateId(kind: DivergenceKind, subject: string, forms: string[]): string {
-  const canonical = JSON.stringify([kind, subject, [...forms].sort()])
+export function candidateId(kind: DivergenceKind, scopeKey: string, subject: string, forms: string[]): string {
+  const canonical = JSON.stringify([kind, scopeKey, subject, [...forms].sort()])
   return createHash('sha256').update(canonical).digest('hex').slice(0, 16)
 }
 
@@ -186,6 +193,7 @@ export function toCandidate(group: DivergenceGroup): TriageCandidate {
   return {
     id: candidateId(
       group.kind,
+      group.scopeKey,
       subject,
       variants.map(variant => variant.form)
     ),

@@ -43,6 +43,22 @@ export const DIVERGENCE_KINDS = ['join', 'filter', 'metric'] as const
 
 export type DivergenceKind = (typeof DIVERGENCE_KINDS)[number]
 
+/**
+ * The anchors looked for when `--divergence-kind` is not given.
+ *
+ * `filter` is opt-in rather than absent. It is the lowest-precision of the three by a wide margin,
+ * and it dominates the output because every anchor carries one dissenter per query that *omits*
+ * the filter — so a single widely-ignored column produces more findings than every join and
+ * metric anchor combined, and most of them are a query that legitimately asked a different
+ * question.
+ *
+ * What it reliably catches that is genuinely wrong — a comparison against NULL — is already caught
+ * deterministically, per query and with no consensus required, by `sql-null-comparison`. So
+ * dropping it from the default costs no real coverage, and `--divergence-kind filter` still runs
+ * it for anyone who wants to look.
+ */
+export const DEFAULT_DIVERGENCE_KINDS: readonly DivergenceKind[] = ['join', 'metric']
+
 /** Where one query lives. Carried through so a finding can point at the block it is about. */
 export interface QueryLocation {
   projectId: string
@@ -52,6 +68,15 @@ export interface QueryLocation {
   path: string
   blockId: string
   blockLabel: string
+  /**
+   * How this query's integration was determined: named on the block, inferred because the project
+   * declares exactly one, or not determined at all.
+   *
+   * Carried through to the finding so the inference is auditable. A reader who disagrees with an
+   * attribution can see that it was one, rather than having to work out why a block they know
+   * declares nothing ended up compared against a named warehouse.
+   */
+  integrationSource?: 'declared' | 'inferred' | 'unknown'
 }
 
 /** One query, with what it claims and where it is. */
@@ -155,7 +180,7 @@ export type DivergenceScope = 'integration' | 'type' | 'none'
 export const UNKNOWN_INTEGRATION = 'unknown'
 
 export interface DivergenceOptions {
-  /** Kinds to look for. Defaults to all three. */
+  /** Kinds to look for. Defaults to `DEFAULT_DIVERGENCE_KINDS` — join and metric, not filter. */
   kinds?: DivergenceKind[]
   /** Defaults to `integration`. */
   scope?: DivergenceScope
@@ -267,7 +292,7 @@ function finalizeGroups(groups: Map<string, PendingGroup>): DivergenceGroup[] {
  * from the synced tree and diffable between runs.
  */
 export function findDivergence(observations: QueryObservation[], options: DivergenceOptions = {}): DivergenceGroup[] {
-  const kinds = new Set(options.kinds ?? (['join', 'filter', 'metric'] as DivergenceKind[]))
+  const kinds = new Set(options.kinds ?? DEFAULT_DIVERGENCE_KINDS)
   const scope = options.scope ?? 'integration'
   const groups = new Map<string, PendingGroup>()
 

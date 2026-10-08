@@ -5,6 +5,7 @@ import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { MIN_REVIEWED_FOR_PRECISION } from '../utils/governance/review'
+import type { DivergenceKind } from '../utils/governance/sql-divergence'
 import { TRIAGE_ENV, type TriageProvider, type Verdict } from '../utils/governance/triage'
 import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
@@ -671,7 +672,7 @@ describe('audit command — divergence', () => {
     const text = getOutput(consoleSpy)
 
     expect(text).toContain('Consensus — divergence')
-    expect(text).toContain('3 anchors defined more than one way')
+    expect(text).toContain('2 anchors defined more than one way')
     expect(text).toContain('--divergence to see every variant')
     // Collapsed means collapsed: no variant detail without the flag.
     expect(text).not.toContain('orders.user_id = users.id')
@@ -689,20 +690,30 @@ describe('audit command — divergence', () => {
   })
 
   it('names the block, so two dissenters in one notebook are told apart', async () => {
-    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, {
+      divergence: true,
+      divergenceKind: ['join', 'filter', 'metric'],
+    })
     const text = getOutput(consoleSpy)
 
     expect(text).toContain('SELECT sum(o.amount_gross) AS revenue')
     expect(text).toContain("SELECT * FROM orders o WHERE o.status = 'paid'")
   })
 
-  it('reports all three anchor families', async () => {
+  it('reports the join and metric families by default, and filter only on request', async () => {
     await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
-    const text = getOutput(consoleSpy)
+    const byDefault = getOutput(consoleSpy)
 
-    expect(text).toContain('join  ')
-    expect(text).toContain('metric')
-    expect(text).toContain('filter')
+    expect(byDefault).toContain('join  ')
+    expect(byDefault).toContain('metric')
+    // Lowest precision of the three, and the bulk of the output. What it reliably catches that is
+    // actually wrong — a comparison against NULL — `sql-null-comparison` already catches.
+    expect(byDefault).not.toContain('filter')
+
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, divergenceKind: ['filter'] })
+
+    expect(getOutput(consoleSpy)).toContain('filter')
   })
 
   it('restricts the anchor families on request', async () => {
@@ -740,7 +751,7 @@ describe('audit command — divergence', () => {
     await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
     const report = JSON.parse(getOutput(consoleSpy))
 
-    expect(report.divergence).toHaveLength(3)
+    expect(report.divergence).toHaveLength(2)
     const join = report.divergence.find((group: { kind: string }) => group.kind === 'join')
     expect(join).toMatchObject({ anchorLabel: 'orders ↔ users', observations: 5, projectCount: 5 })
     expect(join.confidence).toBeGreaterThan(0.25)
@@ -749,7 +760,8 @@ describe('audit command — divergence', () => {
   })
 
   it('ranks a divergence in an abandoned notebook above the same one in a live notebook', async () => {
-    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    // Filter anchors, which this fixture puts in both a cold and a live notebook, are opt-in.
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', divergenceKind: ['filter'] })
     const report = JSON.parse(getOutput(consoleSpy))
 
     const missingFilter = report.issues.filter(
@@ -810,6 +822,12 @@ describe('audit command — triage', () => {
     suppressed: ReportIssue[]
   }
 
+  /**
+   * `--triage` judges metric anchors only unless `--divergence-kind` is given, so tests about what
+   * a verdict *does* name the kinds explicitly. The default itself is tested on its own below.
+   */
+  const ALL_KINDS: DivergenceKind[] = ['join', 'metric']
+
   async function reportWith(options: AuditOptions): Promise<Report> {
     consoleSpy.mockClear()
     await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', ...options })
@@ -851,7 +869,11 @@ describe('audit command — triage', () => {
   })
 
   it('lets a verdict replace the prior, and records both', async () => {
-    const report = await reportWith({ triage: true, triageProvider: provider('real', 'the join keys disagree') })
+    const report = await reportWith({
+      triage: true,
+      divergenceKind: ALL_KINDS,
+      triageProvider: provider('real', 'the join keys disagree'),
+    })
 
     const divergence = report.issues.filter(i => i.code === 'sql-divergence')
     expect(divergence.length).toBeGreaterThan(0)
@@ -865,9 +887,47 @@ describe('audit command — triage', () => {
     }
   })
 
+  it('judges metric anchors by default, and leaves joins on their deterministic score', async () => {
+    // Metric anchors are the bulk of the output and the ones where the question is about intent.
+    // Joins are few and structural, so a model call on them buys little.
+    const report = await reportWith({ triage: true, triageProvider: provider('real') })
+
+    const bySource = new Map(
+      report.issues
+        .filter(issue => issue.code === 'sql-divergence')
+        .map(issue => [issue.details.kind as string, issue.details.signalSource as string])
+    )
+
+    expect(bySource.get('metric')).toBe('triage')
+    expect(bySource.get('join')).toBe('prior')
+  })
+
+  it('judges every family the audit looked for when --divergence-kind is explicit', async () => {
+    const report = await reportWith({ triage: true, divergenceKind: ALL_KINDS, triageProvider: provider('real') })
+
+    const sources = report.issues
+      .filter(issue => issue.code === 'sql-divergence')
+      .map(issue => issue.details.signalSource)
+
+    expect(sources.length).toBeGreaterThan(0)
+    expect(new Set(sources)).toEqual(new Set(['triage']))
+  })
+
+  it('reports the resolved endpoint even when the workspace yields nothing to judge', async () => {
+    // Lazy resolution meant a `--triage` run over a workspace with no groups exited 0 without
+    // mentioning triage at all, so a CI job misconfigured for weeks read as a clean pass.
+    await expect(createAuditAction(program)(WORKSPACE, { triage: true })).rejects.toThrow('process.exit called')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+
   it('raises the signal of the same finding above what the prior gave it', async () => {
-    const withPrior = await reportWith({})
-    const withVerdict = await reportWith({ triage: true, triageProvider: provider('real') })
+    const withPrior = await reportWith({ divergenceKind: ALL_KINDS })
+    const withVerdict = await reportWith({
+      triage: true,
+      divergenceKind: ALL_KINDS,
+      triageProvider: provider('real'),
+    })
 
     // Compared per finding, not per rank: the ranking is exactly what a verdict is allowed to
     // change, so comparing "the top one" would compare two different findings.
@@ -885,6 +945,7 @@ describe('audit command — triage', () => {
   it('takes a false positive out of the ranking but keeps it in the JSON', async () => {
     const report = await reportWith({
       triage: true,
+      divergenceKind: ALL_KINDS,
       triageProvider: provider('false-positive', 'count(1) and count(*) are the same thing'),
     })
 
@@ -896,6 +957,7 @@ describe('audit command — triage', () => {
   it('prints what it suppressed and why', async () => {
     await createAuditAction(program)(DIVERGENCE_WORKSPACE, {
       triage: true,
+      divergenceKind: ALL_KINDS,
       triageProvider: provider('false-positive', 'the two forms mean the same thing'),
     })
     const text = getOutput(consoleSpy)

@@ -109,6 +109,7 @@ conflates — `analytics.users` and `staging.users` behind a _single_ integratio
 the row rather than silent. Telling those apart would mean knowing which schema an unqualified
 `users` resolved to, which is a property of the warehouse's search path and not of the query.
 =======
+
 ### Consensus — where definitions disagree
 
 The one question that only exists across a whole workspace: is the same thing defined two different
@@ -117,11 +118,19 @@ is only wrong _relative to_ what every other query does.
 
 The audit anchors consensus on three things that mean the same thing in every notebook:
 
-| Anchor     | The subject          | Variants are                 | Example divergence                                      |
-| ---------- | -------------------- | ---------------------------- | ------------------------------------------------------- |
-| **join**   | a pair of tables     | the join keys                | `orders.user_id = users.id` vs `orders.email = u.email` |
-| **filter** | a table and a column | whether the query filters it | six queries filter `orders.is_test`, two do not         |
-| **metric** | an output name       | the aggregate behind it      | `revenue` as `sum(amount)` vs `sum(amount_gross)`       |
+| Anchor      | The subject          | Variants are                 | Example divergence                                      |
+| ----------- | -------------------- | ---------------------------- | ------------------------------------------------------- |
+| **join**    | a pair of tables     | the join keys                | `orders.user_id = users.id` vs `orders.email = u.email` |
+| **metric**  | an output name       | the aggregate behind it      | `revenue` as `sum(amount)` vs `sum(amount_gross)`       |
+| **filter**† | a table and a column | whether the query filters it | six queries filter `orders.is_test`, two do not         |
+
+† **`filter` is opt-in**, via `--divergence-kind filter`. It is the lowest-precision of the three,
+and it produces most of the output: every anchor carries one finding per query that merely _omits_
+the filter, so one widely-ignored column outweighs every join and metric anchor combined — and
+most of those queries were legitimately asking a different question. The case it reliably catches
+that is genuinely wrong, a comparison against NULL, is already caught per query and without any
+consensus by [`sql-null-comparison`](./deepnote-cli-lint.md), so leaving it out of the default
+costs no real coverage.
 
 Spelling is normalized before anything is compared, which is what makes this work across projects at
 all. These three are one claim, not three:
@@ -133,8 +142,10 @@ FROM analytics.public.orders AS a, prod.users AS b WHERE b.id = a.user_id
 ```
 
 Aliases are resolved to table names, operand order is sorted, composite conditions are gathered into
-one claim per table pair, and a table is identified by its short name — so `analytics.users` and
-`staging.users` are one subject, with the conflation that implies.
+one claim per table pair, and a table is identified by its short name _within one integration_ —
+the same identity the [tables section](#tables--what-depends-on-what) uses. Two schemas behind one
+connection, `analytics.users` and `staging.users`, are still one subject, with the conflation that
+implies.
 
 #### One warehouse at a time
 
@@ -144,8 +155,16 @@ between systems that never shared a schema. `--divergence-scope type` relaxes th
 integration _type_, which is right when several projects each hold their own connection to the same
 warehouse; `none` pools everything, and exists so the cost of the scoping is measurable.
 
-A block with no `sql_integration_id` goes in its own bucket and is never compared against a known
-warehouse. The report says how many blocks that was.
+A block with no `sql_integration_id` is attributed to its project's integration when the project
+declares exactly one — there is nothing else it could be running against, so this is not a guess.
+Where the project declares none, or several, the block goes in an `unknown` bucket and is never
+compared against a known warehouse. The report says how many blocks fell into each case, and every
+finding records which rule placed its query in `details.integrationSource`.
+
+**Scoping raises the anchor count, it does not lower it.** One unscoped group covering three
+warehouses becomes three groups, one per warehouse, each with a share of the observations. Expect
+_more_ groups than an unscoped run and _less_ evidence behind each — which is the point: the
+evidence that disappeared was never evidence about the same table.
 
 Scoping also makes dialect folding safe: within one integration type, `nvl`, `ifnull` and
 `coalesce` are the same intent written three ways, and reporting that as a disagreement is noise.
@@ -236,7 +255,8 @@ table pair means exactly one thing, while two teams may legitimately mean differ
 `revenue`. That ordering is built into the ranking as a per-kind prior, reported in the JSON
 alongside the confidence so you can disagree with it without re-running the audit. Use
 `--skip-divergence` to leave the consensus checks out entirely.
->>>>>>> 6b72017 (feat(cli): find SQL divergence across a workspace, ranked by Wilson confidence)
+
+> > > > > > > 6b72017 (feat(cli): find SQL divergence across a workspace, ranked by Wilson confidence)
 
 ### Maintenance
 
@@ -293,11 +313,12 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 | `--issues`               | List every finding instead of a count per check                                     |
 | `--internal-domain <d>`  | A domain belonging to your organization (repeatable)                                |
 | `--divergence`           | List every consensus group with its variants and locations                          |
-| `--divergence-kind <k>`  | Limit consensus to `join`, `filter` or `metric` (repeatable)                        |
+| `--divergence-kind <k>`  | Anchors to look for: `join`, `metric` or `filter` (repeatable; default join+metric) |
 | `--min-confidence <n>`   | Consensus confidence below which a group raises no finding (default `0.25`)         |
 | `--skip-divergence`      | Do not run the consensus checks at all                                              |
 | `--divergence-scope <s>` | Which queries may be compared: `integration` (default), `type`, or `none`           |
 | `--triage`               | Ask a model whether each group is a real defect (needs a configured endpoint)       |
+| &nbsp;                   | Judges `metric` anchors unless `--divergence-kind` says otherwise                   |
 | `--triage-base-url <u>`  | OpenAI-compatible endpoint (or `DEEPNOTE_TRIAGE_BASE_URL`)                          |
 | `--triage-model <name>`  | Model to triage with (or `DEEPNOTE_TRIAGE_MODEL`)                                   |
 | `--triage-limit <n>`     | Triage only the n most confident groups                                             |
