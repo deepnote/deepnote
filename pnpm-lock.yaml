@@ -211,6 +211,9 @@ importers:
       '@deepnote/cloud':
         specifier: workspace:*
         version: link:../cloud
+      '@deepnote/database-integrations':
+        specifier: workspace:*
+        version: link:../database-integrations
       zod:
         specifier: 3.25.76
         version: 3.25.76
