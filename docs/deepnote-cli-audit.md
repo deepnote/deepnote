@@ -29,8 +29,11 @@ Ingress — integrations
   ⚠ Legacy Redshift (redshift) — declared in 1 project, used by none
 
 Tables — ranked by live reach
-  analytics.users — 12 live of 100 projects, 180 SQL blocks
-  analytics.orders — 11 live of 24 projects, 61 SQL blocks
+  campaigns — 1 project, 1 SQL block
+  forecasts — 1 project, 1 SQL block
+  orders — 1 project, 1 SQL block
+  tickets — 1 project, 1 SQL block
+  users — 1 project, 1 SQL block
 
 Egress — external hosts
   → writes  api.segment.io — 2 projects, 2 blocks
@@ -49,14 +52,17 @@ Credentials shared across projects
   ✖ 2d24bb7a7685f122 (Credential assigned to a secret-named variable) — 2 projects: Marketing campaigns, Revenue reporting
 
 Maintenance
-  3 live, 0 aging, 1 cold (3y+) notebooks · median age 28 days
+  3 live, 0 aging, 1 cold (3y+) notebooks · median age 29 days
 
 Findings
    60 ✖ credential-shared: 2 in 2 projects
    49 ⚠ egress-external: 5 in 2 projects
    38 ⚠ pii-subject-scatter: 1 in 1 project
+   26 ⚠ credential-hardcoded: 2 in 2 projects
    14 ✖ sql-null-comparison: 1 in 1 project
    10 ⚠ ingress-integration-orphan: 1 in 1 project
+    8 ⚠ ingress-integration-undeclared: 1 in 1 project
+    8 ⚠ sql-string-boolean: 1 in 1 project
     1 ⚠ asset-stale: 1 in 1 project
 
 Summary: 3 errors, 12 warnings
@@ -77,11 +83,13 @@ Object-store buckets count as their own destination, so `s3://marketing-exports`
 
 ### Tables — what depends on what
 
-Every table the workspace's SQL references, ranked by how many **live** projects query it. Both
-numbers are always shown, because the raw one is the number people quote and the live one is the
-number that is true. A table referenced by 100 projects of which only 12 were edited in the past
-year is not an eight-times bigger dependency than one with 12 live readers; it is the same
-dependency with a lot of abandoned notebooks attached.
+Every table the workspace's SQL references, ranked by how many **live** projects query it. Where the
+live count differs from the raw one, both are shown — `analytics.users — 12 live of 100 projects` —
+because the raw one is the number people quote and the live one is the number that is true. A table
+referenced by 100 projects of which only 12 were edited in the past year is not an eight-times
+bigger dependency than one with 12 live readers; it is the same dependency with a lot of abandoned
+notebooks attached. Where every reader is live the counts collapse to one number, as in the small
+sample above.
 
 Common table expressions are not counted — a CTE is local to its query, and treating one as a table
 would invent a dependency between two notebooks that happen to use the same name for a scratch
