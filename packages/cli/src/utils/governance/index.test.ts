@@ -291,11 +291,12 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     for (const run of runsOf(SECRET, 8)) {
       expect(serialized).not.toContain(run)
     }
-    // Masked in place rather than withheld: the comparison's shape survives, which is the part of
-    // the evidence that is worth reading. Withholding it is what this had to do before
-    // `redactSecrets` could locate the span.
-    expect(sql[0].details?.snippet).toBe("'<redacted>' = NULL")
-    expect(sql[0].message).toContain('"\'<redacted>\' = NULL"')
+    // Withheld, not masked in place. Masking only removes what a pattern matches, so once the
+    // evidence is known to hold one credential the rest of it cannot be trusted either — see the
+    // recognized-beside-unrecognized case below. The shape of the comparison is the cost; the
+    // code, line and column that locate it survive.
+    expect(sql[0].details?.snippet).toBe('<redacted>')
+    expect(sql[0].details?.line).toBe(1)
   })
 
   it('masks any details field that carries a credential, not only the snippet', () => {
@@ -383,5 +384,43 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     ])
 
     expect(issues[0].blockLabel).toBe('-- active users')
+  })
+})
+
+describe('runProjectGovernanceChecks — evidence known to hold a credential is withheld, not masked', () => {
+  // Not recognized by any provider pattern, which is the whole point: masking only removes what
+  // the scanner can name. Truncated to the shape the other fixtures use, so GitHub's own secret
+  // scanner does not read it as a live webhook and block the push.
+  const WEBHOOK = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX'
+
+  function check(content: string) {
+    const blocks = [{ id: 'b1', type: 'sql', content }] as unknown as DeepnoteBlock[]
+    const blockMap = new Map([['b1', { id: 'b1', label: 'query', type: 'sql', notebookName: 'Notebook' }]])
+    return runProjectGovernanceChecks(blocks, blockMap).issues
+  }
+
+  it('withholds a snippet holding a recognized credential beside an unrecognized one', () => {
+    // A snippet spans a whole comparison, so it can carry more than one credential. Masking in
+    // place removes the AWS key and publishes the webhook beside it. The construction is
+    // contrived — a two-part quoted identifier — but the mechanism is not: masking can only ever
+    // remove what a pattern matches, so evidence known to contain a credential is not text to be
+    // trusted with whatever else is in it.
+    const issues = check(`SELECT * FROM t WHERE "AKIAIOSFODNN7EXAMPLE"."${WEBHOOK}" = NULL`)
+    const finding = issues.find(issue => issue.code === 'sql-null-comparison')
+
+    expect(finding).toBeDefined()
+    expect(JSON.stringify(issues)).not.toContain('B00000000')
+    expect(finding?.details?.snippet).toBe('<redacted>')
+    // The finding is still locatable: code, line and column survive.
+    expect(finding?.details?.line).toBe(1)
+  })
+
+  it('still masks in place when the evidence holds no credential', () => {
+    const finding = check('SELECT * FROM u WHERE u.deleted_at = NULL').find(
+      issue => issue.code === 'sql-null-comparison'
+    )
+
+    expect(finding?.details?.snippet).toBe('u.deleted_at = NULL')
+    expect(finding?.message).toContain('u.deleted_at = NULL')
   })
 })

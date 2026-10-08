@@ -106,7 +106,7 @@ function nameAffinity(query: string, candidate: string): number {
   if (c.includes(q) || q.includes(c)) {
     return 2
   }
-  // A shared leading run, so `Revenu` still finds `Revenue reporting`.
+  // A shared leading run, so a half-typed name still finds the project it is a prefix of.
   let shared = 0
   while (shared < q.length && shared < c.length && q[shared] === c[shared]) {
     shared++
@@ -260,7 +260,14 @@ function outputIssues(audit: WorkspaceAudit, options: AuditOptions): void {
 
   const byCode = new Map<string, AuditIssue[]>()
   for (const issue of audit.issues) {
-    byCode.set(issue.code, [...(byCode.get(issue.code) ?? []), issue])
+    // Appended, not rebuilt: copying the group per finding makes grouping quadratic in the number
+    // of findings sharing a code, which on a large workspace is most of them.
+    const group = byCode.get(issue.code)
+    if (group) {
+      group.push(issue)
+    } else {
+      byCode.set(issue.code, [issue])
+    }
   }
   const ordered = [...byCode.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
 

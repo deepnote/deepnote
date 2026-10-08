@@ -148,6 +148,9 @@ export function safeBlockLabel(block: DeepnoteBlock, label: string): string {
   return redactSecretsWithContext(label, blockContent(block))
 }
 
+/** What a string withheld for holding a credential is replaced with. */
+const WITHHELD = '<redacted>'
+
 /**
  * Every string a SQL finding carries out of the block, with credentials masked.
  *
@@ -175,6 +178,22 @@ function redactSqlFinding(
   for (const [key, value] of Object.entries(details)) {
     redacted[key] = typeof value === 'string' ? scrub(value) : value
   }
+
+  // One exception to masking in place. The snippet spans a whole comparison, so it can hold two
+  // credentials — and the scanner only recognizes some kinds. `'AKIA…' = '<slack webhook>'` has
+  // its AWS key masked and its webhook published, because no pattern matches a webhook URL.
+  //
+  // Once the evidence is known to contain *a* credential, the rest of it is not text to be
+  // trusted. Withholding the snippet in that case costs the shape of one comparison and keeps
+  // its code, line and column; publishing it costs a credential. Detected by whether masking
+  // changed the text, rather than by re-scanning the snippet, so a credential only recognizable
+  // with the surrounding block around it counts too.
+  const snippet = typeof details.snippet === 'string' ? details.snippet : undefined
+  if (snippet !== undefined && redacted.snippet !== snippet) {
+    redacted.snippet = WITHHELD
+    return { message: scrub(message.split(snippet).join(WITHHELD)), details: redacted }
+  }
+
   return { message: scrub(message), details: redacted }
 }
 

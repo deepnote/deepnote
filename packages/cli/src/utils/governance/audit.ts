@@ -170,7 +170,7 @@ function isExemptPath(path: readonly string[]): boolean {
 /**
  * Mask every string in `value`, recursing through arrays and plain objects.
  *
- * Deliberately not a list of fields. Unredacted text has now escaped through four fields in turn —
+ * Deliberately not a list of fields. Raw text has now escaped through four fields in turn —
  * a block label, a SQL snippet, an egress evidence URI, a suppressed finding — and each was found
  * by review rather than by design, because each was added by someone who had no reason to think of
  * that field as a place a credential or a person's name could reach. A project *name* routinely
