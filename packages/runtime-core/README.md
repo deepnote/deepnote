@@ -87,7 +87,8 @@ variable or the default below is used.
 
 ### Custom endpoints
 
-Use `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` to override a provider's endpoint.
+Use `OPENAI_BASE_URL` (including `/v1`) or `ANTHROPIC_BASE_URL` (with or without `/v1`) to override a
+provider's endpoint.
 
 Compatible providers such as OpenRouter, Ollama, and LiteLLM need a key, endpoint
 (`DEEPNOTE_AGENT_BASE_URL`), and model. Set the model in the block or use

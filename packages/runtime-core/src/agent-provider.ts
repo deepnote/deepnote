@@ -94,7 +94,7 @@ const OPENAI_COMPATIBLE_FALLBACK_VARS: Record<keyof Omit<ProviderEnvConfig, 'def
 // Passed explicitly because the SDKs otherwise re-read their base URL from
 // `process.env`, bypassing the injected `env` and rejecting empty values.
 const OPENAI_API_URL = 'https://api.openai.com/v1'
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1'
+const ANTHROPIC_API_URL = 'https://api.anthropic.com'
 
 function isAgentProviderId(value: string): value is AgentProviderId {
   return (AGENT_PROVIDER_IDS as readonly string[]).includes(value)
@@ -167,6 +167,14 @@ export function resolveAgentApiKey(
   throw new Error(`Set ${apiKeyEnvVarFor(providerId)}${fallback} to run this agent block.`)
 }
 
+/**
+ * `ANTHROPIC_BASE_URL` omits `/v1` in Anthropic's SDK and Claude Code, while
+ * the AI SDK expects it included. Accept both forms.
+ */
+function anthropicApiUrl(baseURL: string | undefined): string {
+  return `${(baseURL ?? ANTHROPIC_API_URL).replace(/\/+$/, '').replace(/\/v1$/, '')}/v1`
+}
+
 function isDirectOpenAIEndpoint(baseURL: string | undefined): boolean {
   return baseURL == null || baseURL.replace(/\/+$/, '') === OPENAI_API_URL
 }
@@ -193,7 +201,7 @@ export function resolveAgentModel({ spec, apiKey, env = process.env }: ResolveAg
 
   switch (providerId) {
     case 'anthropic': {
-      const anthropic = createAnthropic({ apiKey, baseURL: baseURL ?? ANTHROPIC_API_URL })
+      const anthropic = createAnthropic({ apiKey, baseURL: anthropicApiUrl(baseURL) })
       return {
         model: anthropic(modelName),
         providerOptions: SUMMARIZED_ADAPTIVE_MODELS.has(modelName)

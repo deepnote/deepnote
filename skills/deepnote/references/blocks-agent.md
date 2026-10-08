@@ -39,7 +39,8 @@ variable or the default below is used.
 | `anthropic`         | `claude-opus-5-5` | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      |
 | `openai-compatible` | Must be set       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` |
 
-Use `OPENAI_BASE_URL` or `ANTHROPIC_BASE_URL` to override a provider's endpoint.
+Use `OPENAI_BASE_URL` (including `/v1`) or `ANTHROPIC_BASE_URL` (with or without `/v1`) to override
+a provider's endpoint.
 Compatible providers need a key, endpoint (`DEEPNOTE_AGENT_BASE_URL`), and model. Set the model
 in the block or use `openai-compatible:auto` with `DEEPNOTE_AGENT_MODEL`. When
 `DEEPNOTE_AGENT_BASE_URL` is unset, each `DEEPNOTE_AGENT_*` variable falls back to its `OPENAI_*`

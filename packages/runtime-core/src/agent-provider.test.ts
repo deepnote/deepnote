@@ -191,6 +191,28 @@ describe('resolveAgentModel', () => {
     })
   })
 
+  it.each([
+    [undefined, 'https://api.anthropic.com/v1/messages'],
+    ['https://gateway.example', 'https://gateway.example/v1/messages'],
+    ['https://gateway.example/v1/', 'https://gateway.example/v1/messages'],
+  ])('accepts ANTHROPIC_BASE_URL=%s with or without /v1', async (baseURL, expectedUrl) => {
+    const fetch = vi.fn<typeof globalThis.fetch>().mockRejectedValue(new Error('Network disabled in test'))
+    vi.stubGlobal('fetch', fetch)
+    const resolved = resolveAgentModel({ spec: 'claude-opus-5-5', apiKey: 'k', env: { ANTHROPIC_BASE_URL: baseURL } })
+    if (typeof resolved.model === 'string' || resolved.model.specificationVersion !== 'v4') {
+      throw new Error('Expected a v4 provider')
+    }
+
+    await expect(
+      resolved.model.doGenerate({
+        prompt: [{ role: 'user', content: [{ type: 'text', text: 'Hello' }] }],
+        providerOptions: resolved.providerOptions,
+      })
+    ).rejects.toThrow('Network disabled in test')
+
+    expect(fetch.mock.calls[0]?.[0]).toBe(expectedUrl)
+  })
+
   it('lets ANTHROPIC_MODEL override the anthropic default', () => {
     const resolved = resolveAgentModel({
       spec: 'anthropic:auto',
