@@ -8,6 +8,7 @@ import {
   updateProjectStaticFiles,
   uploadProjectFile,
 } from '@deepnote/cloud'
+import { SYNC_MANIFEST_FILENAME } from '@deepnote/cloud-sync'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
@@ -25,7 +26,6 @@ import {
   savePublishMirror,
 } from '../utils/publish-mirror'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
-import { SYNC_MANIFEST_FILENAME } from '../utils/sync-manifest'
 
 interface PublishOptions {
   projectId: string

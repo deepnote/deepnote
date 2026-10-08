@@ -120,6 +120,9 @@ importers:
       '@deepnote/cloud':
         specifier: workspace:*
         version: link:../cloud
+      '@deepnote/cloud-sync':
+        specifier: workspace:*
+        version: link:../cloud-sync
       '@deepnote/convert':
         specifier: workspace:*
         version: link:../convert
@@ -199,6 +202,15 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+
+  packages/cloud-sync:
+    dependencies:
+      '@deepnote/cloud':
+        specifier: workspace:*
+        version: link:../cloud
       zod:
         specifier: 3.25.76
         version: 3.25.76
