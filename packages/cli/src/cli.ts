@@ -23,7 +23,7 @@ import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
 import { createStreamlitPublishAction } from './commands/streamlit-publish'
-import { CONFLICT_MODES, createSyncAction } from './commands/sync'
+import { CONFLICT_MODES, createSyncAction, DEFAULT_SYNC_CONCURRENCY, parseSyncConcurrency } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -529,6 +529,7 @@ ${c.bold('Exit Codes:')}
     .option('--delete-missing-notebooks', 'When pushing, delete cloud notebooks that were removed from the local file')
     .option('--prune', 'Delete local files for projects (and files) that no longer exist in the cloud')
     .option('--dry-run', 'Show what would be synced without writing anything')
+    .option('--concurrency <n>', 'How many projects to sync at once', parseSyncConcurrency, DEFAULT_SYNC_CONCURRENCY)
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .addHelpText('after', () => {
       const c = getChalk()

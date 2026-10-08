@@ -816,6 +816,7 @@ the listed workspace; verify the API token and `--url` before retrying.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
+| `--concurrency <n>`          | How many projects to sync at once                                       | `8`          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
 
 **Examples:**

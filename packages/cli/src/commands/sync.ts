@@ -17,7 +17,7 @@ import {
 } from '@deepnote/cloud'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import { select } from '@inquirer/prompts'
-import type { Command } from 'commander'
+import { type Command, InvalidArgumentError } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
@@ -57,6 +57,17 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planPro
 export const CONFLICT_MODES = ['ask', 'skip', 'override'] as const
 export type ConflictMode = (typeof CONFLICT_MODES)[number]
 
+export const DEFAULT_SYNC_CONCURRENCY = 8
+
+/** Commander parser for `--concurrency`: a positive integer. */
+export function parseSyncConcurrency(value: string): number {
+  const concurrency = Number(value)
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    throw new InvalidArgumentError('Must be a positive integer.')
+  }
+  return concurrency
+}
+
 export interface SyncOptions {
   url?: string
   token?: string
@@ -66,6 +77,8 @@ export interface SyncOptions {
   prune?: boolean
   dryRun?: boolean
   output?: 'json'
+  /** How many projects sync at once (default 8). */
+  concurrency?: number
 }
 
 /** What happened to one project during the sync (also the `-o json` shape). */
@@ -104,6 +117,41 @@ interface SyncContext {
   /** `ask` degraded to `skip` when there is no interactive terminal to ask on. */
   conflictMode: ConflictMode
   dryRun: boolean
+  /** Settles when the open conflict prompt closes, so only one is on screen at a time. */
+  promptQueue: Promise<unknown>
+  /** Output held back while a prompt is open; `undefined` when none is. */
+  heldOutput?: (() => void)[]
+  /** Set by a Ctrl+C on a conflict prompt; project work still running stops before its next write. */
+  cancelled?: boolean
+}
+
+/** A Ctrl+C on a conflict prompt: `@inquirer/prompts` rejects with an `ExitPromptError`. */
+function isPromptExit(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ExitPromptError'
+}
+
+/** Stops a project's work after the user cancelled the run from another project's prompt. */
+class SyncCancelledError extends Error {
+  constructor() {
+    super('Sync cancelled')
+    this.name = 'SyncCancelledError'
+  }
+}
+
+/** Call before each write to disk or to Deepnote, so a cancelled run starts no new ones. */
+function throwIfCancelled(ctx: SyncContext): void {
+  if (ctx.cancelled) {
+    throw new SyncCancelledError()
+  }
+}
+
+/** Print `message` now, or once the open conflict prompt closes so it is not drawn over the prompt. */
+function emit(ctx: SyncContext, print: (message: string) => void, message: string): void {
+  if (ctx.heldOutput) {
+    ctx.heldOutput.push(() => print(message))
+  } else {
+    print(message)
+  }
 }
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
@@ -197,13 +245,31 @@ async function resolveConflict(
   if (ctx.conflictMode !== 'ask') {
     return ctx.conflictMode
   }
-  return select({
-    message: question,
-    choices: [
-      { name: 'Skip this project for now', value: 'skip' as const },
-      { name: overrideLabel, value: 'override' as const },
-    ],
+  const answer = ctx.promptQueue.then(async () => {
+    ctx.heldOutput = []
+    try {
+      return await select({
+        message: question,
+        choices: [
+          { name: 'Skip this project for now', value: 'skip' as const },
+          { name: overrideLabel, value: 'override' as const },
+        ],
+      })
+    } finally {
+      for (const print of ctx.heldOutput ?? []) {
+        print()
+      }
+      ctx.heldOutput = undefined
+    }
   })
+  answer.catch((error: unknown) => {
+    if (isPromptExit(error)) {
+      ctx.cancelled = true
+    }
+  })
+  // Not caught: after a Ctrl+C, prompts still queued reject with the same ExitPromptError unseen.
+  ctx.promptQueue = answer
+  return answer
 }
 
 async function writeFileEnsuringDir(absolutePath: string, content: string | Uint8Array): Promise<void> {
@@ -264,6 +330,7 @@ async function writeProjectNotebooks(
   projectDir: string,
   files: readonly ExportedNotebookFile[]
 ): Promise<void> {
+  throwIfCancelled(ctx)
   const dirAbsolute = toAbsolute(ctx, projectDir)
   await fs.mkdir(dirAbsolute, { recursive: true })
 
@@ -277,7 +344,7 @@ async function writeProjectNotebooks(
     // Filenames come from the server export and are already slug-safe, but a hostile archive path
     // must never escape the project directory — validate, and skip (reporting) anything unsafe.
     if (!isSafeRelativeFilePath(file.filename)) {
-      warn(`Skipping notebook with unsafe filename in ${projectDir}: ${file.filename}`)
+      emit(ctx, warn, `Skipping notebook with unsafe filename in ${projectDir}: ${file.filename}`)
       continue
     }
     const caseVariant = [...existingNotebookNames].find(
@@ -319,6 +386,7 @@ async function moveTrackedProjectDir(
   if (ctx.dryRun) {
     return note
   }
+  throwIfCancelled(ctx)
   const fromAbsolute = toAbsolute(ctx, record.dir)
   const toAbsolutePath = toAbsolute(ctx, plan.projectDir)
   if (await pathExists(fromAbsolute)) {
@@ -345,7 +413,7 @@ async function syncProjectFiles(
 
   for (const entry of detail.files) {
     if (!isSafeRelativeFilePath(entry.path)) {
-      warn(`Skipping file with unsafe path in "${project.name}": ${entry.path}`)
+      emit(ctx, warn, `Skipping file with unsafe path in "${project.name}": ${entry.path}`)
       continue
     }
 
@@ -367,6 +435,7 @@ async function syncProjectFiles(
 
     const base = { size: entry.size, updatedAt: entry.updatedAt }
     if (!ctx.dryRun) {
+      throwIfCancelled(ctx)
       const bytes = await downloadProjectFile(ctx.baseUrl, ctx.token, project.id, entry.path)
       await writeFileEnsuringDir(absolutePath, bytes)
       next[entry.path] = { ...base, hash: sha256(bytes) }
@@ -374,7 +443,7 @@ async function syncProjectFiles(
       next[entry.path] = base
     }
     downloaded++
-    debug(`Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
+    emit(ctx, debug, `Downloaded ${project.name}: ${entry.path} (${entry.size} bytes)`)
   }
 
   // Files that disappeared from the cloud stay on disk unless the user opted into --prune. A copy
@@ -389,6 +458,7 @@ async function syncProjectFiles(
     const absolutePath = path.join(toAbsolute(ctx, plan.filesDir), ...stalePath.split('/'))
     if (ctx.options.prune) {
       if (!ctx.dryRun) {
+        throwIfCancelled(ctx)
         await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${stalePath}`)
         await fs.rm(absolutePath, { force: true })
       }
@@ -400,7 +470,9 @@ async function syncProjectFiles(
     }
   }
   if (keptDeleted.length > 0) {
-    warn(
+    emit(
+      ctx,
+      warn,
       `${keptDeleted.length} file${keptDeleted.length === 1 ? '' : 's'} in "${project.name}" ` +
         `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}. ` +
         'Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.'
@@ -459,6 +531,7 @@ async function pushProject(
 
   let notebooks: ImportedNotebook[]
   try {
+    throwIfCancelled(ctx)
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, importOptions)).notebooks
   } catch (error) {
     if (!(error instanceof ApiError) || error.statusCode !== 409 || error.message === 'Project is suspended') {
@@ -472,6 +545,7 @@ async function pushProject(
     if (choice === 'skip') {
       return { kind: 'skipped', reason: 'cloud changed after the local edit' }
     }
+    throwIfCancelled(ctx)
     notebooks = (await importProject(ctx.baseUrl, ctx.token, project.id, localFiles, { ...importOptions, force: true }))
       .notebooks
   }
@@ -558,7 +632,7 @@ async function uploadProjectFiles(
 
   for (const relPath of localPaths) {
     if (!isSafeRelativeFilePath(relPath)) {
-      warn(`Skipping local file with unsafe path in "${project.name}": ${relPath}`)
+      emit(ctx, warn, `Skipping local file with unsafe path in "${project.name}": ${relPath}`)
       continue
     }
     await assertNoSymbolicLinkAncestors(ctx.rootDir, `${plan.filesDir}/${relPath}`)
@@ -595,7 +669,9 @@ async function uploadProjectFiles(
         'Overwrite the Deepnote copies with the local files'
       )) === 'override'
     if (!overrideConflicts) {
-      warn(
+      emit(
+        ctx,
+        warn,
         `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
           `"${project.name}": ${summary}. To accept the Deepnote versions, pull — this replaces your ` +
           'local copies. To keep yours, push again and choose to overwrite.'
@@ -628,11 +704,15 @@ async function uploadProjectFiles(
     const hash = sha256(bytes)
 
     if (!ctx.dryRun) {
+      throwIfCancelled(ctx)
       if (!pending.has(relPath)) {
         pending.add(relPath)
         commitPending()
         await persistManifest()
       }
+      // Checked again after the save above, but not between delete and upload: a started
+      // replacement must finish, or the cloud copy is gone with nothing in its place.
+      throwIfCancelled(ctx)
       await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
       const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
       if (stored.path !== relPath) {
@@ -654,7 +734,7 @@ async function uploadProjectFiles(
       next[relPath] = { size: bytes.length, hash }
     }
     uploaded++
-    debug(`Uploaded ${project.name}: ${relPath} (${bytes.length} bytes)`)
+    emit(ctx, debug, `Uploaded ${project.name}: ${relPath} (${bytes.length} bytes)`)
   }
 
   record.files = next
@@ -789,7 +869,7 @@ async function syncOneProject(
     // A Ctrl+C on a conflict prompt rejects with `@inquirer/prompts`' ExitPromptError. That is the
     // user aborting the whole run, not this project failing — let it stop the sync instead of
     // becoming a per-project `error` outcome the loop swallows.
-    if (error instanceof Error && error.name === 'ExitPromptError') {
+    if (isPromptExit(error) || error instanceof SyncCancelledError) {
       throw error
     }
     const message = error instanceof Error ? error.message : String(error)
@@ -867,10 +947,11 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     options,
     conflictMode,
     dryRun,
+    promptQueue: Promise.resolve(),
   }
   const progress = (message: string) => {
     if (!isMachineOutput) {
-      log(message)
+      emit(ctx, log, message)
     }
   }
 
@@ -898,17 +979,55 @@ export async function syncWorkspace(dir: string | undefined, options: SyncOption
     return pathA.localeCompare(pathB)
   })
 
-  for (const project of sortedProjects) {
-    const plan = plans.get(project.id)
-    if (!plan) {
-      continue
-    }
-    const outcome = await syncOneProject(ctx, project, plan, manifest.projects[project.id], manifest.projects, () =>
-      saveSyncManifest(rootDir, manifest)
-    )
-    outcomes.push(outcome)
-    progress(renderOutcomeLine(outcome))
+  // Saves run one after another so two writes of the manifest never overlap.
+  let manifestSave: Promise<void> = Promise.resolve()
+  const persistManifest = (): Promise<void> => {
+    manifestSave = manifestSave.catch(() => undefined).then(() => saveSyncManifest(rootDir, manifest))
+    return manifestSave
   }
+  // A directory move can free or take a path another project uses, so a run with one stays sequential.
+  const movesDirectory = sortedProjects.some(project => {
+    const record = manifest.projects[project.id]
+    return record !== undefined && record.dir !== plans.get(project.id)?.projectDir
+  })
+  const queue = [...sortedProjects]
+  const worker = async (): Promise<void> => {
+    for (let project = queue.shift(); project && !ctx.cancelled; project = queue.shift()) {
+      const plan = plans.get(project.id)
+      if (!plan) {
+        continue
+      }
+      const outcome = await syncOneProject(
+        ctx,
+        project,
+        plan,
+        manifest.projects[project.id],
+        manifest.projects,
+        persistManifest
+      ).catch((error: unknown) => {
+        if (error instanceof SyncCancelledError) {
+          return undefined
+        }
+        throw error
+      })
+      if (!outcome) {
+        return
+      }
+      outcomes.push(outcome)
+      progress(renderOutcomeLine(outcome))
+    }
+  }
+  const workerCount = Math.min(queue.length, movesDirectory ? 1 : (options.concurrency ?? DEFAULT_SYNC_CONCURRENCY))
+  for (const settled of await Promise.allSettled(Array.from({ length: workerCount }, worker))) {
+    if (settled.status === 'rejected') {
+      // Keep what the other workers finished before the Ctrl+C, then stop the run.
+      if (!ctx.dryRun) {
+        await persistManifest().catch(() => undefined)
+      }
+      throw settled.reason
+    }
+  }
+  outcomes.sort((a, b) => a.path.localeCompare(b.path) || a.projectId.localeCompare(b.projectId))
 
   // Projects the manifest knows but the cloud no longer lists: deleted (or access lost). Local
   // copies are kept unless the user opted into --prune. A stale record may share its path with a
