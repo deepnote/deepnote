@@ -1,21 +1,22 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { ProjectFileEntry, UploadedFile } from '@deepnote/cloud'
-import { debug } from '../output'
-import { isErrnoENOENT } from './file-resolver'
 import {
   assertNoSymbolicLinkAncestors,
   baselineDiverged,
   findSyncManifestRoot,
   hasSyncManifest,
+  isSafeRelativeFilePath,
   loadSyncManifest,
   type ManifestProjectRecord,
+  projectFilesDir,
   SYNC_MANIFEST_FILENAME,
   type SyncManifest,
   saveSyncManifest,
   sha256,
-} from './sync-manifest'
-import { isSafeRelativeFilePath, projectFilesDir } from './sync-paths'
+} from '@deepnote/cloud-sync'
+import { debug } from '../output'
+import { isErrnoENOENT } from './file-resolver'
 
 /** Sync workspace state updated alongside a publish. */
 export interface PublishMirror {

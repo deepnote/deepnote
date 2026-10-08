@@ -15,6 +15,7 @@ deepnote/
 │   ├── blocks/                # @deepnote/blocks - Block types, schemas, and Python code generation
 │   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
 │   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API
+│   ├── cloud-sync/            # @deepnote/cloud-sync - Sync and publish local folders with Deepnote Cloud
 │   ├── convert/               # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
 │   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
 │   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI
@@ -80,6 +81,14 @@ Run tests with coverage:
 
 ```bash
 pnpm test:coverage
+```
+
+Run the integration tests, which start a real `deepnote-toolkit` server (they are excluded from
+`pnpm test`; install the toolkit with `pip install "deepnote-toolkit[server]"` and point
+`DEEPNOTE_PYTHON` at that interpreter):
+
+```bash
+pnpm test:integration
 ```
 
 Run tests in watch mode (in a specific package):
