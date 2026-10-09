@@ -360,6 +360,72 @@ deepnote lint my-project.deepnote || exit 1
 deepnote lint my-project.deepnote --governance
 ```
 
+### `audit [dir]`
+
+Audit a synced workspace — the tree [`deepnote sync`](#sync-dir) writes. Answers the questions a
+single project cannot: which integrations exist and who uses them, where data leaves to, and which
+credentials are shared across projects.
+
+```bash
+deepnote sync ./workspace
+deepnote audit ./workspace
+```
+
+Everything is computed locally from the `.deepnote` files: no warehouse connection, no Python
+interpreter, and nothing leaves the machine.
+
+**What it reports:**
+
+- **Ingress** — every native integration, the projects that query it, and orphans: integrations
+  declared but used by no block, whose credentials are still live.
+- **Egress** — third-party hosts the code writes to, recovered from URLs in code blocks. Object
+  store buckets count as their own destination.
+- **Credentials** — credentials hardcoded in more than one project, by fingerprint, never by value.
+- **Findings** — the workspace checks below, plus every `lint --governance` check run against each
+  project.
+
+| Code                             | Finding                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `ingress-integration-orphan`     | An integration is declared but no SQL block uses it                  |
+| `ingress-integration-undeclared` | A SQL block runs against an integration the project does not declare |
+| `egress-external`                | A code block writes to a host outside Deepnote and your integrations |
+| `credential-shared`              | The same credential is hardcoded in more than one project            |
+
+**Options:**
+
+| Option               | Description                                     | Default |
+| -------------------- | ----------------------------------------------- | ------- |
+| `-o, --output <fmt>` | Output format: `json` or `llm`                  | text    |
+| `--project <name>`   | Audit a single project, by name or id           |         |
+| `--issues`           | List every finding instead of a count per check | off     |
+
+`-o json` includes a `flow` object — `nodes` for every integration, project and host, `edges` for
+every connection — so the same report backs the terminal summary, a dashboard, or a diagram.
+
+The report states its own limits on every run: egress is a lower bound (a host assembled from
+variables at run time is invisible), integration usage counts SQL blocks in notebooks only, and
+cross-project consensus checks are not run below roughly 100 projects.
+
+**Exit codes:** `0` = the workspace was audited — findings never fail the command, because an audit
+is an inventory rather than a gate; use `deepnote lint --governance` in CI. `1` = the workspace could
+not be read, `2` = invalid usage.
+
+**Examples:**
+
+```bash
+# Audit a synced workspace
+deepnote audit ./workspace
+
+# List every finding, not just counts per check
+deepnote audit ./workspace --issues
+
+# One project
+deepnote audit ./workspace --project "Churn analysis"
+
+# Full report, including the flow map
+deepnote audit ./workspace -o json
+```
+
 ### `stats <path>`
 
 Show statistics about a `.deepnote` file including block counts, lines of code, and imported modules.

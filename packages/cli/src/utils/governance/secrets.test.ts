@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findSecrets, fingerprintSecret } from './secrets'
+import { findSecrets, fingerprintSecret, redactSecrets, redactSecretsWithContext } from './secrets'
 
 /**
  * Synthetic credentials for the provider patterns, assembled from their prefix at runtime.
@@ -79,6 +79,18 @@ describe('findSecrets', () => {
       expect(findSecrets('client_secret: "abcdef0123456789"')).toHaveLength(1)
     })
 
+    it('flags a key-shaped value under a weaker name', () => {
+      expect(findSecrets('SEGMENT_KEY = "9f8e7d6c5b4a39281706"')).toHaveLength(1)
+      expect(findSecrets('auth = "a1b2c3d4e5f60718293a"')).toHaveLength(1)
+    })
+
+    it('does not flag a weaker name whose value is not key-shaped', () => {
+      expect(findSecrets('sort_key = "customer_region"')).toEqual([])
+      expect(findSecrets('partition_key = "created_at_month"')).toEqual([])
+      expect(findSecrets('key = "daily active users"')).toEqual([])
+      expect(findSecrets('cache_key = "report-2026-q1"')).toEqual([])
+    })
+
     it('does not flag values read from the environment', () => {
       expect(findSecrets('api_key = os.environ["API_KEY"]')).toEqual([])
       expect(findSecrets('token = os.getenv("GITHUB_TOKEN", "")')).toEqual([])
@@ -139,10 +151,129 @@ describe('findSecrets', () => {
   })
 })
 
+describe('redactSecrets', () => {
+  it('masks a provider-pattern credential', () => {
+    expect(redactSecrets('key = "AKIAIOSFODNN7EXAMPLE"')).toBe('key = "<redacted>"')
+  })
+
+  it('masks a credential found by the heuristic rule', () => {
+    expect(redactSecrets('api_key = "9f8e7d6c5b4a39281706"')).toBe('api_key = "<redacted>"')
+  })
+
+  it('masks only the password inside a connection string', () => {
+    expect(redactSecrets('postgresql://admin:hunter2pass@db.internal/analytics')).toBe(
+      'postgresql://admin:<redacted>@db.internal/analytics'
+    )
+  })
+
+  it('masks every credential in a multi-line block', () => {
+    const redacted = redactSecrets('a = "AKIAIOSFODNN7EXAMPLE"\nb = "AKIAJ7PQRSTUVWXY2345"')
+
+    expect(redacted).toBe('a = "<redacted>"\nb = "<redacted>"')
+  })
+
+  it('leaves text without credentials unchanged', () => {
+    expect(redactSecrets('df = pd.read_csv("data.csv")')).toBe('df = pd.read_csv("data.csv")')
+    expect(redactSecrets('')).toBe('')
+  })
+
+  it('is idempotent', () => {
+    const once = redactSecrets('key = "AKIAIOSFODNN7EXAMPLE"')
+
+    expect(redactSecrets(once)).toBe(once)
+  })
+})
+
 describe('fingerprintSecret', () => {
   it('is stable, 16 hex characters, and differs per value', () => {
     expect(fingerprintSecret('a')).toBe(fingerprintSecret('a'))
     expect(fingerprintSecret('a')).toMatch(/^[0-9a-f]{16}$/)
     expect(fingerprintSecret('a')).not.toBe(fingerprintSecret('b'))
+  })
+})
+
+describe('redactSecrets — overlapping matches', () => {
+  it('keeps the text around a literal that two rules both matched', () => {
+    // The provider pattern matches `ghp_…` inside the heuristic rule's `"prefix-ghp_…"`, and the
+    // two values hash differently so the per-line dedupe does not collapse them. Replacing them
+    // one at a time left the second slice cutting into whatever followed.
+    const line = `api_key = "prefix-${'ghp_'}abcdefghijklmnopqrstuvwxyz0123456789AB"  # rotate before Friday`
+
+    const redacted = redactSecrets(line)
+
+    expect(redacted).toContain('# rotate before Friday')
+    expect(redacted).not.toContain('abcdefghijklmnop')
+  })
+
+  it('does not eat trailing content after a nested match', () => {
+    const line = 'token = "AKIAIOSFODNN7EXAMPLE-suffix"  # trailing comment must survive'
+
+    expect(redactSecrets(line)).toBe('token = "<redacted>"  # trailing comment must survive')
+  })
+
+  it('redacts two separate secrets on one line independently', () => {
+    const line = 'a = "AKIAIOSFODNN7EXAMPLE", b = "AKIAJ7PQRSTUVWXY2345"'
+
+    const redacted = redactSecrets(line)
+
+    expect(redacted.match(/<redacted>/g)).toHaveLength(2)
+    expect(redacted).toBe('a = "<redacted>", b = "<redacted>"')
+  })
+
+  it('leaves text with no secrets exactly as it was', () => {
+    expect(redactSecrets('SELECT * FROM users WHERE id = 1')).toBe('SELECT * FROM users WHERE id = 1')
+  })
+})
+
+describe('redactSecretsWithContext', () => {
+  const DSN = 'postgres://admin:hunter2longPassPhrase@warehouse/db'
+
+  it('masks a credential the text alone gives no reason to suspect', () => {
+    // The password is recognizable inside the URI and is an ordinary identifier outside it, so
+    // `redactSecrets` applied to the lifted string alone finds nothing to mask.
+    expect(redactSecrets('hunter2longPassPhrase = true')).toBe('hunter2longPassPhrase = true')
+    expect(redactSecretsWithContext('hunter2longPassPhrase = true', `-- ${DSN}`)).toBe('<redacted> = true')
+  })
+
+  it('still masks what the text reveals on its own, with or without useful context', () => {
+    expect(redactSecretsWithContext('key = "AKIAIOSFODNN7EXAMPLE"', 'unrelated content')).toBe('key = "<redacted>"')
+  })
+
+  it('leaves text alone when neither it nor its context holds a credential', () => {
+    expect(redactSecretsWithContext('a.deleted_at = NULL', 'SELECT * FROM users')).toBe('a.deleted_at = NULL')
+  })
+
+  it('masks a longer secret whole rather than in parts', () => {
+    // Two matches can nest — the URI password and a provider pattern inside it — and replacing the
+    // shorter one first would leave the rest of the longer one in place.
+    const context = 'postgres://admin:AKIAIOSFODNN7EXAMPLEsuffix@warehouse/db'
+    expect(redactSecretsWithContext('AKIAIOSFODNN7EXAMPLEsuffix', context)).toBe('<redacted>')
+  })
+})
+
+describe('redactSecrets — every occurrence, not just the first', () => {
+  const DSN = 'postgres://svc:hunter2correct@warehouse.internal:5432/analytics'
+
+  it('masks a credential repeated on one line', () => {
+    // The scanner deduplicates findings per (fingerprint, line) so a credential is counted once.
+    // Redaction needs the opposite: a second occurrence left in place publishes the password just
+    // as well as the first, and a filesystem path that embeds the same DSN twice is a real shape.
+    const redacted = redactSecrets(`from ${DSN} to ${DSN}`)
+
+    expect(redacted).not.toContain('hunter2correct')
+    expect(redacted.match(/<redacted>/g)).toHaveLength(2)
+  })
+
+  it('masks a credential repeated across lines', () => {
+    const redacted = redactSecrets(`a = "${DSN}"\nb = "${DSN}"`)
+
+    expect(redacted).not.toContain('hunter2correct')
+  })
+
+  it('still reports the repeated credential as one finding', () => {
+    // The dedupe moved to the reporting side rather than being dropped: a key that matches both
+    // the heuristic and a provider pattern must not read as two separate credentials.
+    expect(findSecrets(`from ${DSN} to ${DSN}`)).toHaveLength(1)
+    expect(findSecrets('AWS_SECRET = "AKIAIOSFODNN7EXAMPLE"', { includeHeuristic: true })).toHaveLength(1)
   })
 })

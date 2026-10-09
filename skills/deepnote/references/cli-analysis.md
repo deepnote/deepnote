@@ -87,6 +87,51 @@ deepnote validate my-project.deepnote -o json
 deepnote validate my-project.deepnote && echo "Valid!"
 ```
 
+## `deepnote audit [dir]`
+
+Audit a synced workspace — the tree `deepnote sync` writes. Answers what `lint --governance` cannot
+from one project: which integrations exist and who uses them, where data leaves to, and which
+credentials are shared across projects. Everything is local: no warehouse connection, no Python.
+
+| Option                  | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `-o, --output <format>` | Output format: `json`, `llm`                    |
+| `--project <name>`      | Audit a single project, by name or id           |
+| `--issues`              | List every finding instead of a count per check |
+
+**Workspace-scoped checks:**
+
+| Code                             | Finding                                                                | Severity |
+| -------------------------------- | ---------------------------------------------------------------------- | -------- |
+| `ingress-integration-orphan`     | Declared integration no SQL block uses; its credentials are still live | warning  |
+| `ingress-integration-undeclared` | SQL block runs against an integration the project does not declare     | warning  |
+| `egress-external`                | Code block writes to a host outside Deepnote and the integrations      | warning  |
+| `credential-shared`              | The same credential is hardcoded in more than one project              | error    |
+
+Every project is also run through the `lint --governance` checks, so one audit covers both scopes.
+Findings carry `projectId`, `projectName` and `path` on top of the usual lint issue fields.
+
+`-o json` adds `flow`: `nodes` for every integration, project and host, and `edges` between them
+(`reads` from an integration into a project, `writes`/`calls` from a project out to a host). It is
+data, not a drawing — render it however you need.
+
+**Limits the report states on every run:** egress only sees hosts written into block content, not
+ones assembled at run time; integration usage counts SQL blocks in notebooks only (dbt and BI tools
+are invisible); and cross-project consensus checks are not run below roughly 100 projects.
+
+**Exit codes:** 0 = the workspace was audited (findings never fail the command — audit is an
+inventory, not a gate; use `lint --governance` in CI), 1 = the workspace could not be read, 2 =
+invalid usage.
+
+**Examples:**
+
+```bash
+deepnote audit workspace
+deepnote audit workspace --issues
+deepnote audit workspace --project "Churn analysis"
+deepnote audit workspace -o json
+```
+
 ## `deepnote lint [path]`
 
 Check a .deepnote file or integrations yaml file for issues. `[path]` is optional and defaults to the current directory. You can also lint an integrations yaml file (e.g. `.deepnote.env.yaml`) directly by passing it as the path argument, which validates the file structure, integration schemas, and environment variable references.

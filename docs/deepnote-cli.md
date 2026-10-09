@@ -80,6 +80,7 @@ Deepnote Cloud and open it in your browser, where you sign in; they need no toke
 | `deepnote cat <path>`                                  | Print block contents, optionally filtered by notebook or block type                            |
 | `deepnote diff <path1> <path2>`                        | Compare two `.deepnote` files and show structural differences                                  |
 | `deepnote lint [path]`                                 | Check for undefined variables, circular dependencies, missing integrations and inputs          |
+| [`deepnote audit [dir]`](/docs/deepnote-cli-audit)     | Inventory integrations, map data egress and find governance issues across a synced workspace   |
 | `deepnote validate <path>`                             | Validate a `.deepnote` file against the schema                                                 |
 | `deepnote stats <path>`                                | Block counts, lines of code and imported modules                                               |
 | `deepnote analyze <path>`                              | Quality score, structure analysis and suggestions                                              |
@@ -120,6 +121,9 @@ deepnote schedule report.deepnote --daily --at 09:00
 # Mirror your whole workspace to ./workspace
 deepnote sync ./workspace
 
+# Inventory integrations and data flows across that workspace
+deepnote audit ./workspace
+
 # Publish a Vite build to a project
 deepnote publish ./dist --project-id <project-id>
 ```
@@ -145,6 +149,7 @@ deepnote lint my-project.deepnote -o json || exit 1
 ## Related
 
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync)
+- [Auditing a workspace with the Deepnote CLI](/docs/deepnote-cli-audit)
 - [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature
