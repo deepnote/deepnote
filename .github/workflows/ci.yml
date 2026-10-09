@@ -264,6 +264,15 @@ jobs:
         run: pnpm run test:integration
         env:
           DEEPNOTE_PYTHON: ${{ env.pythonLocation }}/bin/python
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+
+      # Runs the Streamlit examples' smoke tests against the pinned toolkit release.
+      - name: Run Streamlit example tests
+        run: pnpm run test:streamlit
   license-check:
     name: License Check
     runs-on: ubuntu-latest
