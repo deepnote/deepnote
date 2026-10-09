@@ -35,9 +35,13 @@ def render_sales_dashboard(outputs: Any, inputs: Mapping[str, Any]) -> None:
     region.metric("Top region", top_region)
 
     st.subheader("Revenue by region")
-    st.bar_chart(
-        rows, x=INDEX_COLUMN, y="Revenue ($k)", x_label="Region", horizontal=True
-    )
+    # Name the column instead of passing x_label, which older Streamlit releases put on
+    # the other axis of a horizontal chart.
+    chart_rows = [
+        {"Region": row.get(INDEX_COLUMN), "Revenue ($k)": row.get("Revenue ($k)")}
+        for row in rows
+    ]
+    st.bar_chart(chart_rows, x="Region", y="Revenue ($k)", horizontal=True)
     st.dataframe(
         rows, hide_index=True, width="stretch", column_config={INDEX_COLUMN: "Region"}
     )
@@ -47,7 +51,8 @@ def render_sales_dashboard(outputs: Any, inputs: Mapping[str, Any]) -> None:
 
     if readout := outputs.agent_text():
         st.subheader("Agent analysis")
-        st.markdown(readout)
+        # Escape dollar signs so Streamlit doesn't render amounts as LaTeX.
+        st.markdown(readout.replace("$", r"\$"))
 
 
 def values_by_name(document: Any) -> dict[str, Any]:
