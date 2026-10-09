@@ -3,17 +3,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ApiError } from '@deepnote/database-integrations'
-import type { ScheduleInCloudResult } from '@deepnote/local-runner'
+import type { ScheduleInCloudResult, scheduleInCloud, unscheduleInCloud } from '@deepnote/local-runner'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig } from '../output'
 
 const localRunnerMock = vi.hoisted(() => ({
-  scheduleInCloud: vi.fn(),
+  scheduleInCloud: vi.fn<typeof scheduleInCloud>(),
+  unscheduleInCloud: vi.fn<typeof unscheduleInCloud>(),
 }))
 
 vi.mock('@deepnote/local-runner', () => ({
   scheduleInCloud: localRunnerMock.scheduleInCloud,
+  unscheduleInCloud: localRunnerMock.unscheduleInCloud,
 }))
 
 vi.mock('../utils/browser', () => ({
@@ -53,6 +55,15 @@ function options(overrides: Partial<ScheduleOptions> = {}): ScheduleOptions {
   }
 }
 
+function removeOptions(overrides: Partial<ScheduleOptions> = {}): ScheduleOptions {
+  return {
+    create: true,
+    token: 'test-token',
+    remove: true,
+    ...overrides,
+  }
+}
+
 describe('schedule command', () => {
   let logSpy: ReturnType<typeof vi.spyOn>
   let errorSpy: ReturnType<typeof vi.spyOn>
@@ -72,6 +83,7 @@ describe('schedule command', () => {
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     localRunnerMock.scheduleInCloud.mockResolvedValue(RESULT)
+    localRunnerMock.unscheduleInCloud.mockResolvedValue({ notebookId: NOTEBOOK_ID, removed: true })
     vi.mocked(openInBrowser).mockResolvedValue(undefined)
   })
 
@@ -80,6 +92,7 @@ describe('schedule command', () => {
     resetOutputConfig()
     vi.restoreAllMocks()
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
     while (tempDirs.length > 0) {
       rmSync(tempDirs.pop() as string, { recursive: true, force: true })
     }
@@ -154,12 +167,10 @@ describe('schedule command', () => {
   })
 
   it('reports creation progress in human-readable mode', async () => {
-    localRunnerMock.scheduleInCloud.mockImplementationOnce(
-      async (_path, _cron, scheduleOptions: { onCreateProgress?: (created: number, total: number) => void }) => {
-        scheduleOptions.onCreateProgress?.(3, 7)
-        return RESULT
-      }
-    )
+    localRunnerMock.scheduleInCloud.mockImplementationOnce(async (_path, _cron, scheduleOptions) => {
+      scheduleOptions?.onCreateProgress?.(3, 7)
+      return RESULT
+    })
 
     await createScheduleAction(new Command())(HELLO_WORLD_FILE, options())
 
@@ -283,6 +294,125 @@ version: '1.0.0'
     expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toEqual({
       success: false,
       error: 'Cloud unavailable',
+    })
+  })
+
+  describe('--remove', () => {
+    it('removes the notebook schedule without scheduling or creating anything', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions())
+
+      expect(localRunnerMock.unscheduleInCloud).toHaveBeenCalledOnce()
+      expect(localRunnerMock.unscheduleInCloud).toHaveBeenCalledWith(HELLO_WORLD_FILE, {
+        token: 'test-token',
+        baseUrl: 'https://api.deepnote.com',
+        notebookId: undefined,
+      })
+      expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+      expect(logSpy.mock.calls.flat().join('\n')).toContain('Schedule removed from Deepnote Cloud')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('reports a notebook without a schedule as nothing to remove', async () => {
+      localRunnerMock.unscheduleInCloud.mockResolvedValueOnce({ notebookId: NOTEBOOK_ID, removed: false })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions())
+
+      const printed = logSpy.mock.calls.flat().join('\n')
+      expect(printed).toContain('Nothing to remove: this notebook has no schedule.')
+      expect(printed).not.toContain('Schedule removed')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('reports a notebook missing from Deepnote Cloud without claiming a removal', async () => {
+      localRunnerMock.unscheduleInCloud.mockResolvedValueOnce({ notebookId: null, removed: false })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions())
+
+      const printed = logSpy.mock.calls.flat().join('\n')
+      expect(printed).toContain('Nothing removed: this notebook was not found in Deepnote Cloud.')
+      expect(printed).not.toContain('Schedule removed')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it.each([
+      ['--hourly', { hourly: true }],
+      ['--daily', { daily: true }],
+      ['--weekly', { weekly: 'Monday' }],
+      ['--monthly', { monthly: '1' }],
+      ['--cron', { cron: '0 9 * * *' }],
+      ['--at', { at: '09:00' }],
+      ['--timezone', { timezone: 'UTC' }],
+      ['--open', { open: true }],
+    ] satisfies Array<[string, Partial<ScheduleOptions>]>)(
+      'rejects --remove combined with %s',
+      async (flag, overrides) => {
+        await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions(overrides))
+
+        expect(process.exitCode).toBe(2)
+        expect(errorSpy.mock.calls.flat().join('\n')).toContain(`--remove cannot be combined with ${flag}`)
+        expect(localRunnerMock.unscheduleInCloud).not.toHaveBeenCalled()
+        expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+      }
+    )
+
+    it('removes the schedule of the notebook selected with --notebook', async () => {
+      await createScheduleAction(new Command())(MULTI_NOTEBOOK_FILE, removeOptions({ notebook: 'Data' }))
+
+      expect(process.exitCode).toBeUndefined()
+      expect(localRunnerMock.unscheduleInCloud).toHaveBeenCalledWith(
+        MULTI_NOTEBOOK_FILE,
+        expect.objectContaining({ notebookId: 'efceb59f45724c68b1e39b366bd30ff2' })
+      )
+    })
+
+    it('requires --notebook to remove a schedule from a multi-notebook file', async () => {
+      await createScheduleAction(new Command())(MULTI_NOTEBOOK_FILE, removeOptions())
+
+      expect(process.exitCode).toBe(2)
+      expect(localRunnerMock.unscheduleInCloud).not.toHaveBeenCalled()
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('--notebook')
+    })
+
+    it.each([
+      [{ notebookId: NOTEBOOK_ID, removed: true }, NOTEBOOK_ID, true],
+      [{ notebookId: NOTEBOOK_ID, removed: false }, NOTEBOOK_ID, false],
+      [{ notebookId: null, removed: false }, null, false],
+    ])(
+      'outputs a single machine-readable JSON document for a removal (case %#)',
+      async (result, notebookId, removed) => {
+        localRunnerMock.unscheduleInCloud.mockResolvedValueOnce(result)
+
+        await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ output: 'json' }))
+
+        expect(JSON.parse(logSpy.mock.calls.flat().join('\n'))).toEqual({
+          success: true,
+          path: HELLO_WORLD_FILE,
+          notebookId,
+          removed,
+        })
+        expect(errorSpy).not.toHaveBeenCalled()
+      }
+    )
+
+    it('requires a token before calling Deepnote', async () => {
+      vi.stubEnv('DEEPNOTE_TOKEN', '')
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ token: undefined }))
+
+      expect(process.exitCode).toBe(2)
+      expect(localRunnerMock.unscheduleInCloud).not.toHaveBeenCalled()
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('Missing authentication token')
+    })
+
+    it('reports an authentication failure as invalid usage', async () => {
+      localRunnerMock.unscheduleInCloud.mockRejectedValueOnce(
+        new ApiError(401, 'Authentication failed. Please check your API token.')
+      )
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions())
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('Authentication failed')
     })
   })
 })

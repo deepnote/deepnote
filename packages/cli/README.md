@@ -677,14 +677,14 @@ deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait
 
 ### `schedule <path>`
 
-Create or update a recurring notebook run in Deepnote Cloud. This does not run the notebook
+Create, update, or remove a recurring notebook run in Deepnote Cloud. This does not run the notebook
 immediately. If the local project is missing in Deepnote, the CLI creates it without opening a browser first.
 
 ```bash
 deepnote schedule report.deepnote --daily --at 09:00
 ```
 
-Choose exactly one frequency:
+Choose exactly one frequency, or pass `--remove`:
 
 | Option                  | Description                                     | Default                    |
 | ----------------------- | ----------------------------------------------- | -------------------------- |
@@ -700,11 +700,14 @@ Choose exactly one frequency:
 | `--url <url>`           | Deepnote API base URL                           | `https://api.deepnote.com` |
 | `--no-create`           | Fail rather than create a missing project       | `false`                    |
 | `--open`                | Open the scheduled notebook after configuration | `false`                    |
+| `--remove`              | Remove the notebook's schedule                  | `false`                    |
 | `-o, --output json`     | Print machine-readable JSON                     | text                       |
 
-Deepnote supports one scheduled notebook per project. Re-running this command updates that project
-schedule, including when a different notebook is selected. Scheduling availability depends on the
-workspace plan.
+Each notebook has its own schedule. Running the command again updates that notebook's schedule;
+other notebooks keep theirs. Scheduling availability depends on the workspace plan.
+
+`--remove` deletes the notebook's schedule. It never creates a project, works on any plan, and exits
+`0` when there is nothing to remove.
 
 Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
 monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same
@@ -725,6 +728,9 @@ deepnote schedule report.deepnote --daily --open
 
 # Machine-readable output
 deepnote schedule report.deepnote --hourly -o json
+
+# Remove one notebook's schedule
+deepnote schedule project.deepnote --notebook "Weekly review" --remove
 ```
 
 ### `sync [dir]`

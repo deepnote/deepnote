@@ -35,6 +35,8 @@ export interface FindNotebookQuery {
   projectName: string
   /** The notebook name to match within the project. Omit to take the project's first notebook. */
   notebookName?: string
+  /** Throw instead of taking the newest project when several match. */
+  unique?: boolean
 }
 
 export interface FoundNotebook {
@@ -189,6 +191,7 @@ export async function findNotebook(
 ): Promise<FoundNotebook | undefined> {
   const projects = await findProjectsByExactName(baseUrl, token, query.projectName, options)
 
+  const matches: FoundNotebook[] = []
   for (const project of projects) {
     const notebooks = project.notebooks ?? []
     // Notebook names are unique within a Deepnote project, so a different notebook is never a
@@ -199,10 +202,16 @@ export async function findNotebook(
       ? notebooks.find(candidate => candidate.name === query.notebookName)
       : notebooks[0]
     if (notebook) {
-      return { notebookId: notebook.id, projectId: project.id }
+      matches.push({ notebookId: notebook.id, projectId: project.id })
     }
   }
-  return undefined
+  if (query.unique && matches.length > 1) {
+    throw new Error(
+      `${matches.length} Deepnote projects named "${query.projectName}" match this notebook. ` +
+        'Rename or delete the duplicates so it can be identified.'
+    )
+  }
+  return matches[0]
 }
 
 export interface Workspace {
