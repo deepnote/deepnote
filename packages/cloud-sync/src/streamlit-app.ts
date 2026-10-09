@@ -24,8 +24,9 @@ export function normalizeStreamlitEntrypoint(path: string): string | null {
  * Registers `entrypoint` as a Streamlit app of the project, or finds the app that already serves it.
  * `entrypoint` must come from `normalizeStreamlitEntrypoint`. Creating an app restarts the project
  * machine; wait for the app with `waitForStreamlitApp` from `@deepnote/cloud`.
- * Rejects with the creation error when it is not an "already exists" conflict (409) or when no listed
- * app matches the entrypoint, and with the error of the list call if that fails.
+ * Rejects with an `ApiError` (re-exported by this package) when creation fails with anything other than
+ * an "already exists" conflict (409), when no listed app matches the entrypoint, or when listing fails.
+ * Network failures and timeouts reject with the platform's own errors.
  */
 export async function createOrFindStreamlitApp(
   baseUrl: string,

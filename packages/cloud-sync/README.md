@@ -200,9 +200,14 @@ It resolves with a `PublishedStreamlitApp`, `{ app, created }`: `created` is `tr
 
 - **Creating an app restarts the project machine**, which interrupts anyone working in the project.
 - **Waiting is separate.** Wait for the app to run with `waitForStreamlitApp` from `@deepnote/cloud`.
-- **Errors:** when creation fails because an app for the entrypoint already exists (409) but the
-  project's app list has no match, it rejects with that original `ApiError`. Every other failure,
-  including a failing list call, rejects with the underlying error.
+- **Errors:** `createOrFindStreamlitApp` rejects with the `ApiError` that the API client throws,
+  which the package re-exports so `instanceof ApiError` works without another dependency. It has
+  the HTTP status in `statusCode`; a response that is not valid JSON or does not match the expected
+  shape is reported as status 502. That includes the original 409 when creation fails because an app
+  for the entrypoint already exists but the project's app list has no match. A failing list call
+  rejects with its own error. Network failures and request timeouts propagate as the platform's
+  errors (`TypeError` from `fetch`, `DOMException` named `TimeoutError`), not as `ApiError`.
+  `normalizeStreamlitEntrypoint` never throws.
 
 ### Sync manifest
 

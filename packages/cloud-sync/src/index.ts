@@ -1,3 +1,4 @@
+export { ApiError } from '@deepnote/database-integrations'
 export {
   createOrFindStreamlitApp,
   normalizeStreamlitEntrypoint,

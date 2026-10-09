@@ -1,6 +1,7 @@
 import { createStreamlitApp, listStreamlitApps, type StreamlitApp } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError as ExportedApiError } from './index'
 import { createOrFindStreamlitApp, normalizeStreamlitEntrypoint } from './streamlit-app'
 
 vi.mock('@deepnote/cloud')
@@ -118,6 +119,23 @@ describe('createOrFindStreamlitApp', () => {
 
     await expect(createOrFindStreamlitApp(baseUrl, token, projectId, 'app.py')).rejects.toBe(failure)
     expect(listStreamlitApps).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['a failing create call', () => vi.mocked(createStreamlitApp).mockRejectedValue(new ApiError(403, 'Forbidden'))],
+    [
+      'a 409 with no matching app',
+      () => {
+        vi.mocked(createStreamlitApp).mockRejectedValue(alreadyExists)
+        vi.mocked(listStreamlitApps).mockResolvedValue([])
+      },
+    ],
+  ])('rejects with the ApiError class exported by the package for %s', async (_name, arrange) => {
+    arrange()
+
+    const error = await createOrFindStreamlitApp(baseUrl, token, projectId, 'app.py').catch(e => e)
+
+    expect(error).toBeInstanceOf(ExportedApiError)
   })
 
   it('propagates a failing list call', async () => {
