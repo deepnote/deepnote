@@ -63,9 +63,6 @@ Options, conflict kinds, events and result shapes are documented on the exported
 
 ## Package vs. CLI
 
-The CLI used to hold both a workflow and its terminal handling, so nothing else could reuse the
-workflow. The workflows live here as library calls and the CLI is a thin layer on top of them.
-
 **In this package:** logic that reads or writes the synced folder or calls Deepnote Cloud, and the
 decisions about it.
 
