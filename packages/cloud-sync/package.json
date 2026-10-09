@@ -1,34 +1,30 @@
 {
-  "name": "@deepnote/mcp",
-  "version": "0.5.1",
-  "description": "MCP server for AI-assisted Deepnote notebook creation and manipulation",
+  "name": "@deepnote/cloud-sync",
+  "version": "0.1.0",
+  "description": "Sync and publish local folders with Deepnote Cloud (Node.js)",
   "keywords": [
-    "mcp",
     "deepnote",
-    "notebook",
-    "ai",
-    "model-context-protocol"
+    "cloud",
+    "sync",
+    "publish"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/deepnote/deepnote.git",
-    "directory": "packages/mcp"
+    "directory": "packages/cloud-sync"
   },
   "license": "Apache-2.0",
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
-      "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.cjs"
     }
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "deepnote-mcp": "./dist/bin.js"
-  },
   "files": [
     "dist",
     "README.md",
@@ -37,23 +33,17 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "tsx src/bin.ts",
     "test": "vitest",
-    "test:tool": "node dist/test-tool.js",
     "watch": "tsdown --watch"
   },
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
-    "@deepnote/cli": "workspace:*",
-    "@deepnote/convert": "workspace:*",
-    "@deepnote/reactivity": "workspace:*",
-    "@deepnote/runtime-core": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.32.1",
-    "yaml": "^2.9.0",
+    "@deepnote/cloud": "workspace:*",
+    "@deepnote/database-integrations": "workspace:*",
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "tsx": "^4.23.12"
+    "fflate": "^0.8.3"
   },
   "engines": {
     "node": ">=22.14.0",

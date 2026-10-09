@@ -74,6 +74,179 @@ describe('AstAnalyzer', () => {
       ])
     })
 
+    describe('Python scoping', () => {
+      // Block boundaries are not scope boundaries: a name that no enclosing function, lambda,
+      // class body, or comprehension binds is a module-level read even when it appears deep
+      // inside a body, and a name bound by one of those scopes never leaks out as a notebook
+      // variable. See https://github.com/deepnote/deepnote/issues/512 and /issues/513.
+      it.each([
+        {
+          name: 'reports a global read inside a function body',
+          content: 'def read_source():\n    return source_value',
+          definedVariables: ['read_source'],
+          usedVariables: ['source_value'],
+        },
+        {
+          name: 'reports a global read inside a method body',
+          content: 'class C:\n    def m(self):\n        return source_value',
+          definedVariables: ['C'],
+          usedVariables: ['source_value'],
+        },
+        {
+          name: 'reports a global read from an attribute access inside a function',
+          content: 'def f():\n    return df.head()',
+          definedVariables: ['f'],
+          usedVariables: ['df'],
+        },
+        {
+          name: 'does not report parameters or local assignments',
+          content: 'def f(a):\n    x = a + 1\n    return x * k',
+          definedVariables: ['f'],
+          usedVariables: ['k'],
+        },
+        {
+          name: 'treats a name assigned anywhere in a function as local throughout it',
+          content: 'def f():\n    x = x + 1\n    return x',
+          definedVariables: ['f'],
+          usedVariables: [],
+        },
+        {
+          name: 'treats a name declared global as a module-level read',
+          content: 'def f():\n    global g\n    return g',
+          definedVariables: ['f'],
+          usedVariables: ['g'],
+        },
+        {
+          name: 'records an assignment to a name declared global as a module-level definition',
+          content: 'def f():\n    global g\n    g = 1',
+          definedVariables: ['f', 'g'],
+          usedVariables: [],
+        },
+        {
+          name: 'reports a lambda read of a name its enclosing function declares global and assigns',
+          content:
+            'def f(reset):\n    global weights\n    if reset:\n        weights = defaults()\n    return lambda i: weights[i]',
+          definedVariables: ['f', 'weights'],
+          usedVariables: ['defaults', 'weights'],
+        },
+        {
+          name: 'reports a nested function read of a name its enclosing function declares global and assigns',
+          content: 'def f():\n    global g\n    g = 1\n    def inner():\n        return g\n    return inner',
+          definedVariables: ['f', 'g'],
+          usedVariables: ['g'],
+        },
+        {
+          name: 'evaluates decorators, defaults, and annotations in the enclosing scope',
+          content: '@deco\ndef f(a=default_v, b: T = 1):\n    return a + b',
+          definedVariables: ['f'],
+          usedVariables: ['T', 'deco', 'default_v'],
+        },
+        {
+          name: 'reports a global read in a class body but not the class attribute itself',
+          content: 'class K:\n    attr = base',
+          definedVariables: ['K'],
+          usedVariables: ['base'],
+        },
+        {
+          name: 'does not let class-body bindings shadow a global read inside a method',
+          content: 'class C:\n    attr = 2\n    def m(self):\n        return attr',
+          definedVariables: ['C'],
+          usedVariables: ['attr'],
+        },
+        {
+          name: 'keeps comprehension targets local inside a class body',
+          content: 'class C:\n    xs = [a for a in items]',
+          definedVariables: ['C'],
+          usedVariables: ['items'],
+        },
+        {
+          name: 'keeps comprehension targets local',
+          content: 'squares = [o * o for o in items]',
+          definedVariables: ['squares'],
+          usedVariables: ['items'],
+        },
+        {
+          name: 'reports a global read from a comprehension element',
+          content: 'out = [a + b for a in items]',
+          definedVariables: ['out'],
+          usedVariables: ['b', 'items'],
+        },
+        {
+          name: 'keeps nested comprehension and dict comprehension targets local',
+          content: 'm = {k: [v for v in row] for k, row in table.items()}',
+          definedVariables: ['m'],
+          usedVariables: ['table'],
+        },
+        {
+          name: 'keeps generator expression targets local',
+          content: 'total = sum(i * w for i in items)',
+          definedVariables: ['total'],
+          usedVariables: ['items', 'w'],
+        },
+        {
+          name: 'keeps set comprehension targets local and reports its condition reads',
+          content: 'kept = {r for r in rows if r > threshold}',
+          definedVariables: ['kept'],
+          usedVariables: ['rows', 'threshold'],
+        },
+        {
+          name: 'publishes a walrus target from a comprehension as a module-level definition',
+          content: 'out = [(x := i) for i in items]',
+          definedVariables: ['out', 'x'],
+          usedVariables: ['items'],
+        },
+        {
+          name: 'publishes a walrus target from a generator expression condition',
+          content: 'kept = [r for r in rows if (seen := r) > 0]',
+          definedVariables: ['kept', 'seen'],
+          usedVariables: ['rows'],
+        },
+        {
+          name: 'publishes a walrus target escaping nested comprehensions',
+          content: 'grid = [[(cell := j) for j in row] for row in rows]',
+          definedVariables: ['cell', 'grid'],
+          usedVariables: ['rows'],
+        },
+        {
+          name: 'keeps a walrus target inside a function-level comprehension local',
+          content: 'def f():\n    [(x := i) for i in items]\n    return x',
+          definedVariables: ['f'],
+          usedVariables: ['items'],
+        },
+        {
+          name: 'keeps a walrus target inside a lambda local',
+          content: 'f = lambda n: (t := n) + 1',
+          definedVariables: ['f'],
+          usedVariables: [],
+        },
+        {
+          name: 'keeps lambda parameters local',
+          content: 'double = lambda x: x * 2',
+          definedVariables: ['double'],
+          usedVariables: [],
+        },
+        {
+          name: 'evaluates lambda defaults in the enclosing scope',
+          content: 'f = lambda x, y=d: x + y',
+          definedVariables: ['f'],
+          usedVariables: ['d'],
+        },
+        {
+          name: 'keeps match capture names inside a function local',
+          content:
+            'def f(event):\n    match event:\n        case [first, *rest]:\n            return first, rest\n        case {"user": user, **extra}:\n            return user, extra\n        case Point(x=px) | Other(px) as shape:\n            return px, shape\n        case _:\n            return fallback',
+          definedVariables: ['f'],
+          usedVariables: ['Other', 'Point', 'fallback'],
+        },
+      ])('$name', async ({ content, definedVariables, usedVariables }) => {
+        const mockBlocks = [{ id: '1', type: 'code', content, blockGroup: 'a', sortingKey: 'a' }] as DeepnoteBlock[]
+
+        const result = await getBlockDependencies(mockBlocks)
+
+        expect(result).toEqual([expect.objectContaining({ id: '1', definedVariables, usedVariables })])
+      })
+    })
+
     it('should throw error when python interpreter is not found', async () => {
       const mockBlocks = [{ id: '1', type: 'code', content: 'a = 1' }] as DeepnoteBlock[]
       await expect(getBlockDependencies(mockBlocks, { pythonInterpreter: 'non-existent-python' })).rejects.toThrow(

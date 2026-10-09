@@ -44,6 +44,7 @@
   "dependencies": {
     "@deepnote/blocks": "workspace:*",
     "@deepnote/cloud": "workspace:*",
+    "@deepnote/cloud-sync": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/database-integrations": "workspace:*",
     "@deepnote/local-runner": "workspace:*",
@@ -65,7 +66,6 @@
   },
   "devDependencies": {
     "@inquirer/testing": "^3.1.1",
-    "fflate": "^0.8.3",
     "json-schema-to-typescript": "^15.0.4",
     "tsx": "^4.23.12",
     "zod-to-json-schema": "^3.25.2"
