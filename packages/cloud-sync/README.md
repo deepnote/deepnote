@@ -77,6 +77,7 @@ Options, conflict kinds, events and result shapes are documented on the exported
 | `projectFilesDir`, `isSafeRelativeFilePath`, `assertNoSymbolicLinkAncestors`, `baselineDiverged`, `sha256`  | Local path and fingerprint helpers used by the sync engine.                                                            |
 | `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`).                    |
 | `PublishDivergedError`                                                                                      | Thrown by `publishApp` before any file changes when files changed in Deepnote since the last sync, unless `force`.     |
+| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`.                       |
 | `ApiError`                                                                                                  | Thrown by API calls with the HTTP status in `statusCode`. Network failures and timeouts are the platform's own errors. |
 
 ## Package vs. CLI

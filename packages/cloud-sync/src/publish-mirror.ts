@@ -29,6 +29,7 @@ export interface PublishMirror {
 /** Explicit sync root, disabled discovery, or automatic discovery. */
 export type SyncRootOption = string | false | undefined
 
+/** An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`. */
 export class PublishMirrorError extends Error {}
 
 async function directoryExists(absolutePath: string): Promise<boolean> {

@@ -21,47 +21,75 @@ import {
 import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
 
 export interface PublishAppOptions {
-  /** Local build directory; every file below it is uploaded. */
+  /** Local build directory; every file below it is uploaded. `.env` and `.env.*` files are refused. */
   dir: string
   projectId: string
   baseUrl: string
   token: string
   /** Project folder to publish into: `_deepnote_static` (the default) or a directory below it. */
   targetPath?: string
-  /** `undefined` leaves the project's setting unchanged. */
+  /** Turns embedded API access on or off; `undefined` leaves the project's setting unchanged. */
   apiAccess?: boolean
-  /** Remove files below `targetPath` that are no longer in `dir`. */
+  /**
+   * Remove files below `targetPath` that are no longer in `dir`. Files that block an upload are removed
+   * first; the rest only when every earlier removal and upload succeeded.
+   */
   prune?: boolean
   /** Overwrite files that changed in Deepnote since the sync mirror last recorded them. */
   force?: boolean
-  /** `undefined` discovers the sync root from `dir`; `false` never updates the mirror. */
+  /** Sync folder to update. `undefined` discovers it from `dir`; `false` never updates the mirror. */
   syncRoot?: string | false
+  /** Receives progress. It must not throw. */
   onEvent?: (event: PublishAppEvent) => void
 }
 
+/** Progress reported through {@link PublishAppOptions.onEvent}. */
 export type PublishAppEvent =
+  /** The project loaded; nothing has been deleted or uploaded yet. */
   | { kind: 'publishing'; fileCount: number; targetPath: string; projectId: string }
+  /** A project file was deleted by `prune`. `path` is the project path. */
   | { kind: 'file-removed'; path: string }
+  /** A file was uploaded. `path` is relative to `dir`. */
   | { kind: 'file-uploaded'; path: string }
+  /** A removal, an upload or the sharing update failed. `path` is as in {@link PublishAppResult.errors}. */
   | { kind: 'operation-failed'; operation: 'remove' | 'upload' | 'enable-sharing'; path: string; message: string }
+  /** A discovered sync folder tracks the project, but its project directory does not exist. */
   | { kind: 'mirror-skipped'; projectDir: string }
+  /** Files were published, but the mirror could not be fully updated. Emitted before the sharing step. */
   | { kind: 'mirror-incomplete'; syncRoot: string; failures: string[] }
 
 export interface PublishAppResult {
   projectId: string
+  /** The normalized target folder. */
   targetPath: string
+  /** Files found in `dir`. */
   totalFiles: number
   uploaded: number
+  /** Project files removed by `prune`. */
   pruned: number
+  /**
+   * Failed operations. `path` is the project path for removals, the path relative to `dir` for uploads,
+   * or `project settings` for the sharing update.
+   */
   errors: { path: string; message: string }[]
   /** The sync root the publish was mirrored into, when one applied. */
   syncRoot?: string
+  /**
+   * A sync mirror applied, updating it raised no failure, and at least one file was uploaded or removed.
+   * Independent of `errors`.
+   */
   mirrorUpdated: boolean
   /** Set only when every operation succeeded. */
   appUrl?: string
+  /** The project's API access setting after the publish. Set together with `appUrl`. */
   apiAccessEnabled?: boolean
 }
 
+/**
+ * `invalid-input`: a bad `targetPath`, a missing, empty or non-directory `dir`, a `.env` file, colliding
+ * paths, or an unusable sync folder. `unreadable-directory`: `dir` could not be read.
+ * `project-unavailable`: the project could not be loaded.
+ */
 export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable'
 
 export class PublishError extends Error {
@@ -74,7 +102,7 @@ export class PublishError extends Error {
   }
 }
 
-/** The cloud copy of some publish targets changed since the sync mirror recorded them. */
+/** The cloud copy of some publish targets changed since the sync mirror recorded them. `paths` is sorted. */
 export class PublishDivergedError extends Error {
   constructor(
     readonly syncRoot: string,

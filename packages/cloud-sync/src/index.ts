@@ -8,6 +8,7 @@ export {
   type PublishErrorReason,
   publishApp,
 } from './publish-app'
+export { PublishMirrorError } from './publish-mirror'
 export {
   createOrFindStreamlitApp,
   normalizeStreamlitEntrypoint,
