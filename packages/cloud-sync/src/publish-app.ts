@@ -16,6 +16,7 @@ import {
   recordPrunedFile,
   recordPublishedFile,
   resolvePublishMirror,
+  type SyncRootOption,
   savePublishMirror,
 } from './publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
@@ -38,7 +39,7 @@ export interface PublishAppOptions {
   /** Overwrite files that changed in Deepnote since the sync mirror last recorded them. */
   force?: boolean
   /** Sync folder to update. `undefined` discovers it from `dir`; `false` never updates the mirror. */
-  syncRoot?: string | false
+  syncRoot?: SyncRootOption
   /** Receives progress. It must not throw. */
   onEvent?: (event: PublishAppEvent) => void
 }

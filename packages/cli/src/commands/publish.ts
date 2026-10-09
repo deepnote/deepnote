@@ -5,6 +5,7 @@ import {
   PublishDivergedError,
   PublishError,
   publishApp,
+  type SyncRootOption,
 } from '@deepnote/cloud-sync'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
@@ -22,7 +23,7 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
-  syncRoot: string | false | undefined
+  syncRoot: SyncRootOption
   force: boolean
 }
 

@@ -26,7 +26,7 @@ export interface PublishMirror {
   record: ManifestProjectRecord
 }
 
-/** Explicit sync root, disabled discovery, or automatic discovery. */
+/** A sync folder to update, `false` to never update a mirror, or `undefined` to discover one. */
 export type SyncRootOption = string | false | undefined
 
 /** An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`. */
