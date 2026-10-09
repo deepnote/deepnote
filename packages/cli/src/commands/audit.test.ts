@@ -1,9 +1,12 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
+import { MIN_REVIEWED_FOR_PRECISION } from '../utils/governance/review'
+import type { DivergenceKind } from '../utils/governance/sql-divergence'
+import { TRIAGE_ENV, type TriageProvider, type Verdict } from '../utils/governance/triage'
 import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
 /** A four-project synced workspace with one of every workspace-scoped finding. */
@@ -74,7 +77,7 @@ describe('audit command', () => {
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Egress is a lower bound')
-      expect(output).toContain('Divergence checks need roughly')
+      expect(output).toContain('consensus thins out below roughly')
       expect(output).toContain('This workspace has 4 projects')
     })
 
@@ -581,5 +584,586 @@ version: '1'
 
     expect(getOutput(consoleSpy)).toContain('Reporting · Daily ')
     expect(getOutput(consoleSpy)).not.toContain('Daily (alpha/daily.deepnote)')
+  })
+})
+
+/** A six-project workspace built so that each anchor family has a consensus and a dissenter. */
+const DIVERGENCE_WORKSPACE = join('test-fixtures', 'workspace-divergence')
+
+describe('audit command — divergence', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let exitSpy: Mock<typeof process.exit>
+
+  let consoleErrorSpy: Mock<typeof console.error>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /**
+   * Run triage against a port nothing is listening on.
+   *
+   * This is the only way to reach the configured-endpoint path without a model: an injected
+   * provider short-circuits it, which is exactly why the status lines went unnoticed. The
+   * connection is refused on loopback, so nothing leaves the machine and the result is
+   * deterministic — and it exercises fail-soft at the same time.
+   */
+  async function withDeadEndpoint(options: Record<string, unknown>): Promise<void> {
+    const original = { ...process.env }
+    process.env[TRIAGE_ENV.baseUrl] = 'http://127.0.0.1:1'
+    process.env[TRIAGE_ENV.model] = 'test-model'
+    try {
+      await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, triageCache: false, ...options })
+    } finally {
+      for (const key of Object.values(TRIAGE_ENV)) {
+        delete process.env[key]
+      }
+      Object.assign(process.env, original)
+    }
+  }
+
+  it('keeps -o json parseable while still disclosing the endpoint', async () => {
+    // Same defect as the review export: status lines in front of the document, exit code still 0,
+    // so a caller reads a successful run and unparseable output. They move to stderr rather than
+    // being dropped — saying where the SQL is going, before it goes, is a guarantee this command
+    // makes, and the automated path is the one where nobody is watching.
+    await withDeadEndpoint({ triage: true, output: 'json' })
+
+    const stdout = getOutput(consoleSpy)
+    expect(() => JSON.parse(stdout)).not.toThrow()
+    expect(stdout).not.toContain('Triage:')
+
+    const stderr = getOutput(consoleErrorSpy as unknown as Mock<typeof console.log>)
+    expect(stderr).toContain('http://127.0.0.1:1')
+    expect(stderr).toContain('no blocks, no outputs')
+  })
+
+  it('still prints the endpoint to stdout for a person', async () => {
+    await withDeadEndpoint({ triage: true })
+
+    expect(getOutput(consoleSpy)).toContain('http://127.0.0.1:1')
+  })
+
+  it('does not fail the audit when the model cannot be reached', async () => {
+    await withDeadEndpoint({ triage: true, output: 'json' })
+
+    const report = JSON.parse(getOutput(consoleSpy))
+    expect(exitSpy).not.toHaveBeenCalled()
+    // Every finding keeps the deterministic score it would have had without triage.
+    for (const issue of report.issues.filter((i: { code: string }) => i.code === 'sql-divergence')) {
+      expect(issue.details.signalSource).toBe('prior')
+    }
+  })
+
+  it('collapses divergence to a count by default', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, DEFAULT_OPTIONS)
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Consensus — divergence')
+    expect(text).toContain('2 anchors defined more than one way')
+    expect(text).toContain('--divergence to see every variant')
+    // Collapsed means collapsed: no variant detail without the flag.
+    expect(text).not.toContain('orders.user_id = users.id')
+  })
+
+  it('prints every variant and where it is used under --divergence', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('orders ↔ users')
+    expect(text).toContain('consensus  orders.user_id = users.id')
+    expect(text).toContain('diverges   orders.email = users.email')
+    expect(text).toContain('Legacy reporting · Quarterly board pack')
+    expect(text).toContain('Wilson lower bound')
+  })
+
+  it('names the block, so two dissenters in one notebook are told apart', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, {
+      divergence: true,
+      divergenceKind: ['join', 'filter', 'metric'],
+    })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('SELECT sum(o.amount_gross) AS revenue')
+    expect(text).toContain("SELECT * FROM orders o WHERE o.status = 'paid'")
+  })
+
+  it('reports the join and metric families by default, and filter only on request', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+    const byDefault = getOutput(consoleSpy)
+
+    expect(byDefault).toContain('join  ')
+    expect(byDefault).toContain('metric')
+    // Lowest precision of the three, and the bulk of the output. What it reliably catches that is
+    // actually wrong — a comparison against NULL — `sql-null-comparison` already catches.
+    expect(byDefault).not.toContain('filter')
+
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, divergenceKind: ['filter'] })
+
+    expect(getOutput(consoleSpy)).toContain('filter')
+  })
+
+  it('restricts the anchor families on request', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, divergenceKind: ['join'] })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('orders ↔ users')
+    expect(text).not.toContain('no filter on orders.is_test')
+  })
+
+  it('raises no findings above an unreachable confidence floor, but still shows the groups', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, minConfidence: 0.99, issues: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('orders ↔ users')
+    expect(text).not.toContain('sql-divergence')
+  })
+
+  it('omits the section entirely with --skip-divergence', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { skipDivergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).not.toContain('Consensus — divergence')
+    expect(text).not.toContain('sql-divergence')
+  })
+
+  it('says so rather than printing an empty section when nothing diverges', async () => {
+    await createAuditAction(program)(WORKSPACE, { divergence: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('No anchor is defined two ways, or the corpus is too small to tell')
+  })
+
+  it('carries every group, variant and location in the JSON', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    expect(report.divergence).toHaveLength(2)
+    const join = report.divergence.find((group: { kind: string }) => group.kind === 'join')
+    expect(join).toMatchObject({ anchorLabel: 'orders ↔ users', observations: 5, projectCount: 5 })
+    expect(join.confidence).toBeGreaterThan(0.25)
+    expect(join.variants).toHaveLength(2)
+    expect(join.variants[1].members[0].location.projectName).toBe('Legacy reporting')
+  })
+
+  it('ranks a divergence in an abandoned notebook above the same one in a live notebook', async () => {
+    // Filter anchors, which this fixture puts in both a cold and a live notebook, are opt-in.
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', divergenceKind: ['filter'] })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const missingFilter = report.issues.filter(
+      (issue: { code: string; details?: { kind?: string } }) =>
+        issue.code === 'sql-divergence' && issue.details?.kind === 'filter'
+    )
+    const legacy = missingFilter.find((issue: { projectName: string }) => issue.projectName === 'Legacy reporting')
+    const sales = missingFilter.find((issue: { projectName: string }) => issue.projectName === 'Sales pipeline')
+
+    expect(legacy.score.score).toBeGreaterThan(sales.score.score)
+    expect(legacy.score.neglect).toBeGreaterThan(sales.score.neglect)
+  })
+
+  it('still exits 0: divergence is a ranking, not a gate', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true })
+
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('audit command — triage', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let exitSpy: Mock<typeof process.exit>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /** A provider that answers every candidate the same way. */
+  function provider(verdict: Verdict, reason = 'because'): TriageProvider {
+    return {
+      async triage(batch) {
+        return batch.map(candidate => ({ id: candidate.id, verdict, reason }))
+      },
+    }
+  }
+
+  interface ReportIssue {
+    code: string
+    projectName: string
+    score: { signal: number; score: number }
+    details: Record<string, unknown>
+  }
+  interface Report {
+    issues: ReportIssue[]
+    suppressed: ReportIssue[]
+  }
+
+  /**
+   * `--triage` judges metric anchors only unless `--divergence-kind` is given, so tests about what
+   * a verdict *does* name the kinds explicitly. The default itself is tested on its own below.
+   */
+  const ALL_KINDS: DivergenceKind[] = ['join', 'metric']
+
+  async function reportWith(options: AuditOptions): Promise<Report> {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', ...options })
+    return JSON.parse(getOutput(consoleSpy)) as Report
+  }
+
+  /** Identify a finding across two runs, since the ranking itself is what changes. */
+  const keyOf = (issue: ReportIssue) => `${issue.details.anchor}:${issue.projectName}:${issue.details.variant}`
+
+  it('is off by default, and the report is byte-identical to one that never heard of triage', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const before = getOutput(consoleSpy)
+    consoleSpy.mockClear()
+
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', triage: false })
+    expect(getOutput(consoleSpy)).toBe(before)
+
+    const report = JSON.parse(before)
+    expect(report.suppressed).toEqual([])
+    for (const issue of report.issues.filter((i: { code: string }) => i.code === 'sql-divergence')) {
+      expect(issue.details.signalSource).toBe('prior')
+      expect(issue.details.verdict).toBeUndefined()
+    }
+  })
+
+  it('fails with usage guidance when --triage has no configured endpoint', async () => {
+    const original = { ...process.env }
+    for (const key of Object.values(TRIAGE_ENV)) {
+      delete process.env[key]
+    }
+    try {
+      await expect(createAuditAction(program)(DIVERGENCE_WORKSPACE, { triage: true })).rejects.toThrow(
+        'process.exit called'
+      )
+      expect(exitSpy).toHaveBeenCalledWith(2)
+    } finally {
+      Object.assign(process.env, original)
+    }
+  })
+
+  it('lets a verdict replace the prior, and records both', async () => {
+    const report = await reportWith({
+      triage: true,
+      divergenceKind: ALL_KINDS,
+      triageProvider: provider('real', 'the join keys disagree'),
+    })
+
+    const divergence = report.issues.filter(i => i.code === 'sql-divergence')
+    expect(divergence.length).toBeGreaterThan(0)
+    for (const issue of divergence) {
+      expect(issue.details.signalSource).toBe('triage')
+      expect(issue.details.verdict).toBe('real')
+      expect(issue.details.verdictReason).toBe('the join keys disagree')
+      // The displaced number is kept, so a reviewer can always see what the other answer was.
+      expect(typeof issue.details.prior).toBe('number')
+      expect(issue.score.signal).not.toBe(issue.details.prior)
+    }
+  })
+
+  it('judges metric anchors by default, and leaves joins on their deterministic score', async () => {
+    // Metric anchors are the bulk of the output and the ones where the question is about intent.
+    // Joins are few and structural, so a model call on them buys little.
+    const report = await reportWith({ triage: true, triageProvider: provider('real') })
+
+    const bySource = new Map(
+      report.issues
+        .filter(issue => issue.code === 'sql-divergence')
+        .map(issue => [issue.details.kind as string, issue.details.signalSource as string])
+    )
+
+    expect(bySource.get('metric')).toBe('triage')
+    expect(bySource.get('join')).toBe('prior')
+  })
+
+  it('judges every family the audit looked for when --divergence-kind is explicit', async () => {
+    const report = await reportWith({ triage: true, divergenceKind: ALL_KINDS, triageProvider: provider('real') })
+
+    const sources = report.issues
+      .filter(issue => issue.code === 'sql-divergence')
+      .map(issue => issue.details.signalSource)
+
+    expect(sources.length).toBeGreaterThan(0)
+    expect(new Set(sources)).toEqual(new Set(['triage']))
+  })
+
+  it('reports the resolved endpoint even when the workspace yields nothing to judge', async () => {
+    // Lazy resolution meant a `--triage` run over a workspace with no groups exited 0 without
+    // mentioning triage at all, so a CI job misconfigured for weeks read as a clean pass.
+    await expect(createAuditAction(program)(WORKSPACE, { triage: true })).rejects.toThrow('process.exit called')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+
+  it('raises the signal of the same finding above what the prior gave it', async () => {
+    const withPrior = await reportWith({ divergenceKind: ALL_KINDS })
+    const withVerdict = await reportWith({
+      triage: true,
+      divergenceKind: ALL_KINDS,
+      triageProvider: provider('real'),
+    })
+
+    // Compared per finding, not per rank: the ranking is exactly what a verdict is allowed to
+    // change, so comparing "the top one" would compare two different findings.
+    const priors = new Map(withPrior.issues.filter(i => i.code === 'sql-divergence').map(i => [keyOf(i), i]))
+    const judged = withVerdict.issues.filter(i => i.code === 'sql-divergence')
+
+    expect(judged.length).toBeGreaterThan(0)
+    for (const issue of judged) {
+      const before = priors.get(keyOf(issue))
+      expect(before).toBeDefined()
+      expect(issue.score.signal).toBeGreaterThan((before as ReportIssue).score.signal)
+    }
+  })
+
+  it('takes a false positive out of the ranking but keeps it in the JSON', async () => {
+    const report = await reportWith({
+      triage: true,
+      divergenceKind: ALL_KINDS,
+      triageProvider: provider('false-positive', 'count(1) and count(*) are the same thing'),
+    })
+
+    expect(report.issues.filter(i => i.code === 'sql-divergence')).toEqual([])
+    expect(report.suppressed.length).toBeGreaterThan(0)
+    expect(report.suppressed[0].details.verdictReason).toBe('count(1) and count(*) are the same thing')
+  })
+
+  it('prints what it suppressed and why', async () => {
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, {
+      triage: true,
+      divergenceKind: ALL_KINDS,
+      triageProvider: provider('false-positive', 'the two forms mean the same thing'),
+    })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Suppressed by triage')
+    expect(text).toContain('the two forms mean the same thing')
+  })
+
+  it('keeps the deterministic score when the provider fails, and still exits 0', async () => {
+    const failing: TriageProvider = {
+      async triage() {
+        throw new Error('connect ECONNREFUSED')
+      },
+    }
+    const report = await reportWith({ triage: true, triageProvider: failing })
+
+    for (const issue of report.issues.filter(i => i.code === 'sql-divergence')) {
+      expect(issue.details.signalSource).toBe('prior')
+    }
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+
+  it('sends nothing when there is nothing to triage', async () => {
+    let called = false
+    const watcher: TriageProvider = {
+      async triage(batch) {
+        called = true
+        return batch.map(c => ({ id: c.id, verdict: 'real' as const, reason: '' }))
+      },
+    }
+    await createAuditAction(program)(WORKSPACE, { triage: true, triageProvider: watcher })
+
+    expect(called).toBe(false)
+  })
+})
+
+describe('audit command — divergence scoping end to end', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  async function divergence(options: AuditOptions = {}) {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', ...options })
+    return JSON.parse(getOutput(consoleSpy)).divergence as Array<{
+      kind: string
+      observations: number
+      scopeRule: string
+      scopeKey: string
+    }>
+  }
+
+  it('does not fold a second warehouse into the first', async () => {
+    // The fixture's Research project runs byte-identical SQL against its own Postgres
+    // integration. Under the old unscoped behaviour those queries joined every group.
+    const scoped = await divergence()
+    const pooled = await divergence({ divergenceScope: 'none' })
+
+    for (const group of scoped) {
+      const same = pooled.find(other => other.kind === group.kind)
+      expect(same?.observations).toBeGreaterThan(group.observations)
+    }
+    expect(scoped.every(group => group.scopeRule === 'integration')).toBe(true)
+  })
+
+  it('raises no finding from identical SQL behind a different integration', async () => {
+    const groups = await divergence()
+
+    // Research's two queries are alone in their scope, so neither reaches the observation floor.
+    expect(groups.every(group => group.scopeKey !== 'eeeeeeee-2222-4222-8222-eeeeeeeeeeee')).toBe(true)
+  })
+
+  it('records which rule admitted the queries, on every finding', async () => {
+    consoleSpy.mockClear()
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    for (const issue of report.issues.filter((i: { code: string }) => i.code === 'sql-divergence')) {
+      expect(issue.details.scopeRule).toBe('integration')
+      expect(typeof issue.details.scopeKey).toBe('string')
+    }
+  })
+})
+
+describe('audit command — review round trip', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let exitSpy: Mock<typeof process.exit>
+  let workDir: string
+
+  beforeEach(async () => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+    workDir = await mkdtemp(join(tmpdir(), 'deepnote-review-'))
+  })
+
+  afterEach(async () => {
+    vi.restoreAllMocks()
+    await rm(workDir, { recursive: true, force: true })
+  })
+
+  it('exports every group with a blank verdict and somewhere to look', async () => {
+    const path = join(workDir, 'review.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path })
+
+    const file = JSON.parse(await readFile(path, 'utf8'))
+    expect(file.reviewed).toBe(0)
+    expect(file.entries.length).toBeGreaterThan(0)
+    expect(file.entries.every((e: { verdict: string }) => e.verdict === '')).toBe(true)
+    expect(file.entries[0].variants[0].locations.length).toBeGreaterThan(0)
+    expect(getOutput(consoleSpy)).toContain('Review export')
+  })
+
+  it('keeps -o json parseable while still writing the review file', async () => {
+    // The export announcement is four lines of instructions. In front of a JSON document, with the
+    // command still exiting 0, a pipeline reads a successful run and unparseable output.
+    const path = join(workDir, 'review.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path, output: 'json' })
+
+    const stdout = getOutput(consoleSpy)
+    expect(() => JSON.parse(stdout)).not.toThrow()
+    expect(stdout).not.toContain('Review export')
+    expect(JSON.parse(await readFile(path, 'utf8')).entries.length).toBeGreaterThan(0)
+  })
+
+  it('refuses a review file with a verdict nobody can act on', async () => {
+    const path = join(workDir, 'bad.json')
+    await writeFile(
+      path,
+      JSON.stringify({ version: 1, entries: [{ id: 'x', kind: 'join', subject: 's', verdict: 'maybe' }] })
+    )
+
+    await expect(createAuditAction(program)(DIVERGENCE_WORKSPACE, { importReview: path })).rejects.toThrow(
+      'process.exit called'
+    )
+    expect(exitSpy).toHaveBeenCalledWith(2)
+  })
+
+  it('reports measured precision but keeps the default below the floor', async () => {
+    const path = join(workDir, 'thin.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path })
+    const file = JSON.parse(await readFile(path, 'utf8'))
+    for (const entry of file.entries) {
+      entry.verdict = 'real'
+    }
+    await writeFile(path, JSON.stringify(file))
+    consoleSpy.mockClear()
+
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { importReview: path })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('Measured precision')
+    // Three reviewed entries is an anecdote, not a precision.
+    expect(text).toContain(`needs ${MIN_REVIEWED_FOR_PRECISION} to be used`)
+  })
+
+  it('uses the measurement once there is enough of it, and says so in the JSON', async () => {
+    // A synthetic file with enough join verdicts to clear the floor, carrying the real ids so the
+    // measurement attaches to the groups the workspace actually produced.
+    const path = join(workDir, 'full.json')
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { divergence: true, exportReview: path })
+    const file = JSON.parse(await readFile(path, 'utf8'))
+    const padding = Array.from({ length: MIN_REVIEWED_FOR_PRECISION }, (_, i) => ({
+      id: `pad-${i}`,
+      kind: 'join',
+      subject: `pad ${i}`,
+      verdict: 'real',
+      confidence: 0.5,
+      observations: 4,
+      projectCount: 4,
+      scopeKey: 'x',
+      variants: [],
+    }))
+    await writeFile(path, JSON.stringify({ ...file, entries: [...file.entries, ...padding] }))
+    consoleSpy.mockClear()
+
+    await createAuditAction(program)(DIVERGENCE_WORKSPACE, { output: 'json', importReview: path })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    const joins = report.issues.filter(
+      (i: { code: string; details: { kind: string } }) => i.code === 'sql-divergence' && i.details.kind === 'join'
+    )
+    expect(joins.length).toBeGreaterThan(0)
+    for (const issue of joins) {
+      expect(issue.details.signalSource).toBe('measured')
+      expect(issue.details.measuredPrecision).toBe(1)
+    }
   })
 })

@@ -1,6 +1,6 @@
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
 import chalk from 'chalk'
-import { Command, Option } from 'commander'
+import { Command, InvalidArgumentError, Option } from 'commander'
 // Note: We keep 'chalk' import for:
 // 1. Welcome text (displayed before argument parsing, so we can't use getChalk())
 // 2. Setting chalk.level in preAction hook for backward compatibility
@@ -37,6 +37,9 @@ import { DEEPNOTE_TOKEN_ENV } from './constants'
 import { ExitCode } from './exit-codes'
 import { getChalk, getOutputConfig, OUTPUT_FORMATS, output, setOutputConfig, shouldDisableColor } from './output'
 import { createFormatValidator, JSON_LLM_RESOLUTION, TOON_LLM_RESOLUTION } from './utils/format-validator'
+import { CONSENSUS_PROJECT_FLOOR } from './utils/governance/audit'
+import { DIVERGENCE_KINDS, type DivergenceKind } from './utils/governance/sql-divergence'
+import { TRIAGE_ENV } from './utils/governance/triage'
 import { parseTimeoutSeconds } from './utils/parse-timeout'
 import { version } from './version'
 
@@ -1066,6 +1069,52 @@ ${c.bold('Examples:')}
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--project <name>', 'Audit a single project, by name or id')
     .option('--issues', 'List every finding instead of a count per check')
+    .option('--divergence', 'List every divergence group with its variants and locations')
+    .option('--skip-divergence', 'Do not run the cross-project consensus checks')
+    .addOption(
+      new Option(
+        '--divergence-scope <scope>',
+        'Which queries may be compared: same integration, same integration type, or any'
+      )
+        .choices(['integration', 'type', 'none'])
+        .default('integration')
+    )
+    .option('--triage', 'Ask a model whether each divergence group is a real defect (needs a configured endpoint)')
+    .option('--triage-base-url <url>', `OpenAI-compatible endpoint (or ${TRIAGE_ENV.baseUrl})`)
+    .option('--triage-model <name>', `Model to triage with (or ${TRIAGE_ENV.model})`)
+    .option('--triage-limit <n>', 'Triage only the n most confident groups', (value: string) => {
+      const parsed = Number.parseInt(value, 10)
+      if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new InvalidArgumentError('Expected a positive whole number.')
+      }
+      return parsed
+    })
+    .option('--no-triage-cache', 'Ignore cached verdicts and ask the model again')
+    .option('--export-review <file>', 'Write every divergence group to <file> with a blank verdict, for review')
+    .option('--import-review <file>', 'Read reviewed verdicts back and use measured precision instead of the defaults')
+    .option(
+      '--divergence-kind <kind>',
+      'Consensus anchors to check: join, filter or metric (repeatable, defaults to all three)',
+      (value: string, previous: string[] = []) => {
+        if (!DIVERGENCE_KINDS.includes(value as DivergenceKind)) {
+          throw new InvalidArgumentError(`Expected one of ${DIVERGENCE_KINDS.join(', ')}.`)
+        }
+        return [...previous, value]
+      }
+    )
+    .option(
+      '--min-confidence <value>',
+      'Consensus confidence below which a divergence group is reported but raises no finding (0-1, default 0.25)',
+      (value: string) => {
+        const parsed = Number.parseFloat(value)
+        // A silent NaN here is worse than an error: it compares false against every confidence, so
+        // every group is reported and the flag looks like it did nothing.
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+          throw new InvalidArgumentError('Expected a number between 0 and 1.')
+        }
+        return parsed
+      }
+    )
     .option(
       '--internal-domain <domain>',
       'Email domain belonging to your organization, so colleagues are not counted as external data subjects (repeatable)',
@@ -1091,9 +1140,12 @@ ${c.bold('What it reports:')}
             away with it, so the report cannot be read back as a list of people. For a
             persistent, searchable index, use ${c.dim('deepnote subjects index')}.
   ${c.underline('Tables')}    Every table the SQL references, ranked by how many *live* projects read it.
+  ${c.underline('Consensus')} Anchors the workspace defines two ways: a table pair joined on different
+            keys, a metric name backed by different aggregates, a column most queries
+            filter and some do not. Each carries a Wilson confidence on its consensus.
   ${c.underline('Findings')}  ingress-integration-orphan, ingress-integration-undeclared,
             egress-external, credential-shared, pii-subject-scatter, asset-stale,
-            plus every ${c.dim('lint --governance')} check run against each project.
+            sql-divergence, plus every ${c.dim('lint --governance')} check run against each project.
 
 ${c.bold('Ranking:')}
   severity = signal × exposure × neglect × blast radius, reported out of 100 with all
@@ -1107,8 +1159,13 @@ ${c.bold('Limits it reports rather than hides:')}
   - Egress is a lower bound: a host assembled from variables at run time is invisible.
   - Integration usage counts SQL blocks in notebooks only; dbt, BI tools and other
     consumers of the same warehouse are not visible from here.
-  - Divergence checks are not run: cross-project consensus needs a workspace an order
-    of magnitude larger than most before agreement means anything.
+  - Divergence precision is unvalidated, and consensus thins out below roughly
+    ${CONSENSUS_PROJECT_FLOOR} projects. Every group is ranked by a Wilson lower bound rather than
+    filtered by a threshold, and ${c.dim('--divergence')} prints all of them so the ranking can be
+    checked.
+  - Table identity is the short name, so analytics.users and staging.users are one
+    subject. Column-level and schema-aware checks need the warehouse catalogue, which
+    this command never connects to.
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  The workspace was audited (findings do not fail the command — audit is an inventory,
@@ -1125,6 +1182,12 @@ ${c.bold('Examples:')}
 
   ${c.dim('# One project, including its flow map')}
   $ deepnote audit workspace --project "Churn analysis"
+
+  ${c.dim('# Every divergence group, with every variant and where it is used')}
+  $ deepnote audit workspace --divergence
+
+  ${c.dim('# Only join divergence, and only where the consensus is well attested')}
+  $ deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
 
   ${c.dim('# Full report, including the flow map nodes and edges')}
   $ deepnote audit workspace -o json
