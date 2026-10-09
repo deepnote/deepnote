@@ -982,6 +982,7 @@ ${c.bold('Examples:')}
       '--integrations-file <path>',
       `Path to integrations env file (default: ${DEFAULT_INTEGRATIONS_FILE} next to .deepnote file)`
     )
+    .option('--governance', 'Also run the governance checks: SQL correctness and hardcoded credentials')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -999,6 +1000,18 @@ ${c.bold('Checks:')}
 
   ${c.underline('Inputs')}
   - missing-input: Input blocks without default values
+
+  ${c.underline('Governance')} ${c.dim('(--governance)')}
+  - sql-null-comparison: "= NULL" never matches a row; use IS NULL
+  - sql-tautology: A column compared to itself, so the join or filter is a no-op
+  - sql-string-boolean: A column compared to the string 'true'/'false' instead of the keyword
+  - credential-hardcoded: A credential written into a block (reported by fingerprint, never by value)
+
+${c.bold('Governance Scope:')}
+  --governance runs the checks one project can answer on its own. The checks that
+  compare projects against each other — duplicated metric definitions, personal data
+  scattered across notebooks, writes to third-party hosts, abandoned assets — need the
+  whole synced workspace, and lint says so rather than reporting an empty result.
 
 ${c.bold('Integrations File:')}
   Integrations are automatically loaded from ${DEFAULT_INTEGRATIONS_FILE} in the same directory as the
@@ -1028,6 +1041,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Use a custom integrations file')}
   $ deepnote lint my-project.deepnote --integrations-file prod-integrations.yaml
+
+  ${c.dim('# Add the governance checks (SQL correctness, hardcoded credentials)')}
+  $ deepnote lint my-project.deepnote --governance
 
   ${c.dim('# Use in CI pipeline')}
   $ deepnote lint my-project.deepnote || exit 1

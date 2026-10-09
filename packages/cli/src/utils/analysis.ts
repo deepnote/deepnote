@@ -9,6 +9,7 @@ import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integ
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
+import { type GovernanceSummary, runProjectGovernanceChecks, safeBlockLabel } from './governance'
 import { isBuiltinOrGlobal } from './python-builtins'
 
 // ============================================================================
@@ -44,6 +45,8 @@ export interface LintResult {
     withValues: number
     needingValues: string[]
   }
+  /** Present only when the governance checks were requested. */
+  governance?: GovernanceSummary
 }
 
 export interface BlockTypeStats {
@@ -84,6 +87,8 @@ export interface AnalysisOptions {
   notebook?: string
   /** Python interpreter path for DAG analysis */
   pythonInterpreter?: string
+  /** Also run the project-scoped governance checks (SQL correctness, hardcoded credentials) */
+  governance?: boolean
 }
 
 export interface AnalysisResult {
@@ -192,7 +197,7 @@ export async function checkForIssues(
       allBlocks.push(block)
       blockMap.set(block.id, {
         id: block.id,
-        label: getBlockLabel(block),
+        label: safeBlockLabel(block, getBlockLabel(block)),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,
@@ -224,6 +229,15 @@ export async function checkForIssues(
   // Check for missing inputs (doesn't require DAG)
   const { issues: inputIssues, summary: inputSummary } = checkMissingInputs(allBlocks, blockMap)
   issues.push(...inputIssues)
+
+  // Governance checks are opt-in: they are a compliance surface rather than a correctness one, and
+  // they run on the blocks directly, so they need neither the DAG nor a Python interpreter.
+  let governance: GovernanceSummary | undefined
+  if (options.governance) {
+    const governanceResult = runProjectGovernanceChecks(allBlocks, blockMap, file.project.integrations)
+    issues.push(...governanceResult.issues)
+    governance = governanceResult.summary
+  }
 
   // Analyze DAG for variable issues
   let dag: BlockDependencyDag = { nodes: [], edges: [], modulesEdges: [] }
@@ -270,6 +284,7 @@ export async function checkForIssues(
       issues,
       integrations: integrationSummary,
       inputs: inputSummary,
+      ...(governance ? { governance } : {}),
     },
     dag,
   }
@@ -809,7 +824,7 @@ export function buildBlockMap(file: DeepnoteFile, options: AnalysisOptions = {})
     for (const block of notebook.blocks) {
       blockMap.set(block.id, {
         id: block.id,
-        label: getBlockLabel(block),
+        label: safeBlockLabel(block, getBlockLabel(block)),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,
