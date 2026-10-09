@@ -24,6 +24,12 @@ import { createSplitAction } from './commands/split'
 import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
 import { createStreamlitPublishAction } from './commands/streamlit-publish'
+import {
+  createSubjectsIndexAction,
+  createSubjectsLookupAction,
+  DEFAULT_SUBJECT_INDEX_FILE,
+  SUBJECT_SALT_ENV,
+} from './commands/subjects'
 import { CONFLICT_MODES, createSyncAction, DEFAULT_SYNC_CONCURRENCY, parseSyncConcurrency } from './commands/sync'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
@@ -1060,6 +1066,11 @@ ${c.bold('Examples:')}
     .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
     .option('--project <name>', 'Audit a single project, by name or id')
     .option('--issues', 'List every finding instead of a count per check')
+    .option(
+      '--internal-domain <domain>',
+      'Email domain belonging to your organization, so colleagues are not counted as external data subjects (repeatable)',
+      (value: string, previous: string[] = []) => [...previous, value]
+    )
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -1075,6 +1086,10 @@ ${c.bold('What it reports:')}
   ${c.underline('Ingress')}   Native integrations, the projects that query them, and orphans —
             integrations declared but used by nobody, whose credentials are still live.
   ${c.underline('Egress')}    Third-party hosts the code writes to, recovered from block content.
+  ${c.underline('Subjects')}  How many people the workspace holds data about, and how far each is spread.
+            Identities are fingerprinted under a salt generated for the run and thrown
+            away with it, so the report cannot be read back as a list of people. For a
+            persistent, searchable index, use ${c.dim('deepnote subjects index')}.
   ${c.underline('Findings')}  ingress-integration-orphan, ingress-integration-undeclared,
             egress-external, credential-shared, plus every ${c.dim('lint --governance')}
             check run against each project.
@@ -1107,6 +1122,103 @@ ${c.bold('Examples:')}
 `
     })
     .action(createAuditAction(program))
+
+  // Subjects commands - build and search the fingerprinted data-subject index
+  const subjects = program
+    .command('subjects')
+    .description('Build and search a fingerprinted index of the people a workspace holds data about')
+
+  subjects
+    .command('index')
+    .description('Build a subject index from a synced workspace')
+    .argument('[dir]', 'Directory of synced .deepnote files (defaults to current directory)')
+    .option('--out <path>', `Where to write the index (default: ${DEFAULT_SUBJECT_INDEX_FILE})`)
+    .option('--salt-file <path>', `Read the index salt from a file instead of ${SUBJECT_SALT_ENV}`)
+    .option(
+      '--internal-domain <domain>',
+      'Email domain belonging to your organization (repeatable). Inferred when omitted',
+      (value: string, previous: string[] = []) => [...previous, value]
+    )
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Scans every notebook — block content and saved cell outputs — for the people a
+  workspace holds data about, and writes an index of where each one appears.
+
+  The index holds no addresses. Each person is an HMAC under your salt, so the file
+  cannot be read back as a list of people. What it does hold is what makes a subject
+  access request answerable: domains, file paths, notebook names, line numbers, counts.
+
+${c.bold('The salt:')}
+  Set ${c.dim(SUBJECT_SALT_ENV)} or pass ${c.dim('--salt-file')}. There is deliberately no
+  --salt flag: a salt on the command line lands in shell history and in the process
+  list. It must be the same every time or the index cannot be searched, and it must be
+  stored apart from the index — email addresses are an enumerable space, so whoever
+  holds both the salt and the index holds a list of people. Keep it in a secret manager.
+
+${c.bold('What is not indexed:')}
+  Role accounts (support@, no-reply@, git@) and documentation placeholders
+  (you@example.com) are not people. Plus-tags are folded in, so jane+billing@acme.io
+  and jane@acme.io are one subject.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  Index written
+  ${c.dim('1')}  The workspace or the index could not be read or written
+  ${c.dim('2')}  Invalid usage (no salt, salt too short, directory not found)
+
+${c.bold('Examples:')}
+  ${c.dim('# Build an index with the salt from a secret manager')}
+  $ ${SUBJECT_SALT_ENV}="$(vault read -field=salt secret/deepnote)" deepnote subjects index ./workspace
+
+  ${c.dim('# Say which domains are your own, instead of letting it guess')}
+  $ deepnote subjects index ./workspace --internal-domain acme.io --internal-domain acme.dev
+
+  ${c.dim('# Write the index somewhere specific')}
+  $ deepnote subjects index ./workspace --out ./governance/subjects.json
+`
+    })
+    .action(createSubjectsIndexAction(program))
+
+  subjects
+    .command('lookup')
+    .description('Find every notebook location holding data about one person')
+    .argument('<identifier>', 'The email address named in the request')
+    .option('--index <path>', `Path to the subject index (default: ${DEFAULT_SUBJECT_INDEX_FILE})`)
+    .option('--salt-file <path>', `Read the index salt from a file instead of ${SUBJECT_SALT_ENV}`)
+    .option('-o, --output <format>', 'Output format: json, llm', createFormatValidator(['json'], JSON_LLM_RESOLUTION))
+    .addHelpText('after', () => {
+      const c = getChalk()
+      return `
+${c.bold('Description:')}
+  Answers a subject access or erasure request: given an email address, lists every
+  notebook, file and line where that person appears, with saved cell outputs called
+  out separately — those hold the data itself, not just a reference to it.
+
+  The address is fingerprinted locally and never written to the output.
+
+${c.bold('Salt mismatch:')}
+  A lookup run against an index built under a different salt fails loudly instead of
+  returning nothing. Under the wrong salt every lookup misses, and "we hold no data
+  about this person" is the one answer that must never be wrong by accident.
+
+${c.bold('Scope:')}
+  The index covers the .deepnote files it was built from. Data in the warehouse itself,
+  or in projects that were never synced, is out of scope — rebuild after a sync.
+
+${c.bold('Exit Codes:')}
+  ${c.dim('0')}  The lookup ran (whether or not the person was found)
+  ${c.dim('1')}  The index could not be read
+  ${c.dim('2')}  Invalid usage (no salt, salt mismatch, index missing, not an indexable address)
+
+${c.bold('Examples:')}
+  $ deepnote subjects lookup jane.doe@acme-corp.io
+  $ deepnote subjects lookup jane.doe@acme-corp.io --index ./governance/subjects.json
+  $ deepnote subjects lookup jane.doe@acme-corp.io -o json
+`
+    })
+    .action(createSubjectsLookupAction(program))
 
   // Install-skills command - install agent skill files
   program

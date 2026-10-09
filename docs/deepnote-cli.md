@@ -73,29 +73,30 @@ Deepnote Cloud and open it in your browser, where you sign in; they need no toke
 
 ## Commands
 
-| Command                                                | What it does                                                                                   |
-| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `deepnote run [path]`                                  | Run a `.deepnote`, `.ipynb`, `.py` or `.qmd` file locally, or in Deepnote Cloud with `--cloud` |
-| `deepnote inspect [path]`                              | Show project metadata: name, ID, notebooks and block counts                                    |
-| `deepnote cat <path>`                                  | Print block contents, optionally filtered by notebook or block type                            |
-| `deepnote diff <path1> <path2>`                        | Compare two `.deepnote` files and show structural differences                                  |
-| `deepnote lint [path]`                                 | Check for undefined variables, circular dependencies, missing integrations and inputs          |
-| [`deepnote audit [dir]`](/docs/deepnote-cli-audit)     | Inventory integrations, map data egress and find governance issues across a synced workspace   |
-| `deepnote validate <path>`                             | Validate a `.deepnote` file against the schema                                                 |
-| `deepnote stats <path>`                                | Block counts, lines of code and imported modules                                               |
-| `deepnote analyze <path>`                              | Quality score, structure analysis and suggestions                                              |
-| `deepnote dag show\|vars\|downstream <path>`           | Analyze block dependencies and variable flow                                                   |
-| `deepnote convert <path>`                              | Convert between `.ipynb`, `.py`, `.qmd` and `.deepnote`                                        |
-| `deepnote split <path>`                                | Split a multi-notebook `.deepnote` file into one file per notebook                             |
-| `deepnote open <path>`                                 | Upload a `.deepnote` file to Deepnote Cloud and open it in the browser                         |
-| `deepnote schedule <path>`                             | Create or update a recurring run in Deepnote Cloud                                             |
-| [`deepnote sync [dir]`](/docs/deepnote-cli-sync)       | Mirror your workspace to a local directory and push notebook edits back                        |
-| [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Publish a local build directory as an app hosted by a project                                  |
-| `deepnote static-site access`                          | Enable or disable access to a published app without redeploying                                |
-| `deepnote streamlit publish <entrypoint>`              | Serve a Python file already in the project as a Streamlit app                                  |
-| `deepnote integrations pull\|add\|edit`                | Manage the local database integrations file used by `run`                                      |
-| `deepnote install-skills`                              | Install the Deepnote skill for Claude Code, Cursor and other AI coding assistants              |
-| `deepnote completion <shell>`                          | Generate shell completion scripts                                                              |
+| Command                                                          | What it does                                                                                   |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `deepnote run [path]`                                            | Run a `.deepnote`, `.ipynb`, `.py` or `.qmd` file locally, or in Deepnote Cloud with `--cloud` |
+| `deepnote inspect [path]`                                        | Show project metadata: name, ID, notebooks and block counts                                    |
+| `deepnote cat <path>`                                            | Print block contents, optionally filtered by notebook or block type                            |
+| `deepnote diff <path1> <path2>`                                  | Compare two `.deepnote` files and show structural differences                                  |
+| `deepnote lint [path]`                                           | Check for undefined variables, circular dependencies, missing integrations and inputs          |
+| [`deepnote audit [dir]`](/docs/deepnote-cli-audit)               | Inventory integrations, map data egress and find governance issues across a synced workspace   |
+| [`deepnote subjects index\|lookup`](/docs/deepnote-cli-subjects) | Index the people a workspace holds data about, and answer subject access requests              |
+| `deepnote validate <path>`                                       | Validate a `.deepnote` file against the schema                                                 |
+| `deepnote stats <path>`                                          | Block counts, lines of code and imported modules                                               |
+| `deepnote analyze <path>`                                        | Quality score, structure analysis and suggestions                                              |
+| `deepnote dag show\|vars\|downstream <path>`                     | Analyze block dependencies and variable flow                                                   |
+| `deepnote convert <path>`                                        | Convert between `.ipynb`, `.py`, `.qmd` and `.deepnote`                                        |
+| `deepnote split <path>`                                          | Split a multi-notebook `.deepnote` file into one file per notebook                             |
+| `deepnote open <path>`                                           | Upload a `.deepnote` file to Deepnote Cloud and open it in the browser                         |
+| `deepnote schedule <path>`                                       | Create or update a recurring run in Deepnote Cloud                                             |
+| [`deepnote sync [dir]`](/docs/deepnote-cli-sync)                 | Mirror your workspace to a local directory and push notebook edits back                        |
+| [`deepnote publish <dir>`](/docs/deepnote-cli-publish)           | Publish a local build directory as an app hosted by a project                                  |
+| `deepnote static-site access`                                    | Enable or disable access to a published app without redeploying                                |
+| `deepnote streamlit publish <entrypoint>`                        | Serve a Python file already in the project as a Streamlit app                                  |
+| `deepnote integrations pull\|add\|edit`                          | Manage the local database integrations file used by `run`                                      |
+| `deepnote install-skills`                                        | Install the Deepnote skill for Claude Code, Cursor and other AI coding assistants              |
+| `deepnote completion <shell>`                                    | Generate shell completion scripts                                                              |
 
 Every command accepts `--help`. The full reference with all options, output schemas and examples is
 the [package README on npm](https://www.npmjs.com/package/@deepnote/cli).
@@ -124,6 +125,9 @@ deepnote sync ./workspace
 # Inventory integrations and data flows across that workspace
 deepnote audit ./workspace
 
+# Find every notebook holding data about one person
+deepnote subjects lookup jane.doe@acme-corp.io
+
 # Publish a Vite build to a project
 deepnote publish ./dist --project-id <project-id>
 ```
@@ -150,6 +154,7 @@ deepnote lint my-project.deepnote -o json || exit 1
 
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync)
 - [Auditing a workspace with the Deepnote CLI](/docs/deepnote-cli-audit)
+- [Answering data subject requests with the Deepnote CLI](/docs/deepnote-cli-subjects)
 - [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature

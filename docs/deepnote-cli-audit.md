@@ -21,10 +21,10 @@ connections, runs no Python, and sends nothing anywhere.
 
 ```
 Workspace ./workspace
-  3 projects, 3 notebooks, 7 blocks (3 SQL, 4 code)
+  4 projects, 4 notebooks, 9 blocks (4 SQL, 5 code)
 
 Ingress — integrations
-  Warehouse (snowflake) — 2 projects, 2 SQL blocks
+  Warehouse (snowflake) — 3 projects, 3 SQL blocks
   cccccccc-3333-4333-8333-cccccccccccc — 1 project, 1 SQL block · undeclared in 1
   ⚠ Legacy Redshift (redshift) — declared in 1 project, used by none
 
@@ -35,6 +35,12 @@ Egress — external hosts
   → writes  s3://marketing-exports — 1 project, 1 block
   ← reads   gs://raw-events — 1 project, 1 block
 
+Data subjects
+  2 people in 5 locations, unclassified — pass --internal-domain to separate colleagues from customers
+  ⚠ 1 person appears in more than one notebook
+  Identities are fingerprinted per run and discarded. For a persistent, searchable
+  index, run "deepnote subjects index".
+
 Credentials shared across projects
   ✖ 2d24bb7a7685f122 (Credential assigned to a secret-named variable) — 2 projects: Marketing campaigns, Revenue reporting
 
@@ -44,10 +50,11 @@ Findings
   ✖ credential-shared: 2 in 2 projects
   ⚠ ingress-integration-orphan: 1 in 1 project
   ⚠ ingress-integration-undeclared: 1 in 1 project
+  ⚠ pii-subject-scatter: 1 in 1 project
   ✖ sql-null-comparison: 1 in 1 project
   ⚠ sql-string-boolean: 1 in 1 project
 
-Summary: 3 errors, 10 warnings
+Summary: 3 errors, 11 warnings
 ```
 
 ### Ingress — your integrations
@@ -62,6 +69,17 @@ Third-party hosts your code reaches, recovered from the URLs written into code b
 code **writes** to are listed first and reported as findings; reads are inventoried but not flagged.
 Object-store buckets count as their own destination, so `s3://marketing-exports` and
 `s3://finance-exports` are two different places, not one provider.
+
+### Data subjects
+
+How many people the workspace holds data about, and how many of them are spread across more than one
+notebook. Identities are fingerprinted under a salt generated for the run and discarded with it, so
+the report cannot be read back as a list of people — and cannot be compared against another report.
+For a persistent, searchable index, use
+[`deepnote subjects index`](/docs/deepnote-cli-subjects).
+
+Pass `--internal-domain` to separate colleagues from customers; without it, everyone is counted
+alike and the report says so.
 
 ### Credentials
 
@@ -80,6 +98,7 @@ Alongside the workspace-level checks, every project is run through the same chec
 | `ingress-integration-undeclared` | A SQL block runs against an integration the project does not declare |
 | `egress-external`                | A code block writes to a host outside Deepnote and your integrations |
 | `credential-shared`              | The same credential is hardcoded in more than one project            |
+| `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
 
 Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-string-boolean`, and
 `credential-hardcoded`. See the [CLI overview](/docs/deepnote-cli) for the lint command.
@@ -92,6 +111,7 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 | `-o, --output <format>` | `json` for the full report, including the flow map; `llm` resolves to the same JSON |
 | `--project <name>`      | Audit a single project, by name or id                                               |
 | `--issues`              | List every finding instead of a count per check                                     |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable)                                |
 
 ## The flow map
 
@@ -125,14 +145,21 @@ clean bill of health:
 ## What leaves the process
 
 Everything the audit prints passes through one redaction step, applied to the assembled report as
-a whole rather than to each section as it is built. Credentials are masked in place wherever they
-appear — in a finding, a project or notebook name, an integration name, a flow-map label, a parse
-error — so a section added to the report later inherits the masking without anyone remembering to
-wire it up.
+a whole rather than to each section as it is built. Credentials **and email addresses** are masked
+in place wherever they appear — in a finding, a project or notebook name, an integration name, a
+flow-map label, a file path, a parse error — so a section added to the report later inherits the
+masking without anyone remembering to wire it up.
 
-This is why names in the output may be partly masked: a project called after a connection string
-is reported with the password replaced and the rest of the name intact, which keeps the finding
-locatable without reproducing the secret.
+This is why names in the output may be partly masked: a notebook called
+`Churn for dana@customer.example` is reported as `Churn for <redacted>`, which keeps the finding
+locatable without naming the person it is about. A `pii-subject-scatter` finding withholds the
+subject's fingerprint by design, and it would be pointless to do that while printing their address
+in the field beside it.
+
+`deepnote subjects index` is the deliberate exception. It is the one output whose purpose is to
+say where a named person's data is, so its locations keep the real project, notebook and path. The
+index is sensitive by design and should be handled as such — see
+[`deepnote subjects`](./deepnote-cli-subjects.md).
 
 ## Audit is not a gate
 
@@ -152,5 +179,7 @@ usage (directory or project not found).
 
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync) — produces the tree this
   command audits
+- [Answering data subject requests with the Deepnote CLI](/docs/deepnote-cli-subjects) — the
+  persistent, searchable version of the subject counts reported here
 - [Deepnote CLI](/docs/deepnote-cli) — all commands, including `deepnote lint`
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file

@@ -93,11 +93,12 @@ Audit a synced workspace — the tree `deepnote sync` writes. Answers what `lint
 from one project: which integrations exist and who uses them, where data leaves to, and which
 credentials are shared across projects. Everything is local: no warehouse connection, no Python.
 
-| Option                  | Description                                     |
-| ----------------------- | ----------------------------------------------- |
-| `-o, --output <format>` | Output format: `json`, `llm`                    |
-| `--project <name>`      | Audit a single project, by name or id           |
-| `--issues`              | List every finding instead of a count per check |
+| Option                  | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| `-o, --output <format>` | Output format: `json`, `llm`                         |
+| `--project <name>`      | Audit a single project, by name or id                |
+| `--issues`              | List every finding instead of a count per check      |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable) |
 
 **Workspace-scoped checks:**
 
@@ -107,6 +108,7 @@ credentials are shared across projects. Everything is local: no warehouse connec
 | `ingress-integration-undeclared` | SQL block runs against an integration the project does not declare     | warning  |
 | `egress-external`                | Code block writes to a host outside Deepnote and the integrations      | warning  |
 | `credential-shared`              | The same credential is hardcoded in more than one project              | error    |
+| `pii-subject-scatter`            | One person's data appears in more than one notebook                    | warning  |
 
 Every project is also run through the `lint --governance` checks, so one audit covers both scopes.
 Findings carry `projectId`, `projectName` and `path` on top of the usual lint issue fields.
