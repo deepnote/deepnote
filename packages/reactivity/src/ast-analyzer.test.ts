@@ -218,6 +218,13 @@ describe('AstAnalyzer', () => {
           definedVariables: ['f'],
           usedVariables: ['d'],
         },
+        {
+          name: 'keeps match capture names inside a function local',
+          content:
+            'def f(event):\n    match event:\n        case [first, *rest]:\n            return first, rest\n        case {"user": user, **extra}:\n            return user, extra\n        case Point(x=px) | Other(px) as shape:\n            return px, shape\n        case _:\n            return fallback',
+          definedVariables: ['f'],
+          usedVariables: ['Other', 'Point', 'fallback'],
+        },
       ])('$name', async ({ content, definedVariables, usedVariables }) => {
         const mockBlocks = [{ id: '1', type: 'code', content, blockGroup: 'a', sortingKey: 'a' }] as DeepnoteBlock[]
 

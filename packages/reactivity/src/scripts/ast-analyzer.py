@@ -10,6 +10,11 @@ from jinja2 import meta, Environment
 # Set of Python built-in names to ignore during analysis
 BUILTINS_SET = set(dir(builtins))
 
+# Pattern nodes whose `name` is a capture in a `match` statement. They only exist on Python
+# 3.10+; on older interpreters this is empty, and isinstance against () is always False.
+MATCH_CAPTURE_TYPES = tuple(getattr(ast, name) for name in ("MatchAs", "MatchStar") if hasattr(ast, name))
+MATCH_MAPPING_TYPE = getattr(ast, "MatchMapping", ())
+
 
 class VariableVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
@@ -82,6 +87,10 @@ class VariableVisitor(ast.NodeVisitor):
                     bound.add((alias.asname or alias.name).split(".")[0])
             elif isinstance(node, ast.arg):
                 bound.add(node.arg)
+            elif isinstance(node, MATCH_CAPTURE_TYPES) and node.name:
+                bound.add(node.name)
+            elif isinstance(node, MATCH_MAPPING_TYPE) and node.rest:
+                bound.add(node.rest)
             stack.extend(ast.iter_child_nodes(node))
         return bound
 
