@@ -45,8 +45,8 @@ To set up authentication to BigQuery via OAuth, navigate to the [Google Cloud co
 Since every user will have to authenticate using their own Google account with this method, the notebook provides a few ways to accomplish authentication (also see the image below). Any of the following actions will initiate authentication for a given user:
 
 - Pressing the **Authenticate** button on a SQL block
-- 2. Clicking **Authenticate integration** from three-dot menu of the integration in the right sidebar
-- 3. Responding to a request for authentication when executing an SQL block
+- Click **Authenticate integration** from the integration's three-dot menu in the right sidebar
+- Respond to an authentication request when executing an SQL block
 
 ![gbq_authenticate.png](../assets/docs/oQtF3hYJShWVLELDxB3T.webp)
 

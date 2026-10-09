@@ -57,7 +57,7 @@ Explore integrations by category and dive deeper into any of the listed integrat
 
 #### Data warehouses
 
-- [AWS Redshift](/docs/redshift)
+- [AWS Redshift](/docs/amazon-redshift)
 - [Google BigQuery](/docs/google-bigquery)
 - [Snowflake](/docs/snowflake/)
 - [Snowpark](/docs/snowpark)
