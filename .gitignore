@@ -17,6 +17,16 @@ examples/report.md
 examples/snapshots/*_T*.snapshot.deepnote
 node_modules
 
+# Python development environments and caches.
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Snapshots that runs of local-runner-showcase.deepnote write, such as the Streamlit README's push.
+examples/snapshots/*_9b1f7c00-0000-4a00-9000-locrunnershow1_*.snapshot.deepnote
+
 # Copied in by the steps in README.md — build output and your own snapshot, not source.
 snapshot-reader.js
 snapshot-viewer.js
