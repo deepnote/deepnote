@@ -123,6 +123,19 @@ describe('AstAnalyzer', () => {
           usedVariables: [],
         },
         {
+          name: 'reports a lambda read of a name its enclosing function declares global and assigns',
+          content:
+            'def f(reset):\n    global weights\n    if reset:\n        weights = defaults()\n    return lambda i: weights[i]',
+          definedVariables: ['f', 'weights'],
+          usedVariables: ['defaults', 'weights'],
+        },
+        {
+          name: 'reports a nested function read of a name its enclosing function declares global and assigns',
+          content: 'def f():\n    global g\n    g = 1\n    def inner():\n        return g\n    return inner',
+          definedVariables: ['f', 'g'],
+          usedVariables: ['g'],
+        },
+        {
           name: 'evaluates decorators, defaults, and annotations in the enclosing scope',
           content: '@deco\ndef f(a=default_v, b: T = 1):\n    return a + b',
           definedVariables: ['f'],

@@ -65,6 +65,9 @@ class VariableVisitor(ast.NodeVisitor):
         set has to be known before the body is walked: `x = x + 1` reads the local, not a global.
         """
         bound = set()
+        # A name declared `global` is not local even when this scope assigns it, and nested
+        # scopes have to see past it to the module. Its stores already go to `global_vars`.
+        declared_global = set()
         stack = list(nodes)
         while stack:
             node = stack.pop()
@@ -78,7 +81,9 @@ class VariableVisitor(ast.NodeVisitor):
                 # binds out here, so the enclosing scope has to know the name is local.
                 bound |= self._escaping_walrus_names(node)
                 continue
-            if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            if isinstance(node, ast.Global):
+                declared_global.update(node.names)
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
                 bound.add(node.id)
             elif isinstance(node, ast.ExceptHandler) and node.name:
                 bound.add(node.name)
@@ -92,7 +97,7 @@ class VariableVisitor(ast.NodeVisitor):
             elif isinstance(node, MATCH_MAPPING_TYPE) and node.rest:
                 bound.add(node.rest)
             stack.extend(ast.iter_child_nodes(node))
-        return bound
+        return bound - declared_global
 
     def _escaping_walrus_names(self, node):
         """Walrus targets inside a comprehension, which bind in the scope containing it.
