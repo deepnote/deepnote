@@ -28,8 +28,8 @@ import { MissingTokenError, resolveToken } from '../utils/auth'
 
 export { DEFAULT_SYNC_CONCURRENCY } from '@deepnote/cloud-sync'
 
-export const CONFLICT_MODES = ['ask', 'skip', 'override'] as const
-export type ConflictMode = (typeof CONFLICT_MODES)[number]
+export type ConflictMode = 'ask' | SyncConflictDecision
+export const CONFLICT_MODES: readonly ConflictMode[] = ['ask', 'skip', 'override']
 
 /** Commander parser for `--concurrency`: a positive integer. */
 export function parseSyncConcurrency(value: string): number {
@@ -49,7 +49,7 @@ export interface SyncOptions {
   prune?: boolean
   dryRun?: boolean
   output?: 'json'
-  /** How many projects sync at once (default 8). */
+  /** How many projects sync at once. */
   concurrency?: number
 }
 
