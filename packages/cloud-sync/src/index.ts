@@ -1,3 +1,9 @@
+export { ApiError } from '@deepnote/database-integrations'
+export {
+  createOrFindStreamlitApp,
+  normalizeStreamlitEntrypoint,
+  type PublishedStreamlitApp,
+} from './streamlit-app'
 export {
   assertNoSymbolicLinkAncestors,
   baselineDiverged,
