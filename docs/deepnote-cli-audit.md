@@ -28,6 +28,13 @@ Ingress — integrations
   cccccccc-3333-4333-8333-cccccccccccc — 1 project, 1 SQL block · undeclared in 1
   ⚠ Legacy Redshift (redshift) — declared in 1 project, used by none
 
+Tables — ranked by live reach
+  campaigns — 1 project, 1 SQL block
+  forecasts — 1 project, 1 SQL block
+  orders — 1 project, 1 SQL block
+  tickets — 1 project, 1 SQL block
+  users — 1 project, 1 SQL block
+
 Egress — external hosts
   → writes  api.segment.io — 2 projects, 2 blocks
   → writes  hooks.slack.com — 1 project, 1 block
@@ -44,17 +51,21 @@ Data subjects
 Credentials shared across projects
   ✖ 2d24bb7a7685f122 (Credential assigned to a secret-named variable) — 2 projects: Marketing campaigns, Revenue reporting
 
-Findings
-  ⚠ egress-external: 5 in 2 projects
-  ⚠ credential-hardcoded: 2 in 2 projects
-  ✖ credential-shared: 2 in 2 projects
-  ⚠ ingress-integration-orphan: 1 in 1 project
-  ⚠ ingress-integration-undeclared: 1 in 1 project
-  ⚠ pii-subject-scatter: 1 in 1 project
-  ✖ sql-null-comparison: 1 in 1 project
-  ⚠ sql-string-boolean: 1 in 1 project
+Maintenance
+  3 live, 0 aging, 1 cold (3y+) notebooks · median age 29 days
 
-Summary: 3 errors, 11 warnings
+Findings
+   60 ✖ credential-shared: 2 in 2 projects
+   49 ⚠ egress-external: 5 in 2 projects
+   38 ⚠ pii-subject-scatter: 1 in 1 project
+   26 ⚠ credential-hardcoded: 2 in 2 projects
+   14 ✖ sql-null-comparison: 1 in 1 project
+   10 ⚠ ingress-integration-orphan: 1 in 1 project
+    8 ⚠ ingress-integration-undeclared: 1 in 1 project
+    8 ⚠ sql-string-boolean: 1 in 1 project
+    1 ⚠ asset-stale: 1 in 1 project
+
+Summary: 3 errors, 12 warnings
 ```
 
 ### Ingress — your integrations
@@ -69,6 +80,40 @@ Third-party hosts your code reaches, recovered from the URLs written into code b
 code **writes** to are listed first and reported as findings; reads are inventoried but not flagged.
 Object-store buckets count as their own destination, so `s3://marketing-exports` and
 `s3://finance-exports` are two different places, not one provider.
+
+### Tables — what depends on what
+
+Every table the workspace's SQL references, ranked by how many **live** projects query it. Where the
+live count differs from the raw one, both are shown — `users — 12 live of 100 projects` —
+because the raw one is the number people quote and the live one is the number that is true. A table
+referenced by 100 projects of which only 12 were edited in the past year is not an eight-times
+bigger dependency than one with 12 live readers; it is the same dependency with a lot of abandoned
+notebooks attached. Where every reader is live the counts collapse to one number, as in the small
+sample above.
+
+Common table expressions are not counted — a CTE is local to its query, and treating one as a table
+would invent a dependency between two notebooks that happen to use the same name for a scratch
+result.
+
+**What counts as the same table.** A table is identified by its short name within one integration,
+so `FROM analytics.users` and `FROM users` against the same warehouse are one row with one reach
+count — the same identity the divergence anchors use, rather than a second answer to the same
+question. A `users` behind two different integrations stays two rows, because it is two tables; so
+does a `users` in a block that declares no integration, which goes in an `unknown` bucket of its
+own. Every qualified spelling seen is listed in `qualifiedNames`, so the one case this still
+conflates — `analytics.users` and `staging.users` behind a _single_ integration — is visible on
+the row rather than silent. Telling those apart would mean knowing which schema an unqualified
+`users` resolved to, which is a property of the warehouse's search path and not of the query.
+
+### Maintenance
+
+How many notebooks are live (edited or run within a year), aging, cold (three years or more), or
+carry no date at all — plus the median age. A notebook with no `modifiedAt` is reported as
+**undated**, never as abandoned: an export that happens not to carry a timestamp is an absence of
+evidence, and filing it as neglect would fill the ranking with findings about files nobody can date.
+
+A block's recorded execution counts as a touch, so a notebook that ran last week is live even if
+nobody edited the file.
 
 ### Data subjects
 
@@ -99,6 +144,7 @@ Alongside the workspace-level checks, every project is run through the same chec
 | `egress-external`                | A code block writes to a host outside Deepnote and your integrations |
 | `credential-shared`              | The same credential is hardcoded in more than one project            |
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
+| `asset-stale`                    | A notebook untouched for three years or more                         |
 
 Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-string-boolean`, and
 `credential-hardcoded`. See the [CLI overview](/docs/deepnote-cli) for the lint command.
@@ -112,6 +158,39 @@ Plus every project-scoped check: `sql-null-comparison`, `sql-tautology`, `sql-st
 | `--project <name>`      | Audit a single project, by name or id                                               |
 | `--issues`              | List every finding instead of a count per check                                     |
 | `--internal-domain <d>` | A domain belonging to your organization (repeatable)                                |
+
+## How findings are ranked
+
+```
+severity = signal × exposure × neglect × blast radius
+```
+
+Each factor is measured from a different thing, and `-o json` reports all four alongside the score,
+so you can disagree with one of them rather than with the number.
+
+| Factor           | What it measures                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| **signal**       | How often the check is right when it fires — precision, not importance                |
+| **exposure**     | How far the consequence reaches beyond the block it sits in                           |
+| **neglect**      | How long the asset has gone untouched. Never below 1, so it only ever raises severity |
+| **blast radius** | How much **live** work depends on the thing, saturating rather than scaling linearly  |
+
+Two consequences worth knowing about:
+
+- **A wrong query is ranked by what reads its tables.** The same `= NULL` predicate scores higher in
+  a notebook querying a table three live projects depend on than in one querying a table nobody
+  reads.
+- **A credential in an abandoned notebook ranks _above_ one in a live notebook.** The key still
+  works, nobody is watching the notebook that would have caught it, and exposure findings are
+  floored so liveness weighting cannot score them as harmless. Neglect raises severity; it never
+  lowers it. The discount for "nobody uses this" belongs to blast radius, which is measured
+  separately.
+
+Nothing is gated on the score. A low-ranked finding is further down the list, never absent from it.
+
+`signal` and `exposure` are currently judgment calls written as explicit constants, not measured
+precision — deliberately explicit so they can be argued with, and replaced once someone has clicked
+through a ranked sample.
 
 ## The flow map
 

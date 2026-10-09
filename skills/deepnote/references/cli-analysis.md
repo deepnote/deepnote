@@ -109,9 +109,20 @@ credentials are shared across projects. Everything is local: no warehouse connec
 | `egress-external`                | Code block writes to a host outside Deepnote and the integrations      | warning  |
 | `credential-shared`              | The same credential is hardcoded in more than one project              | error    |
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                    | warning  |
+| `asset-stale`                    | A notebook untouched for three years or more                           | warning  |
 
 Every project is also run through the `lint --governance` checks, so one audit covers both scopes.
 Findings carry `projectId`, `projectName` and `path` on top of the usual lint issue fields.
+
+Findings are **ranked**, not gated: `severity = signal × exposure × neglect × blast radius`, and
+`issue.score` carries all four factors plus the product. Blast radius is liveness-weighted — a table
+referenced by 100 projects of which 12 are live is scored on the 12 — and neglect never lowers a
+score, so a credential in an abandoned notebook ranks above one in a live notebook (the key still
+works). `signal` and `exposure` are judgment constants, not measured precision.
+
+The report also inventories `tables` (name, `projectCount`, `liveProjectCount`, `blockCount`) and
+`staleness` (live / aging / cold / undated notebooks, median age). An undated notebook is never
+reported as abandoned.
 
 `-o json` adds `flow`: `nodes` for every integration, project and host, and `edges` between them
 (`reads` from an integration into a project, `writes`/`calls` from a project out to a host). It is

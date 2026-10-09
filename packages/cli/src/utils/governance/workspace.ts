@@ -23,6 +23,12 @@ export interface WorkspaceNotebook {
   blocks: DeepnoteBlock[]
   /** Workspace-root-relative path of the file this notebook was read from. */
   path: string
+  /**
+   * `metadata.modifiedAt` of that file. Per-notebook rather than per-project because sync writes one
+   * file per notebook, so each carries its own timestamp — which is what makes "this project is
+   * active but these three notebooks in it have not been touched in four years" answerable.
+   */
+  modifiedAt?: string
 }
 
 /** A declared native integration. */
@@ -148,6 +154,7 @@ function mergeFile(projects: Map<string, WorkspaceProject>, file: DeepnoteFile, 
     name: notebook.name,
     blocks: notebook.blocks,
     path: relativePath,
+    modifiedAt: file.metadata?.modifiedAt,
   }))
 
   if (!existing) {

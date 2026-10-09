@@ -391,6 +391,7 @@ interpreter, and nothing leaves the machine.
 | `egress-external`                | A code block writes to a host outside Deepnote and your integrations |
 | `credential-shared`              | The same credential is hardcoded in more than one project            |
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
+| `asset-stale`                    | A notebook untouched for three years or more                         |
 
 **Options:**
 
@@ -400,6 +401,16 @@ interpreter, and nothing leaves the machine.
 | `--project <name>`      | Audit a single project, by name or id                |         |
 | `--issues`              | List every finding instead of a count per check      | off     |
 | `--internal-domain <d>` | A domain belonging to your organization (repeatable) |         |
+
+Findings are **ranked, never gated**: `severity = signal × exposure × neglect × blast radius`, and
+every issue carries all four factors so you can disagree with one rather than with the number. Blast
+radius is liveness-weighted — if a table is referenced by 100 projects of which 12 were edited this
+year, it is scored on the 12 — and neglect only ever raises severity, so a credential in an abandoned notebook
+ranks above one in a live notebook. The key still works.
+
+The report also inventories every table the workspace's SQL references, with its live and total
+project reach, and summarizes how much of the workspace is still maintained. A notebook with no
+timestamp is reported as undated, never as abandoned.
 
 `-o json` includes a `flow` object — `nodes` for every integration, project and host, `edges` for
 every connection — so the same report backs the terminal summary, a dashboard, or a diagram.
