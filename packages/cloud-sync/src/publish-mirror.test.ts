@@ -2,7 +2,6 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import type { ProjectFileEntry } from '@deepnote/cloud'
-import type { ManifestFileRecord } from '@deepnote/cloud-sync'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   findDivergedPublishPaths,
@@ -12,6 +11,7 @@ import {
   recordPublishedFile,
   resolvePublishMirror,
 } from './publish-mirror'
+import type { ManifestFileRecord } from './sync-manifest'
 
 let tempDir: string
 
@@ -122,6 +122,21 @@ describe('resolvePublishMirror', () => {
     await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })
 
     expect(await resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })).toBeUndefined()
+  })
+
+  it('reports the project directory it skipped because it does not exist', async () => {
+    await writeManifest(tempDir)
+    await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })
+    const skipped: string[] = []
+
+    await resolvePublishMirror({
+      syncRoot: undefined,
+      publishDir: tempDir,
+      projectId: 'p1',
+      onMirrorSkipped: projectDir => skipped.push(projectDir),
+    })
+
+    expect(skipped).toEqual([path.join(tempDir, 'Alpha')])
   })
 
   it('skips discovery entirely for --no-sync-root', async () => {

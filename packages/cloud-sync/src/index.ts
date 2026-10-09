@@ -1,5 +1,15 @@
 export { ApiError } from '@deepnote/database-integrations'
 export {
+  type PublishAppEvent,
+  type PublishAppOptions,
+  type PublishAppResult,
+  PublishDivergedError,
+  PublishError,
+  type PublishErrorReason,
+  publishApp,
+} from './publish-app'
+export { PublishMirrorError, type SyncRootOption } from './publish-mirror'
+export {
   createOrFindStreamlitApp,
   normalizeStreamlitEntrypoint,
   type PublishedStreamlitApp,

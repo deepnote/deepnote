@@ -1,7 +1,7 @@
 # @deepnote/cloud-sync
 
-Node.js workflows between a local folder and Deepnote Cloud: workspace sync, the sync manifest, and
-Streamlit app registration.
+Node.js workflows between a local folder and Deepnote Cloud: workspace sync, the sync manifest, app
+publishing, and Streamlit app registration.
 
 Used by `@deepnote/cli`.
 
@@ -21,6 +21,21 @@ const result = await syncWorkspace({
   baseUrl: "https://api.deepnote.com",
   token: apiToken,
   onConflict: "skip",
+  onEvent: (event) => console.log(event.kind),
+});
+```
+
+Publish a build directory as the project's app. Inside a synced folder, the publish also updates the
+sync mirror.
+
+```ts
+import { publishApp } from "@deepnote/cloud-sync";
+
+const result = await publishApp({
+  dir: "./dist",
+  projectId,
+  baseUrl: "https://api.deepnote.com",
+  token: apiToken,
   onEvent: (event) => console.log(event.kind),
 });
 ```
@@ -55,10 +70,14 @@ Options, conflict kinds, events and result shapes are documented on the exported
 | Export                                                                                                      | Description                                                                                                            |
 | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `syncWorkspace(options)`                                                                                    | Sync every project of a workspace with a local folder; conflicts go to the `onConflict` policy.                        |
+| `publishApp(options)`                                                                                       | Upload a directory into the project's app folder and enable sharing. Failed operations are listed in `errors`.         |
 | `normalizeStreamlitEntrypoint(path)`                                                                        | Normalize a project-relative file path, or `null` if it is unsafe.                                                     |
 | `createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)`                                           | Create the Streamlit app, or find the one that already serves the entrypoint (`created: false`).                       |
 | `findSyncManifestRoot`, `hasSyncManifest`, `loadSyncManifest`, `saveSyncManifest`, `SYNC_MANIFEST_FILENAME` | Detect, read and write the `.deepnote-sync.json` manifest. Use these instead of parsing the JSON directly.             |
 | `projectFilesDir`, `isSafeRelativeFilePath`, `assertNoSymbolicLinkAncestors`, `baselineDiverged`, `sha256`  | Local path and fingerprint helpers used by the sync engine.                                                            |
+| `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`).                    |
+| `PublishDivergedError`                                                                                      | Thrown by `publishApp` before any file changes when files changed in Deepnote since the last sync, unless `force`.     |
+| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`.                       |
 | `ApiError`                                                                                                  | Thrown by API calls with the HTTP status in `statusCode`. Network failures and timeouts are the platform's own errors. |
 
 ## Package vs. CLI
