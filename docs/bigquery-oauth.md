@@ -56,3 +56,17 @@ When you create an app from a notebook that uses the integration, every app user
 - User authentication is also required to browse the BigQuery schema.
 - Scheduled notebooks can use a BigQuery OAuth integration: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable scheduling, use [service account authentication](google-bigquery#authenticating-with-a-service-account) instead.
 </Callout>
+
+### Running notebooks locally with the Deepnote CLI
+
+The Deepnote CLI (`npm install -g @deepnote/cli`) can run notebooks that query a BigQuery integration using Google OAuth on your own machine. It uses the OAuth client you set up above, so no additional redirect URI is needed.
+
+1. Make sure the integration is in your local integrations file, for example by running `deepnote integrations pull`. If it isn't, the CLI looks it up in your workspace using your `DEEPNOTE_TOKEN`.
+2. Run `deepnote integrations auth <integration-id>`. The CLI opens Google's consent screen in your browser; if you aren't signed in to Deepnote there, you'll be asked to sign in first. Once you approve, the CLI stores a refresh token for the integration under `~/.deepnote/federated-auth-tokens/`.
+3. Run your notebook with `deepnote run`. Before any block executes, the CLI exchanges the stored refresh token for a fresh access token.
+
+<Callout status="info">
+- Sign-in has to finish in a browser on the same machine as the CLI, so it doesn't work over SSH or in CI. For automated runs, use [service account authentication](google-bigquery#authenticating-with-a-service-account).
+- The access token lasts about an hour and isn't renewed during a run, so SQL blocks in a longer run can fail.
+- If you change the integration's Client ID, Client Secret, or Project ID, or revoke its access in your Google account, `deepnote run` stops and asks you to run `deepnote integrations auth` again.
+</Callout>
