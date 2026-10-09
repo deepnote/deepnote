@@ -234,7 +234,10 @@ export async function checkForIssues(
   // they run on the blocks directly, so they need neither the DAG nor a Python interpreter.
   let governance: GovernanceSummary | undefined
   if (options.governance) {
-    const governanceResult = runProjectGovernanceChecks(allBlocks, blockMap, file.project.integrations)
+    const governanceResult = runProjectGovernanceChecks(allBlocks, blockMap, file.project.integrations, {
+      packages: file.environment?.packages,
+      requirements: file.project.settings?.requirements,
+    })
     issues.push(...governanceResult.issues)
     governance = governanceResult.summary
   }

@@ -33,4 +33,12 @@ project:
             deepnote_variable_name: exposures
           content: |-
             SELECT count(*) FROM orders
+        - blockGroup: 7777aaaa8888bbbb9999cccc00000003
+          id: 7777aaaa8888bbbb9999cccc00000003
+          type: code
+          sortingKey: a2
+          metadata: {}
+          content: |-
+            !pip install pandas && python -m pytest  # pandas is pinned elsewhere, not here
+            import pandas as pd
 version: '1'

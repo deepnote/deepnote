@@ -18,6 +18,7 @@ import type { DeepnoteBlock } from '@deepnote/blocks'
 import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
 import type { BlockInfo, LintIssue } from '../analysis'
 import { getBlockLabel } from '../block-label'
+import { collectDependencies, type PackageEntry, type PinState, packageUrl, reconcile } from './dependencies'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
 import { type SeverityScore, scoreFinding } from './scoring'
@@ -136,6 +137,32 @@ export interface CredentialUsage {
   blockCount: number
 }
 
+/** One package across the whole workspace: who installs it, and at which versions. */
+export interface PackageUsage {
+  /** Normalized name (PEP 503). */
+  name: string
+  /** The name as the projects write it. */
+  rawName: string
+  /** Every exact version pinned anywhere, sorted. */
+  versions: string[]
+  /** The weakest pin any project holds it at — the one that decides reproducibility. */
+  pin: PinState
+  /** A PyPI package URL, which is what an SBOM consumer matches advisories against. */
+  purl: string
+  projects: Array<{
+    projectId: string
+    projectName: string
+    pin: PinState
+    version?: string
+    /** Whether the project is still maintained — only these count towards drift. */
+    live: boolean
+  }>
+  /** Maintained projects pinning it to two or more different exact versions. */
+  drifted: boolean
+  /** The versions those maintained projects pin, sorted. This is what drift is measured on. */
+  maintainedVersions: string[]
+}
+
 export type FlowNodeKind = 'integration' | 'project' | 'host'
 
 export interface FlowNode {
@@ -190,6 +217,8 @@ export interface WorkspaceAudit {
   staleness: StalenessSummary
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
   credentials: CredentialUsage[]
+  /** The workspace's dependency set — a software bill of materials, one row per package. */
+  packages: PackageUsage[]
   subjects: SubjectSummary
   flow: { nodes: FlowNode[]; edges: FlowEdge[] }
   issues: AuditIssue[]
@@ -257,6 +286,7 @@ const SEVERITY = {
   'credential-shared': 'error',
   'pii-subject-scatter': 'warning',
   'asset-stale': 'warning',
+  'dependency-drift': 'warning',
   // A warning, never an error: the check knows a query is unusual, not that it is wrong.
   'sql-divergence': 'warning',
 } as const
@@ -500,6 +530,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   const tablesByBlock = new Map<string, string[]>()
   /** Every SQL block's claims, which is the corpus the consensus checks run over. */
   const observations: QueryObservation[] = []
+  /** Each project's reconciled dependency set, for the workspace bill of materials. */
+  const packagesByProject = new Map<string, PackageEntry[]>()
 
   // Integration types come from whichever project declared them; a block only carries the id.
   const declaredTypes = new Map<string, string>()
@@ -717,13 +749,20 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
 
     // Per-project checks run here too, so one pass over a synced workspace reports everything
     // `deepnote lint --governance` would report for each project, attributed to its project.
+    const projectBlockList = project.notebooks.flatMap(notebook => notebook.blocks)
+    packagesByProject.set(
+      project.id,
+      reconcile(collectDependencies(project.environment, projectBlockList).requirements)
+    )
+
     const projectResult = runProjectGovernanceChecks(
-      project.notebooks.flatMap(notebook => notebook.blocks),
+      projectBlockList,
       blockMap,
       // The integration list is what turns `sql_integration_id` into a dialect. Omitting it here
       // made the audit quietly weaker than the lint it is supposed to subsume: every
       // dialect-dependent finding resolved to the unknown dialect and stayed silent.
-      project.integrations
+      project.integrations,
+      project.environment
     )
     const notebookByBlockId = new Map(projectBlocks(project).map(({ block, notebook }) => [block.id, notebook]))
     for (const issue of projectResult.issues) {
@@ -892,6 +931,43 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         path: notebook.path,
         score: scoreFinding('asset-stale', { age, occurrences: 1 }),
         details: { lastTouchedAt: age.lastTouchedAt, ageDays: age.ageDays },
+      })
+    }
+  }
+
+  // The bill of materials. Built from every project's reconciled set, so a package installed by one
+  // project in a block and locked by another in `environment.packages` is one row with both facts
+  // on it rather than two rows that disagree.
+  const packages = buildPackageInventory(projects, packagesByProject, projectAges)
+
+  for (const usage of packages) {
+    if (!usage.drifted) {
+      continue
+    }
+    // Filed against each project that pins a version, because there is no one project at fault —
+    // the finding is that they disagree. Those projects are also the finding's holders: a live
+    // consumer that declares the package without a version is not part of the disagreement, and
+    // nothing outside the list is part of its reach.
+    const holders = usage.projects.filter(entry => entry.live && entry.version !== undefined)
+    for (const consumer of holders) {
+      issues.push({
+        severity: SEVERITY['dependency-drift'],
+        code: 'dependency-drift',
+        message: `"${usage.rawName}" is pinned to ${listVersions(usage.maintainedVersions)} across maintained projects (this one: ${consumer.version}). Results computed against one are not comparable with the other.`,
+        blockId: '',
+        blockLabel: 'project environment',
+        notebookName: '',
+        projectId: consumer.projectId,
+        projectName: consumer.projectName,
+        path: projects.find(candidate => candidate.id === consumer.projectId)?.dir ?? '',
+        details: {
+          package: usage.name,
+          versions: usage.maintainedVersions,
+          allVersions: usage.versions,
+          version: consumer.version,
+          projectIds: holders.map(entry => entry.projectId),
+          projectCount: holders.length,
+        },
       })
     }
   }
@@ -1136,6 +1212,7 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     staleness,
     egress: [...egress.values()].sort((a, b) => b.blockCount - a.blockCount || a.host.localeCompare(b.host)),
     credentials: sharedCredentials.sort((a, b) => b.projects.length - a.projects.length),
+    packages,
     subjects: {
       total: subjectIndex.summary.subjects,
       external: subjectIndex.summary.externalSubjects,
@@ -1237,6 +1314,14 @@ function scoreIssue(issue: PendingAuditIssue, context: ScoreIssueContext): Sever
       return scoreFinding(issue.code, { age, occurrences: notebookCount })
     }
 
+    case 'dependency-unpinned':
+      // A bare name will install anything; a range at least bounds what can arrive.
+      return scoreFinding(issue.code, { age, signal: issue.details?.pin === 'ranged' ? 0.6 : undefined })
+
+    case 'dependency-drift':
+      // Its reach is the projects that disagree, weighted by how many of them are still live.
+      return scoreFinding(issue.code, { age, reach: holderReach(issue.details, context.projectAges) })
+
     case 'ingress-integration-orphan':
       // No live consumer by definition — that is the finding. Its reach is the projects still
       // declaring it, whose own liveness the occurrence weighting already accounts for.
@@ -1245,6 +1330,86 @@ function scoreIssue(issue: PendingAuditIssue, context: ScoreIssueContext): Sever
     default:
       return scoreFinding(issue.code, { age, occurrences: 1 })
   }
+}
+
+/** `1.5.3, 2.0.1 and 2.1.0` — a list a person reads, rather than three `and`s in a row. */
+export function listVersions(versions: string[]): string {
+  if (versions.length <= 1) {
+    return versions.join('')
+  }
+  return `${versions.slice(0, -1).join(', ')} and ${versions[versions.length - 1]}`
+}
+
+/**
+ * Fold every project's dependency set into one row per package.
+ *
+ * The weakest pin wins, because reproducibility is decided by the loosest declaration anywhere —
+ * one project installing `pandas` bare makes the workspace's pandas unreproducible however firmly
+ * the other six lock it.
+ */
+function buildPackageInventory(
+  projects: WorkspaceProject[],
+  packagesByProject: Map<string, PackageEntry[]>,
+  projectAges: Map<string, AssetAge>
+): PackageUsage[] {
+  const inventory = new Map<string, PackageUsage>()
+  const rank: Record<PinState, number> = { pinned: 2, ranged: 1, unpinned: 0 }
+
+  for (const project of projects) {
+    for (const entry of packagesByProject.get(project.id) ?? []) {
+      const usage = inventory.get(entry.name) ?? {
+        name: entry.name,
+        rawName: entry.rawName,
+        versions: [],
+        pin: entry.pin,
+        purl: packageUrl(entry.name),
+        projects: [],
+        drifted: false,
+        maintainedVersions: [],
+      }
+
+      for (const version of entry.versions) {
+        if (!usage.versions.includes(version)) {
+          usage.versions.push(version)
+        }
+      }
+      if (rank[entry.pin] < rank[usage.pin]) {
+        usage.pin = entry.pin
+      }
+      usage.projects.push({
+        projectId: project.id,
+        projectName: project.name,
+        pin: entry.pin,
+        live: projectAges.get(project.id)?.liveness !== 'cold',
+        // The version this project actually ends up with. `versions` is sorted, so taking its
+        // first element reported the lowest one seen rather than the one that wins.
+        ...(entry.effectiveVersion ? { version: entry.effectiveVersion } : {}),
+      })
+      inventory.set(entry.name, usage)
+    }
+  }
+
+  return [...inventory.values()]
+    .map(usage => {
+      usage.versions.sort()
+      // Only versions a project actually pinned count, and only from projects somebody still
+      // maintains. A notebook abandoned in 2021 pinning the version that was current in 2021 is not
+      // a team disagreeing with itself — it is the whole point of pinning, and reporting it would
+      // put a finding on every package in every workspace that has ever had an old project in it.
+      const pinnedVersions = new Set(
+        usage.projects
+          .filter(entry => entry.live)
+          .map(entry => entry.version)
+          .filter((version): version is string => version !== undefined)
+      )
+      return {
+        ...usage,
+        drifted: pinnedVersions.size > 1,
+        maintainedVersions: [...pinnedVersions].sort(),
+        purl: packageUrl(usage.name, usage.versions.length === 1 ? usage.versions[0] : undefined),
+      }
+    })
+    .sort((a, b) => b.projects.length - a.projects.length || a.name.localeCompare(b.name))
 }
 
 /**

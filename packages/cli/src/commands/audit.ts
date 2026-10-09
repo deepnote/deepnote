@@ -1,10 +1,17 @@
 import { stat, writeFile } from 'node:fs/promises'
-import { join, relative, resolve } from 'node:path'
+import { basename, join, relative, resolve } from 'node:path'
 import type { Command } from 'commander'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, error as logError, output, outputJson } from '../output'
 import { FileResolutionError, isErrnoENOENT } from '../utils/file-resolver'
-import { type AuditIssue, auditWorkspace, scrubText, type WorkspaceAudit } from '../utils/governance/audit'
+import {
+  type AuditIssue,
+  auditWorkspace,
+  listVersions,
+  scrubText,
+  type WorkspaceAudit,
+} from '../utils/governance/audit'
+import { packageUrl } from '../utils/governance/dependencies'
 import {
   buildReviewFile,
   compareTriageToReview,
@@ -65,6 +72,10 @@ export interface AuditOptions {
   exportReview?: string
   /** Read verdicts back and use the measured precision in place of the per-kind priors. */
   importReview?: string
+  /** Emit a CycloneDX bill of materials instead of the report. */
+  sbom?: boolean
+  /** List every package instead of a summary line. */
+  packages?: boolean
 }
 
 /** Issues printed in the terminal summary before it collapses the rest into a count. */
@@ -157,7 +168,11 @@ export function createAuditAction(
         outputPrecision(measured, triageResults)
       }
 
-      if (options.output === 'json') {
+      if (options.sbom) {
+        // A bill of materials is a document for another tool, not a report for a person, so it
+        // replaces the output entirely rather than being a section of it.
+        outputJson(toCycloneDx(audit))
+      } else if (options.output === 'json') {
         outputJson(audit)
       } else {
         outputAudit(audit, options)
@@ -434,6 +449,7 @@ function outputAudit(audit: WorkspaceAudit, options: AuditOptions): void {
   outputDivergence(audit, options)
   outputEgress(audit)
   outputSubjects(audit)
+  outputPackages(audit, options)
   outputSharedCredentials(audit)
   outputStaleness(audit)
   outputIssues(audit, options)
@@ -653,6 +669,56 @@ function outputSubjects(audit: WorkspaceAudit): void {
   output('')
 }
 
+/**
+ * The bill of materials, and how much of it is reproducible.
+ *
+ * The headline is the share that is pinned, because that is the number that decides whether this
+ * workspace can be rebuilt. The rows are the ones that cannot.
+ */
+function outputPackages(audit: WorkspaceAudit, options: AuditOptions): void {
+  if (audit.packages.length === 0) {
+    return
+  }
+  const c = getChalk()
+  const pinned = audit.packages.filter(entry => entry.pin === 'pinned').length
+  const drifted = audit.packages.filter(entry => entry.drifted)
+
+  output(c.bold('Dependencies'))
+  const share = Math.round((pinned / audit.packages.length) * 100)
+  const loose = audit.packages.length - pinned
+  output(
+    `  ${plural(audit.packages.length, 'package')}, ${pinned} pinned ${c.dim(`(${share}%)`)}${loose > 0 ? c.yellow(` · ${loose} not reproducible`) : ''}`
+  )
+
+  // Unpinned first: the summary line already said how many there are, and these are which.
+  const notable = [...audit.packages]
+    .filter(entry => entry.pin !== 'pinned' || entry.drifted)
+    .sort((a, b) => b.projects.length - a.projects.length || a.name.localeCompare(b.name))
+  const shown = options.packages ? notable : notable.slice(0, 5)
+
+  for (const entry of shown) {
+    const reach = c.dim(`— ${plural(entry.projects.length, 'project')}`)
+    if (entry.drifted) {
+      output(
+        `  ${c.yellow('⚠')} ${entry.rawName} ${c.yellow(`pinned to ${listVersions(entry.maintainedVersions)}`)} ${reach}`
+      )
+      continue
+    }
+    const at = entry.versions.length > 0 ? c.dim(` (resolves to ${entry.versions.join(', ')})`) : ''
+    output(`  ${c.yellow('⚠')} ${entry.rawName} ${c.dim(entry.pin === 'ranged' ? 'ranged' : 'unpinned')}${at} ${reach}`)
+  }
+
+  const more = remainder(notable.length, shown.length)
+  if (more) {
+    output(c.dim(`${more} — run with --packages`))
+  }
+  if (drifted.length > 0) {
+    output(c.dim(`  ${plural(drifted.length, 'package')} pinned to different versions in different projects.`))
+  }
+  output(c.dim('  "deepnote audit --sbom" writes a CycloneDX bill of materials.'))
+  output('')
+}
+
 /** Credentials hardcoded in more than one project — the ones rotation breaks all at once. */
 function outputSharedCredentials(audit: WorkspaceAudit): void {
   if (audit.credentials.length === 0) {
@@ -841,5 +907,68 @@ function outputNotes(audit: WorkspaceAudit): void {
   }
   for (const note of audit.notes) {
     output(c.dim(note))
+  }
+}
+
+/** CycloneDX specification this document declares. 1.5 is what current scanners read. */
+const CYCLONEDX_SPEC_VERSION = '1.5'
+
+/**
+ * The workspace's dependency set as a CycloneDX 1.5 document.
+ *
+ * A bill of materials is only worth producing if something else can consume it, so this is the
+ * interchange format rather than a shape of our own: `purl` is what a vulnerability scanner matches
+ * advisories against, and a component with no version is emitted anyway — "this workspace installs
+ * something called pandas, at a version nobody fixed" is the finding, not an omission.
+ */
+function toCycloneDx(audit: WorkspaceAudit): Record<string, unknown> {
+  const components = audit.packages.flatMap(entry => {
+    // One component per version, not one per package. A workspace where two projects pin different
+    // versions genuinely contains both, and a scanner matches advisories on `purl` — so collapsing
+    // them into a single versionless component would silently hide every advisory for both.
+    //
+    // A package that is *also* unpinned somewhere gets a versionless component in addition to its
+    // pinned ones. Without it an unpinned dependency disappears from the SBOM the moment any one
+    // project happens to lock it, and the document then claims a reproducibility the workspace
+    // does not have — which is the one thing a bill of materials must not do.
+    const versions: Array<string | undefined> = entry.versions.length > 0 ? [...entry.versions] : [undefined]
+    if (entry.pin !== 'pinned' && entry.versions.length > 0) {
+      versions.push(undefined)
+    }
+
+    return versions.map(version => ({
+      type: 'library',
+      name: entry.name,
+      ...(version ? { version } : {}),
+      purl: packageUrl(entry.name, version),
+      properties: [
+        { name: 'deepnote:pin', value: entry.pin },
+        {
+          name: 'deepnote:projects',
+          value: entry.projects
+            // The versionless component belongs to whoever did not pin it.
+            .filter(project =>
+              version === undefined
+                ? project.pin !== 'pinned' || entry.versions.length === 0
+                : project.version === version
+            )
+            .map(project => project.projectName)
+            .join(', '),
+        },
+        ...(entry.drifted ? [{ name: 'deepnote:drifted', value: 'true' }] : []),
+      ],
+    }))
+  })
+
+  return {
+    bomFormat: 'CycloneDX',
+    specVersion: CYCLONEDX_SPEC_VERSION,
+    version: 1,
+    metadata: {
+      tools: [{ vendor: 'Deepnote', name: 'deepnote-cli' }],
+      component: { type: 'application', name: basename(audit.root) || audit.root },
+      properties: [{ name: 'deepnote:projects', value: String(audit.summary.projects) }],
+    },
+    components,
   }
 }

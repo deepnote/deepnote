@@ -1,0 +1,43 @@
+metadata:
+  createdAt: '2025-03-04T10:00:00.000Z'
+  modifiedAt: '2026-09-18T12:30:00.000Z'
+environment:
+  python:
+    version: '3.11'
+    environment: uv
+  packages:
+    pandas: 2.0.1
+    numpy: 1.26.0
+    requests: 2.31.0
+project:
+  id: 7c2d3e4f-1a5b-4d6e-8f70-3b2c1d4e5f60
+  name: Dependency findings
+  settings:
+    requirements:
+      - pandas==2.0.1
+      - numpy>=1.24
+      - requests
+      - 'scikit-learn~=1.3'
+  notebooks:
+    - id: 2b3c4d5e6f708192a3b4c5d6e7f80910
+      name: Model training
+      blocks:
+        - blockGroup: d1e2f3a4b5c6d7e8f90a1b2c3d4e5f60
+          id: d1e2f3a4b5c6d7e8f90a1b2c3d4e5f61
+          type: code
+          sortingKey: a0
+          metadata: {}
+          content: |-
+            !pip install seaborn
+            %pip install "xgboost>=2.0"
+        - blockGroup: d1e2f3a4b5c6d7e8f90a1b2c3d4e5f62
+          id: d1e2f3a4b5c6d7e8f90a1b2c3d4e5f63
+          type: code
+          sortingKey: a1
+          metadata: {}
+          content: |-
+            import pandas as pd
+            import seaborn as sns
+
+            frame = pd.read_csv("data.csv")
+version: '1'

@@ -15,6 +15,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { type DeepnoteBlock, type DeepnoteFile, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { debug } from '../../output'
+import type { ProjectEnvironment } from './dependencies'
 
 /** One notebook, with the file it came from. */
 export interface WorkspaceNotebook {
@@ -46,6 +47,8 @@ export interface WorkspaceProject {
   dir: string
   notebooks: WorkspaceNotebook[]
   integrations: WorkspaceIntegration[]
+  /** The project's declared dependencies, from `environment.packages` and `settings.requirements`. */
+  environment?: ProjectEnvironment
   /** Latest `metadata.modifiedAt` across the project's files, when any file records one. */
   modifiedAt?: string
 }
@@ -157,6 +160,14 @@ function mergeFile(projects: Map<string, WorkspaceProject>, file: DeepnoteFile, 
     modifiedAt: file.metadata?.modifiedAt,
   }))
 
+  const environment: ProjectEnvironment | undefined =
+    file.environment?.packages || file.project.settings?.requirements
+      ? {
+          ...(file.environment?.packages ? { packages: { ...file.environment.packages } } : {}),
+          ...(file.project.settings?.requirements ? { requirements: [...file.project.settings.requirements] } : {}),
+        }
+      : undefined
+
   if (!existing) {
     projects.set(file.project.id, {
       id: file.project.id,
@@ -164,6 +175,7 @@ function mergeFile(projects: Map<string, WorkspaceProject>, file: DeepnoteFile, 
       dir: directory,
       notebooks,
       integrations: [...(file.project.integrations ?? [])],
+      ...(environment ? { environment } : {}),
       modifiedAt: file.metadata?.modifiedAt,
     })
     return
@@ -184,6 +196,23 @@ function mergeFile(projects: Map<string, WorkspaceProject>, file: DeepnoteFile, 
     if (!declared.has(integration.id)) {
       existing.integrations.push(integration)
       declared.add(integration.id)
+    }
+  }
+
+  // Every file of a project repeats the project header, so the environments should agree. Union
+  // rather than overwrite, so a partial checkout missing one file still sees the whole set.
+  if (environment) {
+    existing.environment = {
+      ...(environment.packages || existing.environment?.packages
+        ? { packages: { ...existing.environment?.packages, ...environment.packages } }
+        : {}),
+      ...(environment.requirements || existing.environment?.requirements
+        ? {
+            requirements: [
+              ...new Set([...(existing.environment?.requirements ?? []), ...(environment.requirements ?? [])]),
+            ],
+          }
+        : {}),
     }
   }
 

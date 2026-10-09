@@ -4,6 +4,10 @@ metadata:
 project:
   id: 55555555-aaaa-4aaa-8aaa-555555555555
   name: Marketing attribution
+  settings:
+    requirements:
+      - pandas==2.0.1
+      - matplotlib
   integrations:
     - id: dddddddd-1111-4111-8111-dddddddddddd
       name: Warehouse

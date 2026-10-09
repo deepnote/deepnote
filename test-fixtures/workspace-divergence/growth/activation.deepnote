@@ -1,6 +1,12 @@
 metadata:
   createdAt: '2024-03-11T08:00:00.000Z'
   modifiedAt: '2026-08-14T11:20:00.000Z'
+environment:
+  python:
+    version: '3.11'
+  packages:
+    pandas: 2.0.1
+    numpy: 1.26.0
 project:
   id: 22222222-aaaa-4aaa-8aaa-222222222222
   name: Growth activation
