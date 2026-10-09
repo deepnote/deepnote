@@ -15,6 +15,10 @@ Streamlit widgets for notebook inputs and a runner for apps hosted in Deepnote. 
 own layout and logic. A new app is an ordinary Streamlit file, whether you or a coding agent writes
 it.
 
+The `pnpm` commands run Python through
+[uv](https://docs.astral.sh/uv/getting-started/installation/) 0.12 or later. Earlier uv versions
+cannot install Deepnote Toolkit 2.8.0, because it depends on a pre-release package.
+
 ## Static app
 
 ```bash
@@ -38,8 +42,19 @@ values you choose. The app can run in three ways:
 ### Deploy the notebook
 
 The app builds its input widgets from the local `.deepnote` file and sends the values, by variable
-name, to the cloud notebook. Both must have the same inputs, so push the local file to the cloud
-notebook before you publish the app and after every change to the file:
+name, to the cloud notebook. Both must have the same inputs.
+
+If the notebook is not in Deepnote yet, import the file:
+
+```bash
+deepnote open examples/local-runner-showcase.deepnote
+```
+
+The command imports the file into a new project and opens it in your browser.
+`DEEPNOTE_NOTEBOOK_ID` is the ID of the cloud notebook: the part of the notebook's URL after
+`/notebook/`.
+
+After every change to the local file, push it to the cloud notebook:
 
 ```bash
 export DEEPNOTE_NOTEBOOK_ID=...
@@ -52,8 +67,7 @@ deepnote run examples/local-runner-showcase.deepnote \
 ```
 
 `DEEPNOTE_TOKEN` is a Deepnote API token. To create one, see
-[Authentication](../../docs/deepnote-cli-publish.md#authentication). `DEEPNOTE_NOTEBOOK_ID` is the
-ID of the cloud notebook. You can find it in the notebook's URL in Deepnote, after `/notebook/`.
+[Authentication](../../docs/deepnote-cli-publish.md#authentication).
 
 The first command previews the changes. The second applies them and runs the notebook once.
 Pushing can delete and recreate blocks, so the app never pushes by itself.
@@ -99,17 +113,23 @@ it, as the CLI does with your API token. The token is reused within one Streamli
 shortly before it expires and is never shared between sessions. `StreamlitCloudRunner` never sends
 the Streamlit cookie to the public API and never falls back to the project owner's credentials.
 
-Hosted runs work only when both of these are true:
+Hosted runs work only when all of these are true:
 
-- The project owner has turned on Streamlit app API access.
+- The project owner has turned on Streamlit app API access. To turn it on, open the entrypoint
+  file in the project, click **Settings** above the app preview, and turn on **Allow API access
+  for all Streamlit apps in this project**.
 - The viewer is signed in and has direct access to the project.
+- If the notebook has agent blocks, the viewer can edit the notebook. Deepnote runs agent blocks
+  only for people who can edit the notebook. This example ends with an agent block, so a viewer
+  with view access gets "You do not have permission to edit this notebook".
 
 The token can reach notebooks only in the project that hosts the app. Anonymous visitors and
 people who only have a share link can open the app but cannot get a viewer token. For them, the app
 shows an error and disables the run button. If the app is meant for that audience, render a saved
 snapshot, as `static_app.py` does, or ask viewers to sign in.
 
-The app also disables the run button when the notebook's inputs do not match the local file. Runs
+The app also disables the run button when the notebook's inputs do not match the local file. It
+reads the notebook's inputs once per session, so reload the page after you push a change. Runs
 use read-only project storage by default, so the notebook cannot change the project's files. Pass
 `storage_mode="read_write"` to `StreamlitCloudRunner` to allow writes.
 
@@ -152,9 +172,10 @@ The runner process can create the cloud notebook if it does not exist yet. To up
 notebook, use the push step in [Deploy the notebook](#deploy-the-notebook).
 
 A local kernel needs the same Python environment as `deepnote run`, including
-`deepnote-toolkit[server]`. Set `DEEPNOTE_PYTHON_ENV=/path/to/venv` if that environment is not
-your default Python. Only the notebook's final agent block needs `OPENAI_API_KEY` in a local
-kernel. The other blocks need no API keys.
+`deepnote-toolkit[server]`, and `matplotlib` for the notebook's chart. Set
+`DEEPNOTE_PYTHON_ENV=/path/to/venv` if that environment is not your default Python. Only the
+notebook's final agent block needs `OPENAI_API_KEY` in a local kernel. The other blocks need no API
+keys.
 
 If port 8787 is taken, set `DEEPNOTE_RUNNER_PORT` for the runner process and the matching
 `DEEPNOTE_RUNNER_URL` for the app.
