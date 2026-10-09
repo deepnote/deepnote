@@ -36,13 +36,15 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^1.0.70",
-    "@ai-sdk/openai": "^3.0.96",
+    "@ai-sdk/anthropic": "^4.0.76",
+    "@ai-sdk/mcp": "^2.0.71",
+    "@ai-sdk/openai": "^4.0.89",
+    "@ai-sdk/openai-compatible": "^3.0.66",
     "@deepnote/blocks": "workspace:*",
     "@jupyterlab/nbformat": "^4.6.3",
     "@jupyterlab/services": "^7.6.3",
     "@lumino/signaling": "^2.1.6",
-    "ai": "^6.0.253",
+    "ai": "^7.0.133",
     "tcp-port-used": "^1.0.3",
     "ws": "^8.21.3",
     "zod": "3.25.76"
@@ -50,6 +52,9 @@
   "devDependencies": {
     "@types/tcp-port-used": "^1.0.4",
     "@types/ws": "^8.18.1"
+  },
+  "engines": {
+    "node": ">=22.14.0"
   },
   "publishConfig": {
     "access": "public",

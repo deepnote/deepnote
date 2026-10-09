@@ -1151,6 +1151,10 @@ function createRunProjectCallbacks({
           } else {
             state.reasoningActive = false
             if (event.type === 'tool_called') {
+              // Keep text from separate agent steps in separate paragraphs instead of running together.
+              if (state.agentTextBuffer) {
+                state.agentTextBuffer += '\n\n'
+              }
               process.stdout.write(`\n${c.dim(`  -> ${event.toolName}()`)}`)
             } else if (event.type === 'tool_output') {
               const failed = event.output.startsWith('Execution failed') || event.output.startsWith('Execution error')
