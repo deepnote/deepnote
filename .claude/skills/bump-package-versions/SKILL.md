@@ -105,7 +105,7 @@ Internal dependencies are declared `workspace:*`, and pnpm publishes that as an 
 
 1. **Dependents**: when a package is released, also release every package that lists it in `dependencies`, transitively, at least as a patch. Otherwise their published versions stay pinned to the old release and installs carry two copies.
 2. **Dependencies**: don't release a package while an internal dependency it uses has unreleased shipped changes. It was built and tested against the workspace source but would install the older published version. Release both or hold both back.
-3. **Leaks**: a dependency's change can surface in a dependent's own API; `surface` lists the internal packages each package's public types reference. When a change surfaces, rate the dependent as if the change were its own; new block types follow the rule above.
+3. **Leaks**: a dependency's change can surface in a dependent's own API. `surface` lists the internal packages each package's public types reference, but types don't show behavior: a dependent that runs the changed code for its users inherits the change without any type difference. For each dependency with shipped changes, read every place each dependent uses it (`git grep -n '@deepnote/<name>' -- packages/<dependent>/src ':!*.test.ts'`), follow those calls to the changed code, and decide from the code whether the change reaches the dependent's users; repeat for the dependents of each dependent it reaches. Never rate a dependent unaffected without having read those call sites. When a change surfaces, rate the dependent as if the change were its own; new block types follow the rule above.
 
 ## 6. Checkpoint: propose and wait
 
