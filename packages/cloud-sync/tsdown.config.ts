@@ -5,5 +5,5 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   fixedExtension: false,
   dts: true,
-  external: ['@deepnote/cloud'],
+  external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/database-integrations'],
 })

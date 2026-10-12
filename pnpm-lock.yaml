@@ -181,9 +181,6 @@ importers:
       '@inquirer/testing':
         specifier: ^3.1.1
         version: 3.1.1(patch_hash=1bb511b5888b39b10f59d61819f8635a4b99efc60a55f5b6cebb4f3fcd53f440)(@inquirer/checkbox@5.0.6(@types/node@22.20.1))(@inquirer/confirm@6.0.6(@types/node@22.20.1))(@inquirer/editor@5.0.6(@types/node@22.20.1))(@inquirer/expand@5.0.6(@types/node@22.20.1))(@inquirer/external-editor@2.0.3(@types/node@22.20.1))(@inquirer/input@5.0.6(@types/node@22.20.1))(@inquirer/number@4.0.6(@types/node@22.20.1))(@inquirer/password@5.0.6(@types/node@22.20.1))(@inquirer/prompts@8.2.1(@types/node@22.20.1))(@inquirer/rawlist@5.2.2(@types/node@22.20.1))(@inquirer/search@4.1.2(@types/node@22.20.1))(@inquirer/select@5.0.6(@types/node@22.20.1))(@types/node@22.20.1)(vitest@4.1.11)
-      fflate:
-        specifier: ^0.8.3
-        version: 0.8.3
       json-schema-to-typescript:
         specifier: ^15.0.4
         version: 15.0.4
@@ -208,12 +205,22 @@ importers:
 
   packages/cloud-sync:
     dependencies:
+      '@deepnote/blocks':
+        specifier: workspace:*
+        version: link:../blocks
       '@deepnote/cloud':
         specifier: workspace:*
         version: link:../cloud
+      '@deepnote/database-integrations':
+        specifier: workspace:*
+        version: link:../database-integrations
       zod:
         specifier: 3.25.76
         version: 3.25.76
+    devDependencies:
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
 
   packages/convert:
     dependencies:

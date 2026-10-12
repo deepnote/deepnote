@@ -1,3 +1,19 @@
+export { ApiError } from '@deepnote/database-integrations'
+export {
+  type PublishAppEvent,
+  type PublishAppOptions,
+  type PublishAppResult,
+  PublishDivergedError,
+  PublishError,
+  type PublishErrorReason,
+  publishApp,
+} from './publish-app'
+export { PublishMirrorError, type SyncRootOption } from './publish-mirror'
+export {
+  createOrFindStreamlitApp,
+  normalizeStreamlitEntrypoint,
+  type PublishedStreamlitApp,
+} from './streamlit-app'
 export {
   assertNoSymbolicLinkAncestors,
   baselineDiverged,
@@ -11,10 +27,15 @@ export {
   saveSyncManifest,
   sha256,
 } from './sync-manifest'
+export { isSafeRelativeFilePath, projectFilesDir } from './sync-paths'
 export {
-  isSafeRelativeFilePath,
-  type PlannedProjectPaths,
-  pathsOverlap,
-  planProjectPaths,
-  projectFilesDir,
-} from './sync-paths'
+  DEFAULT_SYNC_CONCURRENCY,
+  type ProjectSyncOutcome,
+  type SyncConflict,
+  type SyncConflictDecision,
+  type SyncConflictPolicy,
+  type SyncEvent,
+  syncWorkspace,
+  type WorkspaceSyncOptions,
+  type WorkspaceSyncResult,
+} from './sync-workspace'

@@ -1,13 +1,9 @@
 # @deepnote/cloud-sync
 
-Node.js workflows between a local folder and Deepnote Cloud. Today it owns the sync manifest
-(`.deepnote-sync.json`) that `deepnote sync` writes and the planning of local paths for synced
-projects. Workspace sync, app publishing and Streamlit app registration move here next.
+Node.js workflows between a local folder and Deepnote Cloud: workspace sync, the sync manifest, app
+publishing, and Streamlit app registration.
 
 Used by `@deepnote/cli`.
-
-This package is Node-only. It takes the API token and base URL as arguments and never reads
-environment variables or `.env` files.
 
 ## Installation
 
@@ -17,48 +13,85 @@ npm install @deepnote/cloud-sync
 
 ## Usage
 
-Detect a synced folder and read what it tracks:
-
 ```ts
-import { findSyncManifestRoot, loadSyncManifest } from "@deepnote/cloud-sync";
+import { syncWorkspace } from "@deepnote/cloud-sync";
 
-const root = await findSyncManifestRoot(process.cwd());
-if (root) {
-  const manifest = await loadSyncManifest(root);
-  for (const [projectId, record] of Object.entries(manifest.projects)) {
-    console.log(projectId, record.dir, record.notebooks);
-  }
-}
+const result = await syncWorkspace({
+  rootDir: "./deepnote-workspace",
+  baseUrl: "https://api.deepnote.com",
+  token: apiToken,
+  onConflict: "skip",
+  onEvent: (event) => console.log(event.kind),
+});
 ```
 
-The manifest read API (`SYNC_MANIFEST_FILENAME`, `findSyncManifestRoot`, `hasSyncManifest`,
-`loadSyncManifest` and the manifest types) is the supported way to detect and read synced folders.
-The manifest is plain JSON (`version: 1`); do not parse it directly.
+Publish a build directory as the project's app. Inside a synced folder, the publish also updates the
+sync mirror.
+
+```ts
+import { publishApp } from "@deepnote/cloud-sync";
+
+const result = await publishApp({
+  dir: "./dist",
+  projectId,
+  baseUrl: "https://api.deepnote.com",
+  token: apiToken,
+  onEvent: (event) => console.log(event.kind),
+});
+```
+
+Register a Streamlit app and wait for it. Creating an app restarts the project machine.
+`waitForStreamlitApp` is in `@deepnote/cloud`, which is not re-exported here.
+
+```ts
+import { waitForStreamlitApp } from "@deepnote/cloud";
+import {
+  createOrFindStreamlitApp,
+  normalizeStreamlitEntrypoint,
+} from "@deepnote/cloud-sync";
+
+const entrypoint = normalizeStreamlitEntrypoint("apps/dashboard.py");
+if (!entrypoint) {
+  throw new Error("Streamlit entrypoint must be a project-relative file path");
+}
+const { app } = await createOrFindStreamlitApp(
+  baseUrl,
+  token,
+  projectId,
+  entrypoint,
+);
+await waitForStreamlitApp(baseUrl, token, app.id);
+```
 
 ## API reference
 
-### Sync manifest
+Options, conflict kinds, events and result shapes are documented on the exported types.
 
-| Export                                            | Description                                                                                                                                                                               |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SYNC_MANIFEST_FILENAME`                          | The manifest's filename, `.deepnote-sync.json`.                                                                                                                                           |
-| `findSyncManifestRoot(startDir)`                  | The nearest directory at or above `startDir` that contains a manifest, or `undefined`. Rejects if a manifest on the way up is a symbolic link.                                            |
-| `hasSyncManifest(rootDir)`                        | Whether `rootDir` directly contains a manifest. Rejects a manifest that is a symbolic link.                                                                                               |
-| `loadSyncManifest(rootDir)`                       | Read and validate the manifest in `rootDir`. Returns an empty manifest when none exists; throws if it is unreadable, malformed, or unsafe.                                                |
-| `saveSyncManifest(rootDir, manifest)`             | Write the manifest with project ids, file paths, notebooks and pending uploads sorted, so repeated syncs produce stable, git-diffable output. Rejects a manifest that is a symbolic link. |
-| `sha256(content)`                                 | Hex SHA-256 used for the manifest's content fingerprints.                                                                                                                                 |
-| `baselineDiverged(baseline, remote)`              | Whether a baseline that recorded `updatedAt` no longer matches the cloud inventory entry (`updatedAt` or `size` differs). Always `false` for a baseline without `updatedAt`.              |
-| `assertNoSymbolicLinkAncestors(rootDir, relPath)` | Throw if any existing segment of the root-relative path is a symbolic link.                                                                                                               |
-| `SyncManifest`                                    | Type of the parsed manifest: `{ version: 1, projects }`.                                                                                                                                  |
-| `ManifestProjectRecord`                           | Type of one project's record: local `dir`, synced `notebooks`, `contentHash`, and optional `modifiedAt`, `files` and `pendingFileUploads`.                                                |
-| `ManifestFileRecord`                              | Type of one synced file's record: `size`, and optional `updatedAt` and `hash`.                                                                                                            |
+| Export                                                                                                      | Description                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `syncWorkspace(options)`                                                                                    | Sync every project of a workspace with a local folder; conflicts go to the `onConflict` policy.                        |
+| `publishApp(options)`                                                                                       | Upload a directory into the project's app folder and enable sharing. Failed operations are listed in `errors`.         |
+| `normalizeStreamlitEntrypoint(path)`                                                                        | Normalize a project-relative file path, or `null` if it is unsafe.                                                     |
+| `createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)`                                           | Create the Streamlit app, or find the one that already serves the entrypoint (`created: false`).                       |
+| `findSyncManifestRoot`, `hasSyncManifest`, `loadSyncManifest`, `saveSyncManifest`, `SYNC_MANIFEST_FILENAME` | Detect, read and write the `.deepnote-sync.json` manifest. Use these instead of parsing the JSON directly.             |
+| `projectFilesDir`, `isSafeRelativeFilePath`, `assertNoSymbolicLinkAncestors`, `baselineDiverged`, `sha256`  | Local path and fingerprint helpers used by the sync engine.                                                            |
+| `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`).                    |
+| `PublishDivergedError`                                                                                      | Thrown by `publishApp` before any file changes when files changed in Deepnote since the last sync, unless `force`.     |
+| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`.                       |
+| `ApiError`                                                                                                  | Thrown by API calls with the HTTP status in `statusCode`. Network failures and timeouts are the platform's own errors. |
 
-### Local paths
+## Package vs. CLI
 
-| Export                             | Description                                                                                                                       |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `planProjectPaths(projects)`       | Map every cloud project to a deterministic, collision-free local directory (`<folder path>/<project name>`), keyed by project id. |
-| `projectFilesDir(projectDir)`      | The root-relative working-file mirror for a project directory: `<projectDir>/.files`.                                             |
-| `pathsOverlap(left, right)`        | Whether two root-relative paths are equal or nested, compared case-insensitively.                                                 |
-| `isSafeRelativeFilePath(filePath)` | Whether a cloud-reported path is relative with no empty, `.` or `..` segments, so it is safe to join under a local directory.     |
-| `PlannedProjectPaths`              | Type of a planned entry: `{ projectDir, filesDir }`.                                                                              |
+**In this package:** logic that reads or writes the synced folder or calls Deepnote Cloud, and the
+decisions about it.
+
+- Inputs are arguments: token, base URL and paths. Nothing reads environment variables or `.env`.
+- Results are return values, failures are thrown errors, progress is an event callback, and a
+  decision such as a conflict is a callback.
+- No console output, `process.exit` or exit codes.
+
+**In the CLI:** argument parsing, token resolution (flags, environment, `.env`), prompts, spinners,
+output formatting (including `-o json`), user-facing error wording, and exit codes.
+
+If a second consumer would need the same code, it belongs here. If it is about how a terminal
+presents or interrupts the work, it stays in the CLI.

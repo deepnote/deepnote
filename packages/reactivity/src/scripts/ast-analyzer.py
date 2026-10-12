@@ -10,6 +10,11 @@ from jinja2 import meta, Environment
 # Set of Python built-in names to ignore during analysis
 BUILTINS_SET = set(dir(builtins))
 
+# Pattern nodes whose `name` is a capture in a `match` statement. They only exist on Python
+# 3.10+; on older interpreters this is empty, and isinstance against () is always False.
+MATCH_CAPTURE_TYPES = tuple(getattr(ast, name) for name in ("MatchAs", "MatchStar") if hasattr(ast, name))
+MATCH_MAPPING_TYPE = getattr(ast, "MatchMapping", ())
+
 
 class VariableVisitor(ast.NodeVisitor):
     def __init__(self) -> None:
@@ -17,104 +22,174 @@ class VariableVisitor(ast.NodeVisitor):
         self.used_global_vars = set()  # Variables used and defined globally
         self.imported_modules = set()  # Local names introduced by imports (aliases)
         self.imported_packages = set()  # Top-level package names from import sources
-        self.scope_stack = []  # Stack to track scopes
-        self.function_globals = set()  # Global variables declared in current function
+        # Stack of (bound names, kind) scopes, where kind is "function", "class" or
+        # "comprehension". Bound names are parameters, assignments and comprehension targets.
+        # Block boundaries are not scope boundaries, so a load that no enclosing scope binds
+        # is a module-level read even deep inside a body.
+        self.scope_stack = []
+        self.function_globals = set()  # Names declared `global` in the current function
 
-    def current_scope_is_global(self):
-        # If the scope stack is empty, we are at the global level
-        return not self.scope_stack
+    def _is_local(self, name):
+        if name in self.function_globals:
+            return False
+        for depth, (names, kind) in enumerate(reversed(self.scope_stack)):
+            # Class bodies are invisible to the scopes nested in them: a method reading a name
+            # that the class body also binds reads the module-level one.
+            if kind == "class" and depth > 0:
+                continue
+            if name in names:
+                return True
+        return False
+
+    def _record_load(self, name):
+        if name in BUILTINS_SET or self._is_local(name):
+            return
+        self.used_global_vars.add(name)
+
+    def _record_store(self, name, skip_comprehensions=False):
+        depth = len(self.scope_stack)
+        # A walrus binds in the scope containing the comprehension, so it has to look past
+        # however many comprehension scopes it sits in - including out to module level.
+        if skip_comprehensions:
+            while depth and self.scope_stack[depth - 1][1] == "comprehension":
+                depth -= 1
+        if depth == 0 or name in self.function_globals:
+            self.global_vars.add(name)
+        else:
+            self.scope_stack[depth - 1][0].add(name)
+
+    def _bound_names(self, nodes):
+        """Names bound by statements in `nodes`, without descending into nested scopes.
+
+        Python binds a name for the whole function when it is assigned anywhere in it, so the
+        set has to be known before the body is walked: `x = x + 1` reads the local, not a global.
+        """
+        bound = set()
+        # A name declared `global` is not local even when this scope assigns it, and nested
+        # scopes have to see past it to the module. Its stores already go to `global_vars`.
+        declared_global = set()
+        stack = list(nodes)
+        while stack:
+            node = stack.pop()
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                bound.add(node.name)
+                continue
+            if isinstance(node, ast.Lambda):
+                continue
+            if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                # The comprehension's own targets stay inside it, but a walrus in its body
+                # binds out here, so the enclosing scope has to know the name is local.
+                bound |= self._escaping_walrus_names(node)
+                continue
+            if isinstance(node, ast.Global):
+                declared_global.update(node.names)
+            elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+                bound.add(node.id)
+            elif isinstance(node, ast.ExceptHandler) and node.name:
+                bound.add(node.name)
+            elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                for alias in node.names:
+                    bound.add((alias.asname or alias.name).split(".")[0])
+            elif isinstance(node, ast.arg):
+                bound.add(node.arg)
+            elif isinstance(node, MATCH_CAPTURE_TYPES) and node.name:
+                bound.add(node.name)
+            elif isinstance(node, MATCH_MAPPING_TYPE) and node.rest:
+                bound.add(node.rest)
+            stack.extend(ast.iter_child_nodes(node))
+        return bound - declared_global
+
+    def _escaping_walrus_names(self, node):
+        """Walrus targets inside a comprehension, which bind in the scope containing it.
+
+        Nested comprehensions are walked too, because a walrus escapes all of them at once.
+        Nested functions, lambdas and classes are not: a walrus there binds in that scope.
+        """
+        names = set()
+        stack = list(ast.iter_child_nodes(node))
+        while stack:
+            child = stack.pop()
+            if isinstance(child, (ast.Lambda, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(child, ast.NamedExpr) and isinstance(child.target, ast.Name):
+                names.add(child.target.id)
+            stack.extend(ast.iter_child_nodes(child))
+        return names
+
+    def _visit_scoped(self, bound, nodes, kind="function"):
+        self.scope_stack.append((set(bound), kind))
+        for node in nodes:
+            self.visit(node)
+        self.scope_stack.pop()
+
+    def visit_NamedExpr(self, node):
+        self.visit(node.value)
+        if isinstance(node.target, ast.Name):
+            self._record_store(node.target.id, skip_comprehensions=True)
 
     def visit_Global(self, node):
         for name in node.names:
             self.function_globals.add(name)
         self.generic_visit(node)
 
-    def visit_Assign(self, node):
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                if self.current_scope_is_global():
-                    self.global_vars.add(target.id)
-        self.generic_visit(node)
-
-    def visit_AugAssign(self, node):
-        if isinstance(node.target, ast.Name):
-            if self.current_scope_is_global():
-                self.global_vars.add(node.target.id)
-        self.generic_visit(node)
-
-    def visit_AnnAssign(self, node):
-        target = node.target
-        if isinstance(target, ast.Name) and self.current_scope_is_global():
-            self.global_vars.add(target.id)
-        self.generic_visit(node)
-
-    def visit_NamedExpr(self, node):
-        if isinstance(node.target, ast.Name) and self.current_scope_is_global():
-            self.global_vars.add(node.target.id)
-        self.generic_visit(node)
-
     def visit_ClassDef(self, node):
-        if self.current_scope_is_global():
-            self.global_vars.add(node.name)
-        self.scope_stack.append(node.name)  # Enter class scope
-        self.generic_visit(node)
-        self.scope_stack.pop()  # Exit class scope
+        self._record_store(node.name)
+        for expr in node.bases + node.keywords + node.decorator_list:
+            self.visit(expr)
+        self._visit_scoped(self._bound_names(node.body), node.body, kind="class")
 
-    def visit_FunctionDef(self, node):
-        if self.current_scope_is_global():
-            self.global_vars.add(node.name)
-
-        prev_function_globals = self.function_globals
-        self.function_globals = set()
-
-        self.scope_stack.append(node.name)  # Enter function scope
-        self.generic_visit(node)
-        self.scope_stack.pop()  # Exit function scope
-
-        self.function_globals = prev_function_globals
-
-    def visit_AsyncFunctionDef(self, node):
-        if self.current_scope_is_global():
-            self.global_vars.add(node.name)
+    def _visit_function(self, node):
+        if not isinstance(node, ast.Lambda):
+            self._record_store(node.name)
+            for expr in node.decorator_list:
+                self.visit(expr)
+            if node.returns is not None:
+                self.visit(node.returns)
+        # Defaults and annotations are evaluated in the enclosing scope, not the function's.
+        for expr in node.args.defaults + node.args.kw_defaults:
+            if expr is not None:
+                self.visit(expr)
+        for arg in ast.walk(node.args):
+            if isinstance(arg, ast.arg) and arg.annotation is not None:
+                self.visit(arg.annotation)
 
         prev_function_globals = self.function_globals
         self.function_globals = set()
-
-        self.scope_stack.append(node.name)  # Enter function scope
-        self.generic_visit(node)
-        self.scope_stack.pop()  # Exit function scope
-
+        body = node.body if isinstance(node.body, list) else [node.body]
+        self._visit_scoped(self._bound_names([node.args, *body]), body)
         self.function_globals = prev_function_globals
+
+    visit_FunctionDef = _visit_function
+    visit_AsyncFunctionDef = _visit_function
+    visit_Lambda = _visit_function
+
+    def _visit_comprehension(self, node):
+        # The first iterable is evaluated in the enclosing scope; everything else runs inside
+        # the comprehension's own scope, where its targets are bound.
+        generators = node.generators
+        self.visit(generators[0].iter)
+        bound = self._bound_names([gen.target for gen in generators])
+        elements = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+        rest = [gen.iter for gen in generators[1:]]
+        rest += [cond for gen in generators for cond in gen.ifs]
+        self._visit_scoped(bound, rest + elements, kind="comprehension")
+
+    visit_ListComp = _visit_comprehension
+    visit_SetComp = _visit_comprehension
+    visit_DictComp = _visit_comprehension
+    visit_GeneratorExp = _visit_comprehension
 
     def visit_Name(self, node):
         if isinstance(node.ctx, ast.Load):
-            if node.id in BUILTINS_SET:
-                self.generic_visit(node)
-                return
-
-            if self.current_scope_is_global():
-                self.used_global_vars.add(node.id)
-            elif node.id in self.function_globals:
-                # Variable explicitly declared as global in current function
-                self.used_global_vars.add(node.id)
-            elif node.id in self.global_vars:
-                self.used_global_vars.add(node.id)
+            self._record_load(node.id)
         elif isinstance(node.ctx, ast.Store):
-            # Only track variable assignments at global scope
-            if self.current_scope_is_global():
-                self.global_vars.add(node.id)
+            self._record_store(node.id)
         self.generic_visit(node)
 
     def visit_Attribute(self, node):
         # Attributes are part of global usage if they are prefixed by a global variable
         if isinstance(node.value, ast.Name):
-            if self.current_scope_is_global():
-                self.used_global_vars.add(node.value.id)
-            elif node.value.id in self.function_globals:
-                # Variable explicitly declared as global in current function
-                self.used_global_vars.add(node.value.id)
-            elif node.value.id in self.global_vars:
-                self.used_global_vars.add(node.value.id)
+            self._record_load(node.value.id)
         else:
             self.generic_visit(node)
 
