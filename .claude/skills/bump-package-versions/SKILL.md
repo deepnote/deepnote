@@ -42,7 +42,7 @@ Run `bump.mjs baselines`. For every published package it prints the `package.jso
 
 ## 3. List what merged since the previous version
 
-Run `bump.mjs changes`. For each package it lists the first-parent commits on `origin/main` since the baseline tag (the whole history if never released) that touch the package's directory or another path it ships (see "Package notes"), with their files. Every commit on `main` is one squash-merged PR; the last `(#N)` in its subject is the PR number.
+Run `bump.mjs changes`. For each package it lists the first-parent commits on `origin/main` since the baseline tag (the whole history if never released) that touch the package's directory or another path it ships (`EXTRA_PATHS` in `scripts/bump.mjs`), with their files. Every commit on `main` is one squash-merged PR; the last `(#N)` in its subject is the PR number.
 
 Sort each PR's files by whether they reach users:
 
@@ -67,7 +67,7 @@ Run `bump.mjs surface`. It builds the workspace, packs every package that has a 
 - A new dependency or a raised dependency floor is a fix unless it changes public types. When the public types import that dependency (`public types import` flags its range change), `npm pack` both versions of it and diff the declarations the package exposes.
 - `built files: identical` means the build output didn't change; anything that ships changed only in `package.json`, if at all. A package with no shipped changes in step 3 should read that way.
 - A changed bundled package ships even when step 3 listed no PR for the package, because a root-only change (a `pnpm.overrides` bump) can cause it. Rate it as a dependency update, and find its PR: `git log --first-parent --format='%h %s' -S'<package>@<version>' <tag>..origin/main -- pnpm-lock.yaml`.
-- An entry point without type declarations, and every executable and MCP tool, needs its source diff read; "Package notes" says where each lives.
+- An entry point without type declarations, and every executable and MCP tool, needs its source diff read.
 - To see what a shared build input did to the output, `diff -r` a package's two unpacked tarballs; a package without source changes shows its effect alone. When the bundler's interop helpers change, run the CommonJS build too (`dist/*.cjs`), not only the ESM one.
 - A dependent's public types that switch between inlining an internal package's types and importing them (`public types reference` differs from the published version) still resolve through its exact pin; rate only the types that changed.
 - `surface` unpacks the tarballs under the system temp directory; set `TMPDIR` to put them elsewhere. Delete the directory it printed once the proposal is approved.
@@ -171,13 +171,3 @@ Use each package's "What each release ships" list as its release notes. GitHub's
 ## 9. If main moves before the PR merges
 
 Redo steps 1 to 7 (step 7 merges `origin/main` into the release branch) and update the PR body. A new commit can raise a package's level.
-
-## Package notes
-
-What the scripts and steps above don't derive. Update these when a package's build or public surface changes.
-
-- **`@deepnote/cli`**: `tsdown.config.ts` copies `skills/deepnote/` into `dist/skills`, which ships on npm, in the PyPI wheel, and to users through `deepnote install-skills`; `EXTRA_PATHS` in `scripts/bump.mjs` adds that path to `changes`. Commands and flags are commander definitions in `src/cli.ts`, and `skills/deepnote/references/cli-*.md` document commands, flags, output formats, and exit codes, so their diff lists the intended CLI changes. The PyPI package `deepnote-cli` takes its version from `packages/cli/package.json` at publish time.
-- **`@deepnote/mcp`**: each tool's name, input schema, and result are defined in `src/tools/*.ts`; `deepnote-mcp` starts in `src/bin.ts`.
-- **`@deepnote/convert`**: `deepnote-convert` starts in `src/bin.ts`. Convert also writes `.deepnote` files.
-- **`@deepnote/blocks`**: `src/deepnote-file/deepnote-file-schema.ts` defines which `.deepnote` files are accepted. Its `.d.ts` is thousands of lines of Zod-inferred types; read the source diff of its exported modules instead.
-- **`@deepnote/local-runner`**: `./snapshot-reader` is a browser bundle (global `DeepnoteSnapshot`) built from `src/browser.ts` with blocks and its third-party dependencies inlined, so a root-only `pnpm.overrides` bump can change what it ships. Its static server's `/api/*` routes are in `src/serve-static.ts`.
