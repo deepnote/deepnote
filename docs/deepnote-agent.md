@@ -50,6 +50,15 @@ When a run finishes, you’ll see a **summary of changes** with a **before-and-a
 
 ![accept changes agent (1).png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetz4wckxctz07n07wkxakss.webp)
 
+### Chat usage
+
+After you send a message, a usage indicator below the message box shows the latest **context** size and the **total tokens used** in the current chat. Select the indicator to see exact counts and whether Agent is still working.
+
+- **Latest context** is the input and output from the latest model call.
+- **Total tokens used** includes tracked input and output across the chat, including repeated context and sub-agents. Counts update after each model call finishes.
+
+Tokens are small pieces of text that Agent reads and writes. Older activity from before token tracking was enabled is not included. If no context has been recorded yet, the indicator shows a dash until a model call finishes.
+
 ### Leaving feedback
 
 We’re improving Deepnote Agent continuously, and new functionality is added regularly, so stay tuned for updates.
