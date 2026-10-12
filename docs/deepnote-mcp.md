@@ -99,6 +99,10 @@ These tools manage the machine behind the editor, live-mode runs, and hosted Str
 - `get_streamlit_app_status`: Check whether a Streamlit app is running, starting, or unavailable.
 - `publish_static_site`: Publish a small HTML, CSS, and JavaScript site from the project's `_deepnote_static/` folder and share it as an app. For larger sites, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
 
+<Callout status="warning">
+Creating a Streamlit app with `create_streamlit_app` restarts the project machine and interrupts anyone working in the project.
+</Callout>
+
 ### Integrations
 
 - `list_integrations`: List workspace integrations, optionally filtered by name or type.
@@ -123,7 +127,9 @@ Deleting a notebook with `delete_notebook` saves a project version first. You ca
 
 Deleting a project with `delete_project` moves it to the [trash](/docs/trash), where you can restore it for 30 days. Its schedules are removed and don't come back with a restore, and its machine is stopped.
 
+<Callout status="warning">
 Deleting a file with `delete_file` can't be undone in Deepnote, since project files aren't versioned. The same applies to the old content when `write_file` overwrites a file.
+</Callout>
 
 ## Connecting a client
 
