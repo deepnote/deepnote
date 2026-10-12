@@ -45,25 +45,31 @@ The server exposes the following tools. Read-only tools never modify your worksp
 
 ### Account and workspace
 
-- `get_me`: Return info about the authenticated individual: the workspace, the access level (viewer, editor, admin), etc.
+- `get_me`: Return info about the API key or account calling the server: the key name and type, who created it, the workspace, and the access level (viewer, editor, admin, etc.).
 - `search`: Search workspace resources across projects, notebooks, blocks, and integrations.
-- `list_projects`: List workspace projects.
-- `create_project`: Create a new project.
+- `list_projects`: List workspace projects, optionally filtered by name.
+- `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` accepts.
+- `get_project`: Get a project's metadata, notebooks, attached integrations, files, static website settings, and environment.
+- `create_project`: Create a new project, optionally inside a folder and on a chosen environment.
+- `update_project`: Change a project's environment, its static website sharing and viewer API access, and whether its Streamlit apps may call the Deepnote API as their viewers. Changing the environment restarts a running machine.
 
 ### Notebooks and blocks
 
 - `get_notebook`: Get notebook details, including its blocks and input variables.
 - `create_notebook`: Create an empty notebook inside a project.
-- `create_block`: Create a new block (SQL, Python, text, etc.) in a notebook.
-- `update_block`: Update the contents of an existing block.
-- `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
+- `update_notebook`: Rename a notebook. Naming it `Init` turns it into the project's [init notebook](/docs/project-initialization).
 - `duplicate_notebook`: Duplicate an existing notebook within a project.
+- `get_block`: Get a block's content and metadata, and optionally the outputs it shows in the editor.
+- `create_block`: Create a new block (SQL, Python, text, input, etc.) in a notebook.
+- `update_block`: Update the contents of an existing block.
+- `delete_block`: Delete a block from a notebook.
+- `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
 - `generate_project_url`: Generate a link to a Deepnote project or notebook, so an agent can hand you a URL to what it built.
 
 ### Running notebooks
 
-- `create_run`: Start running a notebook and return the created run.
-- `get_run`: Get a notebook run. Returns a presigned snapshot download URL when available, or optionally the inline snapshot content.
+- `create_run`: Start running a notebook and return the created run. Runs are detached by default and can use a different machine type than the project's; set `detached` to false for live mode or to run specific blocks.
+- `get_run`: Get a notebook run. Returns a presigned snapshot download URL when available, or optionally the inline snapshot content or the executed blocks with their outputs. Large outputs are shortened unless `fullOutputs` is set.
 - `list_notebook_runs`: List historical runs for a notebook.
 
 ### Integrations
