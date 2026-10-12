@@ -117,7 +117,7 @@ These tools manage the machine behind the editor, live-mode runs, and hosted Str
 
 ### What deleting does
 
-The three delete tools behave differently once they've run, so it helps to know which ones can be undone.
+Deleting a project, a notebook, or a file works differently once it has run, so it helps to know which ones can be undone.
 
 Deleting a notebook with `delete_notebook` saves a project version first. You can bring the notebook back from [version history](/docs/history).
 
