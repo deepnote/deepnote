@@ -66,11 +66,35 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
 - `generate_project_url`: Generate a link to a Deepnote project or notebook, so an agent can hand you a URL to what it built.
 
+### Files
+
+- `write_file`: Write text or base64 content to a file in a project, with the path relative to the project root. With `overwrite` set it replaces an existing file; otherwise Deepnote picks a unique path and returns it.
+- `copy_file`: Copy a file into another project at the same path.
+
 ### Running notebooks
 
 - `create_run`: Start running a notebook and return the created run. Runs are detached by default and can use a different machine type than the project's; set `detached` to false for live mode or to run specific blocks.
 - `get_run`: Get a notebook run. Returns a presigned snapshot download URL when available, or optionally the inline snapshot content or the executed blocks with their outputs. Large outputs are shortened unless `fullOutputs` is set.
 - `list_notebook_runs`: List historical runs for a notebook.
+
+### Machines and environments
+
+- `get_machine`: Check whether a project's machine is stopped, starting, running, stopping, or in an error state, along with its machine type and sandbox environment.
+- `start_machine`: Start a project's machine. It uses machine time until it stops.
+- `stop_machine`: Stop a project's machine. Project files are kept, but kernel state such as variables is lost for everyone in the project.
+- `restart_machine`: Replace a project's machine with a new one, which also recovers a machine in an error state. Kernel state is lost.
+- `update_machine`: Change a project's machine type, sandbox environment, or how long it keeps running without activity. Changing the type or sandbox environment of a running machine needs a restart.
+- `list_machine_types`: List the machine types the workspace can use, with their vCPUs, memory, and GPUs, and whether the plan and this month's free quota allow each one.
+- `list_environments`: List the environments (Docker images) projects can run on, including the workspace's custom images.
+
+These tools manage the machine behind the editor, live-mode runs, and hosted Streamlit apps. Detached runs start machines of their own, so an agent doesn't need to start the project's machine before calling `create_run`.
+
+### Apps and static sites
+
+- `create_streamlit_app`: Serve a project file as a [Streamlit app](/docs/streamlit) and return its URL.
+- `list_streamlit_apps`: List a project's Streamlit apps with the file each one runs and its URL.
+- `get_streamlit_app_status`: Check whether a Streamlit app is running, starting, or unavailable.
+- `publish_static_site`: Publish a small HTML, CSS, and JavaScript site from the project's `_deepnote_static/` folder and share it as an app. For larger sites, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
 
 ### Integrations
 
