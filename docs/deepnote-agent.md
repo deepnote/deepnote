@@ -52,12 +52,13 @@ When a run finishes, you’ll see a **summary of changes** with a **before-and-a
 
 ### Chat usage
 
-After you send a message, a usage indicator below the message box shows the latest **context** size and the **total tokens used** in the current chat. Select the indicator to see exact counts and whether Agent is still working.
+After Agent finishes its first reply, a small circle appears next to the mode selector below the message box. It fills up as the chat grows. Select it to see the details:
 
-- **Latest context** is the input and output from the latest model call.
-- **Total tokens used** includes tracked input and output across the chat, including repeated context and sub-agents. Counts update after each model call finishes.
+- **Current context** is the size of the conversation Agent is working with, in tokens. Tokens are small pieces of text that Agent reads and writes. Above 200k tokens the circle turns red, and starting a new chat helps reduce costs.
+- **AI quota remaining** shows how much of your workspace's monthly AI quota is left. The quota is shared across the workspace.
+- **Pay-as-you-go overage allowed** appears when your workspace can keep using AI after the quota runs out. If a monthly overage limit is set, a bar shows how much of it is used. See [AI usage limits](/docs/billing-alerts-and-limits#ai-usage-limits).
 
-Tokens are small pieces of text that Agent reads and writes. Older activity from before token tracking was enabled is not included. If no context has been recorded yet, the indicator shows a dash until a model call finishes.
+The numbers update each time Agent finishes a reply.
 
 ### Leaving feedback
 
