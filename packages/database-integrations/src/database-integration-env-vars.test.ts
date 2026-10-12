@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   BigQueryServiceAccountParseError,
+  getBigQueryOAuthSqlAlchemyInput,
   getEnvironmentVariablesForIntegrations,
   getSqlEnvVarName,
   SpannerServiceAccountParseError,
@@ -3009,6 +3010,29 @@ describe('Database integration env variables', () => {
 
         const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-unknown')
         expect(sqlAlchemyInput).toBeUndefined()
+      })
+    })
+  })
+
+  describe('getBigQueryOAuthSqlAlchemyInput', () => {
+    it('returns a SQL Alchemy input built from the access token and project, not from the OAuth client', () => {
+      const result = getBigQueryOAuthSqlAlchemyInput(
+        {
+          authMethod: 'google-oauth',
+          project: 'my-gcp-project',
+          clientId: 'my-client-id',
+          clientSecret: 'my-client-secret',
+        },
+        'ya29.a0-fake-access-token'
+      )
+
+      expect(result).toStrictEqual({
+        url: 'bigquery://?user_supplied_client=true',
+        params: {
+          access_token: 'ya29.a0-fake-access-token',
+          project: 'my-gcp-project',
+        },
+        param_style: 'pyformat',
       })
     })
   })

@@ -13,13 +13,18 @@ import {
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
-import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
+import { type Document, isMap, isSeq } from 'yaml'
 import z from 'zod'
 import { ExitCode } from '../../exit-codes'
 import { debug, log, output } from '../../output'
 import { readDotEnv, updateDotEnv } from '../../utils/dotenv'
 import { getProcessEnv } from '../../utils/process-env'
-import { MalformedIntegrationsFileError, readIntegrationsDocument, writeIntegrationsFile } from '../integrations'
+import {
+  findIntegrationMapById,
+  MalformedIntegrationsFileError,
+  readIntegrationsDocument,
+  writeIntegrationsFile,
+} from '../integrations'
 import { promptForIntegrationName } from './add-integration'
 import { promptForFieldsAlloydb } from './integrations-prompts/alloydb'
 import { promptForFieldsAthena } from './integrations-prompts/athena'
@@ -95,30 +100,6 @@ export async function promptSelectIntegration(summaries: IntegrationSummary[]): 
     message: 'Select integration to edit:',
     choices,
   })
-}
-
-// ============================================================================
-// Phase 2: Find the YAML map node by ID
-// ============================================================================
-
-/**
- * Find the YAML map node for an integration by its ID in the document's integrations sequence.
- */
-function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
-  const integrations = doc.get('integrations')
-  if (!isSeq(integrations)) {
-    return null
-  }
-
-  for (const item of integrations.items) {
-    if (!isMap(item)) {
-      continue
-    }
-    if (item.get('id') === targetId) {
-      return item
-    }
-  }
-  return null
 }
 
 export async function promptForIntegrationConfig(

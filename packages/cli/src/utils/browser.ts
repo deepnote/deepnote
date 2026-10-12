@@ -3,11 +3,14 @@ import { platform } from 'node:os'
 import { debug } from '../output'
 
 /**
- * Opens a URL in the default browser.
+ * Opens a URL in the default browser. Resolves once the opener process has been launched, not
+ * once it exits — the Linux fallback (`xdg-open`) can run a terminal browser in the foreground for
+ * its whole lifetime, and a caller must not be blocked on that.
  *
  * @param url - The URL to open
- * @returns Promise that resolves when the browser command is executed
- * @throws Error if the browser cannot be opened
+ * @returns Promise that resolves once the browser command has been launched
+ * @throws Error if the browser command could not be spawned (e.g. `ENOENT`) — a non-zero exit from
+ *   a successfully spawned opener is no longer observed, so callers should also print the URL
  */
 export async function openInBrowser(url: string): Promise<void> {
   const { command, args } = getOpenCommand(url)
@@ -20,12 +23,10 @@ export async function openInBrowser(url: string): Promise<void> {
       reject(new Error(`Failed to open browser: ${error.message}`))
     })
 
-    child.on('close', code => {
-      if (code === 0) {
-        resolve()
-      } else {
-        reject(new Error(`Failed to open browser: process exited with code ${code}`))
-      }
+    child.on('spawn', () => {
+      // Otherwise this handle holds the event loop open for as long as the browser runs.
+      child.unref()
+      resolve()
     })
   })
 }
@@ -38,7 +39,9 @@ function getOpenCommand(url: string): { command: string; args: string[] } {
     case 'darwin':
       return { command: 'open', args: [url] }
     case 'win32':
-      return { command: 'cmd', args: ['/c', 'start', '', url] }
+      // cmd.exe re-parses its command line, so an unescaped `&` would split the URL into
+      // separate commands; libuv only quotes args containing space, tab or quote.
+      return { command: 'cmd', args: ['/c', 'start', '', url.replace(/&/g, '^&')] }
     default:
       // Linux and other Unix-like systems
       return { command: 'xdg-open', args: [url] }
