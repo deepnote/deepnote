@@ -257,6 +257,14 @@ function baselines() {
       print(`${pkg.name}: ${status}: ${STATUS_MEANINGS[status]}${cause}${inFlight}`)
     }
   }
+  // pnpm publishes workspace:* as the dependency's exact version, which a never-released package hasn't put on npm.
+  const neverReleased = new Set(results.filter(({ status }) => status === 'never-released').map(({ pkg }) => pkg.name))
+  for (const { pkg } of results) {
+    const unpublished = pkg.deps.filter(dep => neverReleased.has(dep))
+    if (unpublished.length > 0) {
+      print(`${pkg.name}: depends on never-released ${unpublished.join(', ')}, which must be released with it`)
+    }
+  }
   print(`publish order: ${publishOrder(packages).map(unscoped).join(', ')}`)
   return results.every(({ status }) => CONTINUE_STATUSES.has(status))
 }

@@ -35,7 +35,7 @@ Use the Node version from `.nvmrc` and run `pnpm install --frozen-lockfile`. Its
 Run `bump.mjs baselines`. For every published package it prints the `package.json` version on `origin/main`, the highest stable release tag (`@deepnote/<name>@X.Y.Z`), npm's `latest`, a status, and the internal dependencies, then the publish order with dependencies first. A line under the table explains each status other than `ok`.
 
 - `ok`: the tag is the baseline.
-- `never-released`: first publish at the current version, no bump. Ask whether to release it now; its whole history counts.
+- `never-released`: first publish at the current version, no bump. Ask whether to release it now; its whole history counts. A line under the table names the packages that depend on it: their published manifests would pin a version that isn't on npm, so they can't be released without it.
 - `prerelease`: a release line is in flight (e.g. `0.9.0-rc.1` over `0.8.0`). Propose finishing it (`0.9.0`) and ask.
 - `unreleased-bump`: a bump merged but was never released. **Stop** and ask: cut that release first, or keep its version as this PR's target (raised only if the changes need more). Never bump twice.
 - Any other status: **stop**. Re-run once first for `npm-error` and `publish-pending`, which can be transient; an `npm-error` that ends in an auth code such as `E401` or `E403` won't clear on its own.
