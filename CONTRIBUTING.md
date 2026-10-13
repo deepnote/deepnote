@@ -16,6 +16,7 @@ deepnote/
 │   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
 │   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API
 │   ├── cloud-sync/            # @deepnote/cloud-sync - Sync and publish local folders with Deepnote Cloud
+│   ├── common/                # @deepnote/common - Private helpers shared by packages (not published)
 │   ├── convert/               # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
 │   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
 │   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI

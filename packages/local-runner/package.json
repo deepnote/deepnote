@@ -45,6 +45,7 @@
     "@jupyterlab/nbformat": "^4.6.3"
   },
   "devDependencies": {
+    "@deepnote/common": "workspace:*",
     "@types/node": "^22.20.1",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"

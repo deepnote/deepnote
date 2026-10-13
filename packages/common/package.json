@@ -1,0 +1,19 @@
+{
+  "name": "@deepnote/common",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Helpers shared by several @deepnote packages, inlined into each package that imports them",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/common"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest"
+  }
+}

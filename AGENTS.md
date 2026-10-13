@@ -10,6 +10,7 @@ This is a TypeScript monorepo for Deepnote's open-source packages, managed with 
 - **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
 - **packages/cloud-sync** - Node-only workflows between a local folder and Deepnote Cloud (sync manifest, sync engine, app publishing)
+- **packages/common** - Private helpers shared by several packages; never published, inlined into each package that imports them
 - **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
 - **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
@@ -30,6 +31,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
 | Syncing and publishing local folders with Deepnote Cloud       | `packages/cloud-sync/`                                |
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
+| Helpers shared by several packages                             | `packages/common/`                                    |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
 | Database integration definitions                               | `packages/database-integrations/`                     |
 | Shared test data                                               | `test-fixtures/`                                      |
