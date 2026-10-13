@@ -179,26 +179,37 @@ function preparePublishFiles(targetPrefix: string, localDir: string, files: stri
 }
 
 const UPLOAD_LIMIT = `${MAX_BUFFERED_PROJECT_FILE_BYTES / (1024 * 1024)} MiB`
+const STAT_CONCURRENCY = 8
+const MAX_LISTED_FILES = 5
 
 /** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
 async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
   const oversized: string[] = []
-  for (const { localPath, relativePath } of publishFiles) {
-    let size: number
-    try {
-      size = (await fs.stat(localPath)).size
-    } catch (error) {
-      throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
-    }
-    if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
-      oversized.push(relativePath)
+  const queue = [...publishFiles]
+  const worker = async (): Promise<void> => {
+    for (let file = queue.shift(); file; file = queue.shift()) {
+      let size: number
+      try {
+        size = (await fs.stat(file.localPath)).size
+      } catch (error) {
+        throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
+      }
+      if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
+        oversized.push(file.relativePath)
+      }
     }
   }
+  await Promise.all(Array.from({ length: Math.min(queue.length, STAT_CONCURRENCY) }, worker))
   if (oversized.length > 0) {
-    const names = oversized.sort().map(file => `"${file}"`)
+    oversized.sort()
+    // The ", and N more" tail takes the last slot, so a truncated list names one file fewer.
+    const listed = oversized.length > MAX_LISTED_FILES ? oversized.slice(0, MAX_LISTED_FILES - 1) : oversized
+    const names = listed.map(file => `"${file}"`).join(', ')
+    const remaining = oversized.length - listed.length
+    const more = remaining > 0 ? `, and ${remaining} more` : ''
     throw new PublishError(
       'invalid-input',
-      `Refusing to publish files over the ${UPLOAD_LIMIT} upload limit: ${names.join(', ')}. Remove them from ${dir}.`
+      `Refusing to publish files over the ${UPLOAD_LIMIT} upload limit: ${names}${more}. Remove them from ${dir}.`
     )
   }
 }

@@ -547,6 +547,47 @@ describe('publishApp', () => {
       expect(mockedUpload).not.toHaveBeenCalled()
     })
 
+    it.each([
+      [5, '"f1.bin", "f2.bin", "f3.bin", "f4.bin", "f5.bin"'],
+      [6, '"f1.bin", "f2.bin", "f3.bin", "f4.bin", and 2 more'],
+      [9, '"f1.bin", "f2.bin", "f3.bin", "f4.bin", and 5 more'],
+    ])('names at most five of %i oversized files', async (count, listed) => {
+      const dir = join(tempDir, 'site')
+      const names = Array.from({ length: count }, (_, index) => `f${index + 1}.bin`)
+      await writeFiles(dir, Object.fromEntries(names.map(name => [name, ''])))
+      for (const name of names) {
+        await fs.truncate(join(dir, name), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+      }
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `Refusing to publish files over the 100 MiB upload limit: ${listed}. Remove them from ${dir}.`,
+      })
+    })
+
+    it('inspects file sizes eight at a time', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, Object.fromEntries(Array.from({ length: 20 }, (_, index) => [`f${index}.html`, 'x'])))
+      const realStat = fs.stat
+      let inFlight = 0
+      let peak = 0
+      const statSpy = vi.spyOn(fs, 'stat').mockImplementation(async path => {
+        inFlight++
+        peak = Math.max(peak, inFlight)
+        await new Promise(resolve => setImmediate(resolve))
+        inFlight--
+        return realStat(path)
+      })
+
+      const result = await publish({ dir }).attempt
+
+      expect(peak).toBe(8)
+      expect(statSpy).toHaveBeenCalledTimes(21)
+      expect(result.uploaded).toBe(20)
+    })
+
     it('reports a file that cannot be inspected as unreadable before any API call', async () => {
       const dir = join(tempDir, 'site')
       await writeFiles(dir, { 'index.html': 'hi' })
