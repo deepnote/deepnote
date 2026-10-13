@@ -1015,6 +1015,7 @@ describe('syncWorkspace', () => {
         {
           kind: 'warning',
           code: 'deleted-files-kept',
+          hint: { option: 'prune', value: true },
           message: '1 file in "Alpha" deleted in Deepnote but kept locally: report.csv.',
         },
       ])
@@ -1063,6 +1064,7 @@ describe('syncWorkspace', () => {
           {
             kind: 'warning',
             code: 'deleted-files-kept',
+            hint: { option: 'prune', value: true },
             message: '1 file in "Alpha" deleted in Deepnote but kept locally: data/old.csv.',
           },
         ])
@@ -1552,6 +1554,7 @@ describe('syncWorkspace', () => {
         projectId: 'p1',
         action: 'missing-in-cloud',
         detail: 'no longer in the cloud; kept locally',
+        hint: { option: 'prune', value: true },
       }),
     ])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('p1')
@@ -1561,6 +1564,7 @@ describe('syncWorkspace', () => {
       expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
       expect.objectContaining({ projectId: 'p1', action: 'pruned', detail: 'no longer in the cloud; removed locally' }),
     ])
+    expect(pruned.projects[1]).not.toHaveProperty('hint')
     await expect(fs.stat(path.join(tempDir, 'Alpha'))).rejects.toThrow()
     expect(Object.keys((await loadSyncManifest(tempDir)).projects)).toEqual(['p2'])
   })
@@ -1592,6 +1596,7 @@ describe('syncWorkspace', () => {
         detail: 'no longer in the cloud; kept local path used by a current cloud project',
       }),
     ])
+    expect(result.projects[2]).not.toHaveProperty('hint')
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
     expect(Object.keys((await loadSyncManifest(tempDir)).projects)).toEqual(['p3'])
   })

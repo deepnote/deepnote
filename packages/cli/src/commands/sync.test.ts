@@ -294,6 +294,7 @@ describe('deepnote sync events', () => {
         ...outcome,
         action: 'missing-in-cloud',
         detail: 'no longer in the cloud; kept locally',
+        hint: { option: 'prune', value: true },
       },
       line: '? missing   Team/Alpha — no longer in the cloud; kept locally (use --prune to remove)',
     },
@@ -338,6 +339,19 @@ describe('deepnote sync events', () => {
     )
   })
 
+  it('adds no suffix to a missing project without a hint, though --prune was not passed', async () => {
+    emitAll([
+      {
+        kind: 'project-outcome',
+        outcome: { ...outcome, action: 'missing-in-cloud', detail: 'no longer in the cloud; kept locally' },
+      },
+    ])
+
+    await sync()
+
+    expect(logged[0]).toBe('? missing   Team/Alpha — no longer in the cloud; kept locally')
+  })
+
   it('suppresses the listing and outcome lines under -o json, leaving the JSON document alone on stdout', async () => {
     emitAll([
       { kind: 'listing-projects', baseUrl: 'https://api.example.com' },
@@ -374,6 +388,7 @@ describe('deepnote sync events', () => {
         {
           kind: 'warning',
           code: 'deleted-files-kept',
+          hint: { option: 'prune', value: true },
           message: '2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt.',
         },
       ])
@@ -386,6 +401,20 @@ describe('deepnote sync events', () => {
       ])
     }
   )
+
+  it('sends a kept-deleted-files warning without a hint verbatim, even with --prune', async () => {
+    emitAll([
+      {
+        kind: 'warning',
+        code: 'deleted-files-kept',
+        message: '2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt.',
+      },
+    ])
+
+    await sync('--prune')
+
+    expect(errored).toEqual(['2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt.'])
+  })
 
   it('reports file transfers as debug output only', async () => {
     emitAll([
@@ -587,7 +616,12 @@ describe('deepnote sync result handling', () => {
 
   describe('prune hints in the result', () => {
     const outcome = { projectId: 'p1', name: 'Alpha', path: 'Team/Alpha' } as const
-    const missing = { ...outcome, action: 'missing-in-cloud', detail: 'no longer in the cloud; kept locally' } as const
+    const missing = {
+      ...outcome,
+      action: 'missing-in-cloud',
+      detail: 'no longer in the cloud; kept locally',
+      hint: { option: 'prune', value: true },
+    } as const
     const pruned = { ...outcome, action: 'pruned', detail: 'no longer in the cloud; removed locally' } as const
     const keptForLiveProject = {
       ...outcome,
@@ -601,18 +635,35 @@ describe('deepnote sync result handling', () => {
 
     it.each([
       [
-        'a missing project without --prune',
+        'a hinted missing project',
         missing,
         [],
-        'no longer in the cloud; kept locally (use --prune to remove)',
+        {
+          ...outcome,
+          action: 'missing-in-cloud',
+          detail: 'no longer in the cloud; kept locally (use --prune to remove)',
+        },
       ],
-      ['a pruned project', pruned, ['--prune'], 'no longer in the cloud; removed locally (--prune)'],
-    ])('adds the hint to %s in the -o json document', async (_name, projectOutcome, flags, detail) => {
+      [
+        'a pruned project',
+        pruned,
+        ['--prune'],
+        { ...outcome, action: 'pruned', detail: 'no longer in the cloud; removed locally (--prune)' },
+      ],
+    ])('adds the flag to %s in the -o json document', async (_name, projectOutcome, flags, expected) => {
       mockedSyncWorkspace.mockResolvedValue(resultOf({ projects: [projectOutcome] }))
 
       await sync('-o', 'json', ...flags)
 
-      expect(printedProjects()).toEqual([{ ...projectOutcome, detail }])
+      expect(printedProjects()).toEqual([expected])
+    })
+
+    it('keeps the hint out of the -o json document and the key order of the outcome', async () => {
+      mockedSyncWorkspace.mockResolvedValue(resultOf({ projects: [missing] }))
+
+      await sync('-o', 'json')
+
+      expect(Object.keys(printedProjects()[0])).toEqual(['projectId', 'name', 'path', 'action', 'detail'])
     })
 
     it('leaves the kept-for-a-live-project detail alone under --prune', async () => {
@@ -642,8 +693,13 @@ describe('deepnote sync result handling', () => {
       const result = await runSync(tempDir, { token: 'tok' })
 
       expect(result.projects).toEqual([
-        { ...missing, detail: 'no longer in the cloud; kept locally (use --prune to remove)' },
+        {
+          ...outcome,
+          action: 'missing-in-cloud',
+          detail: 'no longer in the cloud; kept locally (use --prune to remove)',
+        },
       ])
+      expect(result.projects[0]).not.toHaveProperty('hint')
     })
   })
 

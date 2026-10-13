@@ -17,6 +17,7 @@ import {
 } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
 import { isErrnoENOENT } from './fs-errors'
+import type { OptionHint } from './option-hint'
 import {
   assertNoSymbolicLinkAncestors,
   baselineDiverged,
@@ -142,6 +143,8 @@ export type SyncEvent =
        * in Deepnote.
        */
       code?: 'deleted-files-kept'
+      /** The option change that resolves the condition `code` names: `prune: true` for `deleted-files-kept`. */
+      hint?: OptionHint
     }
   /** A working file was downloaded or uploaded. In a dry run, it reports what would be transferred. */
   | {
@@ -198,6 +201,11 @@ export interface ProjectSyncOutcome {
   action: 'pulled' | 'pushed' | 'unchanged' | 'skipped-conflict' | 'error' | 'pruned' | 'missing-in-cloud'
   /** Human-readable elaboration (conflict direction, error message, rename note). */
   detail?: string
+  /**
+   * Set only on a `missing-in-cloud` outcome kept because `prune` is off: `prune: true` removes it. Absent on
+   * `pruned` outcomes, and on a `missing-in-cloud` outcome kept because a current cloud project uses its path.
+   */
+  hint?: OptionHint
   /** Per-notebook reconciliation reported by the import endpoint (push only). */
   notebooks?: ImportedNotebook[]
   /** Number of working-directory files downloaded (`allFiles` pull only). */
@@ -585,6 +593,7 @@ async function syncProjectFiles(
     emit(ctx, {
       kind: 'warning',
       code: 'deleted-files-kept',
+      hint: { option: 'prune', value: true },
       message:
         `${keptDeleted.length} file${keptDeleted.length === 1 ? '' : 's'} in "${project.name}" ` +
         `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}.`,
@@ -1176,6 +1185,7 @@ export async function syncWorkspace(options: WorkspaceSyncOptions): Promise<Work
         ...base,
         action: 'missing-in-cloud',
         detail: 'no longer in the cloud; kept locally',
+        hint: { option: 'prune', value: true },
       })
     }
     emit(ctx, { kind: 'project-outcome', outcome: outcomes[outcomes.length - 1] })

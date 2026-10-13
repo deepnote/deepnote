@@ -83,15 +83,20 @@ Options, conflict kinds, events and result shapes are documented on the exported
 ## Messages and CLI hints
 
 No message this package throws, emits or returns names a CLI flag. Where a message used to end in a flag
-hint, the condition is marked in a field instead, and `deepnote publish` and `deepnote sync` append
-the hint. Library callers use the matching option:
+hint, the condition is marked in a field instead, together with an `OptionHint`: the library option
+that resolves it (`{ option: 'syncRoot', value: false }` or `{ option: 'prune', value: true }`).
+Library callers apply the option; `deepnote publish` and `deepnote sync` translate the hint into the
+matching flag and append it to the message they print.
 
-| Condition                                                                                 | Marked by                                           | Library equivalent                             |
-| ----------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------- |
-| The sync folder cannot be used (invalid or symlinked manifest, unreadable tracked folder) | `PublishError.code` `sync-root-unusable`            | `syncRoot: false` publishes without it         |
-| An explicit `syncRoot` does not track the project, or its project folder is missing       | `PublishError.code` `project-not-in-sync-root`      | Sync the workspace first, or `syncRoot: false` |
-| Files deleted in Deepnote are kept locally (`allFiles`, no `prune`)                       | `warning` event `code` `deleted-files-kept`         | `prune: true` removes them                     |
-| A project deleted in Deepnote was removed or kept locally                                 | `pruned` and `missing-in-cloud` outcomes (`action`) | `prune: true` removes the kept projects        |
+| Condition                                                                                 | Marked by                                      | Hint                                           |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| The sync folder cannot be used (invalid or symlinked manifest, unreadable tracked folder) | `PublishError.code` `sync-root-unusable`       | `PublishError.hint`: `syncRoot: false`         |
+| An explicit `syncRoot` does not track the project, or its project folder is missing       | `PublishError.code` `project-not-in-sync-root` | `PublishError.hint`: `syncRoot: false`         |
+| Files deleted in Deepnote are kept locally (`allFiles`, no `prune`)                       | `warning` event `code` `deleted-files-kept`    | The event's `hint`: `prune: true` removes them |
+| A project deleted in Deepnote was kept locally because `prune` is off                     | `missing-in-cloud` outcome (`action`)          | The outcome's `hint`: `prune: true` removes it |
+
+A `pruned` outcome and a `missing-in-cloud` outcome kept because a current cloud project uses its path
+carry no hint: there is nothing for the caller to change.
 
 Other messages name the option in words: "API URL" is `baseUrl`, and the "working-file transfer limit"
 applies to `allFiles`.

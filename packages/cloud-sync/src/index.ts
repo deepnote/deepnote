@@ -1,4 +1,5 @@
 export { ApiError } from '@deepnote/database-integrations'
+export type { OptionHint } from './option-hint'
 export {
   type PublishAppEvent,
   type PublishAppOptions,

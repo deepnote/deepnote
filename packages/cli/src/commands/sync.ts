@@ -16,6 +16,7 @@ import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import { cliFlagFor } from '../utils/option-hint'
 
 /**
  * `deepnote sync` — mirror the workspace's projects into a local directory and pull cloud edits down.
@@ -89,19 +90,19 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
 }
 
 /** The library's messages name no CLI flag; these are the hints `deepnote sync` adds back. */
-const KEPT_DELETED_FILES_HINT =
-  ' Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.'
+const keptDeletedFilesHint = (flag: string) =>
+  ` Run sync ${flag} to remove them; pushing an edited copy restores that file in Deepnote.`
 
-/** Under `--prune`, `missing-in-cloud` means a current cloud project uses the path, so "use --prune" would be wrong. */
-function withPruneHint(outcome: ProjectSyncOutcome, prune: boolean | undefined): ProjectSyncOutcome {
+/** Folds an outcome's hint into its detail as a flag, and drops it so the `-o json` document keeps its shape. */
+function withFlagHint({ hint, ...outcome }: ProjectSyncOutcome): ProjectSyncOutcome {
   if (outcome.detail === undefined) {
     return outcome
   }
-  if (outcome.action === 'pruned') {
-    return { ...outcome, detail: `${outcome.detail} (--prune)` }
+  if (hint) {
+    return { ...outcome, detail: `${outcome.detail} (use ${cliFlagFor(hint)} to remove)` }
   }
-  if (outcome.action === 'missing-in-cloud' && !prune) {
-    return { ...outcome, detail: `${outcome.detail} (use --prune to remove)` }
+  if (outcome.action === 'pruned') {
+    return { ...outcome, detail: `${outcome.detail} (${cliFlagFor({ option: 'prune', value: true })})` }
   }
   return outcome
 }
@@ -159,11 +160,15 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
         break
       case 'project-outcome':
         if (!isMachineOutput) {
-          log(renderOutcomeLine(withPruneHint(event.outcome, options.prune)))
+          log(renderOutcomeLine(withFlagHint(event.outcome)))
         }
         break
       case 'warning':
-        warn(event.code === 'deleted-files-kept' ? `${event.message}${KEPT_DELETED_FILES_HINT}` : event.message)
+        warn(
+          event.code === 'deleted-files-kept' && event.hint
+            ? event.message + keptDeletedFilesHint(cliFlagFor(event.hint))
+            : event.message
+        )
         break
       case 'file-transferred':
         debug(
@@ -187,7 +192,7 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
     onConflict,
     onEvent,
   })
-  return { ...result, projects: result.projects.map(outcome => withPruneHint(outcome, options.prune)) }
+  return { ...result, projects: result.projects.map(withFlagHint) }
 }
 
 function renderOutcomeLine(outcome: ProjectSyncOutcome): string {

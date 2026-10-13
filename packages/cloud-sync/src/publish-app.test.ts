@@ -487,6 +487,7 @@ describe('publishApp', () => {
         code: 'project-not-in-sync-root',
         message: `The sync manifest at ${join(root, '.deepnote-sync.json')} does not track project p2.`,
       })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
@@ -505,6 +506,7 @@ describe('publishApp', () => {
           `The sync manifest at ${join(root, '.deepnote-sync.json')} tracks project p1 in Alpha, ` +
           'but that directory does not exist.',
       })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
@@ -523,6 +525,7 @@ describe('publishApp', () => {
           `The sync manifest at ${join(root, '.deepnote-sync.json')} is not valid JSON. ` +
           'Fix or delete it (deleting re-syncs everything from scratch).',
       })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
@@ -548,6 +551,7 @@ describe('publishApp', () => {
         message: `No .deepnote-sync.json found in ${buildDir}.`,
       })
       expect((error as PublishError).code).toBeUndefined()
+      expect((error as PublishError).hint).toBeUndefined()
     })
   })
 
@@ -644,6 +648,7 @@ describe('publishApp', () => {
 
       expect(error).toMatchObject({ reason: 'invalid-input', message })
       expect((error as PublishError).code).toBeUndefined()
+      expect((error as PublishError).hint).toBeUndefined()
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
