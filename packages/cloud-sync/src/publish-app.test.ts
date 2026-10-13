@@ -14,7 +14,13 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   }
 })
 
-import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
+import {
+  deleteProjectFile,
+  getProjectDetail,
+  MAX_BUFFERED_PROJECT_FILE_BYTES,
+  updateProjectStaticFiles,
+  uploadProjectFile,
+} from '@deepnote/cloud'
 import { type PublishAppEvent, type PublishAppOptions, PublishDivergedError, PublishError, publishApp } from './index'
 
 const mockedDelete = vi.mocked(deleteProjectFile)
@@ -267,6 +273,39 @@ describe('publishApp', () => {
     })
   })
 
+  describe('upload size limit', () => {
+    it('uploads a file of exactly the limit', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'exact.bin': '' })
+      await fs.truncate(join(dir, 'exact.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES)
+
+      const result = await publish({ dir }).attempt
+
+      expect(result.errors).toEqual([])
+      expect(result.uploaded).toBe(1)
+    })
+
+    it('keeps the live copy of a file that outgrows the limit after the preflight', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', 'big.bin': 'small' })
+      mockedGetProject.mockImplementation(async () => {
+        await fs.truncate(join(dir, 'big.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+        return { id: 'p1', name: 'Project', files: [] }
+      })
+
+      const { events, attempt } = publish({ dir })
+      const result = await attempt
+
+      const message = 'File "big.bin" exceeds the 100 MiB upload limit.'
+      expect(mockedDelete.mock.calls.map(call => call[3])).toEqual(['_deepnote_static/index.html'])
+      expect(mockedUpload.mock.calls.map(call => call[3])).toEqual(['_deepnote_static/index.html'])
+      expect(result.uploaded).toBe(1)
+      expect(result.errors).toEqual([{ path: 'big.bin', message }])
+      expect(events).toContainEqual({ kind: 'operation-failed', operation: 'upload', path: 'big.bin', message })
+      expect(mockedUpdateProject).not.toHaveBeenCalled()
+    })
+  })
+
   describe('sync mirror', () => {
     it('reports an incomplete mirror before enabling sharing, without failing the publish', async () => {
       const { buildDir } = await writeWorkspace()
@@ -471,6 +510,57 @@ describe('publishApp', () => {
       expect(mockedDelete).not.toHaveBeenCalled()
       expect(mockedUpload).not.toHaveBeenCalled()
       expect(mockedUpdateProject).not.toHaveBeenCalled()
+    })
+
+    it('refuses files over the upload limit before any API call', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', 'big.bin': '', 'assets/huge.bin': '' })
+      await fs.truncate(join(dir, 'big.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+      await fs.truncate(join(dir, 'assets/huge.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `Refusing to publish files over the 100 MiB upload limit: "assets/huge.bin", "big.bin". Remove them from ${dir}.`,
+      })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+      expect(mockedDelete).not.toHaveBeenCalled()
+      expect(mockedUpload).not.toHaveBeenCalled()
+      expect(mockedUpdateProject).not.toHaveBeenCalled()
+    })
+
+    it('refuses a single file over the upload limit before any API call', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', 'big.bin': '' })
+      await fs.truncate(join(dir, 'big.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `Refusing to publish files over the 100 MiB upload limit: "big.bin". Remove them from ${dir}.`,
+      })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+      expect(mockedDelete).not.toHaveBeenCalled()
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+
+    it('reports a file that cannot be inspected as unreadable before any API call', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+      vi.spyOn(fs, 'stat')
+        .mockResolvedValueOnce(await fs.stat(dir))
+        .mockRejectedValueOnce(new Error('EACCES: permission denied'))
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toMatchObject({
+        reason: 'unreadable-directory',
+        message: `Could not read ${dir}: EACCES: permission denied`,
+      })
+      expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
     it.each([

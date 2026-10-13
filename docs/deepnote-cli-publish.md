@@ -158,9 +158,9 @@ Use `--api-access enabled|disabled` to change viewer API access. At least one se
 
 ### Recover from a failed publish
 
-Invalid local paths, conflicting destination paths, or `.env` files in the build directory stop the
-command before uploads, with exit code `2`. Each local file is read before its remote copy is
-deleted and replaced.
+Invalid local paths, conflicting destination paths, `.env` files, or files over 100 MiB in the build
+directory stop the command before uploads, with exit code `2`. Each local file is read before its
+remote copy is deleted and replaced.
 
 If an upload fails, successful uploads remain in place, sharing is not changed, and remaining stale
 files are not pruned. The command reports the failures and exits with code `1`. Fix the reported
@@ -230,11 +230,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                   | `deepnote streamlit publish`                   |
-| ---- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                                                   | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                      | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, `.env` file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                   |
+| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait` |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request failed or startup timed out          |
+| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.
