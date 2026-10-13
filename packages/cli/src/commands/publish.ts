@@ -4,6 +4,7 @@ import {
   type PublishAppResult,
   PublishDivergedError,
   PublishError,
+  type PublishErrorCode,
   publishApp,
   type SyncRootOption,
 } from '@deepnote/cloud-sync'
@@ -25,6 +26,12 @@ interface PublishOptions {
   quiet: boolean
   syncRoot: SyncRootOption
   force: boolean
+}
+
+/** The library's messages stop before the flag that resolves the problem; the CLI appends it. */
+const PUBLISH_ERROR_HINTS: Record<PublishErrorCode, string> = {
+  'sync-root-unusable': ' Pass --no-sync-root to publish without updating the workspace.',
+  'project-not-in-sync-root': ' Sync the workspace first, or pass --no-sync-root to publish without updating it.',
 }
 
 export function createPublishAction(program: Command) {
@@ -102,7 +109,8 @@ export function createPublishAction(program: Command) {
         onEvent: renderEvent,
       })
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const hint = error instanceof PublishError && error.code ? PUBLISH_ERROR_HINTS[error.code] : ''
+      const message = (error instanceof Error ? error.message : String(error)) + hint
       if (error instanceof PublishDivergedError) {
         logError(
           `${message}. Run \`deepnote sync --all-files\` to bring the changes down, ` +

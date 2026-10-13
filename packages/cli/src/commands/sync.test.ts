@@ -286,18 +286,26 @@ describe('deepnote sync events', () => {
       line: '⚠ skipped   Team/Alpha — modified both locally and in the cloud',
     },
     {
-      outcome: { ...outcome, action: 'pruned', detail: 'no longer in the cloud; removed locally (--prune)' },
+      outcome: { ...outcome, action: 'pruned', detail: 'no longer in the cloud; removed locally' },
       line: '✕ pruned    Team/Alpha — no longer in the cloud; removed locally (--prune)',
     },
     {
       outcome: {
         ...outcome,
         action: 'missing-in-cloud',
-        detail: 'no longer in the cloud; kept locally (use --prune to remove)',
+        detail: 'no longer in the cloud; kept locally',
       },
       line: '? missing   Team/Alpha — no longer in the cloud; kept locally (use --prune to remove)',
     },
     { outcome: { ...outcome, action: 'error', detail: 'boom' }, line: '✗ error     Team/Alpha — boom' },
+    {
+      outcome: {
+        ...outcome,
+        action: 'error',
+        detail: 'Project file "large.bin" exceeds the 100 MiB working-file transfer limit.',
+      },
+      line: '✗ error     Team/Alpha — Project file "large.bin" exceeds the 100 MiB working-file transfer limit.',
+    },
   ]
 
   it.each(outcomeLines)(
@@ -310,6 +318,25 @@ describe('deepnote sync events', () => {
       expect(logged[0]).toBe(line)
     }
   )
+
+  it('does not hint at --prune for a missing project whose path a current cloud project uses', async () => {
+    emitAll([
+      {
+        kind: 'project-outcome',
+        outcome: {
+          ...outcome,
+          action: 'missing-in-cloud',
+          detail: 'no longer in the cloud; kept local path used by a current cloud project',
+        },
+      },
+    ])
+
+    await sync('--prune')
+
+    expect(logged[0]).toBe(
+      '? missing   Team/Alpha — no longer in the cloud; kept local path used by a current cloud project'
+    )
+  })
 
   it('suppresses the listing and outcome lines under -o json, leaving the JSON document alone on stdout', async () => {
     emitAll([
@@ -339,6 +366,26 @@ describe('deepnote sync events', () => {
 
     expect(errored).toEqual(['Skipping file with unsafe path in "C": ../evil.csv'])
   })
+
+  it.each([[[]], [['-o', 'json']]])(
+    'adds the --prune hint to a kept-deleted-files warning on stderr (flags %j)',
+    async flags => {
+      emitAll([
+        {
+          kind: 'warning',
+          code: 'deleted-files-kept',
+          message: '2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt.',
+        },
+      ])
+
+      await sync(...flags)
+
+      expect(errored).toEqual([
+        '2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt. ' +
+          'Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.',
+      ])
+    }
+  )
 
   it('reports file transfers as debug output only', async () => {
     emitAll([
@@ -538,6 +585,68 @@ describe('deepnote sync result handling', () => {
     ])
   })
 
+  describe('prune hints in the result', () => {
+    const outcome = { projectId: 'p1', name: 'Alpha', path: 'Team/Alpha' } as const
+    const missing = { ...outcome, action: 'missing-in-cloud', detail: 'no longer in the cloud; kept locally' } as const
+    const pruned = { ...outcome, action: 'pruned', detail: 'no longer in the cloud; removed locally' } as const
+    const keptForLiveProject = {
+      ...outcome,
+      action: 'missing-in-cloud',
+      detail: 'no longer in the cloud; kept local path used by a current cloud project',
+    } as const
+
+    function printedProjects(): { detail?: string }[] {
+      return JSON.parse(logged[logged.length - 1]).projects
+    }
+
+    it.each([
+      [
+        'a missing project without --prune',
+        missing,
+        [],
+        'no longer in the cloud; kept locally (use --prune to remove)',
+      ],
+      ['a pruned project', pruned, ['--prune'], 'no longer in the cloud; removed locally (--prune)'],
+    ])('adds the hint to %s in the -o json document', async (_name, projectOutcome, flags, detail) => {
+      mockedSyncWorkspace.mockResolvedValue(resultOf({ projects: [projectOutcome] }))
+
+      await sync('-o', 'json', ...flags)
+
+      expect(printedProjects()).toEqual([{ ...projectOutcome, detail }])
+    })
+
+    it('leaves the kept-for-a-live-project detail alone under --prune', async () => {
+      mockedSyncWorkspace.mockResolvedValue(resultOf({ projects: [keptForLiveProject] }))
+
+      await sync('-o', 'json', '--prune')
+
+      expect(printedProjects()).toEqual([keptForLiveProject])
+    })
+
+    it('leaves the details of other outcomes alone', async () => {
+      const projects = [
+        { ...outcome, action: 'pulled', detail: 'moved from Old/Alpha' },
+        { ...outcome, action: 'error', detail: 'boom' },
+        { ...outcome, action: 'unchanged' },
+      ] as const
+      mockedSyncWorkspace.mockResolvedValue(resultOf({ projects: [...projects] }))
+
+      await sync('-o', 'json')
+
+      expect(printedProjects()).toEqual(projects)
+    })
+
+    it('returns from runSync the same outcomes that -o json prints', async () => {
+      mockedSyncWorkspace.mockResolvedValue(resultOf({ projects: [missing] }))
+
+      const result = await runSync(tempDir, { token: 'tok' })
+
+      expect(result.projects).toEqual([
+        { ...missing, detail: 'no longer in the cloud; kept locally (use --prune to remove)' },
+      ])
+    })
+  })
+
   it('still sets exit code 1 for an unsuccessful result under -o json', async () => {
     mockedSyncWorkspace.mockResolvedValue(failing)
 
@@ -557,9 +666,14 @@ describe('deepnote sync result handling', () => {
     expect(mockedSyncWorkspace).not.toHaveBeenCalled()
   })
 
+  const DIFFERENT_WORKSPACE_REFUSAL =
+    'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
+    'The API token or API URL may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+
   it.each([
     ['an Error', new Error('Refusing to prune because nothing matches'), 'Refusing to prune because nothing matches'],
     ['a non-Error value', 'plain failure', 'plain failure'],
+    ['the different-workspace refusal', new Error(DIFFERENT_WORKSPACE_REFUSAL), DIFFERENT_WORKSPACE_REFUSAL],
   ])('fails with exit code 1 and the message when the library rejects with %s', async (_name, rejection, message) => {
     mockedSyncWorkspace.mockRejectedValue(rejection)
     const exit = interceptExit()

@@ -29,8 +29,27 @@ export interface PublishMirror {
 /** A sync folder to update, `false` to never update a mirror, or `undefined` to discover one. */
 export type SyncRootOption = string | false | undefined
 
-/** An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`. */
-export class PublishMirrorError extends Error {}
+/**
+ * Why the sync folder cannot be updated, when a caller can act on it.
+ * - `sync-root-unusable`: the folder exists but cannot be used (an invalid or symlinked manifest, an unreadable
+ *   or symlinked tracked directory). Publishing with `syncRoot: false` skips the sync folder.
+ * - `project-not-in-sync-root`: an explicit `syncRoot` does not track the project, or tracks it in a directory
+ *   that does not exist. Syncing the workspace first, or publishing with `syncRoot: false`, resolves it.
+ */
+export type PublishErrorCode = 'sync-root-unusable' | 'project-not-in-sync-root'
+
+/**
+ * An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`
+ * and the same `code`.
+ */
+export class PublishMirrorError extends Error {
+  constructor(
+    message: string,
+    readonly code?: PublishErrorCode
+  ) {
+    super(message)
+  }
+}
 
 async function directoryExists(absolutePath: string): Promise<boolean> {
   try {
@@ -52,8 +71,8 @@ interface ResolvePublishMirrorArgs {
 }
 
 /** Resolves the sync workspace to update. An invalid explicit root throws {@link PublishMirrorError};
- * so does any workspace that exists but cannot be used (unreadable or symlinked manifest), with a
- * pointer at `--no-sync-root`, since callers report that error class as invalid input. */
+ * so does any workspace that exists but cannot be used (unreadable or symlinked manifest), coded
+ * `sync-root-unusable`, since callers report that error class as invalid input. */
 export async function resolvePublishMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirror | undefined> {
   if (args.syncRoot === false) {
     return undefined
@@ -65,7 +84,7 @@ export async function resolvePublishMirror(args: ResolvePublishMirrorArgs): Prom
       throw error
     }
     const message = error instanceof Error ? error.message : String(error)
-    throw new PublishMirrorError(`${message} Pass --no-sync-root to publish without updating the workspace.`)
+    throw new PublishMirrorError(message, 'sync-root-unusable')
   }
 }
 
@@ -85,8 +104,8 @@ async function locateMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirr
   if (!record) {
     if (explicitRoot !== undefined) {
       throw new PublishMirrorError(
-        `The sync manifest at ${path.join(explicitRoot, SYNC_MANIFEST_FILENAME)} does not track project ${projectId}. ` +
-          'Sync the workspace first, or pass --no-sync-root to publish without updating it.'
+        `The sync manifest at ${path.join(explicitRoot, SYNC_MANIFEST_FILENAME)} does not track project ${projectId}.`,
+        'project-not-in-sync-root'
       )
     }
     return undefined
@@ -98,8 +117,8 @@ async function locateMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirr
     if (explicitRoot !== undefined) {
       throw new PublishMirrorError(
         `The sync manifest at ${path.join(explicitRoot, SYNC_MANIFEST_FILENAME)} tracks project ${projectId} ` +
-          `in ${record.dir}, but that directory does not exist. ` +
-          'Sync the workspace first, or pass --no-sync-root to publish without updating it.'
+          `in ${record.dir}, but that directory does not exist.`,
+        'project-not-in-sync-root'
       )
     }
     onMirrorSkipped?.(projectDirAbsolute)

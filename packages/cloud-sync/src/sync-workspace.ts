@@ -133,7 +133,16 @@ export type SyncEvent =
   /** One project finished, was pruned, or is missing in the cloud. */
   | { kind: 'project-outcome'; outcome: ProjectSyncOutcome }
   /** Something was skipped or kept that the user should know about, e.g. a file with an unsafe path. */
-  | { kind: 'warning'; message: string }
+  | {
+      kind: 'warning'
+      message: string
+      /**
+       * `deleted-files-kept`: with `allFiles` and no `prune`, working files deleted in Deepnote are kept
+       * locally and stay tracked. `prune: true` removes them; pushing an edited copy restores the file
+       * in Deepnote.
+       */
+      code?: 'deleted-files-kept'
+    }
   /** A working file was downloaded or uploaded. In a dry run, it reports what would be transferred. */
   | {
       kind: 'file-transferred'
@@ -191,9 +200,9 @@ export interface ProjectSyncOutcome {
   detail?: string
   /** Per-notebook reconciliation reported by the import endpoint (push only). */
   notebooks?: ImportedNotebook[]
-  /** Number of working-directory files downloaded (`--all-files` pull only). */
+  /** Number of working-directory files downloaded (`allFiles` pull only). */
   filesDownloaded?: number
-  /** Number of working-directory files uploaded (`--all-files` push or replacement retry). */
+  /** Number of working-directory files uploaded (`allFiles` push or replacement retry). */
   filesUploaded?: number
   /** Number of working-directory files skipped after cloud conflicts. */
   filesSkipped?: number
@@ -254,7 +263,7 @@ function emit(ctx: SyncContext, event: SyncEvent): void {
 
 function assertBufferedProjectFileSize(filePath: string, size: number): void {
   if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
-    throw new Error(`Project file "${filePath}" exceeds the 100 MiB --all-files limit.`)
+    throw new Error(`Project file "${filePath}" exceeds the 100 MiB working-file transfer limit.`)
   }
 }
 
@@ -575,10 +584,10 @@ async function syncProjectFiles(
   if (keptDeleted.length > 0) {
     emit(ctx, {
       kind: 'warning',
+      code: 'deleted-files-kept',
       message:
         `${keptDeleted.length} file${keptDeleted.length === 1 ? '' : 's'} in "${project.name}" ` +
-        `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}. ` +
-        'Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.',
+        `deleted in Deepnote but kept locally: ${keptDeleted.join(', ')}.`,
     })
   }
 
@@ -1075,7 +1084,7 @@ export async function syncWorkspace(options: WorkspaceSyncOptions): Promise<Work
   ) {
     throw new Error(
       `Refusing to prune because no project IDs in ${SYNC_MANIFEST_FILENAME} match the workspace returned by ${ctx.baseUrl}. ` +
-        'The API token or --url may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+        'The API token or API URL may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
     )
   }
   const plans = planProjectPaths(cloudProjects)
@@ -1161,12 +1170,12 @@ export async function syncWorkspace(options: WorkspaceSyncOptions): Promise<Work
         await fs.rm(toAbsolute(ctx, record.dir), { recursive: true, force: true })
         delete manifest.projects[projectId]
       }
-      outcomes.push({ ...base, action: 'pruned', detail: 'no longer in the cloud; removed locally (--prune)' })
+      outcomes.push({ ...base, action: 'pruned', detail: 'no longer in the cloud; removed locally' })
     } else {
       outcomes.push({
         ...base,
         action: 'missing-in-cloud',
-        detail: 'no longer in the cloud; kept locally (use --prune to remove)',
+        detail: 'no longer in the cloud; kept locally',
       })
     }
     emit(ctx, { kind: 'project-outcome', outcome: outcomes[outcomes.length - 1] })

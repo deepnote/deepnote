@@ -75,10 +75,26 @@ Options, conflict kinds, events and result shapes are documented on the exported
 | `createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)`                                           | Create the Streamlit app, or find the one that already serves the entrypoint (`created: false`).                       |
 | `findSyncManifestRoot`, `hasSyncManifest`, `loadSyncManifest`, `saveSyncManifest`, `SYNC_MANIFEST_FILENAME` | Detect, read and write the `.deepnote-sync.json` manifest. Use these instead of parsing the JSON directly.             |
 | `projectFilesDir`, `isSafeRelativeFilePath`, `assertNoSymbolicLinkAncestors`, `baselineDiverged`, `sha256`  | Local path and fingerprint helpers used by the sync engine.                                                            |
-| `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`).                    |
+| `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`, `code`).            |
 | `PublishDivergedError`                                                                                      | Thrown by `publishApp` before any file changes when files changed in Deepnote since the last sync, unless `force`.     |
-| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`.                       |
+| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input` and its `code`.        |
 | `ApiError`                                                                                                  | Thrown by API calls with the HTTP status in `statusCode`. Network failures and timeouts are the platform's own errors. |
+
+## Messages and CLI hints
+
+No message this package throws, emits or returns names a CLI flag. Where a message used to end in a flag
+hint, the condition is marked in a field instead, and `deepnote publish` and `deepnote sync` append
+the hint. Library callers use the matching option:
+
+| Condition                                                                                 | Marked by                                           | Library equivalent                             |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------- |
+| The sync folder cannot be used (invalid or symlinked manifest, unreadable tracked folder) | `PublishError.code` `sync-root-unusable`            | `syncRoot: false` publishes without it         |
+| An explicit `syncRoot` does not track the project, or its project folder is missing       | `PublishError.code` `project-not-in-sync-root`      | Sync the workspace first, or `syncRoot: false` |
+| Files deleted in Deepnote are kept locally (`allFiles`, no `prune`)                       | `warning` event `code` `deleted-files-kept`         | `prune: true` removes them                     |
+| A project deleted in Deepnote was removed or kept locally                                 | `pruned` and `missing-in-cloud` outcomes (`action`) | `prune: true` removes the kept projects        |
+
+Other messages name the option in words: "API URL" is `baseUrl`, and the "working-file transfer limit"
+applies to `allFiles`.
 
 ## Package vs. CLI
 

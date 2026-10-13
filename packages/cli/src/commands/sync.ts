@@ -88,6 +88,24 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
   }
 }
 
+/** The library's messages name no CLI flag; these are the hints `deepnote sync` adds back. */
+const KEPT_DELETED_FILES_HINT =
+  ' Run sync --prune to remove them; pushing an edited copy restores that file in Deepnote.'
+
+/** Under `--prune`, `missing-in-cloud` means a current cloud project uses the path, so "use --prune" would be wrong. */
+function withPruneHint(outcome: ProjectSyncOutcome, prune: boolean | undefined): ProjectSyncOutcome {
+  if (outcome.detail === undefined) {
+    return outcome
+  }
+  if (outcome.action === 'pruned') {
+    return { ...outcome, detail: `${outcome.detail} (--prune)` }
+  }
+  if (outcome.action === 'missing-in-cloud' && !prune) {
+    return { ...outcome, detail: `${outcome.detail} (use --prune to remove)` }
+  }
+  return outcome
+}
+
 function promptForConflict(conflict: SyncConflict): Promise<SyncConflictDecision> {
   const { question, overrideLabel } = describeConflict(conflict)
   return select({
@@ -141,11 +159,11 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
         break
       case 'project-outcome':
         if (!isMachineOutput) {
-          log(renderOutcomeLine(event.outcome))
+          log(renderOutcomeLine(withPruneHint(event.outcome, options.prune)))
         }
         break
       case 'warning':
-        warn(event.message)
+        warn(event.code === 'deleted-files-kept' ? `${event.message}${KEPT_DELETED_FILES_HINT}` : event.message)
         break
       case 'file-transferred':
         debug(
@@ -157,7 +175,7 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
     }
   }
 
-  return syncWorkspace({
+  const result = await syncWorkspace({
     rootDir,
     baseUrl: options.url ?? DEFAULT_API_URL,
     token,
@@ -169,6 +187,7 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
     onConflict,
     onEvent,
   })
+  return { ...result, projects: result.projects.map(outcome => withPruneHint(outcome, options.prune)) }
 }
 
 function renderOutcomeLine(outcome: ProjectSyncOutcome): string {
