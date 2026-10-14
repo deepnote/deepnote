@@ -1,5 +1,3 @@
-import fs from 'node:fs/promises'
-import { basename, join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
@@ -10,6 +8,8 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import fs from 'node:fs/promises'
+import { basename, join, posix, relative, sep } from 'node:path'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
@@ -17,8 +17,8 @@ import {
   recordPrunedFile,
   recordPublishedFile,
   resolvePublishMirror,
-  type SyncRootOption,
   savePublishMirror,
+  type SyncRootOption,
 } from './publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
 
@@ -178,10 +178,6 @@ function preparePublishFiles(targetPrefix: string, localDir: string, files: stri
   return prepared
 }
 
-const UPLOAD_LIMIT = `${MAX_BUFFERED_PROJECT_FILE_BYTES / (1024 * 1024)} MiB`
-const STAT_CONCURRENCY = 8
-const MAX_LISTED_FILES = 5
-
 /** Run `worker` over `items` with at most `limit` in flight, preserving order in the result. */
 async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length)
@@ -198,6 +194,10 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item
   await Promise.all(runners)
   return results
 }
+
+const UPLOAD_LIMIT = `${MAX_BUFFERED_PROJECT_FILE_BYTES / (1024 * 1024)} MiB`
+const STAT_CONCURRENCY = 8
+const MAX_LISTED_FILES = 5
 
 /** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
 async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
