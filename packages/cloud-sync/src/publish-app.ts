@@ -203,7 +203,8 @@ const MAX_LISTED_FILES = 5
 async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
   const fileSizes = await mapWithConcurrency(publishFiles, STAT_CONCURRENCY, async ({ localPath, relativePath }) => {
     try {
-      return { relativePath, size: (await fs.stat(localPath)).size }
+      const { size } = await fs.stat(localPath)
+      return { relativePath, size }
     } catch (error) {
       throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
     }
