@@ -583,6 +583,9 @@ Every published file is readable by anyone who can view the site, so the command
 a directory that contains a `.env` or `.env.*` file at any depth (exit code `2`, nothing uploaded).
 Publish a clean build output directory, not a project root.
 
+Files over 100 MiB cannot be uploaded; a directory containing one is refused the same way, before any
+remote file is replaced.
+
 #### Working with `deepnote sync`
 
 When publishing from a synced workspace, the command updates its `.files/` mirror and
