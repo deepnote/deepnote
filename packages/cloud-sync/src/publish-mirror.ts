@@ -39,7 +39,6 @@ export type SyncRootOption = string | false | undefined
  */
 export type PublishErrorCode = 'sync-root-unusable' | 'project-not-in-sync-root'
 
-/** The option change that resolves each {@link PublishErrorCode}; `PublishError.hint` is derived from it. */
 export const PUBLISH_ERROR_HINTS = {
   'sync-root-unusable': { option: 'syncRoot', value: false },
   'project-not-in-sync-root': { option: 'syncRoot', value: false },

@@ -192,7 +192,7 @@ export interface WorkspaceSyncOptions {
   onEvent?: (event: SyncEvent) => void
 }
 
-/** What happened to one project during the sync (also the `-o json` shape). */
+/** What happened to one project during the sync. */
 export interface ProjectSyncOutcome {
   projectId: string
   name: string

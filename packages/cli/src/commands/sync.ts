@@ -89,11 +89,9 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
   }
 }
 
-/** The library's messages name no CLI flag; these are the hints `deepnote sync` adds back. */
 const keptDeletedFilesHint = (flag: string) =>
   ` Run sync ${flag} to remove them; pushing an edited copy restores that file in Deepnote.`
 
-/** `hint` is dropped from the outcome so the `-o json` document keeps its shape. */
 function withFlagHint({ hint, ...outcome }: ProjectSyncOutcome): ProjectSyncOutcome {
   if (outcome.detail === undefined) {
     return outcome

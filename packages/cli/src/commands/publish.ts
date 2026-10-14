@@ -30,7 +30,6 @@ interface PublishOptions {
   force: boolean
 }
 
-/** The library's messages stop before the flag that resolves the problem; the CLI appends it. */
 const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<PublishErrorHint<C>['option']>) => string } = {
   'sync-root-unusable': flag => ` Pass ${flag} to publish without updating the workspace.`,
   'project-not-in-sync-root': flag => ` Sync the workspace first, or pass ${flag} to publish without updating it.`,
