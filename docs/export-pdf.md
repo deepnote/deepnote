@@ -13,7 +13,7 @@ You can export a notebook to PDF directly from the project toolbar in just a few
 
 ![Project context menu with Export as option](../assets/docs/export-pdf/project-context-menu.webp)
 
-3. Hover over **Export as**.
+3. Hover over **Export as ...**.
 4. Choose **PDF with code** or **PDF without code**.
 
 - **PDF with code** includes code cells in the exported PDF.
