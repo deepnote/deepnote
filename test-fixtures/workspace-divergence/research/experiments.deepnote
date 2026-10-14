@@ -1,0 +1,36 @@
+metadata:
+  createdAt: '2024-09-10T08:00:00.000Z'
+  modifiedAt: '2026-05-22T09:30:00.000Z'
+project:
+  id: 77777777-aaaa-4aaa-8aaa-777777777777
+  name: Research experiments
+  integrations:
+    - id: eeeeeeee-2222-4222-8222-eeeeeeeeeeee
+      name: Research Postgres
+      type: postgres
+  notebooks:
+    - id: 7777aaaa8888bbbb9999cccc0000dddd
+      name: Experiment readout
+      blocks:
+        - blockGroup: 7777aaaa8888bbbb9999cccc00000001
+          id: 7777aaaa8888bbbb9999cccc00000001
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: eeeeeeee-2222-4222-8222-eeeeeeeeeeee
+            deepnote_variable_name: cohort
+          content: |-
+            SELECT sum(o.amount) AS revenue
+            FROM orders o
+            JOIN users u ON o.user_id = u.id
+            WHERE o.is_test = false
+        - blockGroup: 7777aaaa8888bbbb9999cccc00000002
+          id: 7777aaaa8888bbbb9999cccc00000002
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: eeeeeeee-2222-4222-8222-eeeeeeeeeeee
+            deepnote_variable_name: exposures
+          content: |-
+            SELECT count(*) FROM orders
+version: '1'
