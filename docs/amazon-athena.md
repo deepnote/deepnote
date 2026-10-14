@@ -10,7 +10,7 @@ Available on Team and Enterprise plans
 
 Amazon Athena is a serverless, interactive query service that makes it easy to analyze data directly in Amazon S3 using standard SQL. When integrated with Deepnote, Athena allows you to run SQL queries against large datasets stored in S3 and visualize the results right in your notebooks.
 
-To add a connection to Amazon Athena, go to **Integrations** via the **right-hand sidebar**, create a new Athena integration, and enter your credentials:
+To add a connection to Amazon Athena, open **Settings** and under **Integrations** select **Connect an integration**. Choose **Amazon Athena** from the list, then enter your credentials.
 
 ![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2F8QGpvKLh2WvfCFVxSzTx%2FScreen%20Shot%202022-03-30%20at%2012.52.54%20PM.png](../assets/docs/vHgtxcwHTuSIcO4WsUg7.webp)
 
