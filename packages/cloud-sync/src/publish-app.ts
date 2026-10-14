@@ -201,15 +201,15 @@ const MAX_LISTED_FILES = 5
 
 /** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
 async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
-  const sizes = await mapWithConcurrency(publishFiles, STAT_CONCURRENCY, async ({ localPath }) => {
+  const fileSizes = await mapWithConcurrency(publishFiles, STAT_CONCURRENCY, async ({ localPath, relativePath }) => {
     try {
-      return (await fs.stat(localPath)).size
+      return { relativePath, size: (await fs.stat(localPath)).size }
     } catch (error) {
       throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
     }
   })
-  const oversized = publishFiles
-    .filter((_, index) => sizes[index] > MAX_BUFFERED_PROJECT_FILE_BYTES)
+  const oversized = fileSizes
+    .filter(file => file.size > MAX_BUFFERED_PROJECT_FILE_BYTES)
     .map(file => file.relativePath)
     .sort()
   if (oversized.length > 0) {
