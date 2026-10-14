@@ -11,7 +11,7 @@ import {
   requireToolkit,
   type ToolkitLeakGuard,
 } from '../../../test-helpers/integration-python'
-import { ExecutionEngine } from './execution-engine'
+import { ExecutionEngine, type ExecutionOptions } from './execution-engine'
 import { ExecutionTimeoutError, KernelDiedError, ServerExitedError, ServerLaunchError } from './runtime-errors'
 import type { BlockExecutionResult, ExecutionSummary } from './types'
 
@@ -45,11 +45,12 @@ function notebook(...codeBlocks: string[]): DeepnoteFile {
 
 async function run(
   engine: ExecutionEngine,
-  file: DeepnoteFile
+  file: DeepnoteFile,
+  options: ExecutionOptions = {}
 ): Promise<{ summary: ExecutionSummary; results: BlockExecutionResult[]; elapsedMs: number }> {
   const results: BlockExecutionResult[] = []
   const started = Date.now()
-  const summary = await engine.runProject(file, { onBlockDone: result => void results.push(result) })
+  const summary = await engine.runProject(file, { ...options, onBlockDone: result => void results.push(result) })
   return { summary, results, elapsedMs: Date.now() - started }
 }
 
@@ -183,6 +184,45 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
       expect(summary).toMatchObject({ executedBlocks: 1, failedBlocks: 1, failureCategory: 'execution-timeout' })
       expect(results[0].error).toBeInstanceOf(ExecutionTimeoutError)
       expect(elapsedMs).toBeLessThan(20_000)
+    } finally {
+      await engine.stop()
+    }
+  })
+
+  it('passes an --input value with a line separator and prompt-like text through unchanged when no input block exists', async () => {
+    const engine = new ExecutionEngine(config())
+    await engine.start()
+    try {
+      const { summary, results } = await run(engine, notebook('print(f"LEN={len(v)}")'), {
+        inputs: { v: 'a\u2028>>> b' },
+      })
+
+      expect(summary).toMatchObject({ failedBlocks: 0 })
+      expect(JSON.stringify(results[0].outputs)).toContain('LEN=7')
+    } finally {
+      await engine.stop()
+    }
+  })
+
+  it('passes an input block value with a line separator and prompt-like text through unchanged', async () => {
+    const file = notebook('', 'print(f"LEN={len(v)}")')
+    file.project.notebooks[0].blocks[0] = {
+      id: 'block-1',
+      blockGroup: 'group-1',
+      sortingKey: 'a0',
+      type: 'input-text',
+      content: '',
+      metadata: { deepnote_variable_name: 'v', deepnote_variable_value: '' },
+      executionCount: null,
+      outputs: [],
+    }
+    const engine = new ExecutionEngine(config())
+    await engine.start()
+    try {
+      const { summary, results } = await run(engine, file, { inputs: { v: 'a\u000b>>> b' } })
+
+      expect(summary).toMatchObject({ failedBlocks: 0 })
+      expect(JSON.stringify(results[1].outputs)).toContain('LEN=7')
     } finally {
       await engine.stop()
     }
