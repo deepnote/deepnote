@@ -9,7 +9,7 @@ export {
   type PublishErrorReason,
   publishApp,
 } from './publish-app'
-export { type PublishErrorCode, PublishMirrorError, type SyncRootOption } from './publish-mirror'
+export { type PublishErrorCode, type PublishErrorHint, PublishMirrorError, type SyncRootOption } from './publish-mirror'
 export {
   createOrFindStreamlitApp,
   normalizeStreamlitEntrypoint,

@@ -5,6 +5,7 @@ import {
   PublishDivergedError,
   PublishError,
   type PublishErrorCode,
+  type PublishErrorHint,
   publishApp,
   type SyncRootOption,
 } from '@deepnote/cloud-sync'
@@ -14,7 +15,7 @@ import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
-import { cliFlagFor } from '../utils/option-hint'
+import { type CliFlag, cliFlagFor } from '../utils/option-hint'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 interface PublishOptions {
@@ -30,7 +31,7 @@ interface PublishOptions {
 }
 
 /** The library's messages stop before the flag that resolves the problem; the CLI appends it. */
-const PUBLISH_ERROR_SENTENCES: Record<PublishErrorCode, (flag: string) => string> = {
+const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<PublishErrorHint<C>['option']>) => string } = {
   'sync-root-unusable': flag => ` Pass ${flag} to publish without updating the workspace.`,
   'project-not-in-sync-root': flag => ` Sync the workspace first, or pass ${flag} to publish without updating it.`,
 }

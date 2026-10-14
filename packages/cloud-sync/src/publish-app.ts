@@ -10,11 +10,11 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
-import type { OptionHint } from './option-hint'
 import {
   findDivergedPublishPaths,
   PUBLISH_ERROR_HINTS,
   type PublishErrorCode,
+  type PublishErrorHint,
   type PublishMirror,
   PublishMirrorError,
   recordPrunedFile,
@@ -106,7 +106,7 @@ export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'pro
  * {@link PublishErrorCode}. `hint` is set exactly when `code` is: the option change that resolves it.
  */
 export class PublishError extends Error {
-  readonly hint?: OptionHint
+  readonly hint?: PublishErrorHint
 
   constructor(
     readonly reason: PublishErrorReason,

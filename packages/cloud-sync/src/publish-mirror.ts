@@ -36,16 +36,17 @@ export type SyncRootOption = string | false | undefined
  *   or symlinked tracked directory). Publishing with `syncRoot: false` skips the sync folder.
  * - `project-not-in-sync-root`: an explicit `syncRoot` does not track the project, or tracks it in a directory
  *   that does not exist. Syncing the workspace first, or publishing with `syncRoot: false`, resolves it.
- *
- * `PublishError.hint` carries the option change for either code: `syncRoot: false`.
  */
 export type PublishErrorCode = 'sync-root-unusable' | 'project-not-in-sync-root'
 
 /** The option change that resolves each {@link PublishErrorCode}; `PublishError.hint` is derived from it. */
-export const PUBLISH_ERROR_HINTS: Record<PublishErrorCode, OptionHint> = {
+export const PUBLISH_ERROR_HINTS = {
   'sync-root-unusable': { option: 'syncRoot', value: false },
   'project-not-in-sync-root': { option: 'syncRoot', value: false },
-}
+} as const satisfies Record<PublishErrorCode, OptionHint>
+
+/** The option change that resolves publish error code `C`. */
+export type PublishErrorHint<C extends PublishErrorCode = PublishErrorCode> = (typeof PUBLISH_ERROR_HINTS)[C]
 
 /**
  * An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`

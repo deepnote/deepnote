@@ -143,7 +143,7 @@ export type SyncEvent =
        * in Deepnote.
        */
       code?: 'deleted-files-kept'
-      /** The option change that resolves the condition `code` names: `prune: true` for `deleted-files-kept`. */
+      /** The option change that resolves the condition `code` names. */
       hint?: OptionHint
     }
   /** A working file was downloaded or uploaded. In a dry run, it reports what would be transferred. */

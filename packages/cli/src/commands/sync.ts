@@ -93,7 +93,7 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
 const keptDeletedFilesHint = (flag: string) =>
   ` Run sync ${flag} to remove them; pushing an edited copy restores that file in Deepnote.`
 
-/** Folds an outcome's hint into its detail as a flag, and drops it so the `-o json` document keeps its shape. */
+/** `hint` is dropped from the outcome so the `-o json` document keeps its shape. */
 function withFlagHint({ hint, ...outcome }: ProjectSyncOutcome): ProjectSyncOutcome {
   if (outcome.detail === undefined) {
     return outcome
