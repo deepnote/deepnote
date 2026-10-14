@@ -25,6 +25,8 @@ Deepnote makes it easy to take your explorations to production. For example:
 
 ![Scheduling notifications.jpg](../assets/docs/5vnhJjTRfuHyBA0aJTNC.jpg)
 
+Each notebook in a project can have its own schedule.
+
 ### How to know if your scheduled notebook ran successfully
 
 If an exception is raised during the run, the run is considered failed; otherwise, it's successful. Please note that if an error is raised in a block, the subsequent blocks are not executed. Every run automatically creates a [run snapshot](/docs/run-snapshots) — an immutable record of the notebook's state after execution. You can review snapshots of successful and failed runs from the Runs sidebar or the project logs.
@@ -42,7 +44,3 @@ Scheduled notebooks can use integrations that rely on federated (OAuth) authenti
 ### Alerts
 
 You can use the scheduled notebook to periodically check the consistency of your data and use the notification system to alert you when the notebook fails (i.e. the consistency check fails).
-
-### Current limitations
-
-- Only one scheduled notebook per project is supported. If you need to schedule more, we recommend splitting the work across multiple projects.
