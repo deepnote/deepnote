@@ -347,7 +347,7 @@ export async function listNotebookRuns(
 }
 
 /** Transient = worth retrying: rate limits, server errors, per-request timeouts, network failures. */
-function isTransientError(err: unknown): boolean {
+export function isTransientError(err: unknown): boolean {
   if (err instanceof ApiError) {
     return err.statusCode === 429 || err.statusCode >= 500
   }
