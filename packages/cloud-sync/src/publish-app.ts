@@ -10,6 +10,7 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import pMap from 'p-map'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
@@ -184,24 +185,22 @@ const MAX_LISTED_FILES = 5
 
 /** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
 async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
-  const oversized: string[] = []
-  const queue = [...publishFiles]
-  const worker = async (): Promise<void> => {
-    for (let file = queue.shift(); file; file = queue.shift()) {
-      let size: number
+  const sizes = await pMap(
+    publishFiles,
+    async ({ localPath }) => {
       try {
-        size = (await fs.stat(file.localPath)).size
+        return (await fs.stat(localPath)).size
       } catch (error) {
         throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
       }
-      if (size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
-        oversized.push(file.relativePath)
-      }
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(queue.length, STAT_CONCURRENCY) }, worker))
+    },
+    { concurrency: STAT_CONCURRENCY }
+  )
+  const oversized = publishFiles
+    .filter((_, index) => sizes[index] > MAX_BUFFERED_PROJECT_FILE_BYTES)
+    .map(file => file.relativePath)
+    .sort()
   if (oversized.length > 0) {
-    oversized.sort()
     // The ", and N more" tail takes the last slot, so a truncated list names one file fewer.
     const listed = oversized.length > MAX_LISTED_FILES ? oversized.slice(0, MAX_LISTED_FILES - 1) : oversized
     const names = listed.map(file => `"${file}"`).join(', ')
