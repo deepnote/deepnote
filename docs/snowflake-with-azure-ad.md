@@ -102,7 +102,7 @@ There are a number of steps to follow which will be described in the following s
 
 1.  After heading back to Deepnote, create a Snowflake integration as described in our main [Snowflake docs](snowflake).
 
-2.  Select Azure AD as the authentication method and fill in **Client ID** and **Client Secret** based on `<OAUTH_CLIENT_ID>` and `<OAUTH_CLIENT_SECRET>` defined in [the section above](snowflake-with-azure-ad#create-snowflake-oauth-client-application).
+2.  Select **AzureAD** as the authentication method and fill in **Client ID** and **Client Secret** based on `<OAUTH_CLIENT_ID>` and `<OAUTH_CLIENT_SECRET>` defined in [the section above](snowflake-with-azure-ad#create-snowflake-oauth-client-application).
 
 3.  Fill in **Resource** as the `<RESOURCE_ID>` of your Snowflake OAuth Resource application from step 7 of [the first section](snowflake-with-azure-ad#create-snowflake-oauth-resource-application).
 

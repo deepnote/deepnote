@@ -24,8 +24,10 @@ You have two options when generating your private key - unencrypted or encrypted
 
 For an unencrypted private key:
 
+<!-- cspell:ignore nocrypt -->
+
 ```sh
-openssl genrsa 2048 | openssl pkcs8 -topk8 -v2 des3 -inform PEM -out snowflake_key.p8 --no-crypt
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_key.p8 -nocrypt
 ```
 
 If you prefer an encrypted private key:
@@ -55,10 +57,10 @@ This command reads the public key file and copies its content to your clipboard,
 After generating both keys, you'll need to register the public key with Snowflake. Open your public key file, copy its contents, and run this SQL command in Snowflake:
 
 ```sql
-ALTER USER [USERNAME] SET RSA_PUBLIC_KEY='-----BEGIN PRIVATE KEY----- MIIEvg...';
+ALTER USER [USERNAME] SET RSA_PUBLIC_KEY='MIIEvg...';
 ```
 
-Remember to replace `[USERNAME]` with your actual Snowflake username and insert your full public key. The public key should begin with `-----BEGIN PRIVATE KEY-----`.
+Remember to replace `[USERNAME]` with your actual Snowflake username and insert the contents of your public key. Remove the `-----BEGIN PUBLIC KEY-----` and `-----END PUBLIC KEY-----` delimiters before inserting the key into the SQL statement.
 
 ## Setting up Snowflake integration in Deepnote
 
