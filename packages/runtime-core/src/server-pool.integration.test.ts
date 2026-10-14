@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { codeNotebook } from '../../../test-helpers/integration-notebook'
 import {
   childProcesses,
   createToolkitLeakGuard,
@@ -13,34 +14,6 @@ import {
 import { ExecutionEngine, type ExecutionOptions } from './execution-engine'
 import { ServerPool } from './server-pool'
 import type { BlockExecutionResult, ExecutionSummary } from './types'
-
-/** A single-notebook project whose blocks are the given Python snippets, in order. */
-function notebook(...codeBlocks: string[]): DeepnoteFile {
-  return {
-    version: '1.0.0',
-    metadata: { createdAt: '2026-01-01T00:00:00.000Z' },
-    project: {
-      id: 'pool-integration-project',
-      name: 'Pool integration',
-      notebooks: [
-        {
-          id: 'pool-integration-notebook',
-          name: 'Main',
-          blocks: codeBlocks.map((content, index) => ({
-            id: `block-${index + 1}`,
-            blockGroup: `group-${index + 1}`,
-            sortingKey: `a${index}`,
-            type: 'code' as const,
-            content,
-            metadata: {},
-            executionCount: null,
-            outputs: [],
-          })),
-        },
-      ],
-    },
-  }
-}
 
 async function run(
   engine: ExecutionEngine,
@@ -84,10 +57,10 @@ describe('ServerPool against a real deepnote-toolkit server', () => {
       try {
         // A defines a variable and keeps its kernel busy; B, on the same server, must not see it.
         const [a, b] = await Promise.all([
-          run(engineA, notebook('marker = "A"\nimport time\ntime.sleep(3)\nprint(f"a sees {marker}")')),
+          run(engineA, codeNotebook('marker = "A"\nimport time\ntime.sleep(3)\nprint(f"a sees {marker}")')),
           run(
             engineB,
-            notebook('import time\ntime.sleep(1)\nprint("shared" if "marker" in globals() else "isolated")')
+            codeNotebook('import time\ntime.sleep(1)\nprint("shared" if "marker" in globals() else "isolated")')
           ),
         ])
 
@@ -98,7 +71,7 @@ describe('ServerPool against a real deepnote-toolkit server', () => {
       } finally {
         // Each engine shuts down only its own kernel; the other must be unaffected.
         await engineB.stop()
-        const afterB = await run(engineA, notebook('print(f"still {marker}")'))
+        const afterB = await run(engineA, codeNotebook('print(f"still {marker}")'))
         expect(afterB.summary.failedBlocks).toBe(0)
         expect(JSON.stringify(afterB.results[0].outputs)).toContain('still A')
         await engineA.stop()
@@ -122,7 +95,7 @@ describe('ServerPool against a real deepnote-toolkit server', () => {
 
       const engine = new ExecutionEngine(serverOptions, { server: first.server })
       await engine.start()
-      const { summary } = await run(engine, notebook('import time\ntime.sleep(120)'), {
+      const { summary } = await run(engine, codeNotebook('import time\ntime.sleep(120)'), {
         onBlockStart: () => {
           setTimeout(() => process.kill(jupyter.pid, 'SIGKILL'), 1000)
         },
@@ -140,7 +113,7 @@ describe('ServerPool against a real deepnote-toolkit server', () => {
 
       const recovered = new ExecutionEngine(serverOptions, { server: second.server })
       await recovered.start()
-      const ok = await run(recovered, notebook('print("recovered")'))
+      const ok = await run(recovered, codeNotebook('print("recovered")'))
       expect(ok.summary.failedBlocks).toBe(0)
       expect(JSON.stringify(ok.results[0].outputs)).toContain('recovered')
       await recovered.stop()
