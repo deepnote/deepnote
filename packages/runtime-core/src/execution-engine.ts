@@ -11,6 +11,7 @@ import {
   createPythonCode,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
+  EXECUTABLE_BLOCK_TYPES,
   extractOutputsText,
   generateSortingKey,
   getInputBlockValueOverrideValidationError,
@@ -39,26 +40,9 @@ import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
 // Re-export for backwards compatibility - these are now defined in @deepnote/blocks
-export const executableBlockTypes: ExecutableBlock['type'][] = [
-  'agent',
-  'code',
-  'sql',
-  'notebook-function',
-  'visualization',
-  'pivot-table',
-  'button',
-  'big-number',
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-]
+export const executableBlockTypes = [...EXECUTABLE_BLOCK_TYPES] as ExecutableBlock['type'][]
 
-export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
+export const executableBlockTypeSet: ReadonlySet<string> = EXECUTABLE_BLOCK_TYPES
 
 function createErrorOutput(error: Error): IOutput {
   return {
