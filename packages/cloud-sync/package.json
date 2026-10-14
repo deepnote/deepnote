@@ -43,8 +43,7 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
-    "fflate": "^0.8.3",
-    "p-map": "^7.1.1"
+    "fflate": "^0.8.3"
   },
   "engines": {
     "node": ">=22.14.0",

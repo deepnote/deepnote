@@ -10,7 +10,6 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
-import pMap from 'p-map'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
@@ -183,19 +182,32 @@ const UPLOAD_LIMIT = `${MAX_BUFFERED_PROJECT_FILE_BYTES / (1024 * 1024)} MiB`
 const STAT_CONCURRENCY = 8
 const MAX_LISTED_FILES = 5
 
+/** Run `worker` over `items` with at most `limit` in flight, preserving order in the result. */
+async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    for (;;) {
+      const index = next++
+      if (index >= items.length) {
+        return
+      }
+      results[index] = await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+  return results
+}
+
 /** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
 async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
-  const sizes = await pMap(
-    publishFiles,
-    async ({ localPath }) => {
-      try {
-        return (await fs.stat(localPath)).size
-      } catch (error) {
-        throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
-      }
-    },
-    { concurrency: STAT_CONCURRENCY }
-  )
+  const sizes = await mapWithConcurrency(publishFiles, STAT_CONCURRENCY, async ({ localPath }) => {
+    try {
+      return (await fs.stat(localPath)).size
+    } catch (error) {
+      throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
+    }
+  })
   const oversized = publishFiles
     .filter((_, index) => sizes[index] > MAX_BUFFERED_PROJECT_FILE_BYTES)
     .map(file => file.relativePath)
