@@ -15,7 +15,10 @@ export const INPUT_BLOCK_TYPES = new Set([
   'input-file',
 ])
 
-const executableBlockTypes = new Set([
+/**
+ * Block types that can be executed by the runtime and can have outputs.
+ */
+export const EXECUTABLE_BLOCK_TYPES: ReadonlySet<string> = new Set([
   'agent',
   'code',
   'sql',
@@ -32,7 +35,7 @@ const executableBlockTypes = new Set([
  * Executable blocks can have outputs and be executed by the runtime.
  */
 export function isExecutableBlock(block: DeepnoteBlock): block is ExecutableBlock {
-  return executableBlockTypes.has(block.type)
+  return EXECUTABLE_BLOCK_TYPES.has(block.type)
 }
 
 /**
@@ -40,5 +43,5 @@ export function isExecutableBlock(block: DeepnoteBlock): block is ExecutableBloc
  * Convenience function for when you only have the type string.
  */
 export function isExecutableBlockType(type: string): boolean {
-  return executableBlockTypes.has(type)
+  return EXECUTABLE_BLOCK_TYPES.has(type)
 }

@@ -1,7 +1,12 @@
 export { UnsupportedBlockTypeError } from './blocks'
 export { isAgentBlock } from './blocks/agent-blocks'
 export { createDataFrameConfig } from './blocks/data-frame'
-export { INPUT_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './blocks/executable-blocks'
+export {
+  EXECUTABLE_BLOCK_TYPES,
+  INPUT_BLOCK_TYPES,
+  isExecutableBlock,
+  isExecutableBlockType,
+} from './blocks/executable-blocks'
 export type { InputBlockValueOverride, InputBlockValueOverrides } from './blocks/input-blocks'
 export { getInputBlockValueOverrideValidationError, isInputBlock } from './blocks/input-blocks'
 export { escapePythonString, sanitizePythonVariableName } from './blocks/python-utils'

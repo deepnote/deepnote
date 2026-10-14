@@ -1,12 +1,18 @@
 export function escapePythonString(value: string): string {
-  // Escape characters that would otherwise terminate or invalidate a single-quoted
-  // Python string literal: backslash, single quote, LF, CR, and NUL.
+  // No control character may reach the generated source raw. IPython breaks cell source into lines on VT, FF,
+  // FS, GS, RS, NEL, LS and PS as well as LF and CR, then strips prompt-like prefixes (">>> ", "In [1]: ")
+  // from each line, which corrupts a value that contains them.
   const escaped = value
     .replaceAll('\\', '\\\\')
     .replaceAll("'", "\\'")
     .replaceAll('\n', '\\n')
     .replaceAll('\r', '\\r')
-    .replaceAll('\x00', '\\x00')
+    .replaceAll('\t', '\\t')
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control characters
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]/g, char => {
+      const code = char.charCodeAt(0)
+      return code <= 0xff ? `\\x${code.toString(16).padStart(2, '0')}` : `\\u${code.toString(16).padStart(4, '0')}`
+    })
 
   // Wrap the escaped string in single quotes
   return `'${escaped}'`

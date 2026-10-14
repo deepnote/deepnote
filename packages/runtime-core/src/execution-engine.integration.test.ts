@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { DeepnoteFile } from '@deepnote/blocks'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { codeNotebook } from '../../../test-helpers/integration-notebook'
 import {
   childProcesses,
   createToolkitLeakGuard,
@@ -11,45 +12,18 @@ import {
   requireToolkit,
   type ToolkitLeakGuard,
 } from '../../../test-helpers/integration-python'
-import { ExecutionEngine } from './execution-engine'
+import { ExecutionEngine, type ExecutionOptions } from './execution-engine'
 import { ExecutionTimeoutError, KernelDiedError, ServerExitedError, ServerLaunchError } from './runtime-errors'
 import type { BlockExecutionResult, ExecutionSummary } from './types'
 
-/** A single-notebook project whose blocks are the given Python snippets, in order. */
-function notebook(...codeBlocks: string[]): DeepnoteFile {
-  return {
-    version: '1.0.0',
-    metadata: { createdAt: '2026-01-01T00:00:00.000Z' },
-    project: {
-      id: 'integration-project',
-      name: 'Integration',
-      notebooks: [
-        {
-          id: 'integration-notebook',
-          name: 'Main',
-          blocks: codeBlocks.map((content, index) => ({
-            id: `block-${index + 1}`,
-            blockGroup: `group-${index + 1}`,
-            sortingKey: `a${index}`,
-            type: 'code' as const,
-            content,
-            metadata: {},
-            executionCount: null,
-            outputs: [],
-          })),
-        },
-      ],
-    },
-  }
-}
-
 async function run(
   engine: ExecutionEngine,
-  file: DeepnoteFile
+  file: DeepnoteFile,
+  options: ExecutionOptions = {}
 ): Promise<{ summary: ExecutionSummary; results: BlockExecutionResult[]; elapsedMs: number }> {
   const results: BlockExecutionResult[] = []
   const started = Date.now()
-  const summary = await engine.runProject(file, { onBlockDone: result => void results.push(result) })
+  const summary = await engine.runProject(file, { ...options, onBlockDone: result => void results.push(result) })
   return { summary, results, elapsedMs: Date.now() - started }
 }
 
@@ -91,7 +65,7 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
     const engine = new ExecutionEngine(config())
     await engine.start()
     try {
-      const { summary, results } = await run(engine, notebook('x = 40 + 2', 'print(f"answer={x}")'))
+      const { summary, results } = await run(engine, codeNotebook('x = 40 + 2', 'print(f"answer={x}")'))
 
       expect(summary).toMatchObject({ totalBlocks: 2, executedBlocks: 2, failedBlocks: 0 })
       expect(summary).not.toHaveProperty('failureCategory')
@@ -106,7 +80,7 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
     const engine = new ExecutionEngine(config())
     await engine.start()
     try {
-      const { summary, results } = await run(engine, notebook('raise ValueError("boom")', 'print("unreachable")'))
+      const { summary, results } = await run(engine, codeNotebook('raise ValueError("boom")', 'print("unreachable")'))
 
       expect(summary).toMatchObject({ totalBlocks: 2, executedBlocks: 1, failedBlocks: 1, failureCategory: 'in-block' })
       expect(results).toHaveLength(1)
@@ -123,7 +97,7 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
     try {
       const { summary, results, elapsedMs } = await run(
         engine,
-        notebook('import os\nos._exit(1)', 'print("unreachable")')
+        codeNotebook('import os\nos._exit(1)', 'print("unreachable")')
       )
 
       expect(summary).toMatchObject({ failedBlocks: 1, failureCategory: 'kernel-died' })
@@ -148,7 +122,7 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
       const started = Date.now()
       // Kill the Jupyter server (not the toolkit supervisor) once the block is running, so the
       // websocket drops while an execution is in flight.
-      const summary = await engine.runProject(notebook('import time\ntime.sleep(120)', 'print("unreachable")'), {
+      const summary = await engine.runProject(codeNotebook('import time\ntime.sleep(120)', 'print("unreachable")'), {
         onBlockStart: () => {
           setTimeout(() => process.kill(jupyter.pid, 'SIGKILL'), 1000)
         },
@@ -177,12 +151,51 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
     try {
       const { summary, results, elapsedMs } = await run(
         engine,
-        notebook('import time\ntime.sleep(60)', 'print("unreachable")')
+        codeNotebook('import time\ntime.sleep(60)', 'print("unreachable")')
       )
 
       expect(summary).toMatchObject({ executedBlocks: 1, failedBlocks: 1, failureCategory: 'execution-timeout' })
       expect(results[0].error).toBeInstanceOf(ExecutionTimeoutError)
       expect(elapsedMs).toBeLessThan(20_000)
+    } finally {
+      await engine.stop()
+    }
+  })
+
+  it('passes an --input value with a line separator and prompt-like text through unchanged when no input block exists', async () => {
+    const engine = new ExecutionEngine(config())
+    await engine.start()
+    try {
+      const { summary, results } = await run(engine, codeNotebook('print(f"LEN={len(v)}")'), {
+        inputs: { v: 'a\u2028>>> b' },
+      })
+
+      expect(summary).toMatchObject({ failedBlocks: 0 })
+      expect(JSON.stringify(results[0].outputs)).toContain('LEN=7')
+    } finally {
+      await engine.stop()
+    }
+  })
+
+  it('passes an input block value with a line separator and prompt-like text through unchanged', async () => {
+    const file = codeNotebook('', 'print(f"LEN={len(v)}")')
+    file.project.notebooks[0].blocks[0] = {
+      id: 'block-1',
+      blockGroup: 'group-1',
+      sortingKey: 'a0',
+      type: 'input-text',
+      content: '',
+      metadata: { deepnote_variable_name: 'v', deepnote_variable_value: '' },
+      executionCount: null,
+      outputs: [],
+    }
+    const engine = new ExecutionEngine(config())
+    await engine.start()
+    try {
+      const { summary, results } = await run(engine, file, { inputs: { v: 'a\u000b>>> b' } })
+
+      expect(summary).toMatchObject({ failedBlocks: 0 })
+      expect(JSON.stringify(results[1].outputs)).toContain('LEN=7')
     } finally {
       await engine.stop()
     }

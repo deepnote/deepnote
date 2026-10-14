@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DeepnoteBlock } from '../deepnote-file/deepnote-file-schema'
-import { isExecutableBlock, isExecutableBlockType } from './executable-blocks'
+import { EXECUTABLE_BLOCK_TYPES, isExecutableBlock, isExecutableBlockType } from './executable-blocks'
 
 describe('isExecutableBlock', () => {
   const executableTypes = [
@@ -28,6 +28,10 @@ describe('isExecutableBlock', () => {
       expect(isExecutableBlock(block)).toBe(true)
     })
   }
+
+  it('exports exactly these types as EXECUTABLE_BLOCK_TYPES', () => {
+    expect([...EXECUTABLE_BLOCK_TYPES].sort()).toEqual([...executableTypes].sort())
+  })
 
   const nonExecutableTypes = ['markdown', 'text-cell-h1', 'text-cell-p', 'text-cell-bullet', 'image', 'divider']
 
