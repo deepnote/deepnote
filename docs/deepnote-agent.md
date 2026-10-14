@@ -1,62 +1,61 @@
 ---
 title: Deepnote Agent
-description: A powerful AI collaborator that can transform your entire notebook.
+description: Use Deepnote Agent to work across notebooks and generate, edit, and explain code.
 noIndex: false
 noContent: false
 ---
 
-We’re introducing **Deepnote Agent**, the next evolution of AI collaborators for data notebooks. Agent offers a unified chat experience that turns your notebook into a flexible canvas. You can ask for anything from simple edits like ‘refactor variable df’ to complex tasks like ‘make this notebook presentation-ready’.
+Deepnote Agent helps you generate, edit, explain, and complete code. It can also make changes across your notebook, run blocks, and inspect results.
 
-Agent interprets your intent, creates a clear plan, and executes it step by step. It can **create**, **edit**, and **remove** SQL, Python, or text blocks — anywhere in your notebook — while staying fully aware of the project context.
 <Callout status="info">
-Deepnote Agent is available on **Pro, Team and Enterprise** plans.
+Deepnote Agent is available on Free, Team, and Enterprise plans. Free includes limited requests. See [Pricing](https://deepnote.com/pricing) for current limits.
 </Callout>
+
+<Callout status="warning">
+AI-generated code and text can contain errors or inaccuracies. Review suggestions before running them.
+</Callout>
+
+## Enable Agent
+
+If Agent is disabled in your workspace, ask an admin to turn on **Deepnote Agent** in **Settings & members** → **AI**. Admins can use **Provide access to block outputs** to choose whether Agent can read block outputs, including row-level data. For details about data shared with AI providers such as Anthropic and OpenAI, see [Data privacy](/docs/ai-data-privacy).
+
+![Agent settings](../assets/docs/kkhgsstdTiSqqTyIyJT2.webp)
+
+## Open Agent
+
+Agent can create, edit, and remove blocks across your notebook. In Edit mode, it can also run code, inspect outputs, and adjust its work based on the results.
+
+Open Agent from the **Agent button** in the project top bar or the **Agent button** in the notebook toolbar. You can use the full sidebar, minimize the chat to a smaller window, or hide it.
+
+![Ways to open Deepnote Agent](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetys7tox3op07n0w8o7ddfp.webp)
 
 <Embed url='https://www.loom.com/share/ecdb03ba6ae34a10acc2f23e1383c441?sid=ed3de2f5-746b-4fa7-a62f-29132b351796'/>
 
-## Accessing Deepnote AI
+## Use Agent
 
-If you’re on a paid plan or Team trial, open Agent from:
+Choose a mode in the chat input:
 
-- the **Agent button** in the top bar of your project, or
-- the floating **Agent button** in the bottom-right corner.
+- **Edit** lets Agent change notebook content, run blocks, and inspect results.
+- **Ask** lets you discuss your data or Deepnote features without changing the notebook.
 
-The chat window will open on the side. Expand it into a full sidebar for longer conversations, or collapse it to focus on your notebook.
+You can ask Agent to fix one block or work across the notebook. For tasks that need several steps, Agent may show a plan. As it works, the chat shows its actions, and you can select an action to jump to the relevant block.
 
-![deepnote_agent_buttons.png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetys7tox3op07n0w8o7ddfp.webp)
+When Agent finishes, it shows a summary and a list of changes. Code edits can include a before-and-after diff. Use the bin icon on a run to discard its changes, or send a follow-up request to continue working.
 
-## Using Agent
-
-Agent has two main modes:
-
-- **Edit mode** (default) — Agent makes direct changes to your notebook. It can add, edit, or delete content; execute code blocks; inspect outputs; and adapt its actions based on context.
-- **Ask mode** — Agent won’t edit anything. Use it to brainstorm next steps, ask questions about your data, or get help with Deepnote features.
-
-In Edit mode, you can request anything from straightforward edits (adding analysis, fixing a SQL query, editing code) to large, notebook-wide changes (refactoring variables, cleaning up blocks, fixing multiple errors, or adding documentation).
-
-You can choose which model powers Agent — pick a specific provider and model or select **Automatic** to let Deepnote decide. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations to work with your databases and tools, and it has access to Deepnote's documentation.
+![Agent changes and review controls](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetz4wckxctz07n07wkxakss.webp)
 
 <VideoLoop src="../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetyt3d7xbfk07k60puolljn.mp4" />
 
-No matter the scope, Agent always:
+Deepnote supports models from providers such as Anthropic and OpenAI. Where a model selector is available, you can choose a model or select **Automatic**. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations and access Deepnote's documentation.
 
-1. Interprets your request.
-2. Creates a transparent, step-by-step plan.
-3. Executes each step systematically.
+## Generate, edit, and explain code
 
-While running, Agent shows all changes in real time. You can click any action item to jump to the relevant block.
+Use the prompt bar below your notebook to generate blocks. To work on an existing code or SQL block, open its menu and select **Open Deepnote AI**. You can request an edit or an explanation, review the result, and accept or discard suggested changes.
 
-When a run finishes, you’ll see a **summary of changes** with a **before-and-after diff view** for code edits. You can undo all changes from a run by clicking the bin icon. If you follow up with a new request, Agent continues from the updated state of your notebook.
+Learn more about [generating code](/docs/ai-analysis), [editing code](/docs/ai-code-editing), [explaining code](/docs/ai-explaining-code), and [code completion](/docs/ai-code-completion).
 
-![accept changes agent (1).png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetz4wckxctz07n07wkxakss.webp)
+## Feedback
 
-### Leaving feedback
+Use the thumbs-up or thumbs-down controls on an Agent response or an inline suggestion to rate it. A downvote may give you a chance to add details. You can also share ideas on the [Product Portal](https://portal.productboard.com/deepnote/1-deepnote-product-portal/c/110-deepnote-ai?utm_medium=social&utm_source=portal_share).
 
-We’re improving Deepnote Agent continuously, and new functionality is added regularly, so stay tuned for updates.
-
-We’d love your feedback as we keep improving Agent:
-
-- If you **downvote an AI response**, a pop-up will open where you can add comments and share feedback directly with the team.
-- We’ll also share a **short survey** with the most active participants — your insights will help us prioritize improvements.
-
-Your input is invaluable in helping us refine Agent into the best possible collaborator for your notebooks!
+![Inline feedback controls](../assets/docs/Gto2HcFgTOC7q8vCKm3U.webp)
