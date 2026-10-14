@@ -10,6 +10,7 @@ import {
   reorderBlocks,
   updateBlock,
 } from '@deepnote/cloud'
+import pMap from 'p-map'
 import { toBlockSpec } from './block-spec'
 import { DEFAULT_CLOUD_API_URL, requireToken } from './cloud-common'
 
@@ -188,23 +189,6 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return aKeys.every(key => key in (b as Record<string, unknown>) && deepEqual((a as never)[key], (b as never)[key]))
 }
 
-/** Run `worker` over `items` with at most `limit` in flight, preserving order in the result. */
-async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  let next = 0
-  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
-    for (;;) {
-      const index = next++
-      if (index >= items.length) {
-        return
-      }
-      results[index] = await worker(items[index])
-    }
-  })
-  await Promise.all(runners)
-  return results
-}
-
 /**
  * The moves that turn `current` into `target`, given both hold the same ids.
  *
@@ -319,11 +303,10 @@ export async function planNotebookSync(
 
   let details = new Map<string, BlockDetail>()
   if (options.compareMetadata !== false && matched.length > 0) {
-    const fetched = await mapWithConcurrency(
-      matched,
-      options.metadataConcurrency ?? DEFAULT_METADATA_CONCURRENCY,
-      block => getBlock(baseUrl, token, block.id, {})
-    )
+    // p-map throws for a limit below 1, which callers have always been able to pass.
+    const fetched = await pMap(matched, block => getBlock(baseUrl, token, block.id, {}), {
+      concurrency: Math.max(1, options.metadataConcurrency ?? DEFAULT_METADATA_CONCURRENCY),
+    })
     details = new Map(fetched.map(d => [d.id, d]))
   }
 

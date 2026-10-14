@@ -277,6 +277,41 @@ describe('planNotebookSync', () => {
     expect(cloudMock.getBlock).not.toHaveBeenCalled()
   })
 
+  describe('metadata read concurrency', () => {
+    async function peakConcurrentReads(metadataConcurrency?: number): Promise<number> {
+      const ids = Array.from({ length: 10 }, (_, index) => `b${index}`)
+      cloudMock.getNotebook.mockResolvedValue(remoteNotebook(ids.map(id => ({ id }))))
+      let inFlight = 0
+      let peak = 0
+      cloudMock.getBlock.mockImplementation(async (_url: string, _token: string, id: string) => {
+        inFlight++
+        peak = Math.max(peak, inFlight)
+        await new Promise(resolve => setImmediate(resolve))
+        inFlight--
+        return { id, type: 'code', content: '', metadata: {}, integrationId: undefined }
+      })
+
+      await planNotebookSync(fileWith(ids.map(id => ({ id }))), 'nb-local', 'nb-cloud', {
+        token: TOKEN,
+        metadataConcurrency,
+      })
+
+      return peak
+    }
+
+    it('reads six blocks at a time by default', async () => {
+      expect(await peakConcurrentReads()).toBe(6)
+    })
+
+    it('honours metadataConcurrency', async () => {
+      expect(await peakConcurrentReads(3)).toBe(3)
+    })
+
+    it('treats a metadataConcurrency below one as one', async () => {
+      expect(await peakConcurrentReads(0)).toBe(1)
+    })
+  })
+
   it('plans moves for blocks whose order changed', async () => {
     cloudMock.getNotebook.mockResolvedValue(remoteNotebook([{ id: 'b1' }, { id: 'b2' }]))
 

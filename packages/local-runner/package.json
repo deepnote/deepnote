@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "p-map": "^7.1.1",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3"
   },
