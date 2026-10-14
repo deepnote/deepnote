@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises'
+import { basename, join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
@@ -8,8 +10,6 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
-import fs from 'node:fs/promises'
-import { basename, join, posix, relative, sep } from 'node:path'
 import {
   findDivergedPublishPaths,
   type PublishMirror,
@@ -17,8 +17,8 @@ import {
   recordPrunedFile,
   recordPublishedFile,
   resolvePublishMirror,
-  savePublishMirror,
   type SyncRootOption,
+  savePublishMirror,
 } from './publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
 
