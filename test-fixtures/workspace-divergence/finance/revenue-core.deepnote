@@ -1,6 +1,12 @@
 metadata:
   createdAt: '2024-02-01T08:00:00.000Z'
   modifiedAt: '2026-09-20T09:00:00.000Z'
+environment:
+  python:
+    version: '3.11'
+  packages:
+    pandas: 2.0.1
+    numpy: 1.26.0
 project:
   id: 11111111-aaaa-4aaa-8aaa-111111111111
   name: Revenue core

@@ -32,6 +32,9 @@ export type ScoredCode =
   | 'pii-subject-scatter'
   | 'asset-stale'
   | 'sql-divergence'
+  | 'dependency-unpinned'
+  | 'dependency-untracked'
+  | 'dependency-drift'
 
 interface CodeWeights {
   signal: number
@@ -74,6 +77,14 @@ const WEIGHTS: Record<ScoredCode, CodeWeights> = {
   // a join that disagrees with the rest of the workspace produces a *wrong number* somewhere
   // downstream rather than an error anyone will see.
   'sql-divergence': { signal: 0.4, exposure: 0.7 },
+  // Certain when it fires — the specifier either names an exact version or it does not — but the
+  // consequence is bounded: a notebook that cannot be rebuilt, not a wrong answer today. Signal is
+  // set per finding, lower for a range than for a bare name.
+  'dependency-unpinned': { signal: 0.9, exposure: 0.3 },
+  'dependency-untracked': { signal: 0.9, exposure: 0.4 },
+  // Two projects pinning different versions is a fact; whether it matters depends on the package,
+  // which nothing here can know.
+  'dependency-drift': { signal: 0.6, exposure: 0.45 },
 }
 
 const DEFAULT_WEIGHTS: CodeWeights = { signal: 0.5, exposure: 0.5 }

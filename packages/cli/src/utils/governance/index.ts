@@ -2,8 +2,9 @@
  * Project-scoped governance checks.
  *
  * These answer "what is wrong inside this project" from the project file alone: queries that are
- * silently wrong, and credentials written into blocks. They run under `deepnote lint --governance`,
- * so they are per-file, deterministic, and need neither the network nor a Python interpreter.
+ * silently wrong, credentials written into blocks, and dependencies that will not install the same
+ * twice. They run under `deepnote lint --governance`, so they are per-file, deterministic, and need
+ * neither the network nor a Python interpreter.
  *
  * The scope split is deliberate and load-bearing. The questions governance also wants answered —
  * is this metric defined two different ways, how many *live* projects read this table, whose
@@ -14,11 +15,13 @@
 
 import type { DeepnoteBlock } from '@deepnote/blocks'
 import type { BlockInfo, IssueSeverity, LintIssue } from '../analysis'
+import { collectDependencies, type PackageEntry, type ProjectEnvironment, reconcile } from './dependencies'
 import { integrationTypesById, resolveDialect } from './dialect'
 import { findSecrets, redactSecretsWithContext, type SecretFinding } from './secrets'
 import { checkSqlQuery } from './sql-checks'
 import { redactSubjects } from './subjects'
 
+export type { ProjectEnvironment } from './dependencies'
 export { fingerprintSecret, redactSecrets, redactSecretsWithContext } from './secrets'
 
 /** Every code this module can emit, in report order. */
@@ -27,6 +30,8 @@ export const GOVERNANCE_CHECK_CODES = [
   'sql-tautology',
   'sql-string-boolean',
   'credential-hardcoded',
+  'dependency-unpinned',
+  'dependency-untracked',
 ] as const
 
 export type GovernanceCheckCode = (typeof GOVERNANCE_CHECK_CODES)[number]
@@ -34,6 +39,7 @@ export type GovernanceCheckCode = (typeof GOVERNANCE_CHECK_CODES)[number]
 /** Checks that are defined but need the whole synced workspace, so a single project cannot run them. */
 export const WORKSPACE_SCOPED_CHECKS = [
   'sql-divergence',
+  'dependency-drift',
   'pii-subject-scatter',
   'egress-external',
   'asset-stale',
@@ -51,6 +57,15 @@ export interface GovernanceSummary {
   scanned: { sqlBlocks: number; contentBlocks: number }
   /** Distinct credential fingerprints found, so a reused key is counted once. */
   credentialFingerprints: string[]
+  /** The project's dependency set: a small SBOM, and how much of it is reproducible. */
+  dependencies: {
+    total: number
+    pinned: number
+    ranged: number
+    unpinned: number
+    /** Installed by a block but absent from `environment.packages`. */
+    untracked: number
+  }
   /** Why a single project cannot answer the workspace-scoped questions. */
   note: string
 }
@@ -68,6 +83,10 @@ const SEVERITY_BY_CODE: Record<GovernanceCheckCode, IssueSeverity> = {
   // against the warehouse it was written for.
   'sql-string-boolean': 'warning',
   'credential-hardcoded': 'error',
+  // A reproducibility risk rather than a defect: an unpinned notebook runs correctly today. It is
+  // the day it stops, with no diff to blame, that this is about.
+  'dependency-unpinned': 'warning',
+  'dependency-untracked': 'warning',
 }
 
 /** Blocks whose content is prose. Scanned for credential patterns, but not with the heuristic rule. */
@@ -220,7 +239,8 @@ function integrationIdOf(block: DeepnoteBlock): string | undefined {
 export function runProjectGovernanceChecks(
   blocks: DeepnoteBlock[],
   blockMap: Map<string, BlockInfo>,
-  integrations?: ReadonlyArray<{ id: string; type?: string }>
+  integrations?: ReadonlyArray<{ id: string; type?: string }>,
+  environment?: ProjectEnvironment
 ): GovernanceResult {
   // The project's integration list is what turns `sql_integration_id` into a dialect. Absent it
   // every block resolves to the unknown dialect, which is the silent-rather-than-guessing default.
@@ -321,6 +341,9 @@ export function runProjectGovernanceChecks(
     }
   }
 
+  const dependencies = checkDependencies(environment, blocks, blockMap)
+  issues.push(...dependencies.issues)
+
   return {
     issues,
     summary: {
@@ -328,7 +351,119 @@ export function runProjectGovernanceChecks(
       checks: [...GOVERNANCE_CHECK_CODES],
       scanned: { sqlBlocks, contentBlocks },
       credentialFingerprints: [...secretsByFingerprint.keys()].sort(),
+      dependencies: dependencies.summary,
       note: WORKSPACE_SCOPE_NOTE,
+    },
+  }
+}
+
+/** Notebook heading the project-level dependency findings are filed under. */
+const ENVIRONMENT_SCOPE = 'Project environment'
+
+/** Where a declaration lives, named the way the file names it. */
+const SOURCE_LABEL = {
+  environment: 'environment.packages',
+  requirements: 'settings.requirements',
+  'install-command': 'a block',
+} as const
+
+/** How the declaration responsible for a finding should be described. */
+function blameLabel(entry: PackageEntry): string {
+  const source = entry.weakestSource ?? entry.sources[entry.sources.length - 1]
+  return source === 'install-command' ? 'installed by a block' : `declared in ${SOURCE_LABEL[source]}`
+}
+
+/**
+ * The dependency checks: is this project's dependency set reproducible, and is all of it declared.
+ *
+ * Both are per-file, which is why they live here rather than in the audit — a CI job that gates on
+ * an unpinned dependency has one project in scope and needs no workspace.
+ */
+function checkDependencies(
+  environment: ProjectEnvironment | undefined,
+  blocks: DeepnoteBlock[],
+  blockMap: Map<string, BlockInfo>
+): { issues: LintIssue[]; summary: GovernanceSummary['dependencies'] } {
+  const collected = collectDependencies(environment, blocks)
+  const entries = reconcile(collected.requirements)
+  const issues: LintIssue[] = []
+  let untracked = 0
+
+  // Block labels here get the same treatment the SQL findings get: masked against the block they
+  // came from rather than against the one line lifted out of it, because half the provider patterns
+  // need the surrounding text to fire. An install command is as able to carry an index URL with a
+  // token in it as any other line.
+  const contentById = new Map(blocks.map(block => [block.id, blockContent(block)]))
+  const scrubLabel = (blockId: string, label: string): string =>
+    redactSubjects(redactSecretsWithContext(label, contentById.get(blockId) ?? label))
+
+  for (const entry of entries) {
+    // Attribute the finding to the declaration that caused it: an install command's block when
+    // that is what broke the pin, and the project's declared environment otherwise, which belongs
+    // to no notebook.
+    const blamesBlock = entry.weakestSource === 'install-command' && entry.blockId !== undefined
+    const info = blamesBlock ? blockMap.get(entry.blockId as string) : undefined
+    const where = {
+      blockId: info ? (entry.blockId as string) : '',
+      blockLabel: info
+        ? scrubLabel(entry.blockId as string, info.label)
+        : SOURCE_LABEL[entry.weakestSource ?? 'environment'],
+      notebookName: info?.notebookName ?? ENVIRONMENT_SCOPE,
+    }
+
+    if (entry.pin !== 'pinned') {
+      const asked = `"${entry.rawName}${entry.specifier ?? ''}"`
+      // A resolved version alongside an unpinned finding means the lockfile has one but something
+      // re-installs the package anyway — worth stating, since it looks pinned from the file.
+      const resolved = entry.versions.length > 0 ? ` The environment resolves it to ${entry.versions.join(', ')}.` : ''
+      issues.push({
+        severity: SEVERITY_BY_CODE['dependency-unpinned'],
+        code: 'dependency-unpinned',
+        message: `${asked}, ${blameLabel(entry)}, is not pinned to an exact version, so this project may install something different tomorrow.${resolved}`,
+        ...where,
+        details: {
+          package: entry.name,
+          pin: entry.pin,
+          sources: entry.sources,
+          ...(entry.weakestSource ? { declaredIn: entry.weakestSource } : {}),
+          ...(entry.specifier ? { specifier: entry.specifier } : {}),
+          ...(entry.versions.length > 0 ? { resolvedVersions: entry.versions } : {}),
+          ...(entry.line ? { line: entry.line } : {}),
+        },
+      })
+    }
+
+    // Only meaningful against a resolved environment: with no `environment.packages` at all,
+    // everything is "untracked" and the finding would say nothing.
+    if (collected.hasEnvironment && entry.sources.includes('install-command') && !collected.tracked.has(entry.name)) {
+      untracked++
+      const installInfo = entry.blockId ? blockMap.get(entry.blockId) : undefined
+      issues.push({
+        severity: SEVERITY_BY_CODE['dependency-untracked'],
+        code: 'dependency-untracked',
+        message: `"${entry.rawName}" is installed by a block but is not in environment.packages, so it is missing from every inventory built from this project and is re-installed on every run.`,
+        blockId: installInfo ? (entry.blockId as string) : '',
+        blockLabel: installInfo
+          ? scrubLabel(entry.blockId as string, installInfo.label)
+          : SOURCE_LABEL['install-command'],
+        notebookName: installInfo?.notebookName ?? ENVIRONMENT_SCOPE,
+        details: {
+          package: entry.name,
+          pin: entry.pin,
+          ...(entry.line ? { line: entry.line } : {}),
+        },
+      })
+    }
+  }
+
+  return {
+    issues,
+    summary: {
+      total: entries.length,
+      pinned: entries.filter(entry => entry.pin === 'pinned').length,
+      ranged: entries.filter(entry => entry.pin === 'ranged').length,
+      unpinned: entries.filter(entry => entry.pin === 'unpinned').length,
+      untracked,
     },
   }
 }
