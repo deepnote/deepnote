@@ -196,7 +196,8 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item
 }
 
 const UPLOAD_LIMIT = `${MAX_BUFFERED_PROJECT_FILE_BYTES / (1024 * 1024)} MiB`
-const STAT_CONCURRENCY = 8
+
+const STAT_CONCURRENCY = 4 // Aligned with the default value of UV_THREADPOOL_SIZE
 const MAX_LISTED_FILES = 5
 
 /** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
