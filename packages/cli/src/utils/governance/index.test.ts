@@ -72,6 +72,21 @@ describe('runProjectGovernanceChecks', () => {
       expect(summary.credentialFingerprints).toEqual([issues[0].details?.fingerprint])
     })
 
+    it('redacts the credential from the block label it would otherwise echo', () => {
+      const { issues } = run([{ id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }])
+      const blockMap = new Map([
+        ['b1', { id: 'b1', label: 'key = "AKIAIOSFODNN7EXAMPLE"', type: 'code', notebookName: 'Notebook' }],
+      ])
+      const labelled = runProjectGovernanceChecks(
+        [{ id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' }] as unknown as DeepnoteBlock[],
+        blockMap
+      )
+
+      expect(issues).toHaveLength(1)
+      expect(labelled.issues[0].blockLabel).toBe('key = "<redacted>"')
+      expect(JSON.stringify(labelled.issues)).not.toContain('AKIAIOSFODNN7EXAMPLE')
+    })
+
     it('counts how many blocks share the same credential', () => {
       const { issues, summary } = run([
         { id: 'b1', type: 'code', content: 'key = "AKIAIOSFODNN7EXAMPLE"' },
@@ -235,10 +250,12 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     }
   })
 
-  it('labels a credential-bearing block by identity, so the label derives from nothing typed', () => {
+  it('masks the credential in place, keeping the rest of the label', () => {
     const { issues } = runWithContentLabels([{ id: 'b1c2d3e4f5a6', type: 'code', content: `TOKEN = "${SECRET}"` }])
 
-    expect(issues[0].blockLabel).toBe('code (b1c2d3e4)')
+    // Before `redactSecrets` existed this check discarded the whole label and reported the block by
+    // identity. Masking only the literal is strictly better: the finding stays locatable.
+    expect(issues[0].blockLabel).toBe('TOKEN = "<redacted>"')
   })
 
   it('redacts the label of every finding on the block, not just the credential finding', () => {
@@ -254,7 +271,7 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
 
     expect(issues.map(issue => issue.code)).toContain('sql-null-comparison')
     for (const issue of issues) {
-      expect(issue.blockLabel).toBe('sql (b1)')
+      expect(issue.blockLabel).toBe('-- postgres://admin:<redacted>@warehouse.internal/db')
     }
   })
 
@@ -274,14 +291,17 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     for (const run of runsOf(SECRET, 8)) {
       expect(serialized).not.toContain(run)
     }
-    // The block holds a credential, so the message says so rather than quoting text from it.
-    expect(sql[0].message).toContain('also contains a credential')
+    // Withheld, not masked in place. Masking only removes what a pattern matches, so once the
+    // evidence is known to hold one credential the rest of it cannot be trusted either — see the
+    // recognized-beside-unrecognized case below. The shape of the comparison is the cost; the
+    // code, line and column that locate it survive.
     expect(sql[0].details?.snippet).toBe('<redacted>')
+    expect(sql[0].details?.line).toBe(1)
   })
 
-  it('withholds any details field that carries a credential, not only the snippet', () => {
+  it('masks any details field that carries a credential, not only the snippet', () => {
     // `details.column` is the column name as written, so a quoted identifier puts arbitrary text
-    // there. The sanitizing pass walks the finished details object rather than naming the fields it
+    // there. The redaction pass walks the finished details object rather than naming the fields it
     // protects — three fields have leaked here in turn, each found separately, because each was
     // reasoned about separately.
     const { issues } = runWithContentLabels([
@@ -317,17 +337,17 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     expect(sql?.details?.columnName).toBe('<redacted>')
   })
 
-  it('keeps the values a check chose rather than copied, even in a block holding a secret', () => {
-    // Withholding everything would be safe and useless. `operator` and `suggestion` come from a
-    // closed vocabulary the check controls, so they are published; the check declares which of its
-    // keys are verbatim block text, and an undeclared key is treated as verbatim.
+  it('masks only the credential, leaving a clean finding in the same block intact', () => {
+    // Withholding the whole finding is what this had to do before the span scanner existed. With
+    // real spans, a block holding a credential elsewhere does not cost its other findings their
+    // evidence — the comparison is published, because nothing in it is a secret.
     const { issues } = runWithContentLabels([
       { id: 'b1', type: 'sql', content: `KEY = "${SECRET}"\nSELECT * FROM t WHERE a.x = NULL` },
     ])
 
     const sql = issues.find(issue => issue.code === 'sql-null-comparison')
-    expect(sql?.details).toMatchObject({ operator: '=', suggestion: 'IS NULL' })
-    expect(sql?.details?.snippet).toBe('<redacted>')
+    expect(sql?.details).toMatchObject({ operator: '=', suggestion: 'IS NULL', snippet: 'a.x = NULL' })
+    expect(JSON.stringify(issues)).not.toContain(SECRET)
   })
 
   it('keeps `details.column` a position, never a name', () => {
@@ -364,5 +384,43 @@ describe('runProjectGovernanceChecks — a credential never reaches the report',
     ])
 
     expect(issues[0].blockLabel).toBe('-- active users')
+  })
+})
+
+describe('runProjectGovernanceChecks — evidence known to hold a credential is withheld, not masked', () => {
+  // Not recognized by any provider pattern, which is the whole point: masking only removes what
+  // the scanner can name. Truncated to the shape the other fixtures use, so GitHub's own secret
+  // scanner does not read it as a live webhook and block the push.
+  const WEBHOOK = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXX'
+
+  function check(content: string) {
+    const blocks = [{ id: 'b1', type: 'sql', content }] as unknown as DeepnoteBlock[]
+    const blockMap = new Map([['b1', { id: 'b1', label: 'query', type: 'sql', notebookName: 'Notebook' }]])
+    return runProjectGovernanceChecks(blocks, blockMap).issues
+  }
+
+  it('withholds a snippet holding a recognized credential beside an unrecognized one', () => {
+    // A snippet spans a whole comparison, so it can carry more than one credential. Masking in
+    // place removes the AWS key and publishes the webhook beside it. The construction is
+    // contrived — a two-part quoted identifier — but the mechanism is not: masking can only ever
+    // remove what a pattern matches, so evidence known to contain a credential is not text to be
+    // trusted with whatever else is in it.
+    const issues = check(`SELECT * FROM t WHERE "AKIAIOSFODNN7EXAMPLE"."${WEBHOOK}" = NULL`)
+    const finding = issues.find(issue => issue.code === 'sql-null-comparison')
+
+    expect(finding).toBeDefined()
+    expect(JSON.stringify(issues)).not.toContain('B00000000')
+    expect(finding?.details?.snippet).toBe('<redacted>')
+    // The finding is still locatable: code, line and column survive.
+    expect(finding?.details?.line).toBe(1)
+  })
+
+  it('still masks in place when the evidence holds no credential', () => {
+    const finding = check('SELECT * FROM u WHERE u.deleted_at = NULL').find(
+      issue => issue.code === 'sql-null-comparison'
+    )
+
+    expect(finding?.details?.snippet).toBe('u.deleted_at = NULL')
+    expect(finding?.message).toContain('u.deleted_at = NULL')
   })
 })
