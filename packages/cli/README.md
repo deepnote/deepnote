@@ -390,14 +390,16 @@ interpreter, and nothing leaves the machine.
 | `ingress-integration-undeclared` | A SQL block runs against an integration the project does not declare |
 | `egress-external`                | A code block writes to a host outside Deepnote and your integrations |
 | `credential-shared`              | The same credential is hardcoded in more than one project            |
+| `pii-subject-scatter`            | One person's data appears in more than one notebook                  |
 
 **Options:**
 
-| Option               | Description                                     | Default |
-| -------------------- | ----------------------------------------------- | ------- |
-| `-o, --output <fmt>` | Output format: `json` or `llm`                  | text    |
-| `--project <name>`   | Audit a single project, by name or id           |         |
-| `--issues`           | List every finding instead of a count per check | off     |
+| Option                  | Description                                          | Default |
+| ----------------------- | ---------------------------------------------------- | ------- |
+| `-o, --output <fmt>`    | Output format: `json` or `llm`                       | text    |
+| `--project <name>`      | Audit a single project, by name or id                |         |
+| `--issues`              | List every finding instead of a count per check      | off     |
+| `--internal-domain <d>` | A domain belonging to your organization (repeatable) |         |
 
 `-o json` includes a `flow` object — `nodes` for every integration, project and host, `edges` for
 every connection — so the same report backs the terminal summary, a dashboard, or a diagram.

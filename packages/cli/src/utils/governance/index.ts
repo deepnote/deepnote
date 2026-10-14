@@ -17,6 +17,7 @@ import type { BlockInfo, IssueSeverity, LintIssue } from '../analysis'
 import { integrationTypesById, resolveDialect } from './dialect'
 import { findSecrets, redactSecretsWithContext, type SecretFinding } from './secrets'
 import { checkSqlQuery } from './sql-checks'
+import { redactSubjects } from './subjects'
 
 export { fingerprintSecret, redactSecrets, redactSecretsWithContext } from './secrets'
 
@@ -104,6 +105,10 @@ function blockContent(block: DeepnoteBlock): string {
  * Masked against the whole block, not against each field alone. Half the provider patterns need
  * surrounding context, so a URI password reused as a column name is invisible to a scan of that
  * column name by itself. The block is the evidence; a field lifted out of it is not.
+ *
+ * Subjects as well as secrets: `WHERE 'jane@acme.io' = NULL` is the same shape as
+ * `WHERE 'AKIA…' = NULL`, and a scatter finding that withholds a subject's fingerprint by design
+ * must not name them in the evidence beside it.
  */
 /**
  * Scan a block for credentials under the rules its type warrants.
@@ -143,9 +148,13 @@ export function findBlockSecrets(block: DeepnoteBlock): SecretFinding[] {
  * id, and `redactSecretsWithContext` can locate the span exactly. Masked against the whole block
  * rather than the one line, because half the provider patterns need surrounding context: a URI
  * password is recognizable in `postgres://admin:…@host/db` and unrecognizable on its own.
+ *
+ * Personal identifiers go the same way as credentials. `owner = "jane@acme.io"` is a label that
+ * names the person a `pii-subject-scatter` finding is about, in the field beside the fingerprint
+ * that exists so it need not be named.
  */
 export function safeBlockLabel(block: DeepnoteBlock, label: string): string {
-  return redactSecretsWithContext(label, blockContent(block))
+  return redactSubjects(redactSecretsWithContext(label, blockContent(block)))
 }
 
 /** What a string withheld for holding a credential is replaced with. */
@@ -173,7 +182,7 @@ function redactSqlFinding(
   details: Record<string, unknown>,
   content: string
 ): { message: string; details: Record<string, unknown> } {
-  const scrub = (text: string): string => redactSecretsWithContext(text, content)
+  const scrub = (text: string): string => redactSubjects(redactSecretsWithContext(text, content))
   const redacted: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(details)) {
     redacted[key] = typeof value === 'string' ? scrub(value) : value
@@ -237,12 +246,12 @@ export function runProjectGovernanceChecks(
     // The lint layer already resolved `info.label` through `safeBlockLabel`, so this is a no-op on
     // the normal path. It is re-derived anyway because `runProjectGovernanceChecks` is exported and
     // callers build their own block maps; the redaction is idempotent, so paying for it twice costs
-    // nothing and forgetting it once costs a credential.
+    // nothing and forgetting it once costs a credential or somebody's address.
     //
     // The same reasoning covers a SQL finding's evidence, for a less obvious reason: the snippet
     // spans only the flagged comparison, but a literal that is itself an operand of that comparison
-    // is inside the span — `WHERE 'AKIA…' = NULL`. The message quotes the snippet verbatim, so both
-    // go through the scanner.
+    // is inside the span — `WHERE 'AKIA…' = NULL`, `WHERE owner = 'jane@acme.io'`. The message
+    // quotes the snippet verbatim, so both go through the scanner.
     const label = safeBlockLabel(block, info.label)
 
     if (block.type === 'sql') {
