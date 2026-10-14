@@ -59,6 +59,24 @@ describe('createPythonCodeForInputTextBlock', () => {
 
     expect(result).toEqual("my_input = 'It\\'s a \"test\"'")
   })
+
+  it('escapes tab characters', () => {
+    const block: InputTextBlock = {
+      id: '123',
+      type: 'input-text',
+      content: '',
+      blockGroup: 'abc',
+      sortingKey: 'a0',
+      metadata: {
+        deepnote_variable_name: 'my_input',
+        deepnote_variable_value: 'a\tb',
+      },
+    }
+
+    const result = createPythonCodeForInputTextBlock(block)
+
+    expect(result).toEqual("my_input = 'a\\tb'")
+  })
 })
 
 describe('createPythonCodeForInputTextareaBlock', () => {
