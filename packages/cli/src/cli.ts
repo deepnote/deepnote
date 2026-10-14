@@ -1,3 +1,4 @@
+import { PROJECT_STATIC_ROOT } from '@deepnote/cloud'
 import { DEFAULT_API_URL, DEFAULT_ENV_FILE, DEFAULT_INTEGRATIONS_FILE } from '@deepnote/database-integrations'
 import chalk from 'chalk'
 import { Command, Option } from 'commander'
@@ -592,7 +593,7 @@ ${c.bold('Exit Codes:')}
     .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .option('--path <prefix>', 'Target directory under _deepnote_static', '_deepnote_static')
+    .option('--path <prefix>', `Target directory under ${PROJECT_STATIC_ROOT}`, PROJECT_STATIC_ROOT)
     .addOption(
       new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
         'enabled',
