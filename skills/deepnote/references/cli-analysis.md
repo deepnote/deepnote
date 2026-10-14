@@ -97,12 +97,51 @@ Check a .deepnote file or integrations yaml file for issues. `[path]` is optiona
 | `--notebook <name>`          | Lint only a specific notebook                                                        |
 | `--python <path>`            | Path to Python interpreter                                                           |
 | `--integrations-file <path>` | Path to integrations env file (default: `.deepnote.env.yaml` next to .deepnote file) |
+| `--governance`               | Also run the governance checks (see below)                                           |
 
 **Checks performed:**
 
 - **Variables:** undefined, circular dependencies, unused, shadowed, parse errors
 - **Integrations:** SQL blocks using missing integrations, plus configuration errors in the integrations file (YAML syntax, schema, missing env vars)
 - **Inputs:** Input blocks without default values
+
+**Governance checks (`--governance` only):**
+
+| Code                   | Finding                                                                   | Severity |
+| ---------------------- | ------------------------------------------------------------------------- | -------- |
+| `sql-null-comparison`  | `= NULL` / `!= NULL`, which never matches a row — use `IS NULL`           | error    |
+| `sql-tautology`        | A column compared to itself, so the join or filter is a no-op             | error    |
+| `sql-string-boolean`   | A column compared to the string `'true'`/`'false'` instead of the keyword | warning  |
+| `credential-hardcoded` | A credential written into a block                                         | error \* |
+
+\* The pattern rules (AWS keys, GitHub and Slack tokens, private keys, connection-string passwords)
+report an error; the heuristic rule — a long literal assigned to a secret-named variable — reports a
+warning. Prose blocks are scanned with the pattern rules only.
+
+Credentials are reported as a truncated SHA-256 fingerprint in `details.fingerprint`, never by
+value, and `details.blockCount` says how many blocks share that fingerprint. Never echo a matched
+credential back into a notebook, a commit message, or a ticket.
+
+The SQL checks tokenize the query text, so they run without a warehouse connection, a schema, or a
+Python interpreter. `sql-null-comparison` and `sql-tautology` hold in every dialect.
+`sql-string-boolean` consults the block's `sql_integration_id`: a double-quoted `"true"` is a
+string literal on MySQL, MariaDB and BigQuery and is reported, and a quoted _column name_ on the
+identifier-quoting dialects, where it is not. A block with no integration, or one the project does
+not declare, is treated as identifier-quoting and not reported.
+
+A block that holds a credential is labelled `<type> (<short id>)` instead of its first line, in
+every issue raised against it by any rule. For the one-line `TOKEN = "…"` assignment the credential
+checks most often fire on, that first line is the secret itself.
+
+`--governance` is project-scoped. The workspace-scoped checks — duplicated metric definitions,
+personal data scattered across notebooks, writes to third-party hosts, abandoned assets — compare
+projects against each other and cannot be answered from one file; lint prints the scope it covered
+instead of returning an empty result. `--governance` is ignored when linting an integrations YAML
+file directly (it has no blocks) and warns on stderr.
+
+With `-o json`, a `governance` object reports `scope`, the `checks` that ran, how many blocks were
+`scanned`, and the distinct `credentialFingerprints`. The key is absent when `--governance` was not
+passed.
 
 Integrations are automatically loaded from `.deepnote.env.yaml` in the same directory as the .deepnote file (or from `--integrations-file` if specified).
 
@@ -116,6 +155,8 @@ deepnote lint .deepnote.env.yaml
 deepnote lint my-project.deepnote -o json
 deepnote lint my-project.deepnote --notebook "Analysis"
 deepnote lint my-project.deepnote --integrations-file prod-integrations.yaml
+deepnote lint my-project.deepnote --governance
+deepnote lint my-project.deepnote --governance -o json
 ```
 
 ## `deepnote stats <path>`
