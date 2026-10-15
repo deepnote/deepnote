@@ -53,9 +53,11 @@ Other compute providers may store an encrypted temporary copy of workspace data.
 
 ## Does Deepnote use customer data to train, fine-tune, or otherwise improve any AI/ML models?
 
-No. Deepnote does not use customer data to train, fine-tune, or improve AI or machine learning models. Deepnote connects to external AI services such as OpenAI and Anthropic through secured APIs under enterprise agreements that prohibit training on customer data. Deepnote does not send personal, sensitive, or project data to model providers by default. Anthropic has a zero-data retention agreement, while OpenAI retains data for 30 days under its agreement.
+No. Deepnote does not use customer data to train, fine-tune, or improve AI or machine learning models. Deepnote connects to external AI services such as OpenAI and Anthropic through secured APIs under enterprise agreements that prohibit training on customer data. You send notebook code, text, and variable metadata to model providers when you use Deepnote AI, including database schema for SQL AI. You share block outputs, which can include row-level data, only when you turn on **Provide access to block outputs**.
 
-Deepnote does not host or fine-tune models. Deepnote encrypts customer data with AES-256, stores it in the customer's AWS environment, and applies its SOC 2 Type II-certified security practices. Customers choose whether to use the AI features.
+OpenAI may keep context data for up to 30 days for safety monitoring. Certain providers do not store data processed for real-time code suggestions under zero-retention agreements. See [AI data privacy](ai-data-privacy) for the documented scope.
+
+Deepnote does not host or fine-tune models. Deepnote encrypts customer data with AES-256 and applies its SOC 2 Type II-certified security practices. Workspace admins can disable Deepnote AI in **Settings & Members** > **AI**.
 
 ## Support
 

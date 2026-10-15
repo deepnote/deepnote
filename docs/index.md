@@ -25,7 +25,7 @@ No-code blocks let team members create charts and inspect data without writing P
 
 ### 2. Work with Deepnote AI
 
-Deepnote AI uses the context in your project, connected data warehouses, and metadata. It writes suggestions into notebook blocks, where you can inspect the code and its results.
+Deepnote AI processes notebook code, text, and variable metadata through model providers, including database schema for SQL AI. You share block outputs, which can include row-level data, only when you turn on **Provide access to block outputs**. It writes suggestions into notebook blocks, where you can inspect the code and its results. See [AI data privacy](ai-data-privacy#what-about-outputs).
 
 ![AI.png](../assets/docs/GXT55Lu8RKuMoFygbDPN.webp)
 
