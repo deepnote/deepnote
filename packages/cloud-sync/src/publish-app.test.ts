@@ -484,9 +484,74 @@ describe('publishApp', () => {
       expect(error).toBeInstanceOf(PublishError)
       expect(error).toMatchObject({
         reason: 'invalid-input',
-        message: expect.stringContaining('does not track project p2'),
+        code: 'project-not-in-sync-root',
+        message: `The sync manifest at ${join(root, '.deepnote-sync.json')} does not track project p2.`,
       })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
       expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('rejects an explicit sync root whose tracked project directory is missing as invalid input', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+      await fs.rm(join(root, 'Alpha'), { recursive: true })
+
+      const error = await rejection(publish({ dir: buildDir, syncRoot: root }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        code: 'project-not-in-sync-root',
+        message:
+          `The sync manifest at ${join(root, '.deepnote-sync.json')} tracks project p1 in Alpha, ` +
+          'but that directory does not exist.',
+      })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('rejects an unusable sync folder as invalid input with the underlying message', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+      await fs.writeFile(join(root, '.deepnote-sync.json'), '{')
+
+      const error = await rejection(publish({ dir: buildDir }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        code: 'sync-root-unusable',
+        message:
+          `The sync manifest at ${join(root, '.deepnote-sync.json')} is not valid JSON. ` +
+          'Fix or delete it (deleting re-syncs everything from scratch).',
+      })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('publishes without touching an unusable sync folder when syncRoot is false', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+      await fs.writeFile(join(root, '.deepnote-sync.json'), '{')
+
+      const result = await publish({ dir: buildDir, syncRoot: false }).attempt
+
+      expect(result.uploaded).toBe(1)
+    })
+
+    it('rejects an explicit sync root without a manifest as invalid input, without a code', async () => {
+      const { buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+
+      const error = await rejection(publish({ dir: buildDir, syncRoot: buildDir }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `No .deepnote-sync.json found in ${buildDir}.`,
+      })
+      expect((error as PublishError).code).toBeUndefined()
+      expect((error as PublishError).hint).toBeUndefined()
     })
   })
 
@@ -568,7 +633,7 @@ describe('publishApp', () => {
       [
         'a target outside the app folder',
         { targetPath: 'elsewhere' },
-        '--path must be _deepnote_static or a directory below it',
+        'Target path must be _deepnote_static or a directory below it',
       ],
       [
         'a missing directory',
@@ -582,6 +647,8 @@ describe('publishApp', () => {
       const error = await rejection(publish({ dir, ...override }).attempt)
 
       expect(error).toMatchObject({ reason: 'invalid-input', message })
+      expect((error as PublishError).code).toBeUndefined()
+      expect((error as PublishError).hint).toBeUndefined()
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 

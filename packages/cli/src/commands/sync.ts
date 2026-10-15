@@ -16,6 +16,7 @@ import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, outputJson, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import { cliFlagFor } from '../utils/option-hint'
 
 /**
  * `deepnote sync` — mirror the workspace's projects into a local directory and pull cloud edits down.
@@ -88,6 +89,22 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
   }
 }
 
+const keptDeletedFilesHint = (flag: string) =>
+  ` Run sync ${flag} to remove them; pushing an edited copy restores that file in Deepnote.`
+
+function withFlagHint({ hint, ...outcome }: ProjectSyncOutcome): ProjectSyncOutcome {
+  if (outcome.detail === undefined) {
+    return outcome
+  }
+  if (hint) {
+    return { ...outcome, detail: `${outcome.detail} (use ${cliFlagFor(hint)} to remove)` }
+  }
+  if (outcome.action === 'pruned') {
+    return { ...outcome, detail: `${outcome.detail} (${cliFlagFor({ option: 'prune', value: true })})` }
+  }
+  return outcome
+}
+
 function promptForConflict(conflict: SyncConflict): Promise<SyncConflictDecision> {
   const { question, overrideLabel } = describeConflict(conflict)
   return select({
@@ -141,11 +158,15 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
         break
       case 'project-outcome':
         if (!isMachineOutput) {
-          log(renderOutcomeLine(event.outcome))
+          log(renderOutcomeLine(withFlagHint(event.outcome)))
         }
         break
       case 'warning':
-        warn(event.message)
+        warn(
+          event.code === 'deleted-files-kept'
+            ? event.message + keptDeletedFilesHint(cliFlagFor(event.hint))
+            : event.message
+        )
         break
       case 'file-transferred':
         debug(
@@ -157,7 +178,7 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
     }
   }
 
-  return syncWorkspace({
+  const result = await syncWorkspace({
     rootDir,
     baseUrl: options.url ?? DEFAULT_API_URL,
     token,
@@ -169,6 +190,7 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
     onConflict,
     onEvent,
   })
+  return { ...result, projects: result.projects.map(withFlagHint) }
 }
 
 function renderOutcomeLine(outcome: ProjectSyncOutcome): string {
