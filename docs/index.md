@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-Watch this 5-minute demo to see how more than 100,000 data analysts and scientists use Deepnote.
+Watch this 5-minute demo for an introduction to Deepnote.
 
 <iframe width="720" height="405" src="https://www.youtube.com/embed/mLPUNo4O7aA?si=DwlP2Cts1pPVYvfW" title="YouTube video player" frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen></iframe>
 

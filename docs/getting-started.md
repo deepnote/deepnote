@@ -38,7 +38,6 @@ Deepnote is a workspace for data analysis with Python, SQL, and no-code tools. C
 - **Add inputs:** Let viewers filter data and test different values.
 - **Share:** Control who can open your apps.
 
-## Join 500,000+ data professionals
+## Get help
 
-Data professionals at startups and Fortune 500 companies use Deepnote.
-**Contact us at [help@deepnote.com](mailto:help@deepnote.com)**
+Contact [help@deepnote.com](mailto:help@deepnote.com) for support.
