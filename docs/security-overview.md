@@ -31,7 +31,7 @@ Workspace admins manage who can connect to databases, view or edit projects, and
 
 ## Product access controls
 
-Deepnote supports [single sign-on integrations](/docs/sso) on the Enterprise plan for Google Workspace, Okta, and any provider that supports OpenID Connect (OIDC).
+Deepnote supports [single sign-on integrations](/docs/sso) on the Enterprise plan for Google Workspace, Okta, and any provider that supports SAML or OpenID Connect (OIDC).
 
 Teams can use access controls to meet General Data Protection Regulation (GDPR) requirements, sector-specific regulations, or internal security policies. These controls determine who can see, query, and collaborate on projects.
 
