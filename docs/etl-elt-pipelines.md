@@ -21,7 +21,7 @@ The following example moves data from Snowflake to Amazon S3:
 
 ELT stands for Extract, Load, Transform. It loads data into the target system before transforming it, so the target system handles the computation.
 
-For an ELT pipeline in Snowflake, load the source data through the Snowflake integration and run the transformations in Snowflake with SQL.
+For an ELT pipeline, extract data from your source system and load it into Snowflake before transforming it. For example, you can write a DataFrame to a warehouse table from a notebook with [Snowpark](snowpark#how-to-use). Connect through the [Snowflake integration](snowflake) to run SQL transformations using Snowflake's compute.
 
 ### Transformations with dbt
 
