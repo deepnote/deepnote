@@ -163,7 +163,7 @@ export async function runSync(dir: string | undefined, options: SyncOptions): Pr
         break
       case 'warning':
         warn(
-          event.code === 'deleted-files-kept' && event.hint
+          event.code === 'deleted-files-kept'
             ? event.message + keptDeletedFilesHint(cliFlagFor(event.hint))
             : event.message
         )

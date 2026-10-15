@@ -134,17 +134,17 @@ export type SyncEvent =
   /** One project finished, was pruned, or is missing in the cloud. */
   | { kind: 'project-outcome'; outcome: ProjectSyncOutcome }
   /** Something was skipped or kept that the user should know about, e.g. a file with an unsafe path. */
+  | { kind: 'warning'; message: string; code?: undefined; hint?: undefined }
+  /**
+   * `deleted-files-kept`: with `allFiles` and no `prune`, working files deleted in Deepnote are kept locally and
+   * stay tracked. `prune: true` removes them. Pushing an edited copy raises a `working-files-changed` conflict;
+   * overriding it restores the file in Deepnote.
+   */
   | {
       kind: 'warning'
       message: string
-      /**
-       * `deleted-files-kept`: with `allFiles` and no `prune`, working files deleted in Deepnote are kept
-       * locally and stay tracked. `prune: true` removes them; pushing an edited copy restores the file
-       * in Deepnote.
-       */
-      code?: 'deleted-files-kept'
-      /** The option change that resolves the condition `code` names. */
-      hint?: OptionHint
+      code: 'deleted-files-kept'
+      hint: Extract<OptionHint, { option: 'prune' }>
     }
   /** A working file was downloaded or uploaded. In a dry run, it reports what would be transferred. */
   | {
@@ -192,7 +192,6 @@ export interface WorkspaceSyncOptions {
   onEvent?: (event: SyncEvent) => void
 }
 
-/** What happened to one project during the sync. */
 export interface ProjectSyncOutcome {
   projectId: string
   name: string
@@ -202,10 +201,10 @@ export interface ProjectSyncOutcome {
   /** Human-readable elaboration (conflict direction, error message, rename note). */
   detail?: string
   /**
-   * Set only on a `missing-in-cloud` outcome kept because `prune` is off: `prune: true` removes it. Absent on
-   * `pruned` outcomes, and on a `missing-in-cloud` outcome kept because a current cloud project uses its path.
+   * Set only on a `missing-in-cloud` outcome kept because `prune` is off. `prune: true` removes it, or only drops
+   * its manifest record when a current cloud project uses its path.
    */
-  hint?: OptionHint
+  hint?: Extract<OptionHint, { option: 'prune' }>
   /** Per-notebook reconciliation reported by the import endpoint (push only). */
   notebooks?: ImportedNotebook[]
   /** Number of working-directory files downloaded (`allFiles` pull only). */

@@ -77,7 +77,7 @@ Options, conflict kinds, events and result shapes are documented on the exported
 | `projectFilesDir`, `isSafeRelativeFilePath`, `assertNoSymbolicLinkAncestors`, `baselineDiverged`, `sha256`  | Local path and fingerprint helpers used by the sync engine.                                                            |
 | `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`, `code`).            |
 | `PublishDivergedError`                                                                                      | Thrown by `publishApp` before any file changes when files changed in Deepnote since the last sync, unless `force`.     |
-| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input` and its `code`.        |
+| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows one found before uploading as `PublishError` with its `code`.           |
 | `ApiError`                                                                                                  | Thrown by API calls with the HTTP status in `statusCode`. Network failures and timeouts are the platform's own errors. |
 
 ## Messages and CLI hints
@@ -95,8 +95,9 @@ matching flag and append it to the message they print.
 | Files deleted in Deepnote are kept locally (`allFiles`, no `prune`)                       | `warning` event `code` `deleted-files-kept`    | The event's `hint`: `prune: true` removes them |
 | A project deleted in Deepnote was kept locally because `prune` is off                     | `missing-in-cloud` outcome (`action`)          | The outcome's `hint`: `prune: true` removes it |
 
-A `pruned` outcome and a `missing-in-cloud` outcome kept because a current cloud project uses its path
-carry no hint: there is nothing for the caller to change.
+A `pruned` outcome and a `missing-in-cloud` outcome that `prune` kept because a current cloud project uses its
+path carry no hint: there is nothing for the caller to change. Without `prune`, such an outcome still carries the
+`prune: true` hint, but pruning then only drops its manifest record and keeps the directory.
 
 Other messages name the option in words: "API URL" is `baseUrl`, and the "working-file transfer limit"
 applies to `allFiles`.

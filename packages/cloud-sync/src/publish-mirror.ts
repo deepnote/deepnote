@@ -31,7 +31,7 @@ export interface PublishMirror {
 export type SyncRootOption = string | false | undefined
 
 /**
- * Why the sync folder cannot be updated, when a caller can act on it.
+ * Why the sync folder cannot be updated.
  * - `sync-root-unusable`: the folder exists but cannot be used (an invalid or symlinked manifest, an unreadable
  *   or symlinked tracked directory). Publishing with `syncRoot: false` skips the sync folder.
  * - `project-not-in-sync-root`: an explicit `syncRoot` does not track the project, or tracks it in a directory
@@ -48,8 +48,9 @@ export const PUBLISH_ERROR_HINTS = {
 export type PublishErrorHint<C extends PublishErrorCode = PublishErrorCode> = (typeof PUBLISH_ERROR_HINTS)[C]
 
 /**
- * An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`
- * and the same `code`.
+ * An unusable sync folder. `publishApp` rethrows one raised while resolving the folder as `PublishError` with
+ * reason `invalid-input` and the same `code`, and reports one raised while updating it in a `mirror-incomplete`
+ * event.
  */
 export class PublishMirrorError extends Error {
   constructor(
@@ -79,9 +80,6 @@ interface ResolvePublishMirrorArgs {
   onMirrorSkipped?: (projectDir: string) => void
 }
 
-/** Resolves the sync workspace to update. An invalid explicit root throws {@link PublishMirrorError};
- * so does any workspace that exists but cannot be used (unreadable or symlinked manifest), coded
- * `sync-root-unusable`, since callers report that error class as invalid input. */
 export async function resolvePublishMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirror | undefined> {
   if (args.syncRoot === false) {
     return undefined

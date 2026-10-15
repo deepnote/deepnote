@@ -402,20 +402,6 @@ describe('deepnote sync events', () => {
     }
   )
 
-  it('sends a kept-deleted-files warning without a hint verbatim, even with --prune', async () => {
-    emitAll([
-      {
-        kind: 'warning',
-        code: 'deleted-files-kept',
-        message: '2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt.',
-      },
-    ])
-
-    await sync('--prune')
-
-    expect(errored).toEqual(['2 files in "Alpha" deleted in Deepnote but kept locally: a.txt, b.txt.'])
-  })
-
   it('reports file transfers as debug output only', async () => {
     emitAll([
       { kind: 'file-transferred', direction: 'download', projectName: 'Alpha', path: 'data/a.csv', bytes: 12 },

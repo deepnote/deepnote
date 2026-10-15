@@ -7,7 +7,6 @@ const CLI_FLAGS = {
 
 export type CliFlag<O extends OptionHint['option']> = (typeof CLI_FLAGS)[O]
 
-/** The command-line flag that sets the library option a hint names. */
 export function cliFlagFor<O extends OptionHint['option']>(hint: OptionHint & { option: O }): CliFlag<O> {
   return CLI_FLAGS[hint.option]
 }
