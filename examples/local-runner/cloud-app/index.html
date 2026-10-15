@@ -328,7 +328,7 @@
       async function triggerRun(notebookId, inputs) {
         const res = await apiFetch('/v2/runs', {
           method: 'POST',
-          body: JSON.stringify({ notebookId, inputs }),
+          body: JSON.stringify({ notebookId, inputs, detachedRunStorageMode: 'readonly' }),
         })
         if (!res.ok) {
           const body = await res.text().catch(() => '')
