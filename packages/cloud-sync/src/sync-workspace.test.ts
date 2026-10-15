@@ -1528,8 +1528,10 @@ describe('syncWorkspace', () => {
     })
 
     await expect(syncWorkspace({ ...baseOptions, rootDir: tempDir, prune: true })).rejects.toThrow(
-      'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
-        'The API token or API URL may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+      new Error(
+        'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
+          'The API token or API URL may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+      )
     )
 
     expect(cloud.importCalls).toEqual([])
