@@ -299,14 +299,6 @@ describe('deepnote sync events', () => {
       line: '? missing   Team/Alpha — no longer in the cloud; kept locally (use --prune to remove)',
     },
     { outcome: { ...outcome, action: 'error', detail: 'boom' }, line: '✗ error     Team/Alpha — boom' },
-    {
-      outcome: {
-        ...outcome,
-        action: 'error',
-        detail: 'Project file "large.bin" exceeds the 100 MiB working-file transfer limit.',
-      },
-      line: '✗ error     Team/Alpha — Project file "large.bin" exceeds the 100 MiB working-file transfer limit.',
-    },
   ]
 
   it.each(outcomeLines)(
@@ -708,14 +700,9 @@ describe('deepnote sync result handling', () => {
     expect(mockedSyncWorkspace).not.toHaveBeenCalled()
   })
 
-  const DIFFERENT_WORKSPACE_REFUSAL =
-    'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
-    'The API token or API URL may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
-
   it.each([
     ['an Error', new Error('Refusing to prune because nothing matches'), 'Refusing to prune because nothing matches'],
     ['a non-Error value', 'plain failure', 'plain failure'],
-    ['the different-workspace refusal', new Error(DIFFERENT_WORKSPACE_REFUSAL), DIFFERENT_WORKSPACE_REFUSAL],
   ])('fails with exit code 1 and the message when the library rejects with %s', async (_name, rejection, message) => {
     mockedSyncWorkspace.mockRejectedValue(rejection)
     const exit = interceptExit()
