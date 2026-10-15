@@ -20,7 +20,7 @@ Custom environments are especially valuable for complex projects where dependenc
 
 We recommend building your custom Dockerfile on top of our `deepnote/python:3.x` base image to ensure compatibility with all Deepnote features. If you're creating an environment from scratch, your image must meet these requirements:
 
-- Python (versions 3.10-3.13) installed and accessible via the `python` command
+- Python (versions 3.10-3.14) installed and accessible via the `python` command
 - Built for the `linux/amd64` platform (M1 Mac users: use `-platform linux/amd64` flag)
 - Functioning `pip` installation that can install packages to Python's path
 - `bash` and `curl` installed

@@ -9,7 +9,7 @@ noContent: false
 
 The **Deepnote MCP server** exposes your Deepnote workspace to AI agents through the Model Context Protocol (MCP), an open standard for connecting LLMs to external tools and data.
 
-Once connected, agentic harnesses and IDEs such as Codex, Claude, Cursor, VS Code, or any MCP-compatible client can explore your projects, read, create, edit, and run notebooks, inspect your data integrations, and search Deepnote's documentation within your existing permissions.
+Once connected, agentic harnesses and IDEs such as Codex, Claude, Cursor, VS Code, or any MCP-compatible client can explore your projects, read, create, edit, run, and delete notebooks, manage project files and machines, publish apps, inspect your data integrations, and search Deepnote's documentation within your existing permissions.
 
 This means you can ask your assistant to "create a notebook in my analytics project and add a SQL block that queries last month's revenue", and it will use the Deepnote MCP tools to carry out each step.
 
@@ -45,26 +45,63 @@ The server exposes the following tools. Read-only tools never modify your worksp
 
 ### Account and workspace
 
-- `get_me`: Return info about the authenticated individual: the workspace, the access level (viewer, editor, admin), etc.
+- `get_me`: Return info about the API key or account calling the server: the key name and type, who created it, the workspace, and the access level (viewer, editor, admin, etc.).
 - `search`: Search workspace resources across projects, notebooks, blocks, and integrations.
-- `list_projects`: List workspace projects.
-- `create_project`: Create a new project.
+- `list_projects`: List workspace projects, optionally filtered by name.
+- `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` accepts.
+- `get_project`: Get a project's metadata, notebooks, attached integrations, files, static website settings, and environment.
+- `create_project`: Create a new project, optionally inside a folder and on a chosen environment.
+- `update_project`: Change a project's environment, its static website sharing and viewer API access, and whether its Streamlit apps may call the Deepnote API as their viewers. Changing the environment restarts a running machine.
+- `delete_project`: Move a project and all its notebooks to the workspace trash.
 
 ### Notebooks and blocks
 
 - `get_notebook`: Get notebook details, including its blocks and input variables.
 - `create_notebook`: Create an empty notebook inside a project.
-- `create_block`: Create a new block (SQL, Python, text, etc.) in a notebook.
-- `update_block`: Update the contents of an existing block.
-- `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
+- `update_notebook`: Rename a notebook. Naming it `Init` turns it into the project's [init notebook](/docs/project-initialization).
 - `duplicate_notebook`: Duplicate an existing notebook within a project.
+- `delete_notebook`: Delete a notebook. A project version is saved first, so you can restore it from version history.
+- `get_block`: Get a block's content and metadata, and optionally the outputs it shows in the editor.
+- `create_block`: Create a new block (SQL, Python, text, input, etc.) in a notebook.
+- `update_block`: Update the contents of an existing block.
+- `delete_block`: Delete a block from a notebook.
+- `reorder_notebook_blocks`: Move one or more blocks to a new position within a notebook.
 - `generate_project_url`: Generate a link to a Deepnote project or notebook, so an agent can hand you a URL to what it built.
+
+### Files
+
+- `write_file`: Write text or base64 content to a file in a project, with the path relative to the project root. With `overwrite` set it replaces an existing file; otherwise Deepnote picks a unique path and returns it.
+- `copy_file`: Copy a file into another project at the same path.
+- `delete_file`: Permanently delete a file from a project. A Streamlit app that uses the file as its entry point is deleted with it.
 
 ### Running notebooks
 
-- `create_run`: Start running a notebook and return the created run.
-- `get_run`: Get a notebook run. Returns a presigned snapshot download URL when available, or optionally the inline snapshot content.
+- `create_run`: Start running a notebook and return the created run. Runs are detached by default and can use a different machine type than the project's; set `detached` to false for live mode or to run specific blocks.
+- `get_run`: Get a notebook run. Returns a presigned snapshot download URL when available, or optionally the inline snapshot content or the executed blocks with their outputs. Large outputs are shortened unless `fullOutputs` is set.
 - `list_notebook_runs`: List historical runs for a notebook.
+
+### Machines and environments
+
+- `get_machine`: Check whether a project's machine is stopped, starting, running, stopping, or in an error state, along with its machine type and sandbox environment.
+- `start_machine`: Start a project's machine. It uses machine time until it stops.
+- `stop_machine`: Stop a project's machine. Project files are kept, but kernel state such as variables is lost for everyone in the project.
+- `restart_machine`: Replace a project's machine with a new one, which also recovers a machine in an error state. Kernel state is lost.
+- `update_machine`: Change a project's machine type, sandbox environment, or how long it keeps running without activity. Changing the type or sandbox environment of a running machine needs a restart.
+- `list_machine_types`: List the machine types the workspace can use, with their vCPUs, memory, and GPUs, and whether the plan and this month's free quota allow each one.
+- `list_environments`: List the environments (Docker images) projects can run on, including the workspace's custom images.
+
+These tools manage the machine behind the editor, live-mode runs, and hosted Streamlit apps. Detached runs start machines of their own, so an agent doesn't need to start the project's machine before calling `create_run`.
+
+### Apps and static sites
+
+- `create_streamlit_app`: Serve a project file as a [Streamlit app](/docs/streamlit) and return its URL.
+- `list_streamlit_apps`: List a project's Streamlit apps with the file each one runs and its URL.
+- `get_streamlit_app_status`: Check whether a Streamlit app is running, starting, or unavailable.
+- `publish_static_site`: Publish a small HTML, CSS, and JavaScript site from the project's `_deepnote_static/` folder and share it as an app. For larger sites, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
+
+<Callout status="warning">
+Creating a Streamlit app with `create_streamlit_app` restarts the project machine and interrupts anyone working in the project.
+</Callout>
 
 ### Integrations
 
@@ -81,6 +118,18 @@ The server exposes the following tools. Read-only tools never modify your worksp
 
 - `list_docs`: Return the Deepnote docs navigation tree so the assistant can find the right article.
 - `get_doc`: Fetch the full Markdown body of a documentation article by slug.
+
+### What deleting does
+
+Deleting a project, a notebook, or a file works differently once it has run, so it helps to know which ones can be undone.
+
+Deleting a notebook with `delete_notebook` saves a project version first. You can bring the notebook back from [version history](/docs/history).
+
+Deleting a project with `delete_project` moves it to the [trash](/docs/trash), where you can restore it for 30 days. Its schedules are removed and don't come back with a restore, and its machine is stopped.
+
+<Callout status="warning">
+Deleting a file with `delete_file` can't be undone in Deepnote, since project files aren't versioned. The same applies to the old content when `write_file` overwrites a file.
+</Callout>
 
 ## Connecting a client
 
@@ -177,6 +226,7 @@ Because the assistant can chain tools together, a single natural-language reques
 - **Run and inspect:** “Run the Monthly KPIs notebook and tell me what changed.” → `create_run` → `get_run`
 - **Audit integration usage:** “Which notebooks query our Snowflake warehouse?” → `list_integrations` → `list_integration_notebook_usages`
 - **Tidy a notebook:** “Move the imports block to the top and replace the empty scratch block with a note.” → `get_notebook` → `reorder_notebook_blocks` → `update_block`
+- **Clean up a project:** “Delete the scratch notebook in the Q3 forecast project.” → `list_projects` → `get_project` → `delete_notebook`
 - **Answer product questions:** “How do I schedule a notebook?” → `list_docs` → `get_doc`
 
 ## Security and permissions

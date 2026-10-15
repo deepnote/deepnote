@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSafeRelativeFilePath, planProjectPaths, sanitizePathSegment } from './sync-paths'
+import { isSafeRelativeFilePath, planProjectPaths, projectFilesDir, sanitizePathSegment } from './sync-paths'
 
 describe('sanitizePathSegment', () => {
   it('replaces characters no cross-platform filename can contain', () => {
@@ -169,6 +169,14 @@ describe('planProjectPaths', () => {
         { id: 'occupier', name: 'Report (aaaa1111-project-a)' },
       ])
     ).toThrow(/disjoint local directories/)
+  })
+})
+
+describe('projectFilesDir', () => {
+  /** Manifest dirs and mirror paths are POSIX by contract; a platform separator here would let a
+   * Windows path slip past the '/'-splitting symbolic-link ancestor checks. */
+  it('keeps the mirror path POSIX-separated regardless of platform', () => {
+    expect(projectFilesDir('Client/Alpha')).toBe('Client/Alpha/.files')
   })
 })
 

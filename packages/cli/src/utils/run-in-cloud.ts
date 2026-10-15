@@ -26,10 +26,9 @@ import { mapBlockIds } from '@deepnote/local-runner'
 import dotenv from 'dotenv'
 import ora from 'ora'
 import type { RunOptions } from '../commands/run'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, getOutputConfig, log, outputJson, outputToon } from '../output'
-import { MissingTokenError } from './auth'
+import { MissingTokenError, resolveToken } from './auth'
 import { CloudRunUsageError } from './cloud-run-errors'
 import { resolvePathToDeepnoteFile } from './file-resolver'
 import { parseInputs } from './parse-inputs'
@@ -110,11 +109,6 @@ export function assertCloudOnlyFlagsRequireCloud(options: RunCloudOptions): void
   if (used.length > 0) {
     throw new CloudRunUsageError(`${used.join(', ')} ${used.length === 1 ? 'requires' : 'require'} --cloud.`)
   }
-}
-
-function normalizeToken(value: string | undefined): string | undefined {
-  const trimmed = value?.trim()
-  return trimmed ? trimmed : undefined
 }
 
 /**
@@ -340,7 +334,7 @@ export async function runInDeepnoteCloud(path: string | undefined, options: RunC
   const envDir = sourcePath ? dirname(sourcePath) : process.cwd()
   dotenv.config({ path: join(envDir, DEFAULT_ENV_FILE), quiet: true })
 
-  const token = normalizeToken(options.token) ?? normalizeToken(process.env[DEEPNOTE_TOKEN_ENV])
+  const token = resolveToken(options.token)
   if (!token) {
     throw new MissingTokenError()
   }
