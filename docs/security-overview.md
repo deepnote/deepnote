@@ -7,7 +7,7 @@ noContent: false
 
 Deepnote uses security and privacy controls to protect customer data while teams connect, query, analyze, and share it.
 
-Deepnote has earned SOC 2 Type II certification, which provides third-party validation of its security practices and processes.
+Deepnote has a SOC 2 Type II report from a third-party examination of its security practices and processes.
 
 Visit the [Deepnote Trust Center](https://deepnote.com/security) for details about security and compliance.
 
@@ -31,7 +31,7 @@ Workspace admins manage who can connect to databases, view or edit projects, and
 
 ## Product access controls
 
-Deepnote supports [single sign-on integrations](/docs/sso) for Google Workspace, Okta, and any provider that supports OpenID Connect (OIDC).
+Deepnote supports [single sign-on integrations](/docs/sso) on the Enterprise plan for Google Workspace, Okta, and any provider that supports OpenID Connect (OIDC).
 
 Teams can use access controls to meet General Data Protection Regulation (GDPR) requirements, sector-specific regulations, or internal security policies. These controls determine who can see, query, and collaborate on projects.
 
@@ -57,7 +57,7 @@ No. Deepnote does not use customer data to train, fine-tune, or improve AI or ma
 
 OpenAI may keep context data for up to 30 days for safety monitoring. Certain providers do not store data processed for real-time code suggestions under zero-retention agreements. See [AI data privacy](ai-data-privacy) for the documented scope.
 
-Deepnote does not host or fine-tune models. Deepnote encrypts customer data with AES-256 and applies its SOC 2 Type II-certified security practices. Workspace admins can disable Deepnote AI in **Settings & Members** > **AI**.
+Deepnote does not host or fine-tune models. Deepnote encrypts customer data with AES-256 and follows security practices covered by its SOC 2 Type II report. Workspace admins can disable Deepnote AI in **Settings & Members** > **AI**.
 
 ## Support
 
