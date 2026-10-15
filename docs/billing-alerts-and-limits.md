@@ -29,7 +29,7 @@ Be careful because enabling the option may interrupt your colleagues' work.
 
 ### Setting billing limits
 
-If you want to set a limit for your charges, we recommend you set a billing alert for that amount. When you receive the notification, you can follow the link the email and disable the pay-as-you-go machines in your workspace.
+If you want to set a limit for your charges, we recommend you set a billing alert for that amount. When you receive the notification, you can follow the link in the email and disable the pay-as-you-go machines in your workspace.
 
 ## AI usage limits
 
