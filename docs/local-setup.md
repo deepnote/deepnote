@@ -13,10 +13,10 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code and Cursor extensions**             | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
-| **Deepnote CLI**                              | Scripting, CI, AI agents  | ✅ Yes    | ❌ No   | Easy       |
-| **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
-| **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
+| **VS Code and Cursor extensions**             | Full-featured development | ✅        | ✅      | Easy       |
+| **Deepnote CLI**                              | Scripting, CI, AI agents  | ✅        | ❌      | Easy       |
+| **Deepnote Toolkit**                          | Custom implementations    | ✅        | ✅      | Advanced   |
+| **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅        | ✅      | Easy       |
 
 ## VS Code and Cursor extensions (recommended)
 
