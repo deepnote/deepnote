@@ -84,6 +84,9 @@ the provider's model environment variable; otherwise that variable or the defaul
 | `anthropic`         | [`claude-opus-5-5`](https://platform.claude.com/docs/en/models/opus-5-5/overview) | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      |
 | `openai-compatible` | Must be set                                                                       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` |
 
+Callers that pass `apiKey` themselves can look up the variable a provider falls back to with
+`getAgentApiKeyEnvVar(parseAgentModel(spec).providerId)`.
+
 ### Custom endpoints
 
 Use `OPENAI_BASE_URL` (including `/v1`) or `ANTHROPIC_BASE_URL` (with or without `/v1`) to override a

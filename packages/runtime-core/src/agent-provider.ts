@@ -7,7 +7,7 @@ import type { JSONValue, LanguageModel } from 'ai'
  * Providers a local agent block can run against. Bare Claude model ids select
  * Anthropic, matching Cloud. Provider prefixes are a local runtime extension.
  */
-const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
+export const AGENT_PROVIDER_IDS = ['openai', 'anthropic', 'openai-compatible'] as const
 
 export type AgentProviderId = (typeof AGENT_PROVIDER_IDS)[number]
 
@@ -109,6 +109,14 @@ export function parseAgentModel(spec: string | undefined): ParsedAgentModel {
   }
 
   return { providerId: trimmed.startsWith('claude-') ? 'anthropic' : 'openai', modelName: trimmed }
+}
+
+/**
+ * Returns the name of the environment variable `resolveAgentModel` reads the
+ * provider's API key from when no `apiKey` is passed.
+ */
+export function getAgentApiKeyEnvVar(providerId: AgentProviderId): string {
+  return PROVIDER_ENV[providerId].apiKeyVar
 }
 
 function readEnv(
