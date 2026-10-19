@@ -646,6 +646,7 @@ describe('publishApp', () => {
 
       const error = await rejection(publish({ dir, ...override }).attempt)
 
+      expect(error).toBeInstanceOf(PublishError)
       expect(error).toMatchObject({ reason: 'invalid-input', message })
       expect((error as PublishError).code).toBeUndefined()
       expect((error as PublishError).hint).toBeUndefined()

@@ -127,7 +127,7 @@ export type SyncConflict =
  */
 export type SyncConflictPolicy = SyncConflictDecision | ((conflict: SyncConflict) => Promise<SyncConflictDecision>)
 
-/** Progress reported through {@link WorkspaceSyncOptions.onEvent}. */
+/** Progress reported through {@link WorkspaceSyncOptions["onEvent"]}. */
 export type SyncEvent =
   /** The project listing is about to be requested from `baseUrl`. */
   | { kind: 'listing-projects'; baseUrl: string }
