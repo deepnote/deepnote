@@ -36,7 +36,7 @@ In Edit mode, you can request anything from straightforward edits (adding analys
 
 Agent can make targeted edits within Python and SQL blocks without rewriting the whole block. These edits appear in the same changes summary and before-and-after diff, and can be undone with the rest of the notebook changes.
 
-In data app and Streamlit app projects, Agent can also read and update project files in Edit mode. Ask mode can read those files to answer questions without changing them.
+In data app and Streamlit app projects, Agent can also read and update project files in Edit mode. Ask mode can read those files to answer questions without changing them. The change summary and undo action apply to notebook block edits; project file edits are saved directly.
 
 You can choose which model powers Agent — pick a specific provider and model or select **Automatic** to let Deepnote decide. Agent can also use your connected [Deepnote MCP](/docs/deepnote-mcp) integrations to work with your databases and tools, and it has access to Deepnote's documentation.
 
