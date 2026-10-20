@@ -96,7 +96,7 @@ describe('deepnote publish', () => {
     ['release?x', 'release%3Fx'],
     ['release%2F1', 'release%252F1'],
     ['javascript:alert(1)', 'javascript%3Aalert(1)'],
-  ])('publishes below the static root at %s using an encoded canonical URL', async (suffix, encodedSuffix) => {
+  ])('publishes below the app file root at %s using an encoded canonical URL', async (suffix, encodedSuffix) => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedUpdateProject.mockResolvedValue({
       sharingEnabled: true,
@@ -113,7 +113,7 @@ describe('deepnote publish', () => {
     expect(logged.join('\n')).toContain(`https://apps.example.test/static-files/p1/${encodedSuffix}/`)
   })
 
-  it('skips the project update when the existing static website settings already match', async () => {
+  it('skips the project update when the existing app settings already match', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',
@@ -692,5 +692,79 @@ describe('deepnote publish', () => {
       expect(process.exitCode).toBeUndefined()
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('deepnote sync --all-files'))
     })
+  })
+
+  describe('token from .env', () => {
+    let previousCwd: string
+    let previousToken: string | undefined
+
+    beforeEach(() => {
+      previousCwd = process.cwd()
+      previousToken = process.env.DEEPNOTE_TOKEN
+      delete process.env.DEEPNOTE_TOKEN
+    })
+
+    afterEach(() => {
+      process.chdir(previousCwd)
+      if (previousToken === undefined) {
+        delete process.env.DEEPNOTE_TOKEN
+      } else {
+        process.env.DEEPNOTE_TOKEN = previousToken
+      }
+    })
+
+    it('reads DEEPNOTE_TOKEN from a .env file in the current directory', async () => {
+      const siteDir = join(tempDir, 'dist')
+      await fs.mkdir(siteDir)
+      await fs.writeFile(join(siteDir, 'index.html'), 'hi')
+      await fs.writeFile(join(tempDir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      process.chdir(tempDir)
+
+      await run(siteDir, '--project-id', 'p1', '-q')
+
+      expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'dotenv-token', 'p1')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('refuses to publish a directory that contains a .env file, before any remote work', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      await fs.writeFile(join(tempDir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      process.chdir(tempDir)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+      const stderr: string[] = []
+      vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+        stderr.push(String(chunk))
+        return true
+      })
+
+      await expect(run(tempDir, '--project-id', 'p1')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain('Refusing to publish ".env"')
+      expect(mockedGetProject).not.toHaveBeenCalled()
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+  })
+
+  it('refuses nested .env.* files even when the token comes from --token', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    await fs.mkdir(join(tempDir, 'config'))
+    await fs.writeFile(join(tempDir, 'config', '.env.production'), 'SECRET=1\n')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    const stderr: string[] = []
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      stderr.push(String(chunk))
+      return true
+    })
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderr.join('')).toContain('"config/.env.production"')
+    expect(mockedUpload).not.toHaveBeenCalled()
   })
 })

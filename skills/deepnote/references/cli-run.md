@@ -107,8 +107,9 @@ run of an **existing** notebook in your Deepnote workspace via the public API
 (`POST /v2/runs`), polls it to completion (`GET /v2/runs/{runId}`), and downloads the resulting
 snapshot into the local `snapshots/` directory — the same format `deepnote diff` reads.
 
-Requires a token: `--token <token>` or the `DEEPNOTE_TOKEN` env var
-(get one at https://deepnote.com/workspace/settings/api-tokens).
+Requires a token: `--token <token>`, the `DEEPNOTE_TOKEN` env var, or `DEEPNOTE_TOKEN` in a `.env`
+file next to the notebook. Create one in Deepnote under Settings & members > Security > API keys
+(see https://deepnote.com/docs/deepnote-api).
 
 The notebook to run is resolved in this order:
 
@@ -180,10 +181,11 @@ DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud -o json
 
 **Environment variables for `--prompt` / agent blocks:**
 
-| Variable          | Required | Description                                                     |
-| ----------------- | -------- | --------------------------------------------------------------- |
-| `OPENAI_API_KEY`  | yes      | API key for the LLM provider                                    |
-| `OPENAI_BASE_URL` | no       | Base URL for non-OpenAI providers (Ollama, LiteLLM, etc)        |
-| `OPENAI_MODEL`    | no       | Default model name (overridden by block `deepnote_agent_model`) |
+For local runs, `--prompt` needs `OPENAI_API_KEY` and uses `OPENAI_MODEL` (default `gpt-6.1-sol`).
+To use Claude or another provider, set `metadata.deepnote_agent_model` on an existing agent block
+and run the notebook. See [agent block providers](blocks-agent.md#providers) for models, keys,
+and custom endpoints.
+
+Cloud ignores local provider keys and endpoints; see [Cloud model support](blocks-agent.md#sharing-notebooks-with-cloud).
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.

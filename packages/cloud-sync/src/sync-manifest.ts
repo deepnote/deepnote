@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import type { ProjectFileEntry } from '@deepnote/cloud'
 import { z } from 'zod'
-import { isErrnoENOENT } from './file-resolver'
+import { isErrnoENOENT } from './fs-errors'
 import { isSafeRelativeFilePath, PROJECT_FILES_DIR_NAME } from './sync-paths'
 
 /**

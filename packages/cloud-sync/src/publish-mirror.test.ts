@@ -124,6 +124,21 @@ describe('resolvePublishMirror', () => {
     expect(await resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })).toBeUndefined()
   })
 
+  it('reports the project directory it skipped because it does not exist', async () => {
+    await writeManifest(tempDir)
+    await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })
+    const skipped: string[] = []
+
+    await resolvePublishMirror({
+      syncRoot: undefined,
+      publishDir: tempDir,
+      projectId: 'p1',
+      onMirrorSkipped: projectDir => skipped.push(projectDir),
+    })
+
+    expect(skipped).toEqual([path.join(tempDir, 'Alpha')])
+  })
+
   it('skips discovery entirely for --no-sync-root', async () => {
     await writeManifest(tempDir)
 

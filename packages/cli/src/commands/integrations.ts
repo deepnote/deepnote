@@ -15,6 +15,7 @@ import {
 } from '@deepnote/database-integrations'
 import chalk from 'chalk'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { type Document, isSeq } from 'yaml'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
@@ -99,13 +100,16 @@ export async function writeIntegrationsFile(filePath: string, doc: Document): Pr
  * Execute the integrations pull command.
  */
 async function pullIntegrations(options: IntegrationsPullOptions): Promise<void> {
+  const baseUrl = options.url ?? DEFAULT_API_URL
+  const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
+  const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
+
+  // The same .env file that receives pulled secrets may also hold the token.
+  dotenv.config({ path: path.resolve(envFilePath), quiet: true })
   const token = resolveToken(options.token)
   if (!token) {
     throw new MissingTokenError()
   }
-  const baseUrl = options.url ?? DEFAULT_API_URL
-  const filePath = options.file ?? DEFAULT_INTEGRATIONS_FILE
-  const envFilePath = options.envFile ?? DEFAULT_ENV_FILE
 
   log(chalk.dim(`Fetching integrations from ${baseUrl}...`))
 
