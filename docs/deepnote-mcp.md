@@ -49,7 +49,7 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `search`: Search workspace resources across projects, notebooks, blocks, and integrations.
 - `list_projects`: List workspace projects, optionally filtered by name.
 - `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` and `update_project` accept.
-- `create_folder`: Create a workspace folder, optionally inside another folder. Folder names don't have to be unique, so agents check `list_folders` first and reuse a folder that already exists.
+- `create_folder`: Create a workspace folder, optionally inside another folder.
 - `get_project`: Get a project's metadata, notebooks, attached integrations, files, static website settings, and environment.
 - `create_project`: Create a new project, optionally inside a folder and on a chosen environment.
 - `update_project`: Move a project to another folder or to the workspace root, change its environment, its static website sharing and viewer API access, and whether its Streamlit apps may call the Deepnote API as their viewers. Changing the environment restarts a running machine.
