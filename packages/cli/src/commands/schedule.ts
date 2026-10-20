@@ -6,10 +6,9 @@ import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-
 import { type ScheduleInCloudResult, scheduleInCloud } from '@deepnote/local-runner'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, error as logError, output, outputJson, warn } from '../output'
-import { MissingTokenError } from '../utils/auth'
+import { MissingTokenError, resolveToken } from '../utils/auth'
 import { openInBrowser } from '../utils/browser'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import {
@@ -66,7 +65,7 @@ async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleO
   const schedule = resolveScheduleExpression(options)
 
   dotenv.config({ path: join(dirname(absolutePath), DEFAULT_ENV_FILE), quiet: true })
-  const token = options.token?.trim() || process.env[DEEPNOTE_TOKEN_ENV]?.trim()
+  const token = resolveToken(options.token)
   if (!token) {
     throw new MissingTokenError()
   }

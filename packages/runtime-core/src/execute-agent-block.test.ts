@@ -1,9 +1,11 @@
 import type { AgentBlock } from '@deepnote/blocks'
-import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test'
+import { tool } from 'ai'
+import { convertArrayToReadableStream, MockLanguageModelV4 } from 'ai/test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
 const { modelRef, createMCPClientMock } = vi.hoisted(() => ({
-  modelRef: { current: null as InstanceType<typeof import('ai/test').MockLanguageModelV3> | null },
+  modelRef: { current: null as InstanceType<typeof import('ai/test').MockLanguageModelV4> | null },
   createMCPClientMock: vi.fn(),
 }))
 
@@ -13,7 +15,7 @@ vi.mock('@ai-sdk/openai', () => {
     return modelRef.current
   }
   return {
-    createOpenAI: () => Object.assign((_id: string) => getModel(), { chat: (_id: string) => getModel() }),
+    createOpenAI: () => (_id: string) => getModel(),
   }
 })
 vi.mock('@ai-sdk/mcp', () => ({ createMCPClient: createMCPClientMock }))
@@ -21,7 +23,7 @@ vi.mock('@ai-sdk/mcp/mcp-stdio', () => ({ Experimental_StdioMCPTransport: class 
 
 import { type AgentBlockContext, executeAgentBlock } from './agent-handler'
 
-type DoStreamResult = Awaited<ReturnType<MockLanguageModelV3['doStream']>>
+type DoStreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>
 type StreamPart = DoStreamResult['stream'] extends ReadableStream<infer P> ? P : never
 
 const USAGE = {
@@ -49,9 +51,9 @@ const finish = (unified: 'stop' | 'tool-calls'): StreamPart => ({
 })
 
 /** Replays one canned stream per step. A thunk step is evaluated when that step is reached. */
-function stepModel(...steps: Array<StreamPart[] | (() => StreamPart[])>): MockLanguageModelV3 {
+function stepModel(...steps: Array<StreamPart[] | (() => StreamPart[])>): MockLanguageModelV4 {
   let call = 0
-  return new MockLanguageModelV3({
+  return new MockLanguageModelV4({
     doStream: async (): Promise<DoStreamResult> => {
       const step = steps[call]
       call += 1
@@ -83,8 +85,7 @@ const makeContext = (overrides: Partial<AgentBlockContext> = {}): AgentBlockCont
 })
 
 beforeEach(() => {
-  // Pins the Responses API path regardless of the developer's environment.
-  vi.stubEnv('OPENAI_BASE_URL', undefined)
+  modelRef.current = null
   createMCPClientMock.mockReset()
   createMCPClientMock.mockImplementation(() => {
     throw new Error('unexpected createMCPClient call')
@@ -95,23 +96,92 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('executeAgentBlock abort', () => {
-  it('runs tools and returns the final text', async () => {
+describe('executeAgentBlock credentials', () => {
+  it('does not send the deprecated OpenAI token to another provider', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', undefined)
+    const block: AgentBlock = { ...AGENT_BLOCK, metadata: { deepnote_agent_model: 'claude-opus-5-5' } }
+
+    await expect(executeAgentBlock(block, makeContext({ openAiToken: 'openai-key' }))).rejects.toThrow(
+      /ANTHROPIC_API_KEY/
+    )
+  })
+})
+
+describe('executeAgentBlock streaming', () => {
+  it('forwards reasoning, tool calls, tool outputs, and final text in order', async () => {
+    const onAgentEvent = vi.fn()
+    modelRef.current = stepModel(
+      [
+        { type: 'reasoning-start', id: 'r' },
+        { type: 'reasoning-delta', id: 'r', delta: 'Checking the data' },
+        { type: 'reasoning-end', id: 'r' },
+        toolCall('add_code_block', { code: 'print(1)' }),
+        finish('tool-calls'),
+      ],
+      [...text('All done'), finish('stop')]
+    )
+
+    const result = await executeAgentBlock(AGENT_BLOCK, makeContext({ onAgentEvent }))
+
+    expect(result).toEqual({ finalOutput: 'All done' })
+    expect(onAgentEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'reasoning_delta', text: 'Checking the data' },
+      { type: 'tool_called', toolName: 'add_code_block' },
+      { type: 'tool_output', toolName: 'add_code_block', output: 'code ok' },
+      { type: 'text_delta', text: 'All done' },
+    ])
+  })
+
+  it('rejects with the provider error instead of a generic no-output error', async () => {
+    modelRef.current = stepModel([{ type: 'error', error: new Error('404 page not found') }])
+
+    await expect(executeAgentBlock(AGENT_BLOCK, makeContext())).rejects.toThrow('404 page not found')
+  })
+
+  it('stops after ten steps even if the model keeps requesting tools', async () => {
     const codeSpy = vi.fn(async () => 'code ok')
     modelRef.current = stepModel(
-      [toolCall('add_code_block', { code: 'print(1)' }), finish('tool-calls')],
-      [...text('All done'), finish('stop')]
+      ...Array.from({ length: 10 }, () => [toolCall('add_code_block', { code: 'print(1)' }), finish('tool-calls')])
+    )
+
+    await executeAgentBlock(AGENT_BLOCK, makeContext({ addAndExecuteCodeBlock: codeSpy }))
+
+    expect(modelRef.current.doStreamCalls).toHaveLength(10)
+    expect(codeSpy).toHaveBeenCalledTimes(10)
+  })
+
+  it('executes discovered MCP tools and closes the client after a successful run', async () => {
+    const lookup = vi.fn(async ({ query }: { query: string }) => ({ answer: query }))
+    const close = vi.fn(async () => {})
+    createMCPClientMock.mockResolvedValue({
+      tools: async () => ({
+        lookup: tool({ inputSchema: z.object({ query: z.string() }), execute: lookup }),
+      }),
+      close,
+    })
+    const onAgentEvent = vi.fn()
+    modelRef.current = stepModel(
+      [toolCall('lookup', { query: 'sales' }), finish('tool-calls')],
+      [...text('Found sales'), finish('stop')]
     )
 
     const result = await executeAgentBlock(
       AGENT_BLOCK,
-      makeContext({ signal: new AbortController().signal, addAndExecuteCodeBlock: codeSpy })
+      makeContext({ mcpServers: [{ name: 'search', command: 'unused', args: [] }], onAgentEvent })
     )
 
-    expect(result).toEqual({ finalOutput: 'All done' })
-    expect(codeSpy).toHaveBeenCalledWith({ code: 'print(1)' })
+    expect(result).toEqual({ finalOutput: 'Found sales' })
+    expect(lookup).toHaveBeenCalledWith({ query: 'sales' }, expect.anything())
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      type: 'tool_output',
+      toolName: 'lookup',
+      output: '{"answer":"sales"}',
+    })
+    expect(close).toHaveBeenCalledTimes(1)
   })
+})
 
+describe('executeAgentBlock abort', () => {
   it('throws before spawning MCP clients or calling the model when pre-aborted', async () => {
     const reason = new Error('cancelled before start')
     const controller = new AbortController()
@@ -194,6 +264,110 @@ describe('executeAgentBlock abort', () => {
     })
 
     await expect(executeAgentBlock(AGENT_BLOCK, makeContext({ signal: controller.signal }))).rejects.toBe(reason)
+  })
+
+  it('skips tool discovery and closes the started client when aborted during MCP startup', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during mcp init')
+    const toolsSpy = vi.fn(async () => ({}))
+    const closeSpy = vi.fn(async () => {})
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveCreate!: () => void
+    const createGate = new Promise<void>(resolve => {
+      resolveCreate = resolve
+    })
+
+    createMCPClientMock.mockImplementation(async () => {
+      await createGate
+      return { tools: toolsSpy, close: closeSpy }
+    })
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [{ name: 'srv', command: 'unused', args: [] }],
+      })
+    )
+
+    await vi.waitFor(() => expect(createMCPClientMock).toHaveBeenCalled())
+    controller.abort(reason)
+    resolveCreate()
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(toolsSpy).not.toHaveBeenCalled()
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
+  })
+
+  it('reports the abort reason rather than an MCP startup failure when both happen', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during mcp init')
+    const startupFailure = new Error('spawn failed')
+    const goodClient = { tools: vi.fn(async () => ({})), close: vi.fn(async () => {}) }
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveCreate!: () => void
+    const createGate = new Promise<void>(resolve => {
+      resolveCreate = resolve
+    })
+
+    createMCPClientMock
+      .mockImplementationOnce(async () => {
+        await createGate
+        return goodClient
+      })
+      .mockRejectedValueOnce(startupFailure)
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [
+          { name: 'good', command: 'ok', args: [] },
+          { name: 'bad', command: 'boom', args: [] },
+        ],
+      })
+    )
+
+    await vi.waitFor(() => expect(createMCPClientMock).toHaveBeenCalledTimes(2))
+    controller.abort(reason)
+    resolveCreate()
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(goodClient.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call the model when aborted during tool discovery', async () => {
+    const controller = new AbortController()
+    const reason = new Error('cancelled during tool discovery')
+    const closeSpy = vi.fn(async () => {})
+    modelRef.current = stepModel([...text('SHOULD NOT APPEAR'), finish('stop')])
+
+    let resolveTools!: (tools: Record<string, unknown>) => void
+    const toolsGate = new Promise<Record<string, unknown>>(resolve => {
+      resolveTools = resolve
+    })
+    const toolsSpy = vi.fn(() => toolsGate)
+
+    createMCPClientMock.mockResolvedValue({ tools: toolsSpy, close: closeSpy })
+
+    const runPromise = executeAgentBlock(
+      AGENT_BLOCK,
+      makeContext({
+        signal: controller.signal,
+        mcpServers: [{ name: 'srv', command: 'unused', args: [] }],
+      })
+    )
+
+    await vi.waitFor(() => expect(toolsSpy).toHaveBeenCalledTimes(1))
+    controller.abort(reason)
+    resolveTools({})
+
+    await expect(runPromise).rejects.toBe(reason)
+    expect(closeSpy).toHaveBeenCalledTimes(1)
+    expect(modelRef.current.doStreamCalls).toHaveLength(0)
   })
 })
 

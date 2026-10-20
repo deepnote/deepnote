@@ -9,19 +9,15 @@ noContent: false
 
 There are two ways to import `.ipynb` files into a Deepnote project:
 
-1. Drag and drop `.ipynb` files into the **NOTEBOOKS** section in the left panel.
+1. Drag and drop `.ipynb` files into the **Notebooks** section in the left panel.
 
-![Drag an .ipynb file into the Notebooks section](../assets/docs/importing-and-exporting-jupyter-notebooks/drag-and-drop-notebooks.webp)
-<br></br><br></br>
+   ![Drag an .ipynb file into the Notebooks section](../assets/docs/importing-and-exporting-jupyter-notebooks/drag-and-drop-notebooks.webp)
 
-2.1 In the right sidebar, click the **+** button in the **Files** section and select **Upload .ipynb file**.
+2. In the right sidebar, click the **+** button in the **Files** section and select **Upload .ipynb file**.
 
-![Upload an .ipynb file from the Files menu](../assets/docs/importing-and-exporting-jupyter-notebooks/upload-ipynb-menu.webp)
+   ![Upload an .ipynb file from the Files menu](../assets/docs/importing-and-exporting-jupyter-notebooks/upload-ipynb-menu.webp)
 
-2.2 After uploading the file, open it and select **Move to notebooks**. The file appears in the **Notebooks** section, where you can open it and start working.
-
-![Move an uploaded .ipynb file to Notebooks](../assets/docs/importing-and-exporting-jupyter-notebooks/move-ipynb-to-notebooks.webp)
-<br></br><br></br>
+   The notebook appears in the **Notebooks** section, where you can open it and start working.
 
 ## How to export `.ipynb` files
 

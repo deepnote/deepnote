@@ -1,19 +1,19 @@
-import fs from 'node:fs/promises'
-import { join, posix, relative, sep } from 'node:path'
+import { join } from 'node:path'
 import {
-  deleteProjectFile,
-  getProjectDetail,
-  type ProjectStaticFilesUpdate,
-  updateProjectStaticFiles,
-  uploadProjectFile,
-} from '@deepnote/cloud'
+  type PublishAppEvent,
+  type PublishAppResult,
+  PublishDivergedError,
+  PublishError,
+  publishApp,
+  type SyncRootOption,
+} from '@deepnote/cloud-sync'
+import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
-import { DEEPNOTE_TOKEN_ENV } from '../constants'
+import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
-import { getChalk, log, error as logError } from '../output'
-import { MissingTokenError } from '../utils/auth'
-
-const STATIC_ROOT = '_deepnote_static'
+import { debug, getChalk, log, error as logError, warn } from '../output'
+import { MissingTokenError, resolveToken } from '../utils/auth'
+import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 interface PublishOptions {
   projectId: string
@@ -23,88 +23,16 @@ interface PublishOptions {
   apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
-}
-
-interface PublishFile {
-  localPath: string
-  relativePath: string
-  destination: string
-}
-
-async function collectFiles(dir: string): Promise<string[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true, recursive: true })
-  return entries.filter(entry => entry.isFile()).map(entry => join(entry.parentPath ?? entry.path, entry.name))
-}
-
-function normalizeTargetPrefix(path: string): string | null {
-  const normalized = path.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
-  const segments = normalized.split('/')
-  if (
-    (normalized !== STATIC_ROOT && !normalized.startsWith(`${STATIC_ROOT}/`)) ||
-    segments.some(segment => segment === '' || segment === '.' || segment === '..' || segment.includes('\0'))
-  ) {
-    return null
-  }
-  return normalized
-}
-
-function preparePublishFiles(targetPrefix: string, localDir: string, files: string[]): PublishFile[] {
-  const prepared = files.map(localPath => {
-    const relativePath = relative(localDir, localPath).split(sep).join('/')
-    const destination = `${targetPrefix}/${relativePath}`
-    const canonicalDestination = posix.normalize(destination.trim()).replace(/^\/+/, '')
-    return { localPath, relativePath, destination, canonicalDestination }
-  })
-
-  const destinations = new Map<string, string>()
-  for (const file of prepared) {
-    const existing = destinations.get(file.canonicalDestination)
-    if (existing !== undefined) {
-      throw new Error(
-        `File path collision: "${existing}" and "${file.relativePath}" both map to "${file.canonicalDestination}"`
-      )
-    }
-    destinations.set(file.canonicalDestination, file.relativePath)
-  }
-
-  for (const file of prepared) {
-    if (file.relativePath.includes('\\') || file.canonicalDestination !== file.destination) {
-      throw new Error(`Unsupported file path: "${file.relativePath}"`)
-    }
-  }
-
-  return prepared
-}
-
-function staticSiteUrl(canonicalUrl: string, targetPrefix: string): string {
-  const base = new URL(canonicalUrl)
-  const origin = base.origin
-  if (!base.pathname.endsWith('/')) {
-    base.pathname += '/'
-  }
-  if (targetPrefix === STATIC_ROOT) {
-    return base.toString()
-  }
-  const suffix = targetPrefix
-    .slice(STATIC_ROOT.length + 1)
-    .split('/')
-    .map(encodeURIComponent)
-    .join('/')
-  base.pathname += `${suffix}/`
-  if (base.origin !== origin) {
-    throw new Error('Static site URL changed origin')
-  }
-  return base.toString()
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  syncRoot: SyncRootOption
+  force: boolean
 }
 
 export function createPublishAction(program: Command) {
   return async (dir: string, options: PublishOptions) => {
     const c = getChalk()
-    const token = options.token || process.env[DEEPNOTE_TOKEN_ENV]
+    // Load .env from the current directory before reading the token — mirrors `sync` and `run --cloud`.
+    dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
+    const token = resolveToken(options.token)
     if (!token) {
       // `program.parse()` does not await this action, so a rejection here would surface as an
       // unhandled rejection rather than the documented exit code.
@@ -112,166 +40,113 @@ export function createPublishAction(program: Command) {
       return
     }
 
-    const targetPrefix = normalizeTargetPrefix(options.path)
-    if (!targetPrefix) {
-      program.error(`--path must be ${STATIC_ROOT} or a directory below it`, { exitCode: ExitCode.InvalidUsage })
-      return
-    }
-
-    let stat: Awaited<ReturnType<typeof fs.stat>>
-    try {
-      stat = await fs.stat(dir)
-    } catch {
-      program.error(`Directory not found: ${dir}`, { exitCode: ExitCode.InvalidUsage })
-      return
-    }
-    if (!stat.isDirectory()) {
-      program.error(`Not a directory: ${dir}`, { exitCode: ExitCode.InvalidUsage })
-      return
-    }
-
-    let files: string[]
-    try {
-      files = await collectFiles(dir)
-    } catch (error) {
-      program.error(`Could not read ${dir}: ${errorMessage(error)}`, { exitCode: ExitCode.Error })
-      return
-    }
-    if (files.length === 0) {
-      program.error(`No files found in ${dir}`, { exitCode: ExitCode.InvalidUsage })
-      return
-    }
-
-    let publishFiles: PublishFile[]
-    try {
-      publishFiles = preparePublishFiles(targetPrefix, dir, files)
-    } catch (error) {
-      program.error(errorMessage(error), { exitCode: ExitCode.InvalidUsage })
-      return
-    }
-
-    const baseUrl = options.url
-    let project: Awaited<ReturnType<typeof getProjectDetail>>
-    try {
-      project = await getProjectDetail(baseUrl, token, options.projectId)
-    } catch (error) {
-      logError(`Could not load project ${options.projectId}: ${errorMessage(error)}`)
-      process.exitCode = ExitCode.Error
-      return
-    }
-    const { files: projectFiles, staticFiles: existingSettings } = project
-
-    if (!options.quiet) {
-      log(
-        `Publishing ${c.bold(String(files.length))} file${files.length === 1 ? '' : 's'} to ${c.cyan(targetPrefix)} in project ${c.dim(options.projectId)}`
-      )
-    }
-
-    let uploaded = 0
-    let pruned = 0
-    const errors: Array<{ file: string; error: string }> = []
-    const publishedPaths = new Set(publishFiles.map(file => file.destination))
-    const stalePaths = options.prune
-      ? projectFiles
-          .map(file => file.path)
-          .filter(path => (path === targetPrefix || path.startsWith(`${targetPrefix}/`)) && !publishedPaths.has(path))
-      : []
-    const blockingPaths = stalePaths.filter(path => publishFiles.some(file => file.destination.startsWith(`${path}/`)))
-
-    for (const path of blockingPaths) {
-      try {
-        await deleteProjectFile(baseUrl, token, options.projectId, path)
-        pruned++
-        if (!options.quiet) {
-          log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
-        }
-      } catch (error) {
-        const message = errorMessage(error)
-        errors.push({ file: path, error: message })
-        logError(`  ✗ remove ${path} — ${message}`)
-      }
-    }
-
-    for (const { localPath, relativePath, destination } of publishFiles) {
-      try {
-        // Read before deleting the remote copy so an unreadable local file leaves the live file intact.
-        const content = await fs.readFile(localPath)
-        await deleteProjectFile(baseUrl, token, options.projectId, destination)
-        const stored = await uploadProjectFile(baseUrl, token, options.projectId, destination, content)
-        if (stored.path !== destination) {
-          await deleteProjectFile(baseUrl, token, options.projectId, stored.path).catch(() => undefined)
-          throw new Error(`Deepnote stored the file at "${stored.path}" instead of "${destination}"`)
-        }
-        uploaded++
-        if (!options.quiet) {
-          log(`  ${c.green('✓')} ${relativePath}`)
-        }
-      } catch (error) {
-        const message = errorMessage(error)
-        errors.push({ file: relativePath, error: message })
-        logError(`  ✗ ${relativePath} — ${message}`)
-      }
-    }
-
-    if (errors.length === 0 && options.prune) {
-      for (const path of stalePaths.filter(path => !blockingPaths.includes(path))) {
-        try {
-          await deleteProjectFile(baseUrl, token, options.projectId, path)
-          pruned++
+    let targetPath = options.path
+    const renderEvent = (event: PublishAppEvent) => {
+      switch (event.kind) {
+        case 'publishing': {
+          targetPath = event.targetPath
           if (!options.quiet) {
-            log(`  ${c.green('✓')} removed ${path.slice(targetPrefix.length + 1)}`)
+            log(
+              `Publishing ${c.bold(String(event.fileCount))} file${event.fileCount === 1 ? '' : 's'} to ${c.cyan(event.targetPath)} in project ${c.dim(event.projectId)}`
+            )
           }
-        } catch (error) {
-          const message = errorMessage(error)
-          errors.push({ file: path, error: message })
-          logError(`  ✗ remove ${path} — ${message}`)
+          return
+        }
+        case 'file-removed': {
+          if (!options.quiet) {
+            log(`  ${c.green('✓')} removed ${event.path.slice(targetPath.length + 1)}`)
+          }
+          return
+        }
+        case 'file-uploaded': {
+          if (!options.quiet) {
+            log(`  ${c.green('✓')} ${event.path}`)
+          }
+          return
+        }
+        case 'operation-failed': {
+          const label = {
+            remove: `remove ${event.path}`,
+            upload: event.path,
+            'enable-sharing': 'enable app sharing',
+          }[event.operation]
+          logError(`  ✗ ${label} — ${event.message}`)
+          return
+        }
+        case 'mirror-skipped': {
+          debug(`Not updating the sync mirror: ${event.projectDir} does not exist`)
+          return
+        }
+        case 'mirror-incomplete': {
+          warn(
+            `Published, but could not fully update the sync mirror in ${event.syncRoot}: ${event.failures.join('; ')}. ` +
+              'Run `deepnote sync --all-files` to reconcile.'
+          )
+          return
         }
       }
     }
 
-    let siteUrl: string | undefined
-    let apiAccessEnabled: boolean | undefined
-    if (errors.length === 0) {
-      const requestedApiAccess = options.apiAccess === undefined ? undefined : options.apiAccess === 'enabled'
-      try {
-        let settings = existingSettings
-        if (
-          !settings ||
-          !settings.sharingEnabled ||
-          (requestedApiAccess !== undefined && settings.apiAccessEnabled !== requestedApiAccess)
-        ) {
-          const update: ProjectStaticFilesUpdate = { sharingEnabled: true }
-          if (requestedApiAccess !== undefined) {
-            update.apiAccessEnabled = requestedApiAccess
-          }
-          settings = await updateProjectStaticFiles(baseUrl, token, options.projectId, update)
-        }
-        siteUrl = staticSiteUrl(settings.url, targetPrefix)
-        apiAccessEnabled = settings.apiAccessEnabled
-      } catch (error) {
-        const message = errorMessage(error)
-        errors.push({ file: 'project settings', error: message })
-        logError(`  ✗ enable static website sharing — ${message}`)
+    let result: PublishAppResult
+    try {
+      result = await publishApp({
+        dir,
+        projectId: options.projectId,
+        baseUrl: options.url,
+        token,
+        targetPath: options.path,
+        apiAccess: options.apiAccess === undefined ? undefined : options.apiAccess === 'enabled',
+        prune: options.prune,
+        force: options.force,
+        syncRoot: options.syncRoot,
+        onEvent: renderEvent,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      if (error instanceof PublishDivergedError) {
+        logError(
+          `${message}. Run \`deepnote sync --all-files\` to bring the changes down, ` +
+            'or publish with --force to overwrite them.'
+        )
+        process.exitCode = ExitCode.Error
+        return
       }
+      if (error instanceof PublishError && error.reason === 'project-unavailable') {
+        logError(message)
+        process.exitCode = ExitCode.Error
+        return
+      }
+      const exitCode =
+        error instanceof PublishError && error.reason === 'invalid-input' ? ExitCode.InvalidUsage : ExitCode.Error
+      program.error(message, { exitCode })
+      return
     }
 
     if (!options.quiet) {
       log('')
-      if (uploaded > 0) {
-        log(`${c.green('✓')} Uploaded ${uploaded}/${files.length} file${files.length === 1 ? '' : 's'}`)
+      if (result.uploaded > 0) {
+        log(
+          `${c.green('✓')} Uploaded ${result.uploaded}/${result.totalFiles} file${result.totalFiles === 1 ? '' : 's'}`
+        )
       }
-      if (pruned > 0) {
-        log(`${c.green('✓')} Removed ${pruned} stale file${pruned === 1 ? '' : 's'}`)
+      if (result.pruned > 0) {
+        log(`${c.green('✓')} Removed ${result.pruned} stale file${result.pruned === 1 ? '' : 's'}`)
       }
-      if (errors.length > 0) {
-        log(`${c.red('✗')} Publish failed with ${errors.length} error${errors.length === 1 ? '' : 's'}`)
-      } else if (siteUrl !== undefined) {
-        log(`\n${c.bold('Static site URL:')} ${c.underline(siteUrl)}`)
-        log(`${c.dim(`API access: ${apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
+      if (result.mirrorUpdated && result.syncRoot !== undefined) {
+        log(`${c.green('✓')} Updated the sync mirror in ${c.dim(result.syncRoot)}`)
+      }
+      if (result.errors.length > 0) {
+        log(`${c.red('✗')} Publish failed with ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`)
+      } else if (result.appUrl !== undefined) {
+        log(`\n${c.bold('App URL:')} ${c.underline(result.appUrl)}`)
+        log(`${c.dim(`API access: ${result.apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
+        if (result.apiAccessEnabled) {
+          log(`\n${embeddedApiAccessNote(c)}`)
+        }
       }
     }
 
-    if (errors.length > 0) {
+    if (result.errors.length > 0) {
       process.exitCode = ExitCode.Error
     }
   }
