@@ -48,7 +48,7 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `get_me`: Return info about the API key or account calling the server: the key name and type, who created it, the workspace, and the access level (viewer, editor, admin, etc.).
 - `search`: Search workspace resources across projects, notebooks, blocks, and integrations.
 - `list_projects`: List workspace projects, optionally filtered by name.
-- `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` and `update_project` accept.
+- `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` accepts.
 - `create_folder`: Create a workspace folder, optionally inside another folder.
 - `get_project`: Get a project's metadata, notebooks, attached integrations, files, static website settings, and environment.
 - `create_project`: Create a new project, optionally inside a folder and on a chosen environment.
