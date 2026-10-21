@@ -14,22 +14,25 @@ Get started by exploring our [example apps](https://deepnote.com/explore#streaml
 
 There are two ways to get started with Streamlit in Deepnote:
 
-1. Drop in existing scripts. Add your `.py` file to your project's **Files** panel in the right sidebar. Deepnote automatically detects Streamlit apps and begins deployment. In seconds, you'll see your live app in the split-screen preview.
+1. Drop in existing scripts. Add your `.py` file to your project's **Files** panel in the right sidebar. Open the file and click **Create Streamlit app** to deploy it.
 2. Start from scratch. Create a new `.py` file and write your Streamlit code directly in Deepnote - from simple buttons to complex interactive elements. When ready, click the **Create Streamlit app** button in the upper right corner to deploy.
 
 Once deployed, use the **Open app button** to see your app in its full shared state.
+
+![Streamlit app with an NYC Wi-Fi hotspot map](../assets/docs/streamlit/nyc-wifi-app.webp)
 
 ## App status
 
 Your project's hardware serves your Streamlit apps. The indicator in the upper left corner of the app preview shows the current state:
 
 - `Awake`: The app is deployed and running, so visitors can interact with it.
+- `Sleeping`: The project hardware is inactive. Refresh the app to wake it up.
 - `Waking up`: The project hardware is starting and the app is not yet available.
 - `Going to sleep`: The app is becoming unavailable as the project hardware shuts down.
 
 ## Editing an app
 
-When you make changes to your app's code, your updates will be reflected immediately in the live app.
+When you make changes to your app's code, your updates will be reflected immediately in the live app. This means anyone viewing your app will see these changes as they happen.
 
 ## Sharing an app
 
@@ -44,6 +47,8 @@ Streamlit apps often need data to visualize. Deepnote's notebook environment is 
 1. Create notebooks to process your data using our SQL integrations and AI assistance
 2. Save your results (commonly as `.csv` files)
 3. Reference these files in your Streamlit script
+
+![Streamlit script reading CSV files from the project](../assets/docs/streamlit/csv-data.webp)
 
 Need to update your data regularly? Take advantage of [notebook scheduling](https://deepnote.com/docs/scheduling) to automate your data preparation.
 
@@ -140,9 +145,3 @@ Your Streamlit app shares its environment with your project. If you need to add 
 
 - creating an [**Init** notebook](https://deepnote.com/docs/installing-dependencies#2-initialization-script-init-notebook). Every time your Streamlit app starts up, the Init notebook will run before and install the dependencies from your `requirements.txt` file.
 - creating a [custom environment](https://deepnote.com/docs/custom-environment) for your project with all the required dependencies.
-
-## Limitations
-
-- The Streamlit file editor includes an AI assistance panel.
-- The file upload widget is supported in Streamlit apps.
-- The app menu includes a **Record screen** option.
