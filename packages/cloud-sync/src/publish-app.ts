@@ -3,6 +3,7 @@ import { basename, join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
+  MAX_BUFFERED_PROJECT_FILE_BYTES,
   PROJECT_STATIC_ROOT,
   type ProjectStaticFilesUpdate,
   updateProjectStaticFiles,
@@ -11,6 +12,9 @@ import {
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import {
   findDivergedPublishPaths,
+  PUBLISH_ERROR_HINTS,
+  type PublishErrorCode,
+  type PublishErrorHint,
   type PublishMirror,
   PublishMirrorError,
   recordPrunedFile,
@@ -22,7 +26,10 @@ import {
 import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
 
 export interface PublishAppOptions {
-  /** Local build directory; every file below it is uploaded. `.env` and `.env.*` files are refused. */
+  /**
+   * Local build directory; every file below it is uploaded. `.env` and `.env.*` files, and files over the
+   * 100 MiB upload limit, are refused.
+   */
   dir: string
   projectId: string
   baseUrl: string
@@ -87,19 +94,30 @@ export interface PublishAppResult {
 }
 
 /**
- * `invalid-input`: a bad `targetPath`, a missing, empty or non-directory `dir`, a `.env` file, colliding
- * paths, or an unusable sync folder. `unreadable-directory`: `dir` could not be read.
+ * `invalid-input`: a bad `targetPath`, a missing, empty or non-directory `dir`, a `.env` file, a file over
+ * the upload limit, colliding paths, or an unusable sync folder. `unreadable-directory`: `dir` or a file in
+ * it could not be read.
  * `project-unavailable`: the project could not be loaded.
  */
 export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable'
 
+/**
+ * `code` is set only with reason `invalid-input`, for a sync folder `publishApp` cannot update; see
+ * {@link PublishErrorCode}. `hint` is set exactly when `code` is: the option change that resolves it.
+ */
 export class PublishError extends Error {
+  readonly hint?: PublishErrorHint
+
   constructor(
     readonly reason: PublishErrorReason,
-    message: string
+    message: string,
+    readonly code?: PublishErrorCode
   ) {
     super(message)
     this.name = 'PublishError'
+    if (code) {
+      this.hint = PUBLISH_ERROR_HINTS[code]
+    }
   }
 }
 
@@ -173,6 +191,55 @@ function preparePublishFiles(targetPrefix: string, localDir: string, files: stri
   return prepared
 }
 
+/** Run `worker` over `items` with at most `limit` in flight, preserving order in the result. */
+async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let next = 0
+  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    for (;;) {
+      const index = next++
+      if (index >= items.length) {
+        return
+      }
+      results[index] = await worker(items[index])
+    }
+  })
+  await Promise.all(runners)
+  return results
+}
+
+const UPLOAD_LIMIT = `${MAX_BUFFERED_PROJECT_FILE_BYTES / (1024 * 1024)} MiB`
+
+const STAT_CONCURRENCY = 4 // Aligned with the default value of UV_THREADPOOL_SIZE
+const MAX_LISTED_FILES = 5
+
+/** Replacing deletes the live copy first, and an upload over the limit is only rejected after that. */
+async function assertWithinUploadLimit(dir: string, publishFiles: PublishFile[]): Promise<void> {
+  const fileSizes = await mapWithConcurrency(publishFiles, STAT_CONCURRENCY, async ({ localPath, relativePath }) => {
+    try {
+      const { size } = await fs.stat(localPath)
+      return { relativePath, size }
+    } catch (error) {
+      throw new PublishError('unreadable-directory', `Could not read ${dir}: ${errorMessage(error)}`)
+    }
+  })
+  const oversized = fileSizes
+    .filter(file => file.size > MAX_BUFFERED_PROJECT_FILE_BYTES)
+    .map(file => file.relativePath)
+    .sort()
+  if (oversized.length > 0) {
+    // The ", and N more" tail takes the last slot, so a truncated list names one file fewer.
+    const listed = oversized.length > MAX_LISTED_FILES ? oversized.slice(0, MAX_LISTED_FILES - 1) : oversized
+    const names = listed.map(file => `"${file}"`).join(', ')
+    const remaining = oversized.length - listed.length
+    const more = remaining > 0 ? `, and ${remaining} more` : ''
+    throw new PublishError(
+      'invalid-input',
+      `Refusing to publish files over the ${UPLOAD_LIMIT} upload limit: ${names}${more}. Remove them from ${dir}.`
+    )
+  }
+}
+
 function appUrlWithPath(canonicalUrl: string, targetPrefix: string): string {
   const base = new URL(canonicalUrl)
   const origin = base.origin
@@ -205,7 +272,7 @@ async function prepareLocalFiles(
 ): Promise<{ targetPrefix: string; publishFiles: PublishFile[] }> {
   const targetPrefix = normalizeTargetPrefix(targetPath)
   if (!targetPrefix) {
-    throw new PublishError('invalid-input', `--path must be ${PROJECT_STATIC_ROOT} or a directory below it`)
+    throw new PublishError('invalid-input', `Target path must be ${PROJECT_STATIC_ROOT} or a directory below it`)
   }
 
   let stat: Awaited<ReturnType<typeof fs.stat>>
@@ -240,11 +307,14 @@ async function prepareLocalFiles(
     )
   }
 
+  let publishFiles: PublishFile[]
   try {
-    return { targetPrefix, publishFiles: preparePublishFiles(targetPrefix, dir, files) }
+    publishFiles = preparePublishFiles(targetPrefix, dir, files)
   } catch (error) {
     throw new PublishError('invalid-input', errorMessage(error))
   }
+  await assertWithinUploadLimit(dir, publishFiles)
+  return { targetPrefix, publishFiles }
 }
 
 /**
@@ -272,7 +342,7 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     })
   } catch (error) {
     if (error instanceof PublishMirrorError) {
-      throw new PublishError('invalid-input', error.message)
+      throw new PublishError('invalid-input', error.message, error.code)
     }
     throw error
   }
@@ -339,8 +409,12 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
 
   for (const { localPath, relativePath, destination } of publishFiles) {
     try {
-      // Read before deleting the remote copy so an unreadable local file leaves the live file intact.
+      // Read before deleting the remote copy so an unreadable or oversized local file leaves the live file
+      // intact. The size is checked again because the file may have grown since the preflight.
       const content = await fs.readFile(localPath)
+      if (content.byteLength > MAX_BUFFERED_PROJECT_FILE_BYTES) {
+        throw new Error(`File "${relativePath}" exceeds the ${UPLOAD_LIMIT} upload limit.`)
+      }
       await deleteProjectFile(baseUrl, token, projectId, destination)
       const stored = await uploadProjectFile(baseUrl, token, projectId, destination, content)
       if (stored.path !== destination) {

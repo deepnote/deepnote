@@ -58,4 +58,4 @@ While IPywidgets are a popular tool for adding interactivity to Jupyter notebook
 
 Whether you are building interactive charts with Plotly or creating parameterized blocks Deepnote ensures that you can add interactivity and dynamic content without sacrificing performance or ease of use.
 
-By exploring Deepnote's built-in tools, you’ll find that you can achieve all the interactivity you need—without the complexity of IPywidgets!
+Deepnote's built-in tools can provide the interactivity you need without the complexity of IPywidgets.

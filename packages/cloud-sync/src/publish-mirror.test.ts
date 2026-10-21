@@ -145,49 +145,72 @@ describe('resolvePublishMirror', () => {
     expect(await resolvePublishMirror({ syncRoot: false, publishDir: tempDir, projectId: 'p1' })).toBeUndefined()
   })
 
-  it('rejects an explicit root with no manifest instead of searching upwards', async () => {
+  it('rejects an explicit root with no manifest instead of searching upwards, without a code', async () => {
     await writeManifest(tempDir)
     const nested = path.join(tempDir, 'nested')
     await fs.mkdir(nested)
 
-    await expect(resolvePublishMirror({ syncRoot: nested, publishDir: nested, projectId: 'p1' })).rejects.toThrow(
-      'No .deepnote-sync.json found in'
+    const error = await resolvePublishMirror({ syncRoot: nested, publishDir: nested, projectId: 'p1' }).catch(
+      (caught: unknown) => caught
     )
+
+    expect(error).toBeInstanceOf(PublishMirrorError)
+    expect(error).toMatchObject({ message: `No .deepnote-sync.json found in ${nested}.` })
+    expect((error as PublishMirrorError).code).toBeUndefined()
   })
 
-  it('rejects an explicit root that does not track the project', async () => {
+  it('rejects an explicit root that does not track the project, ending after the first sentence', async () => {
     await writeManifest(tempDir)
 
-    await expect(resolvePublishMirror({ syncRoot: tempDir, publishDir: tempDir, projectId: 'p2' })).rejects.toThrow(
-      'does not track project p2'
-    )
+    const attempt = resolvePublishMirror({ syncRoot: tempDir, publishDir: tempDir, projectId: 'p2' })
+
+    await expect(attempt).rejects.toBeInstanceOf(PublishMirrorError)
+    await expect(attempt).rejects.toMatchObject({
+      code: 'project-not-in-sync-root',
+      message: `The sync manifest at ${path.join(tempDir, '.deepnote-sync.json')} does not track project p2.`,
+    })
   })
 
-  it('rejects an explicit root whose tracked project directory is missing', async () => {
+  it('rejects an explicit root whose tracked project directory is missing, ending after the first sentence', async () => {
     await writeManifest(tempDir)
     await fs.rm(path.join(tempDir, 'Alpha'), { recursive: true, force: true })
 
-    await expect(resolvePublishMirror({ syncRoot: tempDir, publishDir: tempDir, projectId: 'p1' })).rejects.toThrow(
-      'that directory does not exist'
-    )
+    const attempt = resolvePublishMirror({ syncRoot: tempDir, publishDir: tempDir, projectId: 'p1' })
+
+    await expect(attempt).rejects.toBeInstanceOf(PublishMirrorError)
+    await expect(attempt).rejects.toMatchObject({
+      code: 'project-not-in-sync-root',
+      message:
+        `The sync manifest at ${path.join(tempDir, '.deepnote-sync.json')} tracks project p1 in Alpha, ` +
+        'but that directory does not exist.',
+    })
   })
 
-  it('rejects an unreadable manifest, pointing at --no-sync-root', async () => {
+  it('rejects an unreadable manifest with the underlying error message and the sync-root-unusable code', async () => {
     await fs.writeFile(path.join(tempDir, '.deepnote-sync.json'), '{not json')
 
-    await expect(resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })).rejects.toThrow(
-      '--no-sync-root'
-    )
+    const attempt = resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })
+
+    await expect(attempt).rejects.toBeInstanceOf(PublishMirrorError)
+    await expect(attempt).rejects.toMatchObject({
+      code: 'sync-root-unusable',
+      message:
+        `The sync manifest at ${path.join(tempDir, '.deepnote-sync.json')} is not valid JSON. ` +
+        'Fix or delete it (deleting re-syncs everything from scratch).',
+    })
   })
 
-  it('rejects a symlinked manifest as invalid usage, pointing at --no-sync-root', async () => {
+  it('rejects a symlinked manifest as an unusable sync root', async () => {
     await fs.writeFile(path.join(tempDir, 'elsewhere.json'), '{}')
     await fs.symlink(path.join(tempDir, 'elsewhere.json'), path.join(tempDir, '.deepnote-sync.json'))
 
     const attempt = resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })
 
-    await expect(attempt).rejects.toThrow(PublishMirrorError)
-    await expect(attempt).rejects.toThrow('--no-sync-root')
+    await expect(attempt).rejects.toBeInstanceOf(PublishMirrorError)
+    await expect(attempt).rejects.toMatchObject({
+      code: 'sync-root-unusable',
+      message: `The sync manifest at ${path.join(tempDir, '.deepnote-sync.json')} must not be a symbolic link.`,
+    })
   })
 })
 

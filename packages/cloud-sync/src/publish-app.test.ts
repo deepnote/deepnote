@@ -14,7 +14,13 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   }
 })
 
-import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
+import {
+  deleteProjectFile,
+  getProjectDetail,
+  MAX_BUFFERED_PROJECT_FILE_BYTES,
+  updateProjectStaticFiles,
+  uploadProjectFile,
+} from '@deepnote/cloud'
 import { type PublishAppEvent, type PublishAppOptions, PublishDivergedError, PublishError, publishApp } from './index'
 
 const mockedDelete = vi.mocked(deleteProjectFile)
@@ -267,6 +273,36 @@ describe('publishApp', () => {
     })
   })
 
+  describe('upload size limit', () => {
+    it('uploads a file of exactly the limit', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'exact.bin': '' })
+      await fs.truncate(join(dir, 'exact.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES)
+
+      const result = await publish({ dir }).attempt
+
+      expect(result.errors).toEqual([])
+      expect(result.uploaded).toBe(1)
+    })
+
+    it('keeps the live copy of a file that outgrows the limit after the preflight', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', 'big.bin': 'small' })
+      mockedGetProject.mockImplementation(async () => {
+        await fs.truncate(join(dir, 'big.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+        return { id: 'p1', name: 'Project', files: [] }
+      })
+
+      const { events, attempt } = publish({ dir })
+      const result = await attempt
+
+      const message = 'File "big.bin" exceeds the 100 MiB upload limit.'
+      expect(mockedDelete.mock.calls.map(call => call[3])).toEqual(['_deepnote_static/index.html'])
+      expect(result.errors).toEqual([{ path: 'big.bin', message }])
+      expect(events).toContainEqual({ kind: 'operation-failed', operation: 'upload', path: 'big.bin', message })
+    })
+  })
+
   describe('sync mirror', () => {
     it('reports an incomplete mirror before enabling sharing, without failing the publish', async () => {
       const { buildDir } = await writeWorkspace()
@@ -448,9 +484,74 @@ describe('publishApp', () => {
       expect(error).toBeInstanceOf(PublishError)
       expect(error).toMatchObject({
         reason: 'invalid-input',
-        message: expect.stringContaining('does not track project p2'),
+        code: 'project-not-in-sync-root',
+        message: `The sync manifest at ${join(root, '.deepnote-sync.json')} does not track project p2.`,
       })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
       expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('rejects an explicit sync root whose tracked project directory is missing as invalid input', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+      await fs.rm(join(root, 'Alpha'), { recursive: true })
+
+      const error = await rejection(publish({ dir: buildDir, syncRoot: root }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        code: 'project-not-in-sync-root',
+        message:
+          `The sync manifest at ${join(root, '.deepnote-sync.json')} tracks project p1 in Alpha, ` +
+          'but that directory does not exist.',
+      })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('rejects an unusable sync folder as invalid input with the underlying message', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+      await fs.writeFile(join(root, '.deepnote-sync.json'), '{')
+
+      const error = await rejection(publish({ dir: buildDir }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        code: 'sync-root-unusable',
+        message:
+          `The sync manifest at ${join(root, '.deepnote-sync.json')} is not valid JSON. ` +
+          'Fix or delete it (deleting re-syncs everything from scratch).',
+      })
+      expect((error as PublishError).hint).toEqual({ option: 'syncRoot', value: false })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('publishes without touching an unusable sync folder when syncRoot is false', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+      await fs.writeFile(join(root, '.deepnote-sync.json'), '{')
+
+      const result = await publish({ dir: buildDir, syncRoot: false }).attempt
+
+      expect(result.uploaded).toBe(1)
+    })
+
+    it('rejects an explicit sync root without a manifest as invalid input, without a code', async () => {
+      const { buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+
+      const error = await rejection(publish({ dir: buildDir, syncRoot: buildDir }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `No .deepnote-sync.json found in ${buildDir}.`,
+      })
+      expect((error as PublishError).code).toBeUndefined()
+      expect((error as PublishError).hint).toBeUndefined()
     })
   })
 
@@ -473,11 +574,66 @@ describe('publishApp', () => {
       expect(mockedUpdateProject).not.toHaveBeenCalled()
     })
 
+    it('refuses files over the upload limit before any API call', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', 'big.bin': '', 'assets/huge.bin': '' })
+      await fs.truncate(join(dir, 'big.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+      await fs.truncate(join(dir, 'assets/huge.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `Refusing to publish files over the 100 MiB upload limit: "assets/huge.bin", "big.bin". Remove them from ${dir}.`,
+      })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+      expect(mockedDelete).not.toHaveBeenCalled()
+      expect(mockedUpload).not.toHaveBeenCalled()
+      expect(mockedUpdateProject).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      [5, '"f1.bin", "f2.bin", "f3.bin", "f4.bin", "f5.bin"'],
+      [6, '"f1.bin", "f2.bin", "f3.bin", "f4.bin", and 2 more'],
+      [9, '"f1.bin", "f2.bin", "f3.bin", "f4.bin", and 5 more'],
+    ])('names at most five of %i oversized files', async (count, listed) => {
+      const dir = join(tempDir, 'site')
+      const names = Array.from({ length: count }, (_, index) => `f${index + 1}.bin`)
+      await writeFiles(dir, Object.fromEntries(names.map(name => [name, ''])))
+      for (const name of names) {
+        await fs.truncate(join(dir, name), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+      }
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: `Refusing to publish files over the 100 MiB upload limit: ${listed}. Remove them from ${dir}.`,
+      })
+    })
+
+    it('reports a file that cannot be inspected as unreadable before any API call', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+      vi.spyOn(fs, 'stat')
+        .mockResolvedValueOnce(await fs.stat(dir))
+        .mockRejectedValueOnce(new Error('EACCES: permission denied'))
+
+      const error = await rejection(publish({ dir }).attempt)
+
+      expect(error).toMatchObject({
+        reason: 'unreadable-directory',
+        message: `Could not read ${dir}: EACCES: permission denied`,
+      })
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
     it.each([
       [
         'a target outside the app folder',
         { targetPath: 'elsewhere' },
-        '--path must be _deepnote_static or a directory below it',
+        'Target path must be _deepnote_static or a directory below it',
       ],
       [
         'a missing directory',
@@ -490,7 +646,10 @@ describe('publishApp', () => {
 
       const error = await rejection(publish({ dir, ...override }).attempt)
 
+      expect(error).toBeInstanceOf(PublishError)
       expect(error).toMatchObject({ reason: 'invalid-input', message })
+      expect((error as PublishError).code).toBeUndefined()
+      expect((error as PublishError).hint).toBeUndefined()
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
