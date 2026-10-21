@@ -1,11 +1,6 @@
 import { readFileSync } from 'node:fs'
 import type { DeepnoteFile } from '@deepnote/blocks'
-import {
-  decodeUtf8NoBom,
-  deserializeDeepnoteFile,
-  EXECUTABLE_BLOCK_TYPES,
-  serializeDeepnoteFile,
-} from '@deepnote/blocks'
+import { decodeUtf8NoBom, deserializeDeepnoteFile, serializeDeepnoteFile } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentBlockContext } from './agent-handler'
@@ -130,7 +125,7 @@ vi.mock('./agent-handler', async importOriginal => {
   }
 })
 
-import { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
+import { ExecutionEngine } from './execution-engine'
 import { KernelDiedError, ServerExitedError } from './runtime-errors'
 import type { ServerInfo } from './server-starter'
 
@@ -1739,15 +1734,5 @@ describe('ExecutionEngine', () => {
         expect(executedCodes).toContain('compute()')
       })
     })
-  })
-})
-
-describe('executable block type exports', () => {
-  it('shares the set exported by @deepnote/blocks', () => {
-    expect(executableBlockTypeSet).toBe(EXECUTABLE_BLOCK_TYPES)
-  })
-
-  it('lists the same types as the set exported by @deepnote/blocks', () => {
-    expect([...executableBlockTypes].sort()).toEqual([...EXECUTABLE_BLOCK_TYPES].sort())
   })
 })

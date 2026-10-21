@@ -3,6 +3,7 @@ export { isAgentBlock } from './blocks/agent-blocks'
 export { createDataFrameConfig } from './blocks/data-frame'
 export {
   EXECUTABLE_BLOCK_TYPES,
+  EXECUTABLE_BLOCK_TYPES_LIST,
   INPUT_BLOCK_TYPES,
   isExecutableBlock,
   isExecutableBlockType,

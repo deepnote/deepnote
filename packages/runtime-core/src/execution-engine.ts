@@ -12,6 +12,7 @@ import {
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
   EXECUTABLE_BLOCK_TYPES,
+  EXECUTABLE_BLOCK_TYPES_LIST,
   extractOutputsText,
   generateSortingKey,
   getInputBlockValueOverrideValidationError,
@@ -40,7 +41,7 @@ import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
 
 // Re-export for backwards compatibility - these are now defined in @deepnote/blocks
-export const executableBlockTypes = [...EXECUTABLE_BLOCK_TYPES] as ExecutableBlock['type'][]
+export const executableBlockTypes: ExecutableBlock['type'][] = [...EXECUTABLE_BLOCK_TYPES_LIST]
 
 export const executableBlockTypeSet: ReadonlySet<string> = EXECUTABLE_BLOCK_TYPES
 

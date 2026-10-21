@@ -1,10 +1,6 @@
 import type { DeepnoteBlock, ExecutableBlock } from '../deepnote-file/deepnote-file-schema'
 
-/**
- * Block types that represent user input widgets.
- * These blocks capture user input and define variables.
- */
-export const INPUT_BLOCK_TYPES = new Set([
+const INPUT_BLOCK_TYPES_LIST = [
   'input-text',
   'input-textarea',
   'input-checkbox',
@@ -13,12 +9,18 @@ export const INPUT_BLOCK_TYPES = new Set([
   'input-date',
   'input-date-range',
   'input-file',
-])
+] as const
+
+/**
+ * Block types that represent user input widgets.
+ * These blocks capture user input and define variables.
+ */
+export const INPUT_BLOCK_TYPES = new Set<string>(INPUT_BLOCK_TYPES_LIST)
 
 /**
  * Block types that can be executed by the runtime and can have outputs.
  */
-export const EXECUTABLE_BLOCK_TYPES: ReadonlySet<string> = new Set([
+export const EXECUTABLE_BLOCK_TYPES_LIST = [
   'agent',
   'code',
   'sql',
@@ -27,8 +29,10 @@ export const EXECUTABLE_BLOCK_TYPES: ReadonlySet<string> = new Set([
   'pivot-table',
   'button',
   'big-number',
-  ...INPUT_BLOCK_TYPES,
-])
+  ...INPUT_BLOCK_TYPES_LIST,
+] as const satisfies ReadonlyArray<ExecutableBlock['type']>
+
+export const EXECUTABLE_BLOCK_TYPES: ReadonlySet<string> = new Set(EXECUTABLE_BLOCK_TYPES_LIST)
 
 /**
  * Type guard to check if a block is an executable block.
