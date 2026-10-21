@@ -62,8 +62,11 @@ except (Exception, psycopg2.Error) as error:
 Use `connection.cursor()` to run further queries. For pandas, create a SQLAlchemy engine so `read_sql_query` uses a supported connection type:
 
 ```python
+import os
+
 import pandas as pd
-from sqlalchemy import URL, create_engine
+from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
 
 url = URL.create(
     "postgresql+psycopg2",
