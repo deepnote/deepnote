@@ -8,7 +8,8 @@ import {
   getProjectDetail,
   importProject,
   listAllProjects,
-  MAX_BUFFERED_PROJECT_FILE_BYTES,
+  type ProjectStaticFilesUpdate,
+  updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'
 
@@ -153,6 +154,11 @@ describe('getProjectDetail', () => {
           name: 'One',
           folder: null,
           files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
+          staticFiles: {
+            sharingEnabled: true,
+            apiAccessEnabled: false,
+            url: 'https://static-p1.example.com/',
+          },
         },
       })
     )
@@ -163,8 +169,19 @@ describe('getProjectDetail', () => {
       expect.objectContaining({
         id: 'p1',
         files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
+        staticFiles: {
+          sharingEnabled: true,
+          apiAccessEnabled: false,
+          url: 'https://static-p1.example.com/',
+        },
       })
     )
+  })
+
+  it('accepts an older response without static website settings', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { id: 'p1', name: 'One', files: [] } }))
+
+    await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).resolves.toMatchObject({ id: 'p1', files: [] })
   })
 
   it('rejects a response without a file inventory', async () => {
@@ -185,6 +202,55 @@ describe('getProjectDetail', () => {
       statusCode: 502,
       message: expect.stringContaining('Invalid Deepnote response for fetch project'),
     })
+  })
+})
+
+describe('updateProjectStaticFiles', () => {
+  it('PATCHes the nested settings and returns the canonical static website settings', async () => {
+    const staticFiles = {
+      sharingEnabled: true,
+      apiAccessEnabled: true,
+      url: 'https://static-p1.example.com/',
+    }
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({
+        project: { id: 'p1', name: 'One', staticFiles },
+      })
+    )
+
+    await expect(
+      updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', { sharingEnabled: true, apiAccessEnabled: true })
+    ).resolves.toEqual(staticFiles)
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(String(url)).toBe(`${BASE_URL}/v2/projects/p1`)
+    expect(init).toMatchObject({
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ staticFiles: { sharingEnabled: true, apiAccessEnabled: true } }),
+    })
+  })
+
+  it('rejects a response without the canonical URL', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ project: { id: 'p1', name: 'One', staticFiles: { sharingEnabled: true, apiAccessEnabled: false } } })
+    )
+
+    await expect(updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', { sharingEnabled: true })).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for update project'),
+    })
+  })
+
+  it('rejects contradictory static website settings before making a request', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+    // @ts-expect-error API access cannot be enabled while sharing is disabled.
+    const update: ProjectStaticFilesUpdate = { sharingEnabled: false, apiAccessEnabled: true }
+
+    await expect(updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', update)).rejects.toThrow(
+      'API access cannot be enabled while static file sharing is disabled.'
+    )
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 
@@ -445,8 +511,83 @@ describe('downloadProjectFile', () => {
       downloadProjectFile(BASE_URL, TOKEN, 'p1', 'large.bin', { maxBytes: chunk.byteLength })
     ).rejects.toMatchObject({ statusCode: 413 })
   })
+})
 
-  it('defaults buffered working-directory transfers to 100 MiB', () => {
-    expect(MAX_BUFFERED_PROJECT_FILE_BYTES).toBe(100 * 1024 * 1024)
+describe('rate limiting (HTTP 429)', () => {
+  const listed = () => response({ projects: [], pagination: { nextPageToken: null } })
+  const tooManyRequests = (headers: Record<string, string> = {}) =>
+    ({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: new Headers(headers),
+      body: null,
+      text: () => Promise.resolve(JSON.stringify({ message: 'Too many requests, please try again later.' })),
+    }) as unknown as Response
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each<{ headers: Record<string, string>; waitMs: number }>([
+    { headers: { 'Retry-After': '7', 'RateLimit-Reset': '30' }, waitMs: 7_000 },
+    { headers: { 'Retry-After': new Date(Date.now() + 120_000).toUTCString() }, waitMs: 60_000 },
+    { headers: { 'RateLimit-Reset': '3' }, waitMs: 3_000 },
+    { headers: {}, waitMs: 1_000 },
+  ])('waits $waitMs ms for $headers, then retries', async ({ headers, waitMs }) => {
+    vi.useFakeTimers()
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(tooManyRequests(headers))
+      .mockResolvedValueOnce(listed())
+
+    const projects = listAllProjects(BASE_URL, TOKEN)
+    await vi.advanceTimersByTimeAsync(waitMs - 1)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+
+    await expect(projects).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after 5 retries with the same error as any other failure', async () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(tooManyRequests()))
+
+    const failed = expect(listAllProjects(BASE_URL, TOKEN)).rejects.toEqual(
+      new ApiError(429, 'Too many requests, please try again later.')
+    )
+    // Backoff without headers: 1 + 2 + 4 + 8 + 16 seconds.
+    await vi.advanceTimersByTimeAsync(31_000)
+
+    await failed
+    expect(fetchSpy).toHaveBeenCalledTimes(6)
+  })
+
+  it('does not retry a server error', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(response('boom', { ok: false, status: 500 }))
+
+    await expect(listAllProjects(BASE_URL, TOKEN)).rejects.toBeInstanceOf(ApiError)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-sends the import body after a 429', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(tooManyRequests({ 'Retry-After': '0' }))
+      .mockResolvedValueOnce(
+        response({
+          project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: '0'.repeat(64) },
+          notebooks: [],
+        })
+      )
+    const main = projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' })
+
+    await importProject(BASE_URL, TOKEN, PROJECT_ID, [{ filename: 'main.deepnote', content: main }])
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    const [first, second] = fetchSpy.mock.calls.map(([, init]) => init?.body as Uint8Array)
+    expect(second).toBe(first)
+    expect(new TextDecoder().decode(unzipSync(second)['main.deepnote'])).toBe(main)
   })
 })

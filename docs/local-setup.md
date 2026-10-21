@@ -13,13 +13,16 @@ Deepnote notebooks can be used locally on your machine in several ways, each off
 
 | Method                                        | Best For                  | Execution | Editing | Difficulty |
 | --------------------------------------------- | ------------------------- | --------- | ------- | ---------- |
-| **VS Code/Cursor/Windsurf extensions**        | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **VS Code and Cursor extensions**             | Full-featured development | ✅ Yes    | ✅ Yes  | Easy       |
+| **Deepnote CLI**                              | Scripting, CI, AI agents  | ✅ Yes    | ❌ No   | Easy       |
 | **Deepnote Toolkit**                          | Custom implementations    | ✅ Yes    | ✅ Yes  | Advanced   |
 | **Local Singleplayer <br></br>(coming soon)** | Local AI IDE              | ✅ Yes    | ✅ Yes  | Easy       |
 
-## 🚀 VS Code, Cursor, and Windsurf extensions (recommended)
+## 🚀 VS Code and Cursor extensions (recommended)
 
-The **Deepnote extension** is available for **VS Code**, **Cursor**, and **Windsurf**, providing the most complete local experience with full support for editing, execution, and Deepnote-specific features across all three AI-native code editors.
+The **Deepnote extension** is available from the **VS Code Marketplace** and the **Open VSX Registry**. It supports local notebook editing and execution in VS Code and Cursor.
+
+The editor feature claims in this guide apply only to VS Code and Cursor.
 
 ### Features
 
@@ -33,7 +36,7 @@ The **Deepnote extension** is available for **VS Code**, **Cursor**, and **Winds
 
 ### Installation
 
-Choose your preferred editor and install the extension:
+Choose your editor and install the extension:
 
 #### VS Code
 
@@ -45,11 +48,6 @@ Choose your preferred editor and install the extension:
 
 - **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
 - Or search for "Deepnote" in Cursor's extension marketplace
-
-#### Windsurf
-
-- **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
-- Or search for "Deepnote" in Windsurf's extension marketplace
 
 **Additional requirement**: Python 3.10 or higher
 
@@ -99,6 +97,27 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 - [GitHub repository](https://github.com/deepnote/vscode-deepnote)
 - [Architecture documentation](https://github.com/deepnote/vscode-deepnote/blob/main/specs/architecture.md)
 - [Contributing guide](https://github.com/deepnote/vscode-deepnote/blob/main/CONTRIBUTING.md)
+
+## Deepnote CLI
+
+The **Deepnote CLI** runs, inspects, converts and validates `.deepnote` files from the terminal, mirrors a whole workspace to a local directory, and publishes apps and Streamlit apps to a project. It is the right tool when you want notebooks in scripts, cron jobs, CI or AI agent workflows rather than in an editor.
+
+It also pairs well with terminal AI agents such as Claude Code or Codex CLI. Run `deepnote install-skills` to give the agent the `.deepnote` format and CLI reference; the agent then edits `.deepnote` files directly and uses `deepnote lint`, `deepnote run` and `-o llm` output to check its work.
+
+```bash
+npm install -g @deepnote/cli
+
+# Run a notebook locally
+deepnote run my-project.deepnote
+
+# Convert a Jupyter notebook to the Deepnote format
+deepnote convert notebook.ipynb
+
+# Mirror your workspace to ./workspace
+deepnote sync ./workspace
+```
+
+The CLI does not edit notebooks; pair it with the VS Code extension or the Deepnote editor for that. See the [Deepnote CLI](/docs/deepnote-cli) page for installation, authentication and the full command list.
 
 ## Deepnote Toolkit (advanced)
 
@@ -217,18 +236,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code/Cursor/Windsurf Extensions | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ---------------------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                                 | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                                 | ✅               | ✅                   |
-| **Execute code**            | ✅                                 | ✅               | ✅                   |
-| **SQL blocks**              | ✅                                 | ✅               | ✅                   |
-| **Database integrations**   | ✅                                 | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                                 | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                                 | ❌               | ✅                   |
-| **Offline mode**            | ✅                                 | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                         | ✅               | ✅                   |
-| **AI features**             | ❌                                 | ❌               | ✅                   |
+| Feature                     | VS Code and Cursor extensions | Deepnote CLI                  | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ----------------------------- | ----------------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                            | ✅                            | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                            | ❌                            | ✅               | ✅                   |
+| **Execute code**            | ✅                            | ✅                            | ✅               | ✅                   |
+| **SQL blocks**              | ✅                            | ✅                            | ✅               | ✅                   |
+| **Database integrations**   | ✅                            | ✅                            | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                            | ❌                            | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                            | ❌                            | ❌               | ✅                   |
+| **Offline mode**            | ✅                            | ✅                            | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                    | ⚠️ Limited                    | ✅               | ✅                   |
+| **AI features**             | ❌                            | ⚠️ Agent block via `--prompt` | ❌               | ✅                   |
 
 \*Coming soon
 
@@ -245,6 +264,7 @@ If you encounter issues with any local setup option:
 
 - [Deepnote community](https://github.com/deepnote/deepnote/discussions)
 - [Deepnote Documentation](https://deepnote.com/docs)
+- [Deepnote CLI](/docs/deepnote-cli)
 - [VS Code Extension Issues](https://github.com/deepnote/vscode-deepnote/issues)
 - [Deepnote Toolkit Issues](https://github.com/deepnote/deepnote-toolkit/issues)
 

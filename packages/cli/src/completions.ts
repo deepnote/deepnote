@@ -89,6 +89,12 @@ _deepnote_completions() {
         fi
     fi
 
+    # Handle --storage-mode option completion for detached cloud runs
+    if [[ "\${prev}" == "--storage-mode" && "\${subcommand}" == "run" ]]; then
+        COMPREPLY=( $(compgen -W "read-write readonly" -- "\${cur}") )
+        return 0
+    fi
+
     case "\${prev}" in
         deepnote)
             COMPREPLY=( $(compgen -W "\${commands} --help --version --no-color --debug --quiet" -- "\${cur}") )
@@ -115,7 +121,7 @@ _deepnote_completions() {
         run)
             # Complete notebook files and flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile --open --cloud --notebook-id --out --timeout --url --token" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--python --cwd --notebook --block --input -i --list-inputs -o --output --dry-run --top --profile --open --cloud --notebook-id --out --storage-mode --timeout --push --yes --url --token" -- "\${cur}") )
             else
                 # Enable extglob for pattern matching, restore original state after
                 local _extglob_was_off=0
@@ -357,7 +363,10 @@ ${commandEntries}
                         '--cloud[Run the notebook in Deepnote Cloud and download the snapshot]' \\
                         '--notebook-id[Cloud notebook id to run (with --cloud)]:notebook id:' \\
                         '--out[Write the downloaded cloud snapshot to this path]:out path:_files' \\
+                        '--storage-mode[Project-storage access for a detached cloud run]:mode:(read-write readonly)' \\
                         '--timeout[Max seconds to wait for a cloud run]:seconds:' \\
+                        '--push[Push the local .deepnote blocks to the Deepnote notebook before running]' \\
+                        '--yes[Skip the --push confirmation prompt]' \\
                         '--url[API base URL]:url:' \\
                         '--token[Bearer token for the Deepnote API]:token:' \\
                         '*:notebook file:_files -g "*.{deepnote,ipynb,qmd,py}"'
@@ -582,7 +591,10 @@ complete -c deepnote -n '__fish_seen_subcommand_from run' -l open -d 'Open the p
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l cloud -d 'Run the notebook in Deepnote Cloud and download the snapshot'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l notebook-id -d 'Cloud notebook id to run (with --cloud)'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l out -d 'Write the downloaded cloud snapshot to this path'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l storage-mode -a 'read-write readonly' -d 'Project-storage access for a detached cloud run'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l timeout -d 'Max seconds to wait for a cloud run'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l push -d 'Push the local .deepnote blocks to the Deepnote notebook before running'
+complete -c deepnote -n '__fish_seen_subcommand_from run' -l yes -d 'Skip the --push confirmation prompt'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l url -d 'API base URL'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -l token -d 'Bearer token for the Deepnote API'
 complete -c deepnote -n '__fish_seen_subcommand_from run' -F -a '*.deepnote' -a '*.ipynb' -a '*.qmd' -a '*.py'

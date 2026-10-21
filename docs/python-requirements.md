@@ -6,7 +6,7 @@ noContent: false
 
 ### Installing packages through pip
 
-If you install (or uninstall) a package thorough the `!pip` command in a notebook, a suggestion will show up to move that package to `requirements.txt`.
+If you install (or uninstall) a package through the `!pip` command in a notebook, a suggestion will show up to move that package to `requirements.txt`.
 
 ### requirements.txt
 

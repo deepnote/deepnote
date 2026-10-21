@@ -1,6 +1,5 @@
-import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
-import { parseApiErrorMessage } from './parse-api-error'
+import { DEFAULT_REQUEST_TIMEOUT_MS, request } from './http'
 
 /**
  * Create a project, its notebooks, and their blocks through the Deepnote public API — the headless
@@ -27,8 +26,6 @@ import { parseApiErrorMessage } from './parse-api-error'
  * the same project can be written with the id Deepnote just assigned it — see
  * {@link CreateProjectOptions.rewriteBlock}.
  */
-
-const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 
 const notebookRefSchema = z.object({ id: z.string(), name: z.string().optional() }).passthrough()
 
@@ -112,10 +109,6 @@ export interface AddNotebooksOptions extends CreateProjectOptions {
   existingNotebookIds?: ReadonlyMap<string, string>
 }
 
-function trimTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, '')
-}
-
 /**
  * Refuse a spec Deepnote is bound to reject, before anything is created.
  *
@@ -139,54 +132,6 @@ function assertCreatableNotebooks(notebooks: NotebookSpec[]): void {
   }
 }
 
-async function request<T>(
-  baseUrl: string,
-  token: string,
-  method: string,
-  path: string,
-  schema: z.ZodType<T>,
-  body: unknown,
-  timeoutMs: number,
-  fallback: string
-): Promise<T> {
-  const response = await fetch(`${trimTrailingSlash(baseUrl)}${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(timeoutMs),
-  })
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    const message = parseApiErrorMessage(text, `${fallback}: HTTP ${response.status} ${response.statusText}`)
-    if (response.status === 401) {
-      throw new ApiError(401, 'Authentication failed. Please check your API token.')
-    }
-    if (response.status === 403) {
-      throw new ApiError(403, message || 'Access denied. You may not have permission to create content.')
-    }
-    throw new ApiError(response.status, message)
-  }
-
-  const text = await response.text()
-  let json: unknown
-  try {
-    json = text ? JSON.parse(text) : {}
-  } catch {
-    // A body that isn't JSON is the API misbehaving, and callers of this package expect ApiError —
-    // a raw SyntaxError would escape that contract and read as a bug in the caller.
-    throw new ApiError(502, `Invalid Deepnote response for ${fallback}: the body was not valid JSON.`)
-  }
-  const parsed = schema.safeParse(json)
-  if (!parsed.success) {
-    throw new ApiError(
-      502,
-      `Invalid Deepnote response for ${fallback}: ${parsed.error.issues.map(i => i.message).join(', ')}`
-    )
-  }
-  return parsed.data
-}
-
 type RequestCall = <T>(
   method: string,
   path: string,
@@ -198,7 +143,15 @@ type RequestCall = <T>(
 /** Bind request authentication and timeout once for a multi-request create operation. */
 function createRequestCall(baseUrl: string, token: string, timeoutMs: number): RequestCall {
   return <T>(method: string, path: string, schema: z.ZodType<T>, body: unknown, fallback: string) =>
-    request(baseUrl, token, method, path, schema, body, timeoutMs, fallback)
+    request(baseUrl, token, {
+      method,
+      path,
+      schema,
+      body,
+      timeoutMs,
+      fallback,
+      forbiddenMessage: 'Access denied. You may not have permission to create content.',
+    })
 }
 
 /**

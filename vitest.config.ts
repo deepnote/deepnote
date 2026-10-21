@@ -1,12 +1,15 @@
 import path from 'node:path'
-import tsconfigPaths from 'vite-tsconfig-paths'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: {
+    tsconfigPaths: true,
+  },
   test: {
     globals: false,
     include: ['**/*.test.ts'],
+    // Integration tests need a real deepnote-toolkit install; see vitest.integration.config.ts.
+    exclude: [...configDefaults.exclude, '**/*.integration.test.ts'],
     reporters: ['default', 'junit'],
     outputFile: {
       junit: './coverage/test-results.xml',
@@ -15,7 +18,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       include: ['packages/*/src/**/*.ts'],
-      exclude: ['**/*.test.ts'],
+      exclude: ['**/*.test.ts', '**/*.integration.test.ts'],
     },
     setupFiles: [path.resolve(__dirname, 'test-helpers/expect-url-with-query-params.ts')],
     bail: 1,

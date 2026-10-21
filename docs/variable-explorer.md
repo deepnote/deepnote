@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-Deepnote provides an easy way to explore the current variables present in a notebook. After executing a cell that defines a variable, the variable will appear in the right-hand sidebar with info about its type and contents.
+Deepnote provides an easy way to explore the current variables in a notebook. After you execute a cell that defines a variable, it appears in the **Variable explorer** in the left sidebar with information about its type and contents.
 
 For all variable types, you can click on the variable to show the variable's contents from within the notebook itself:
 

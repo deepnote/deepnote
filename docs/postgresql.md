@@ -6,11 +6,11 @@ noContent: false
 
 ## Setup
 
-To add a connection to PostgreSQL, go to **Integrations** via the **right-hand sidebar**, create a new PostgreSQL integration and enter credentials:
+Open **Integrations** from the workspace sidebar, select **PostgreSQL**, and enter your database connection details:
 
-![pg.png](../assets/docs/daU32gzMSFOGQbHw9EL3.webp)
+![PostgreSQL connection form](../assets/docs/daU32gzMSFOGQbHw9EL3.webp)
 
-Don't forget to connect the newly created "PostgreSQL" integration in the Integrations sidebar.
+After creating the integration, connect it to your project when prompted. You can also select it when adding a SQL block.
 
 ### Authorizing Deepnote's IP addresses for security reasons
 
@@ -20,15 +20,15 @@ If your connection is protected, you might need to add Deepnote's IP addresses t
 
 ## Usage
 
-The fastest way to query your connected postgres database is to use a [SQL cell](/docs/sql-cells). You can create one by clicking "+ Block" or at the bottom of a notebook.
+To query your PostgreSQL database, click **SQL** in the toolbar below the notebook and select your integration. This adds a [SQL block](/docs/sql-cells).
 
-![image.png](../assets/docs/KMoRPKCNQamVvyoUJIJx.webp)
+![Text input filtering a PostgreSQL query](../assets/docs/KMoRPKCNQamVvyoUJIJx.webp)
 
-A text input cell and a SQL cell work together
+Use a [text input block](/docs/input-blocks) to pass a value into your SQL query. In this example, `{{ name }}` uses the input value `hello world`.
 
 ## Advanced usage
 
-Alternatively, if you want to use python to access the database, access the connection details via environment variables with a common prefix that's generated from the name of your Postgres integration:
+To connect from Python, use the environment variables generated from your integration name:
 
 - `<INTEGRATION_NAME>_HOST`
 - `<INTEGRATION_NAME>_DATABASE`
@@ -36,7 +36,7 @@ Alternatively, if you want to use python to access the database, access the conn
 - `<INTEGRATION_NAME>_USER`
 - `<INTEGRATION_NAME>_PASSWORD`
 
-Then you'll be able to connect to a database like this:
+Replace `MY_INTEGRATION` below with the prefix generated from your integration name. For example, an integration named `My Postgres DB` uses `MY_POSTGRES_DB`.
 
 ```python
 import psycopg2
@@ -59,19 +59,28 @@ except (Exception, psycopg2.Error) as error:
     print ("Error while connecting to database", error)
 ```
 
-You can now use `connection` and `connection.cursor()` like shown in example above to run queries against the database. Here's how you can run a query and see its output:
+Use `connection.cursor()` to run further queries. For pandas, create a SQLAlchemy engine so `read_sql_query` uses a supported connection type:
 
 ```python
 import pandas as pd
+from sqlalchemy import URL, create_engine
 
-query = """
-SELECT *
-FROM users
-"""
-df = pd.io.sql.read_sql_query(query, connection)
+url = URL.create(
+    "postgresql+psycopg2",
+    username=os.environ["MY_INTEGRATION_USER"],
+    password=os.environ["MY_INTEGRATION_PASSWORD"],
+    host=os.environ["MY_INTEGRATION_HOST"],
+    port=int(os.environ["MY_INTEGRATION_PORT"]),
+    database=os.environ["MY_INTEGRATION_DATABASE"],
+)
+engine = create_engine(url)
+
+with engine.connect() as connection:
+    df = pd.read_sql_query("SELECT * FROM users", connection)
+
 df
 ```
 
 ### Secure connections
 
-PostgreSQL supports [SSL & SSH connections](/docs/secure-connections).
+Use **Enforce SSL encryption** or **Use SSH** in the connection form to configure [secure connections](/docs/securing-connections).

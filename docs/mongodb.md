@@ -8,15 +8,15 @@ noContent: false
 Available on Team and Enterprise plans
 </Callout>
 
-To add a connection to MongoDB, open the **Settings** panel from the top-right of your project, go to the **Integrations** section, create a new MongoDB integration and enter your credentials:
+Open **Integrations** from the workspace sidebar and select **MongoDB**. Choose **I have connection credentials** or **I have a connection string**, then enter your database connection details:
 
-![mongo.png](../assets/docs/xJmtNalsRLKv245XcPkD.webp)
+![MongoDB connection form with credential fields selected](../assets/docs/xJmtNalsRLKv245XcPkD.webp)
 
-Don't forget to connect the newly created "MongoDB" integration in the Integrations sidebar.
+After creating the integration, connect it to your project when prompted.
 
 ### Secure connections
 
-Deepnote simplifies connecting to MongoDB via SSH via optional [SSH tunnel integration](/docs/securing-connections?#ssh-tunnel-integration).
+To connect through SSH, use an [SSH tunnel integration](/docs/securing-connections#ssh-tunnel-integration).
 
 #### Troubleshooting SSH connections for MongoDB
 

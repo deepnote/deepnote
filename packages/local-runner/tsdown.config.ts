@@ -4,6 +4,7 @@ export default defineConfig([
   {
     entry: ['src/index.ts'],
     format: ['esm', 'cjs'],
+    fixedExtension: false,
     dts: true,
     external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core'],
   },

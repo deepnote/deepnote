@@ -1,0 +1,47 @@
+version: "1.0.0"
+metadata:
+  createdAt: "2026-03-03T00:00:00.000Z"
+project:
+  id: test-pivot-table-project
+  name: Pivot Table Block Test
+  notebooks:
+    - id: notebook-1
+      name: Sales summary
+      blocks:
+        - id: 0a1b2c3d4e5f0a1b2c3d4e5f0a1b2c3d
+          blockGroup: 1b2c3d4e5f601b2c3d4e5f601b2c3d4e
+          type: text-cell-h1
+          content: Pivot Table Block Demo
+          sortingKey: a0
+          metadata: {}
+        - id: 2c3d4e5f60712c3d4e5f60712c3d4e5f
+          blockGroup: 3d4e5f6071823d4e5f6071823d4e5f60
+          type: code
+          content: |
+            import pandas as pd
+            df = pd.DataFrame(
+                {
+                    'region': ['EU', 'EU', 'US', 'US'],
+                    'product': ['A', 'B', 'A', 'B'],
+                    'revenue': [10, 20, 30, 40],
+                }
+            )
+            df
+          sortingKey: a1
+          metadata: {}
+          executionCount: null
+          outputs: []
+        - id: 4e5f6071829304e5f6071829304e5f60
+          blockGroup: 5f60718293a45f60718293a45f607182
+          type: pivot-table
+          sortingKey: a2
+          metadata:
+            deepnote_variable_name: df
+            deepnote_pivot_rows:
+              - region
+            deepnote_pivot_cols:
+              - product
+            deepnote_pivot_aggregator: sum
+            deepnote_pivot_value_field: revenue
+          executionCount: null
+          outputs: []
