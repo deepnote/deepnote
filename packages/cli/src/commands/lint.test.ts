@@ -1823,3 +1823,67 @@ describe('lint command - integrations file loading', () => {
     })
   })
 })
+
+/** A project with a resolved lockfile, loose requirements, and two imperative installs. */
+const DEPENDENCY_FILE = join('test-fixtures', 'governance-dependencies.deepnote')
+
+describe('lint command - dependency governance', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+
+  beforeEach(() => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('process.exit called')
+    })
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it('reports unpinned and untracked dependencies under --governance', async () => {
+    await createLintAction(program)(resolve(process.cwd(), DEPENDENCY_FILE), { governance: true })
+    const text = getOutput(consoleSpy)
+
+    expect(text).toContain('dependency-unpinned')
+    expect(text).toContain('scikit-learn~=1.3')
+    expect(text).toContain('dependency-untracked')
+    expect(text).toContain('seaborn')
+  })
+
+  it('stays quiet about dependencies the lockfile already pins', async () => {
+    await createLintAction(program)(resolve(process.cwd(), DEPENDENCY_FILE), { governance: true })
+    const text = getOutput(consoleSpy)
+
+    // numpy and requests are loose in settings.requirements but locked in environment.packages.
+    expect(text).not.toContain('"numpy')
+    expect(text).not.toContain('"requests"')
+  })
+
+  it('does not run the dependency checks without --governance', async () => {
+    await createLintAction(program)(resolve(process.cwd(), DEPENDENCY_FILE), DEFAULT_OPTIONS)
+
+    expect(getOutput(consoleSpy)).not.toContain('dependency-')
+  })
+
+  it('carries the dependency summary in the JSON output', async () => {
+    await createLintAction(program)(resolve(process.cwd(), DEPENDENCY_FILE), { governance: true, output: 'json' })
+    const report = JSON.parse(getOutput(consoleSpy))
+
+    expect(report.governance.dependencies).toEqual({ total: 6, pinned: 3, ranged: 2, unpinned: 1, untracked: 2 })
+    expect(report.governance.checks).toContain('dependency-unpinned')
+  })
+
+  it('does not fail the command: an unpinned dependency is a warning, not a gate', async () => {
+    const exitSpy = vi.spyOn(process, 'exit')
+    await createLintAction(program)(resolve(process.cwd(), DEPENDENCY_FILE), { governance: true })
+
+    expect(exitSpy).not.toHaveBeenCalled()
+  })
+})

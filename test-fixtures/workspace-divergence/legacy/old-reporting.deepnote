@@ -1,6 +1,12 @@
 metadata:
   createdAt: '2020-11-03T08:00:00.000Z'
   modifiedAt: '2021-04-19T07:40:00.000Z'
+environment:
+  python:
+    version: '3.8'
+  packages:
+    pandas: 1.3.5
+    numpy: 1.19.5
 project:
   id: 66666666-aaaa-4aaa-8aaa-666666666666
   name: Legacy reporting
@@ -32,4 +38,12 @@ project:
             deepnote_variable_name: paid_orders
           content: |-
             SELECT * FROM orders o WHERE o.status = 'paid'
+        - blockGroup: ffff1111222233334444555566660003
+          id: ffff1111222233334444555566660003
+          type: code
+          sortingKey: a2
+          metadata: {}
+          content: |-
+            !pip install xlsxwriter
+            paid_orders.to_excel("board-pack.xlsx")
 version: '1'

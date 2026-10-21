@@ -992,7 +992,10 @@ ${c.bold('Examples:')}
       '--integrations-file <path>',
       `Path to integrations env file (default: ${DEFAULT_INTEGRATIONS_FILE} next to .deepnote file)`
     )
-    .option('--governance', 'Also run the governance checks: SQL correctness and hardcoded credentials')
+    .option(
+      '--governance',
+      'Also run the governance checks: SQL correctness, hardcoded credentials and dependency pinning'
+    )
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -1016,6 +1019,8 @@ ${c.bold('Checks:')}
   - sql-tautology: A column compared to itself, so the join or filter is a no-op
   - sql-string-boolean: A column compared to the string 'true'/'false' instead of the keyword
   - credential-hardcoded: A credential written into a block (reported by fingerprint, never by value)
+  - dependency-unpinned: A dependency with no exact version, so the project may install something else tomorrow
+  - dependency-untracked: A package installed by a block but missing from environment.packages
 
 ${c.bold('Governance Scope:')}
   --governance runs the checks one project can answer on its own. The checks that
@@ -1052,7 +1057,7 @@ ${c.bold('Examples:')}
   ${c.dim('# Use a custom integrations file')}
   $ deepnote lint my-project.deepnote --integrations-file prod-integrations.yaml
 
-  ${c.dim('# Add the governance checks (SQL correctness, hardcoded credentials)')}
+  ${c.dim('# Add the governance checks (SQL correctness, credentials, dependency pinning)')}
   $ deepnote lint my-project.deepnote --governance
 
   ${c.dim('# Use in CI pipeline')}
@@ -1070,6 +1075,8 @@ ${c.bold('Examples:')}
     .option('--project <name>', 'Audit a single project, by name or id')
     .option('--issues', 'List every finding instead of a count per check')
     .option('--divergence', 'List every divergence group with its variants and locations')
+    .option('--packages', 'List every package that is not pinned, instead of the first few')
+    .option('--sbom', 'Write a CycloneDX bill of materials instead of the report')
     .option('--skip-divergence', 'Do not run the cross-project consensus checks')
     .addOption(
       new Option(
@@ -1143,9 +1150,13 @@ ${c.bold('What it reports:')}
   ${c.underline('Consensus')} Anchors the workspace defines two ways: a table pair joined on different
             keys, a metric name backed by different aggregates, a column most queries
             filter and some do not. Each carries a Wilson confidence on its consensus.
+  ${c.underline('Packages')}  Every dependency the workspace installs — from environment.packages,
+            settings.requirements, and ${c.dim('!pip install')} lines inside blocks — with how much of
+            it is pinned. ${c.dim('--sbom')} writes it as CycloneDX for a vulnerability scanner.
   ${c.underline('Findings')}  ingress-integration-orphan, ingress-integration-undeclared,
             egress-external, credential-shared, pii-subject-scatter, asset-stale,
-            sql-divergence, plus every ${c.dim('lint --governance')} check run against each project.
+            sql-divergence, dependency-drift, plus every ${c.dim('lint --governance')} check run
+            against each project.
 
 ${c.bold('Ranking:')}
   severity = signal × exposure × neglect × blast radius, reported out of 100 with all
@@ -1188,6 +1199,9 @@ ${c.bold('Examples:')}
 
   ${c.dim('# Only join divergence, and only where the consensus is well attested')}
   $ deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
+
+  ${c.dim('# A CycloneDX bill of materials, for a vulnerability scanner')}
+  $ deepnote audit workspace --sbom > sbom.json
 
   ${c.dim('# Full report, including the flow map nodes and edges')}
   $ deepnote audit workspace -o json
