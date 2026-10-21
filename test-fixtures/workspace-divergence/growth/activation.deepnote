@@ -1,0 +1,37 @@
+metadata:
+  createdAt: '2024-03-11T08:00:00.000Z'
+  modifiedAt: '2026-08-14T11:20:00.000Z'
+project:
+  id: 22222222-aaaa-4aaa-8aaa-222222222222
+  name: Growth activation
+  integrations:
+    - id: dddddddd-1111-4111-8111-dddddddddddd
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: bbbb1111cccc2222dddd3333eeee4444
+      name: Activation funnel
+      blocks:
+        - blockGroup: bbbb1111cccc2222dddd3333eeee0001
+          id: bbbb1111cccc2222dddd3333eeee0001
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: revenue_by_user
+          content: |-
+            SELECT u.id, sum(o.amount) AS revenue
+            FROM users u
+            JOIN orders o ON u.id = o.user_id
+            WHERE o.is_test = false
+            GROUP BY 1
+        - blockGroup: bbbb1111cccc2222dddd3333eeee0002
+          id: bbbb1111cccc2222dddd3333eeee0002
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: active_users
+          content: |-
+            SELECT count(*) AS active_users FROM users WHERE is_test = false AND active
+version: '1'

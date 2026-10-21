@@ -1,0 +1,33 @@
+metadata:
+  createdAt: '2024-08-04T08:00:00.000Z'
+  modifiedAt: '2026-06-11T13:15:00.000Z'
+project:
+  id: 55555555-aaaa-4aaa-8aaa-555555555555
+  name: Marketing attribution
+  integrations:
+    - id: dddddddd-1111-4111-8111-dddddddddddd
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: eeee1111ffff222233334444aaaabbbb
+      name: Channel mix
+      blocks:
+        - blockGroup: eeee1111ffff222233334444aaaa0001
+          id: eeee1111ffff222233334444aaaa0001
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: revenue
+          content: |-
+            SELECT sum(amount) AS revenue FROM orders WHERE is_test = false
+        - blockGroup: eeee1111ffff222233334444aaaa0002
+          id: eeee1111ffff222233334444aaaa0002
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: touches
+          content: |-
+            SELECT c.name, count(*) AS touches FROM campaigns c GROUP BY 1
+version: '1'

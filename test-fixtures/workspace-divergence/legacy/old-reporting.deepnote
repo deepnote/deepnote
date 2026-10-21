@@ -1,0 +1,35 @@
+metadata:
+  createdAt: '2020-11-03T08:00:00.000Z'
+  modifiedAt: '2021-04-19T07:40:00.000Z'
+project:
+  id: 66666666-aaaa-4aaa-8aaa-666666666666
+  name: Legacy reporting
+  integrations:
+    - id: dddddddd-1111-4111-8111-dddddddddddd
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: ffff111122223333444455556666aaaa
+      name: Quarterly board pack
+      blocks:
+        - blockGroup: ffff1111222233334444555566660001
+          id: ffff1111222233334444555566660001
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: revenue
+          content: |-
+            SELECT sum(o.amount_gross) AS revenue
+            FROM orders o
+            JOIN users u ON o.email = u.email
+        - blockGroup: ffff1111222233334444555566660002
+          id: ffff1111222233334444555566660002
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: paid_orders
+          content: |-
+            SELECT * FROM orders o WHERE o.status = 'paid'
+version: '1'
