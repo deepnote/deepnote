@@ -13,11 +13,15 @@
  * ranked list of findings over the same `LintIssue` shape the lint command already emits.
  */
 
+import crypto from 'node:crypto'
+import type { DeepnoteBlock } from '@deepnote/blocks'
 import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
 import type { BlockInfo, LintIssue } from '../analysis'
 import { getBlockLabel } from '../block-label'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
+import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
+import { createSubjectFingerprinter, redactSubjects } from './subjects'
 import { type LoadedWorkspace, projectBlocks, type WorkspaceLoadError, type WorkspaceProject } from './workspace'
 
 /** A lint issue, placed in the workspace it was found in. */
@@ -84,6 +88,20 @@ export interface FlowEdge {
   blockCount: number
 }
 
+/** How many people the workspace holds data about, and how widely each is spread. */
+export interface SubjectSummary {
+  /** Distinct people identified across the workspace. */
+  total: number
+  /** Those whose domain is not one of `--internal-domain`. */
+  external: number
+  /** Those appearing in more than one notebook. */
+  scattered: number
+  /** Places a subject identifier was found. */
+  locations: number
+  /** Domains used to tell colleagues from customers; empty when none were given. */
+  internalDomains: string[]
+}
+
 export interface WorkspaceAudit {
   root: string
   scope: 'workspace'
@@ -98,6 +116,7 @@ export interface WorkspaceAudit {
   egress: EgressUsage[]
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
   credentials: CredentialUsage[]
+  subjects: SubjectSummary
   flow: { nodes: FlowNode[]; edges: FlowEdge[] }
   issues: AuditIssue[]
   issueCount: { errors: number; warnings: number; total: number }
@@ -110,6 +129,8 @@ export interface WorkspaceAudit {
 export interface AuditOptions {
   /** Restrict the audit to one project, matched by name or id. */
   project?: string
+  /** Domains belonging to your own organization, so colleagues are not counted as data subjects. */
+  internalDomains?: string[]
 }
 
 /**
@@ -137,10 +158,11 @@ const SEVERITY = {
   'ingress-integration-undeclared': 'warning',
   'egress-external': 'warning',
   'credential-shared': 'error',
+  'pii-subject-scatter': 'warning',
 } as const
 
 /**
- * Mask every credential in one user-facing string.
+ * Mask every credential and personal identifier in one user-facing string.
  *
  * Exported because not every string the audit command prints comes out of a report. The
  * "project not found" message names the workspace root and the closest project names, and a
@@ -149,24 +171,41 @@ const SEVERITY = {
  *
  * Applied whole first, then per `/`-separated segment. A URI password is only recognizable with
  * its scheme and host around it, so the whole-string pass has to come first; the segment pass then
- * catches patterns that deliberately refuse to match across a `/`, which is how a value buried in
- * a filesystem path or a URL would otherwise survive. Masking is idempotent, so running both
- * costs nothing on a string that has no secret in it.
+ * catches patterns that deliberately refuse to match across a `/` — the address pattern does, so
+ * that a URL's userinfo is not mistaken for a person — which is how a value buried in a filesystem
+ * path or a URL would otherwise survive. Masking is idempotent, so running both costs nothing on a
+ * string that holds neither.
  */
 export function scrubText(text: string): string {
-  const whole = redactSecrets(text)
-  return whole.includes('/') ? whole.split('/').map(redactSecrets).join('/') : whole
+  const scrub = (part: string): string => redactSubjects(redactSecrets(part))
+  const whole = scrub(text)
+  return whole.includes('/') ? whole.split('/').map(scrub).join('/') : whole
+}
+
+/** A block's content with secrets and identifiers masked, for anything derived from it. */
+function scrubContent(block: DeepnoteBlock): unknown {
+  const content = (block as { content?: unknown }).content
+  return typeof content === 'string' ? scrubText(content) : content
 }
 
 /**
  * Subtrees the boundary pass must leave alone, by dotted key path with `*` for an array index.
  *
- * Empty here. The entry that matters arrives with the subject index, which is sensitive *by
- * design*: its whole purpose is to answer "which notebooks hold this person's data", and a
- * location with the project and notebook masked answers nothing. Anything added to this set is a
- * deliberate exception and needs a reason written beside it.
+ * Anything in here is a deliberate exception and needs a reason written beside it.
+ *
+ * `subjects.*.locations` — the subject index is sensitive *by design*. Its whole purpose is to
+ * answer "which notebooks hold this person's data", and a location with the project and notebook
+ * masked answers nothing; the per-subject fingerprint, not the location, is what keeps the index
+ * from being a second copy of the data it indexes.
+ *
+ * This entry is forward-looking rather than load-bearing today: the audit report carries only
+ * `SubjectSummary`, which is counts, and the index itself is written by `deepnote subjects index`
+ * on a path that never reaches this function. It is declared anyway so that moving locations into
+ * the report — the obvious next step for anyone wanting them in one place — does not silently
+ * redact the one structure whose value is that it is not redacted. `subjects.test.ts` holds the
+ * test that would catch it.
  */
-const BOUNDARY_EXEMPT_PATHS = new Set<string>()
+const BOUNDARY_EXEMPT_PATHS = new Set<string>(['subjects.*.locations'])
 
 function isExemptPath(path: readonly string[]): boolean {
   return BOUNDARY_EXEMPT_PATHS.has(path.join('.'))
@@ -222,8 +261,13 @@ function blockMapFor(project: WorkspaceProject): Map<string, BlockInfo> {
     for (const block of notebook.blocks) {
       map.set(block.id, {
         id: block.id,
-        // Labels are the block's first line, which for a credential assignment is the credential.
-        label: redactSecrets(getBlockLabel(block)),
+        // Labels are the block's first line, which for a credential assignment is the credential and
+        // for `owner = "jane@acme.io"` is the person the finding is about. Redacting the finished
+        // label is not enough on its own: `getBlockLabel` truncates to a fixed width first, so an
+        // address straddling the cut is left as a surviving prefix — `jane.doe.report…` — that
+        // matches no pattern. Redact the content, then label it, then redact again for the labels
+        // that come from metadata rather than content.
+        label: scrubText(getBlockLabel({ ...block, content: scrubContent(block) } as DeepnoteBlock)),
         type: block.type,
         notebookName: notebook.name,
         sortingKey: block.sortingKey,
@@ -262,8 +306,13 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   let sqlBlockCount = 0
   let codeBlockCount = 0
 
+  // Labels are kept per project so the scatter findings, which are decided after every project has
+  // been scanned, can still name the block they point at.
+  const blockLabelsByProject = new Map<string, Map<string, string>>()
+
   for (const project of projects) {
     const blockMap = blockMapFor(project)
+    blockLabelsByProject.set(project.id, new Map([...blockMap].map(([id, info]) => [id, info.label])))
     notebookCount += project.notebooks.length
 
     // Declared integrations are registered before any block is read, so an integration nobody uses
@@ -492,7 +541,48 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     }
   }
 
+  // Data subjects are fingerprinted under a salt generated for this run and discarded with it.
+  // Nothing here is persisted, so the salt never has to be managed — and an audit report cannot be
+  // turned back into a list of people even by whoever ran it. Answering "where is this person's
+  // data" needs an index that survives the run, which is what `deepnote subjects index` builds,
+  // under a salt the operator keeps.
+  const subjectIndex = buildSubjectIndex(projects, {
+    fingerprinter: createSubjectFingerprinter(crypto.randomBytes(32).toString('hex')),
+    internalDomains: options.internalDomains,
+    root: workspace.root,
+  })
+
+  for (const subject of subjectIndex.subjects) {
+    if (subject.notebookCount < SCATTER_NOTEBOOK_THRESHOLD) {
+      continue
+    }
+    const [first] = subject.locations
+    issues.push({
+      severity: SEVERITY['pii-subject-scatter'],
+      code: 'pii-subject-scatter',
+      message: `Data about one ${subject.internal ? 'internal' : 'external'} person at ${subject.domain} appears in ${subject.notebookCount} notebooks across ${subject.projectCount} ${subject.projectCount === 1 ? 'project' : 'projects'}. An erasure request would have to reach all of them.`,
+      blockId: first.blockId,
+      blockLabel: blockLabelsByProject.get(first.projectId)?.get(first.blockId) ?? first.blockId,
+      notebookName: first.notebookName,
+      projectId: first.projectId,
+      projectName: first.projectName,
+      path: first.path,
+      details: {
+        domain: subject.domain,
+        internal: subject.internal,
+        notebookCount: subject.notebookCount,
+        projectCount: subject.projectCount,
+        locationCount: subject.locations.length,
+        // Deliberately no fingerprint: this one is salted per run and would be meaningless — and
+        // misleading — in a report compared against another.
+      },
+    })
+  }
+
   const notes = [INTEGRATION_LOWER_BOUND_NOTE, EGRESS_LOWER_BOUND_NOTE]
+  if (subjectIndex.summary.subjects > 0 && (options.internalDomains ?? []).length === 0) {
+    notes.push('No --internal-domain was given, so colleagues and customers are counted alike as data subjects.')
+  }
   if (workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
     notes.push(
       `${DIVERGENCE_NOTE} This workspace has ${workspace.projects.length} project${workspace.projects.length === 1 ? '' : 's'}.`
@@ -505,8 +595,11 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   }
 
   // Every section of the report goes through the boundary pass together, at the one point where it
-  // is finished and before anything can serialize it. Sections added by later branches inherit it
-  // without touching this line.
+  // is finished and before anything can serialize it. A notebook called "churn for jane@acme.io"
+  // puts that address in `notebookName`, and `path` and `projectName` carry whatever someone typed
+  // there — so a scatter finding could withhold the subject's fingerprint, as it deliberately
+  // does, and name them in the field beside it. Sections added by later branches inherit this
+  // without touching the line.
   return redactAuditReport({
     root: workspace.root,
     scope: 'workspace',
@@ -522,6 +615,13 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     ),
     egress: [...egress.values()].sort((a, b) => b.blockCount - a.blockCount || a.host.localeCompare(b.host)),
     credentials: sharedCredentials.sort((a, b) => b.projects.length - a.projects.length),
+    subjects: {
+      total: subjectIndex.summary.subjects,
+      external: subjectIndex.summary.externalSubjects,
+      scattered: subjectIndex.summary.scattered,
+      locations: subjectIndex.summary.locations,
+      internalDomains: subjectIndex.internalDomains,
+    },
     flow: buildFlowMap(projects, [...integrations.values()], [...egress.values()]),
     issues,
     issueCount: {
@@ -553,7 +653,7 @@ function buildFlowMap(
     nodes.push({
       id: `integration:${integration.id}`,
       kind: 'integration',
-      label: integration.name ?? integration.id,
+      label: scrubText(integration.name ?? integration.id),
       detail: integration.type,
     })
     for (const consumer of integration.consumers) {
@@ -589,7 +689,9 @@ function buildFlowMap(
     nodes.push({
       id: `project:${project.id}`,
       kind: 'project',
-      label: project.name,
+      // The flow map is the artifact most likely to be pasted into a ticket or a slide, and a
+      // project named after the customer it is about carries that name into it.
+      label: scrubText(project.name),
       detail: referencedProjects.has(project.id) ? undefined : 'no tracked flows',
     })
   }
