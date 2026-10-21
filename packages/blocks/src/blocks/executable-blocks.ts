@@ -1,4 +1,5 @@
 import type { DeepnoteBlock, ExecutableBlock } from '../deepnote-file/deepnote-file-schema'
+import { arrayOfAll } from '../typescript-utils'
 
 const INPUT_BLOCK_TYPES_LIST = [
   'input-text',
@@ -20,7 +21,7 @@ export const INPUT_BLOCK_TYPES = new Set<string>(INPUT_BLOCK_TYPES_LIST)
 /**
  * Block types that can be executed by the runtime and can have outputs.
  */
-export const EXECUTABLE_BLOCK_TYPES_LIST = [
+export const EXECUTABLE_BLOCK_TYPES_LIST = arrayOfAll<ExecutableBlock['type']>()([
   'agent',
   'code',
   'sql',
@@ -30,7 +31,7 @@ export const EXECUTABLE_BLOCK_TYPES_LIST = [
   'button',
   'big-number',
   ...INPUT_BLOCK_TYPES_LIST,
-] as const satisfies ReadonlyArray<ExecutableBlock['type']>
+] as const)
 
 export const EXECUTABLE_BLOCK_TYPES: ReadonlySet<string> = new Set(EXECUTABLE_BLOCK_TYPES_LIST)
 
