@@ -1,18 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import type {
-  DeepnoteBlock,
-  DeepnoteFile,
-  ExecutableBlock,
-  InputBlock,
-  InputBlockValueOverride,
-} from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, InputBlock, InputBlockValueOverride } from '@deepnote/blocks'
 import {
   createPythonCode,
   decodeUtf8NoBom,
   deserializeDeepnoteFile,
-  EXECUTABLE_BLOCK_TYPES,
-  EXECUTABLE_BLOCK_TYPES_LIST,
   extractOutputsText,
   generateSortingKey,
   getInputBlockValueOverrideValidationError,
@@ -39,11 +31,6 @@ import {
 } from './runtime-errors'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
-
-// Re-export for backwards compatibility - these are now defined in @deepnote/blocks
-export const executableBlockTypes: ExecutableBlock['type'][] = [...EXECUTABLE_BLOCK_TYPES_LIST]
-
-export const executableBlockTypeSet: ReadonlySet<string> = EXECUTABLE_BLOCK_TYPES
 
 function createErrorOutput(error: Error): IOutput {
   return {
