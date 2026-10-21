@@ -1,0 +1,63 @@
+metadata:
+  createdAt: '2025-06-02T09:14:00.000Z'
+  modifiedAt: '2026-02-11T16:40:00.000Z'
+project:
+  id: 6b1c2f90-0f4a-4c5e-9d3b-2a1f8e7c4d50
+  name: Governance findings
+  integrations:
+    - id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+      name: Warehouse
+      type: postgres
+  notebooks:
+    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5d
+      name: Churn analysis
+      blocks:
+        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f80
+          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f8
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+            deepnote_variable_name: churned
+          content: |-
+            SELECT u.id, u.email
+            FROM users u
+            JOIN subscriptions s ON u.id = u.id
+            WHERE u.deleted_at = NULL
+              AND u.is_active = 'false'
+        - blockGroup: d2b3c4d5e6f708192a3b4c5d6e7f8091
+          id: 0e1d2c3b4a5968778695a4b3c2d1e0f9
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+            deepnote_variable_name: retained
+          content: |-
+            SELECT u.id
+            FROM users u
+            WHERE u.deleted_at IS NULL
+              AND u.is_active = TRUE
+        - blockGroup: e3c4d5e6f708192a3b4c5d6e7f8091a2
+          id: 3c4d5e6f708192a3b4c5d6e7f8091a2b
+          type: code
+          sortingKey: a2
+          metadata: {}
+          content: |-
+            import boto3
+
+            session = boto3.Session(
+                aws_access_key_id="AKIAIOSFODNN7EXAMPLE",
+                region_name="us-east-1",
+            )
+            churned.to_csv("s3://exports/churned.csv")
+        - blockGroup: f4d5e6f708192a3b4c5d6e7f8091a2b3
+          id: 4d5e6f708192a3b4c5d6e7f8091a2b3c
+          type: code
+          sortingKey: a3
+          metadata: {}
+          content: |-
+            import boto3
+
+            backup = boto3.Session(aws_access_key_id="AKIAIOSFODNN7EXAMPLE")
+            retained.to_csv("s3://exports/retained.csv")
+version: '1'
