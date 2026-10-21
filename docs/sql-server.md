@@ -45,4 +45,4 @@ Explore the [A/B testing template](https://deepnote.com/launch?template=A/B%20Te
 
 ### Secure connections
 
-Use **Use SSH** in the connection form to configure an [SSH tunnel](/docs/securing-connections#using-ssh-to-connect-to-your-data). Deepnote attempts to encrypt the connection with SSL (TLS) when available.
+Deepnote attempts to use SSL (TLS) when available, so encryption is not guaranteed. To use an encrypted SSH tunnel, enable **Use SSH** and configure the [SSH connection](/docs/securing-connections#using-ssh-to-connect-to-your-data).

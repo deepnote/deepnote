@@ -39,6 +39,8 @@ Change the variable `INFLUXDB_URL` to the URL where your InfluxDB instance is lo
 The template creates an InfluxDB Python `client`. Use `client.query_api()` to run a Flux query and return a pandas DataFrame. This example queries [InfluxDB's air sensor sample data](https://docs.influxdata.com/influxdb/v2/reference/sample-data/#air-sensor-sample-data).
 
 ```python
+import pandas as pd
+
 query_api = client.query_api()
 
 query = """import "influxdata/influxdb/sample"
@@ -48,13 +50,16 @@ sample.data(set: "airSensor")
   |> range(start: -45m)
   |> aggregateWindow(every: 1m, fn: mean)"""
 
-# influxdb_client gives us Pandas dataframes out-of-the-box
-df = query_api.query_data_frame(query)
+result = query_api.query_data_frame(query)
+if isinstance(result, list):
+    df = pd.concat(result, ignore_index=True) if result else pd.DataFrame()
+else:
+    df = result
 
 df
 ```
 
-Run the code to query InfluxDB and display the result as an interactive DataFrame table.
+The client returns a DataFrame or, when result tables have different schemas, a list of DataFrames. The code combines that list into one DataFrame for display.
 
 <Embed url="https://embed.deepnote.com/f1bda07e-1467-4298-955b-41b55e97fc75/299ab3c5-886e-4c29-9b86-04bda8b30e8f/0b9e56b351314e729b9cd10168c4e665?height=577" />
 
