@@ -18,6 +18,8 @@ Go to [supabase.com](https://supabase.com/) and create a free account, and start
 
 In your Supabase project, click **Connect** and choose a connection method. Use its host, database, port, and user with your database password. Keep all values from the same connection method.
 
+<!-- cspell:ignore pooler -->
+
 If your network requires IPv4, use the **Session pooler** or a direct connection with the IPv4 add-on. See [Supabase's connection guide](https://supabase.com/docs/guides/database/connecting-to-postgres) for the current options.
 
 ### Step 3: Create a Postgres integration in Deepnote
