@@ -12,6 +12,9 @@ import {
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import {
   findDivergedPublishPaths,
+  PUBLISH_ERROR_HINTS,
+  type PublishErrorCode,
+  type PublishErrorHint,
   type PublishMirror,
   PublishMirrorError,
   recordPrunedFile,
@@ -98,13 +101,23 @@ export interface PublishAppResult {
  */
 export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable'
 
+/**
+ * `code` is set only with reason `invalid-input`, for a sync folder `publishApp` cannot update; see
+ * {@link PublishErrorCode}. `hint` is set exactly when `code` is: the option change that resolves it.
+ */
 export class PublishError extends Error {
+  readonly hint?: PublishErrorHint
+
   constructor(
     readonly reason: PublishErrorReason,
-    message: string
+    message: string,
+    readonly code?: PublishErrorCode
   ) {
     super(message)
     this.name = 'PublishError'
+    if (code) {
+      this.hint = PUBLISH_ERROR_HINTS[code]
+    }
   }
 }
 
@@ -259,7 +272,7 @@ async function prepareLocalFiles(
 ): Promise<{ targetPrefix: string; publishFiles: PublishFile[] }> {
   const targetPrefix = normalizeTargetPrefix(targetPath)
   if (!targetPrefix) {
-    throw new PublishError('invalid-input', `--path must be ${PROJECT_STATIC_ROOT} or a directory below it`)
+    throw new PublishError('invalid-input', `Target path must be ${PROJECT_STATIC_ROOT} or a directory below it`)
   }
 
   let stat: Awaited<ReturnType<typeof fs.stat>>
@@ -329,7 +342,7 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     })
   } catch (error) {
     if (error instanceof PublishMirrorError) {
-      throw new PublishError('invalid-input', error.message)
+      throw new PublishError('invalid-input', error.message, error.code)
     }
     throw error
   }

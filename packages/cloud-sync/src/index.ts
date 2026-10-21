@@ -1,4 +1,5 @@
 export { ApiError } from '@deepnote/database-integrations'
+export type { OptionHint } from './option-hint'
 export {
   type PublishAppEvent,
   type PublishAppOptions,
@@ -8,7 +9,7 @@ export {
   type PublishErrorReason,
   publishApp,
 } from './publish-app'
-export { PublishMirrorError, type SyncRootOption } from './publish-mirror'
+export { type PublishErrorCode, type PublishErrorHint, PublishMirrorError, type SyncRootOption } from './publish-mirror'
 export {
   createOrFindStreamlitApp,
   normalizeStreamlitEntrypoint,

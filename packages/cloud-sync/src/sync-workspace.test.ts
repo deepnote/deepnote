@@ -292,6 +292,7 @@ const outcomesOf = (events: readonly SyncEvent[]) =>
   events.flatMap(event => (event.kind === 'project-outcome' ? [event.outcome] : []))
 const warningsOf = (events: readonly SyncEvent[]) =>
   events.flatMap(event => (event.kind === 'warning' ? [event.message] : []))
+const warningEventsOf = (events: readonly SyncEvent[]) => events.filter(event => event.kind === 'warning')
 
 describe('syncWorkspace', () => {
   it('mirrors the workspace folder tree as a directory per project and records it in the manifest', async () => {
@@ -1010,7 +1011,14 @@ describe('syncWorkspace', () => {
       const pulled = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true, onEvent })
 
       expect(pulled.projects).toEqual([expect.objectContaining({ action: 'unchanged' })])
-      expect(warningsOf(events)).toEqual([expect.stringContaining('deleted in Deepnote but kept locally')])
+      expect(warningEventsOf(events)).toEqual([
+        {
+          kind: 'warning',
+          code: 'deleted-files-kept',
+          hint: { option: 'prune', value: true },
+          message: '1 file in "Alpha" deleted in Deepnote but kept locally: report.csv.',
+        },
+      ])
       await expect(fs.readFile(path.join(tempDir, 'Alpha', '.files', 'report.csv'), 'utf-8')).resolves.toEqual('old')
       expect((await loadSyncManifest(tempDir)).projects.p1?.files?.['report.csv']).toBeDefined()
 
@@ -1052,7 +1060,14 @@ describe('syncWorkspace', () => {
         const pulled = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true, onEvent })
 
         expect(pulled.projects).toEqual([expect.objectContaining({ action: 'unchanged' })])
-        expect(warningsOf(events)).toEqual([expect.stringContaining('deleted in Deepnote but kept locally')])
+        expect(warningEventsOf(events)).toEqual([
+          {
+            kind: 'warning',
+            code: 'deleted-files-kept',
+            hint: { option: 'prune', value: true },
+            message: '1 file in "Alpha" deleted in Deepnote but kept locally: data/old.csv.',
+          },
+        ])
         expect((await loadSyncManifest(tempDir)).projects.p1?.files?.['data/old.csv']).toBeDefined()
       } finally {
         await fs.rm(outsideDir, { recursive: true, force: true })
@@ -1455,7 +1470,7 @@ describe('syncWorkspace', () => {
     expect(result.projects).toEqual([
       expect.objectContaining({
         action: 'error',
-        detail: 'Project file "large.bin" exceeds the 100 MiB --all-files limit.',
+        detail: 'Project file "large.bin" exceeds the 100 MiB working-file transfer limit.',
       }),
     ])
     expect(cloud.downloadedPaths).toEqual([])
@@ -1490,7 +1505,7 @@ describe('syncWorkspace', () => {
     expect(result.projects).toEqual([
       expect.objectContaining({
         action: 'error',
-        detail: 'Project file "large.bin" exceeds the 100 MiB --all-files limit.',
+        detail: 'Project file "large.bin" exceeds the 100 MiB working-file transfer limit.',
       }),
     ])
     expect(cloud.deletedPaths).toEqual([])
@@ -1513,8 +1528,10 @@ describe('syncWorkspace', () => {
     })
 
     await expect(syncWorkspace({ ...baseOptions, rootDir: tempDir, prune: true })).rejects.toThrow(
-      'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
-        'The API token or --url may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+      new Error(
+        'Refusing to prune because no project IDs in .deepnote-sync.json match the workspace returned by https://api.example.com. ' +
+          'The API token or API URL may point to a different workspace. Local files were left unchanged; verify the connection before retrying.'
+      )
     )
 
     expect(cloud.importCalls).toEqual([])
@@ -1535,15 +1552,21 @@ describe('syncWorkspace', () => {
     const kept = await syncWorkspace({ ...baseOptions, rootDir: tempDir })
     expect(kept.projects).toEqual([
       expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      expect.objectContaining({ projectId: 'p1', action: 'missing-in-cloud' }),
+      expect.objectContaining({
+        projectId: 'p1',
+        action: 'missing-in-cloud',
+        detail: 'no longer in the cloud; kept locally',
+        hint: { option: 'prune', value: true },
+      }),
     ])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toContain('p1')
 
     const pruned = await syncWorkspace({ ...baseOptions, rootDir: tempDir, prune: true })
     expect(pruned.projects).toEqual([
       expect.objectContaining({ projectId: 'p2', action: 'unchanged' }),
-      expect.objectContaining({ projectId: 'p1', action: 'pruned' }),
+      expect.objectContaining({ projectId: 'p1', action: 'pruned', detail: 'no longer in the cloud; removed locally' }),
     ])
+    expect(pruned.projects[1]).not.toHaveProperty('hint')
     await expect(fs.stat(path.join(tempDir, 'Alpha'))).rejects.toThrow()
     expect(Object.keys((await loadSyncManifest(tempDir)).projects)).toEqual(['p2'])
   })
@@ -1569,8 +1592,13 @@ describe('syncWorkspace', () => {
     expect(result.projects).toEqual([
       expect.objectContaining({ projectId: 'p2', action: 'skipped-conflict' }),
       expect.objectContaining({ projectId: 'p3', action: 'unchanged' }),
-      expect.objectContaining({ projectId: 'p1', action: 'missing-in-cloud' }),
+      expect.objectContaining({
+        projectId: 'p1',
+        action: 'missing-in-cloud',
+        detail: 'no longer in the cloud; kept local path used by a current cloud project',
+      }),
     ])
+    expect(result.projects[2]).not.toHaveProperty('hint')
     expect(await fs.readFile(path.join(tempDir, 'Alpha', 'main.deepnote'), 'utf-8')).toBe(localEdit)
     expect(Object.keys((await loadSyncManifest(tempDir)).projects)).toEqual(['p3'])
   })
