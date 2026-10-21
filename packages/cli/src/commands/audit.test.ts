@@ -138,6 +138,60 @@ describe('audit command', () => {
     })
   })
 
+  describe('staleness and ranking', () => {
+    it('reports how much of the workspace is still maintained', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Maintenance')
+      expect(output).toContain('cold (3y+)')
+      expect(output).toContain('median age')
+    })
+
+    it('inventories tables by live reach', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Tables — ranked by live reach')
+      expect(output).toContain('users')
+    })
+
+    it('shows a score per check, and the ranked list with --issues', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+      const grouped = getOutput(consoleSpy)
+      consoleSpy.mockClear()
+      await createAuditAction(program)(WORKSPACE, { issues: true })
+      const ranked = getOutput(consoleSpy)
+
+      expect(grouped).toMatch(/\d+ ✖ credential-shared/)
+      expect(ranked).toContain('Findings — ranked')
+      expect(ranked).toContain('signal × exposure × neglect × blast radius')
+    })
+
+    it('ranks the findings highest score first', async () => {
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      const report = JSON.parse(getOutput(consoleSpy))
+      const scores = report.issues.map((issue: { score: { score: number } }) => issue.score.score)
+      expect(scores).toEqual([...scores].sort((a: number, b: number) => b - a))
+      expect(report.issues[0].score).toMatchObject({
+        signal: expect.any(Number),
+        exposure: expect.any(Number),
+        neglect: expect.any(Number),
+        blastRadius: expect.any(Number),
+      })
+    })
+
+    it('reports the stale notebook in the archive project', async () => {
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      const report = JSON.parse(getOutput(consoleSpy))
+      const stale = report.issues.filter((issue: { code: string }) => issue.code === 'asset-stale')
+      expect(stale).toHaveLength(1)
+      expect(stale[0].projectName).toBe('Churn 2021')
+    })
+  })
+
   describe('--project', () => {
     it('restricts the report to one project', async () => {
       await createAuditAction(program)(WORKSPACE, { project: 'Revenue reporting' })
@@ -463,5 +517,69 @@ describe('describeNearest', () => {
 
     expect(message.match(/"/g)).toHaveLength(10)
     expect(message).toContain('200 projects in this workspace')
+  })
+})
+
+describe('audit command — two notebooks in one project sharing a name', () => {
+  let program: Command
+  let consoleSpy: Mock<typeof console.log>
+  let root: string
+
+  /** One project id across two files, each holding a notebook called "Daily" with a bad predicate. */
+  const notebook = (file: string) => `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+  modifiedAt: '2026-09-01T00:00:00.000Z'
+project:
+  id: 11111111-1111-4111-8111-111111111111
+  name: Reporting
+  notebooks:
+    - id: ${file}aaaabbbbccccddddeeeeffff0000
+      name: Daily
+      blocks:
+        - blockGroup: ${file}1111222233334444555566667777
+          id: ${file}8888999900001111222233334444
+          type: sql
+          sortingKey: a0
+          metadata: {}
+          content: SELECT * FROM orders WHERE cancelled_at = NULL
+version: '1'
+`
+
+  beforeEach(async () => {
+    program = new Command()
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    resetOutputConfig()
+    setOutputConfig({ color: false })
+    root = await mkdtemp(join(tmpdir(), 'deepnote-dup-notebook-'))
+    await mkdir(join(root, 'alpha'))
+    await mkdir(join(root, 'beta'))
+    await writeFile(join(root, 'alpha', 'daily.deepnote'), notebook('a'))
+    await writeFile(join(root, 'beta', 'daily.deepnote'), notebook('b'))
+  })
+
+  afterEach(async () => {
+    consoleSpy.mockRestore()
+    vi.restoreAllMocks()
+    await rm(root, { recursive: true, force: true })
+  })
+
+  it('shows the path, because the project and notebook alone name both of them', async () => {
+    await createAuditAction(program)(root, { issues: true })
+    const output = getOutput(consoleSpy)
+
+    const located = output.split('\n').filter(line => line.includes('Reporting · Daily'))
+    expect(located).toHaveLength(2)
+    // Without the path these two rows are the same string, and a reader cannot act on either.
+    expect(located[0]).not.toBe(located[1])
+    expect(output).toContain('Daily (alpha/daily.deepnote)')
+    expect(output).toContain('Daily (beta/daily.deepnote)')
+  })
+
+  it('leaves the path out when the readable location is already unique', async () => {
+    await rm(join(root, 'beta'), { recursive: true })
+    await createAuditAction(program)(root, { issues: true })
+
+    expect(getOutput(consoleSpy)).toContain('Reporting · Daily ')
+    expect(getOutput(consoleSpy)).not.toContain('Daily (alpha/daily.deepnote)')
   })
 })
