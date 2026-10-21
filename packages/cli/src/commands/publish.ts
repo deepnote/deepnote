@@ -4,6 +4,8 @@ import {
   type PublishAppResult,
   PublishDivergedError,
   PublishError,
+  type PublishErrorCode,
+  type PublishErrorHint,
   publishApp,
   type SyncRootOption,
 } from '@deepnote/cloud-sync'
@@ -13,6 +15,7 @@ import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { debug, getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import { type CliFlag, cliFlagFor } from '../utils/option-hint'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 interface PublishOptions {
@@ -25,6 +28,18 @@ interface PublishOptions {
   quiet: boolean
   syncRoot: SyncRootOption
   force: boolean
+}
+
+const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<PublishErrorHint<C>['option']>) => string } = {
+  'sync-root-unusable': flag => ` Pass ${flag} to publish without updating the workspace.`,
+  'project-not-in-sync-root': flag => ` Sync the workspace first, or pass ${flag} to publish without updating it.`,
+}
+
+function publishErrorSuffix(error: unknown): string {
+  if (!(error instanceof PublishError) || !error.code || !error.hint) {
+    return ''
+  }
+  return PUBLISH_ERROR_SENTENCES[error.code](cliFlagFor(error.hint))
 }
 
 export function createPublishAction(program: Command) {
@@ -102,7 +117,7 @@ export function createPublishAction(program: Command) {
         onEvent: renderEvent,
       })
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = (error instanceof Error ? error.message : String(error)) + publishErrorSuffix(error)
       if (error instanceof PublishDivergedError) {
         logError(
           `${message}. Run \`deepnote sync --all-files\` to bring the changes down, ` +

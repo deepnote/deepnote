@@ -75,10 +75,32 @@ Options, conflict kinds, events and result shapes are documented on the exported
 | `createOrFindStreamlitApp(baseUrl, token, projectId, entrypoint)`                                           | Create the Streamlit app, or find the one that already serves the entrypoint (`created: false`).                       |
 | `findSyncManifestRoot`, `hasSyncManifest`, `loadSyncManifest`, `saveSyncManifest`, `SYNC_MANIFEST_FILENAME` | Detect, read and write the `.deepnote-sync.json` manifest. Use these instead of parsing the JSON directly.             |
 | `projectFilesDir`, `isSafeRelativeFilePath`, `assertNoSymbolicLinkAncestors`, `baselineDiverged`, `sha256`  | Local path and fingerprint helpers used by the sync engine.                                                            |
-| `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`).                    |
+| `PublishError`                                                                                              | Thrown by `publishApp` before any file changes: invalid input or an unavailable project (`reason`, `code`).            |
 | `PublishDivergedError`                                                                                      | Thrown by `publishApp` before any file changes when files changed in Deepnote since the last sync, unless `force`.     |
-| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows it as `PublishError` with reason `invalid-input`.                       |
+| `PublishMirrorError`                                                                                        | An unusable sync folder. `publishApp` rethrows one found before uploading as `PublishError` with its `code`.           |
 | `ApiError`                                                                                                  | Thrown by API calls with the HTTP status in `statusCode`. Network failures and timeouts are the platform's own errors. |
+
+## Messages and CLI hints
+
+No message this package throws, emits or returns names a CLI flag. Where a message used to end in a flag
+hint, the condition is marked in a field instead, together with an `OptionHint`: the library option
+that resolves it (`{ option: 'syncRoot', value: false }` or `{ option: 'prune', value: true }`).
+Library callers apply the option; `deepnote publish` and `deepnote sync` translate the hint into the
+matching flag and append it to the message they print.
+
+| Condition                                                                                 | Marked by                                      | Hint                                           |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- |
+| The sync folder cannot be used (invalid or symlinked manifest, unreadable tracked folder) | `PublishError.code` `sync-root-unusable`       | `PublishError.hint`: `syncRoot: false`         |
+| An explicit `syncRoot` does not track the project, or its project folder is missing       | `PublishError.code` `project-not-in-sync-root` | `PublishError.hint`: `syncRoot: false`         |
+| Files deleted in Deepnote are kept locally (`allFiles`, no `prune`)                       | `warning` event `code` `deleted-files-kept`    | The event's `hint`: `prune: true` removes them |
+| A project deleted in Deepnote was kept locally because `prune` is off                     | `missing-in-cloud` outcome (`action`)          | The outcome's `hint`: `prune: true` removes it |
+
+A `pruned` outcome and a `missing-in-cloud` outcome that `prune` kept because a current cloud project uses its
+path carry no hint: there is nothing for the caller to change. Without `prune`, such an outcome still carries the
+`prune: true` hint, but pruning then only drops its manifest record and keeps the directory.
+
+Other messages name the option in words: "API URL" is `baseUrl`, and the "working-file transfer limit"
+applies to `allFiles`.
 
 ## Package vs. CLI
 
