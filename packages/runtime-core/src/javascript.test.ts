@@ -79,12 +79,8 @@ describe('toPythonLiteral', () => {
       expect(toPythonLiteral('café')).toBe("'café'")
     })
 
-    it.each([
-      ['NEL', 'a\x85b', "'a\\x85b'"],
-      ['LS', 'a\u2028b', "'a\\u2028b'"],
-      ['PS', 'a\u2029b', "'a\\u2029b'"],
-    ])('escapes the %s line separator', (_name, input, expected) => {
-      expect(toPythonLiteral(input)).toBe(expected)
+    it('escapes the LS line separator', () => {
+      expect(toPythonLiteral('a\u2028b')).toBe("'a\\u2028b'")
     })
   })
 

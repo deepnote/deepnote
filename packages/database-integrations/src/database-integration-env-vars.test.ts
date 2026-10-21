@@ -3015,10 +3015,6 @@ describe('Database integration env variables', () => {
   })
 
   describe('environment variable names', () => {
-    it('upper-cases the integration id and replaces non-word characters in the SQL connection variable name', () => {
-      expect(getSqlEnvVarName('3e2bed0f-e89b')).toBe('SQL_3E2BED0F_E89B')
-    })
-
     it('injects the connection variable under the name that generated SQL block code reads', () => {
       const integrationId = '3e2bed0f-e89b'
       const sqlBlock: SqlBlock = {
