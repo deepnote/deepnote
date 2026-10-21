@@ -19,7 +19,7 @@ There are two ways to get started with Streamlit in Deepnote:
 
 Once deployed, use the **Open app button** to see your app in its full shared state.
 
-![Streamlit app with an NYC Wi-Fi hotspot map](../assets/docs/streamlit/nyc-wifi-app.webp)
+![Streamlit app with a map of NYC public Wi-Fi](../assets/docs/streamlit/nyc-wifi-app.webp)
 
 ## App status
 
