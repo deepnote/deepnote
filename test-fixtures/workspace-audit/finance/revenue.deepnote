@@ -1,0 +1,47 @@
+metadata:
+  createdAt: '2025-01-15T08:00:00.000Z'
+  modifiedAt: '2026-09-30T09:30:00.000Z'
+project:
+  id: 22222222-2222-4222-8222-222222222222
+  name: Revenue reporting
+  integrations:
+    - id: aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: 2222aaaa3333bbbb4444cccc5555dddd
+      name: Monthly revenue
+      blocks:
+        - blockGroup: bbbb1111cccc2222dddd3333eeee4444
+          id: bbbb1111cccc2222dddd3333eeee4441
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa
+            deepnote_variable_name: revenue
+          content: |-
+            SELECT date_trunc('month', o.created_at) AS month, sum(o.amount) AS revenue
+            FROM orders o
+            WHERE o.refunded_at = NULL
+            GROUP BY 1
+        - blockGroup: bbbb1111cccc2222dddd3333eeee4445
+          id: bbbb1111cccc2222dddd3333eeee4442
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: cccccccc-3333-4333-8333-cccccccccccc
+            deepnote_variable_name: forecast
+          content: |-
+            SELECT * FROM forecasts WHERE active = 'true'
+        - blockGroup: bbbb1111cccc2222dddd3333eeee4446
+          id: bbbb1111cccc2222dddd3333eeee4443
+          type: code
+          sortingKey: a2
+          metadata: {}
+          content: |-
+            import requests
+
+            SEGMENT_KEY = "9f8e7d6c5b4a39281706"
+            requests.post("https://api.segment.io/v1/track", json={"key": SEGMENT_KEY})
+            revenue.to_csv("s3://finance-exports/revenue.csv")
+version: '1'

@@ -1,0 +1,19 @@
+metadata:
+  createdAt: '2021-05-04T11:00:00.000Z'
+  modifiedAt: '2022-02-01T11:00:00.000Z'
+project:
+  id: 33333333-3333-4333-8333-333333333333
+  name: Churn 2021
+  notebooks:
+    - id: 3333aaaa4444bbbb5555cccc6666dddd
+      name: Churn
+      blocks:
+        - blockGroup: cccc1111dddd2222eeee3333ffff4444
+          id: cccc1111dddd2222eeee3333ffff4441
+          type: code
+          sortingKey: a0
+          metadata: {}
+          content: |-
+            df = pd.read_csv("gs://raw-events/churn-2021.csv")
+            df.head()
+version: '1'
