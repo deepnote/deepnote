@@ -16,7 +16,7 @@ After creating the integration, connect it to your project when prompted.
 
 ### Secure connections
 
-To connect through SSH, use an [SSH tunnel integration](/docs/securing-connections#ssh-tunnel-integration).
+To connect through SSH, use an [SSH tunnel integration](/docs/securing-connections#ssh-tunnel-integration). SSH tunnel integrations are available on the Enterprise plan.
 
 #### Troubleshooting SSH connections for MongoDB
 
