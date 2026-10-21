@@ -29,6 +29,8 @@ describe('escapePythonString', () => {
     ['U+000E', 'a\x0eb', "'a\\x0eb'"],
     ['U+001F', 'a\x1fb', "'a\\x1fb'"],
     ['DEL', 'a\x7fb', "'a\\x7fb'"],
+    ['U+0080', 'a\x80b', "'a\\x80b'"],
+    ['U+009F', 'a\x9fb', "'a\\x9fb'"],
   ])('escapes %s as a named or hex escape', (_name, input, expected) => {
     expect(escapePythonString(input)).toBe(expected)
   })
@@ -45,7 +47,7 @@ describe('escapePythonString', () => {
   })
 
   it.each([
-    ['U+0080', 'a\x80b', "'a\x80b'"],
+    ['NBSP', 'a\xa0b', "'a\xa0b'"],
     ['emoji', '😀', "'😀'"],
     ['CJK characters', '日本語', "'日本語'"],
   ])('leaves %s unescaped', (_name, input, expected) => {

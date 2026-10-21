@@ -9,7 +9,7 @@ export function escapePythonString(value: string): string {
     .replaceAll('\r', '\\r')
     .replaceAll('\t', '\\t')
     // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control characters
-    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]/g, char => {
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\u2028\u2029]/g, char => {
       const code = char.charCodeAt(0)
       return code <= 0xff ? `\\x${code.toString(16).padStart(2, '0')}` : `\\u${code.toString(16).padStart(4, '0')}`
     })
