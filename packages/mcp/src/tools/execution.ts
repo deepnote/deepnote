@@ -9,9 +9,18 @@ import {
   resolveAndComposeInitIfNeeded,
   saveExecutionSnapshot,
 } from '@deepnote/convert'
-import { ExecutionEngine, executableBlockTypeSet } from '@deepnote/runtime-core'
+import {
+  detectDefaultPython,
+  ExecutionEngine,
+  executableBlockTypeSet,
+  isRuntimeError,
+  type ResolvedProjectPython,
+  type RuntimeFailureCategory,
+  resolveProjectPython,
+} from '@deepnote/runtime-core'
 import type { Tool } from '@modelcontextprotocol/sdk/types.js'
 import { z } from 'zod'
+import { serverPool } from '../runtime.js'
 import { formatOutput } from '../utils.js'
 
 // Output summary limits
@@ -67,6 +76,106 @@ function formatFirstIssue(error: z.ZodError): string {
   return `${issuePath}${issue.message}`
 }
 
+/**
+ * Picks the interpreter for a run: explicit `pythonPath`, then `DEEPNOTE_PYTHON`, then the interpreter
+ * the Deepnote editor extension selected for the notebook (`.vscode/deepnote.json` etc., searched upward
+ * from the file's directory and from the workspace root, `DEEPNOTE_WORKSPACE` or the server's cwd),
+ * then a `.venv` / `venv` found upward from the same roots that has deepnote-toolkit installed, then
+ * the system Python.
+ */
+async function resolveRunPython(
+  file: DeepnoteFile,
+  originalPath: string,
+  explicit: string | undefined
+): Promise<ResolvedProjectPython> {
+  // The same default as the resources in server.ts, so DEEPNOTE_WORKSPACE means one thing.
+  const workspaceRoot = process.env.DEEPNOTE_WORKSPACE || process.cwd()
+  const searchDirs = [path.dirname(originalPath), workspaceRoot]
+
+  const python = await resolveProjectPython({
+    explicit,
+    projectId: file.project.id,
+    searchDirs,
+    fallback: () => {
+      try {
+        return detectDefaultPython()
+      } catch {
+        return 'python'
+      }
+    },
+  })
+
+  for (const warning of python.warnings) {
+    // biome-ignore lint/suspicious/noConsole: Intentional diagnostic logging to stderr
+    console.error(`[deepnote-mcp] ${warning}`)
+  }
+
+  return python
+}
+
+/** Compact description of the chosen interpreter for tool responses. */
+function describePython(python: ResolvedProjectPython) {
+  return {
+    path: python.pythonPath,
+    source: python.source,
+    ...(python.ide
+      ? {
+          sidecarPath: python.ide.sidecarPath,
+          ...(python.ide.environmentId ? { environmentId: python.ide.environmentId } : {}),
+        }
+      : {}),
+  }
+}
+
+function executionFailure(error: unknown, python: ResolvedProjectPython) {
+  const message = error instanceof Error ? error.message : String(error)
+  const hints = [isRuntimeError(error) ? error.hint : undefined, python.hint].filter(
+    (hint): hint is string => typeof hint === 'string' && hint.length > 0
+  )
+  return {
+    content: [
+      {
+        type: 'text',
+        text: JSON.stringify(
+          {
+            success: false,
+            error: `Execution failed: ${message}`,
+            ...(isRuntimeError(error) ? { failureCategory: error.category } : {}),
+            ...(hints.length > 0 ? { hint: hints.join('\n\n') } : {}),
+            python: describePython(python),
+          },
+          null,
+          2
+        ),
+      },
+    ],
+    isError: true,
+  }
+}
+
+/**
+ * Runs `fn` with an engine attached to a warm toolkit server from the pool. The server is reused
+ * across tool calls; the kernel is fresh for every call.
+ */
+async function withRuntime<T>(
+  python: ResolvedProjectPython,
+  workingDirectory: string,
+  fn: (engine: ExecutionEngine) => Promise<T>
+): Promise<T> {
+  const lease = await serverPool.acquire({ pythonEnv: python.pythonPath, workingDirectory })
+  const engine = new ExecutionEngine({ pythonEnv: python.pythonPath, workingDirectory }, { server: lease.server })
+  try {
+    await engine.start()
+    return await fn(engine)
+  } finally {
+    try {
+      await engine.stop()
+    } finally {
+      lease.release()
+    }
+  }
+}
+
 function getErrorCode(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null) return undefined
   const maybeCode = Reflect.get(error, 'code')
@@ -103,7 +212,7 @@ export const executionTools: Tool[] = [
         pythonPath: {
           type: 'string',
           description:
-            'Path to Python environment (venv directory or python executable). Uses system Python if not specified.',
+            'Path to Python environment (venv directory or python executable). If omitted, uses DEEPNOTE_PYTHON, then the interpreter selected for the notebook in the Deepnote editor extension (deepnote.json in .vscode, .cursor, .antigravity, or .agent), then a .venv or venv directory found upward from the notebook or from the workspace root (DEEPNOTE_WORKSPACE, else the server cwd) that has deepnote-toolkit installed, then system Python.',
         },
         inputs: {
           type: 'object',
@@ -203,9 +312,11 @@ async function handleRun(args: Record<string, unknown>) {
     console.error(`[deepnote-mcp] ${warning}`)
   }
 
+  const python = await resolveRunPython(file, originalPath, pythonPath)
+
   // If blockId is specified, run just that block with its dependencies
   if (blockIdFilter) {
-    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, pythonPath, inputs, {
+    return handleRunBlock(file, originalPath, blockIdFilter, notebookFilter, python, inputs, {
       dryRun: dryRun === true,
     })
   }
@@ -255,6 +366,7 @@ async function handleRun(args: Record<string, unknown>) {
                 contentPreview: b.block.content?.slice(0, 50) || '',
               })),
               inputs: inputs || {},
+              python: describePython(python),
             },
             null,
             2
@@ -266,41 +378,49 @@ async function handleRun(args: Record<string, unknown>) {
 
   // Actually run the notebooks
   const workingDir = path.dirname(originalPath)
-  const engine = new ExecutionEngine({
-    pythonEnv: pythonPath || 'python',
-    workingDirectory: workingDir,
-  })
 
-  const results: Array<{ notebook: string; blockId: string; type: string; success: boolean; error?: string }> = []
+  const results: Array<{
+    notebook: string
+    blockId: string
+    type: string
+    success: boolean
+    error?: string
+    failureCategory?: RuntimeFailureCategory
+  }> = []
   const blockOutputs: Array<{ id: string; outputs: unknown[]; executionCount?: number | null }> = []
+  let runtimeHint: string | undefined
 
   // Track execution timing
   const executionStartedAt = new Date().toISOString()
 
   try {
-    await engine.start()
-
-    const summary = await engine.runProject(file, {
-      notebookName: notebookFilter,
-      inputs,
-      onBlockDone: result => {
-        // Find which notebook this block belongs to
-        const notebookName = executableBlocks.find(b => b.block.id === result.blockId)?.notebook || 'unknown'
-        results.push({
-          notebook: notebookName,
-          blockId: result.blockId.slice(0, 8),
-          type: result.blockType,
-          success: result.success,
-          error: result.error?.message,
-        })
-        // Collect outputs for snapshot
-        blockOutputs.push({
-          id: result.blockId,
-          outputs: result.outputs || [],
-          executionCount: result.executionCount,
-        })
-      },
-    })
+    const summary = await withRuntime(python, workingDir, engine =>
+      engine.runProject(file, {
+        notebookName: notebookFilter,
+        inputs,
+        onBlockDone: result => {
+          // Find which notebook this block belongs to
+          const notebookName = executableBlocks.find(b => b.block.id === result.blockId)?.notebook || 'unknown'
+          results.push({
+            notebook: notebookName,
+            blockId: result.blockId.slice(0, 8),
+            type: result.blockType,
+            success: result.success,
+            error: result.error?.message,
+            failureCategory: result.failureCategory,
+          })
+          if (isRuntimeError(result.error) && result.error.hint) {
+            runtimeHint = result.error.hint
+          }
+          // Collect outputs for snapshot
+          blockOutputs.push({
+            id: result.blockId,
+            outputs: result.outputs || [],
+            executionCount: result.executionCount,
+          })
+        },
+      })
+    )
 
     const executionFinishedAt = new Date().toISOString()
 
@@ -325,16 +445,18 @@ async function handleRun(args: Record<string, unknown>) {
     const outputSummaries = includeOutputSummary ? summarizeBlockOutputs(blockOutputs) : undefined
 
     const responseData = {
-      success: true,
+      success: summary.failedBlocks === 0,
       level: notebookFilter ? 'notebook' : 'project',
       notebooks: notebooks.map(n => n.name),
       executedBlocks: summary.executedBlocks,
       failedBlocks: summary.failedBlocks,
       totalBlocks: summary.totalBlocks,
       durationMs: summary.totalDurationMs,
+      ...(summary.failureCategory ? { failureCategory: summary.failureCategory } : {}),
       format,
       wasConverted,
       snapshotPath,
+      python: describePython(python),
       execution: compact
         ? undefined
         : {
@@ -343,10 +465,12 @@ async function handleRun(args: Record<string, unknown>) {
           },
       results: compact ? results.filter(r => !r.success || r.error) : results,
       ...(outputSummaries && outputSummaries.length > 0 ? { outputSummaries } : {}),
+      // A runtime remedy (kernel died, block timed out) matters more than the snapshot pointer.
       hint:
-        snapshotPath && !includeOutputSummary
+        runtimeHint ??
+        (snapshotPath && !includeOutputSummary
           ? 'Use deepnote_snapshot_load to inspect outputs, errors, and debug info'
-          : undefined,
+          : undefined),
     }
 
     return {
@@ -358,13 +482,7 @@ async function handleRun(args: Record<string, unknown>) {
       ],
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: `Execution failed: ${message}` }],
-      isError: true,
-    }
-  } finally {
-    await engine.stop()
+    return executionFailure(error, python)
   }
 }
 
@@ -377,7 +495,7 @@ async function handleRunBlock(
   originalPath: string,
   blockId: string,
   notebookFilter: string | undefined,
-  pythonPath: string | undefined,
+  python: ResolvedProjectPython,
   inputs: Record<string, unknown> | undefined,
   options: { dryRun: boolean }
 ) {
@@ -420,6 +538,7 @@ async function handleRunBlock(
                 type: targetBlock.type,
               },
               inputs: inputs || {},
+              python: describePython(python),
             },
             null,
             2
@@ -431,19 +550,21 @@ async function handleRunBlock(
 
   // Run the specific block
   const workingDir = path.dirname(originalPath)
-  const engine = new ExecutionEngine({
-    pythonEnv: pythonPath || 'python',
-    workingDirectory: workingDir,
-  })
+  let runtimeHint: string | undefined
 
   try {
-    await engine.start()
-
-    const summary = await engine.runProject(file, {
-      notebookName: targetNotebook.name,
-      blockId: targetBlock.id,
-      inputs,
-    })
+    const summary = await withRuntime(python, workingDir, engine =>
+      engine.runProject(file, {
+        notebookName: targetNotebook.name,
+        blockId: targetBlock.id,
+        inputs,
+        onBlockDone: result => {
+          if (isRuntimeError(result.error) && result.error.hint) {
+            runtimeHint = result.error.hint
+          }
+        },
+      })
+    )
 
     return {
       content: [
@@ -451,13 +572,16 @@ async function handleRunBlock(
           type: 'text',
           text: JSON.stringify(
             {
-              success: true,
+              success: summary.failedBlocks === 0,
               blockId: targetBlock.id.slice(0, 8),
               blockType: targetBlock.type,
               notebook: targetNotebook.name,
               executedBlocks: summary.executedBlocks,
               failedBlocks: summary.failedBlocks,
               durationMs: summary.totalDurationMs,
+              ...(summary.failureCategory ? { failureCategory: summary.failureCategory } : {}),
+              ...(runtimeHint ? { hint: runtimeHint } : {}),
+              python: describePython(python),
             },
             null,
             2
@@ -466,13 +590,7 @@ async function handleRunBlock(
       ],
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    return {
-      content: [{ type: 'text', text: `Execution failed: ${message}` }],
-      isError: true,
-    }
-  } finally {
-    await engine.stop()
+    return executionFailure(error, python)
   }
 }
 

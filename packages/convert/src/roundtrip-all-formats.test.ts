@@ -783,6 +783,124 @@ describe('Agent block roundtrip', () => {
 })
 
 // ============================================================================
+// PIVOT TABLE BLOCK ROUNDTRIP TESTS
+// ============================================================================
+
+describe('Pivot table block roundtrip', () => {
+  const PIVOT_OUTPUT_MIME_TYPE = 'application/vnd.deepnote.pivot-table.v1+json'
+
+  const createDeepnoteWithPivotTableBlock = (): import('@deepnote/blocks').DeepnoteFile => ({
+    metadata: { createdAt: '2025-01-01T00:00:00Z' },
+    project: {
+      id: 'test-project',
+      name: 'Test Project',
+      notebooks: [
+        {
+          id: 'test-notebook',
+          name: 'Test Notebook',
+          blocks: [
+            {
+              id: 'code-1',
+              blockGroup: 'group-1',
+              type: 'code',
+              sortingKey: '0',
+              content: 'df = pd.DataFrame({"region": ["EU"], "product": ["A"], "revenue": [10]})',
+              metadata: {},
+            },
+            {
+              id: 'pivot-1',
+              blockGroup: 'group-2',
+              type: 'pivot-table',
+              sortingKey: '1',
+              content: '',
+              metadata: {
+                deepnote_variable_name: 'df',
+                deepnote_pivot_rows: ['region'],
+                deepnote_pivot_cols: ['product'],
+                deepnote_pivot_aggregator: 'sum',
+                deepnote_pivot_value_field: 'revenue',
+              },
+            },
+          ],
+        },
+      ],
+    },
+    version: '1.0.0',
+  })
+
+  it('Deepnote pivot table → Jupyter code cell → Deepnote: preserves type and pivot configuration', () => {
+    const original = createDeepnoteWithPivotTableBlock()
+
+    // Step 1: Deepnote → Jupyter
+    const jupyterNotebooks = convertDeepnoteToJupyterNotebooks(original)
+    const jupyterCells = jupyterNotebooks[0].notebook.cells
+
+    // The pivot block becomes a code cell holding the display snippet
+    expect(jupyterCells[1].cell_type).toBe('code')
+    expect(jupyterCells[1].source).toContain(PIVOT_OUTPUT_MIME_TYPE)
+    expect(jupyterCells[1].source).toContain('deepnote_get_data_preview_json(df, ')
+    expect(jupyterCells[1].metadata?.deepnote_cell_type).toBe('pivot-table')
+
+    // Step 2: Jupyter → Deepnote
+    const roundtripped = convertJupyterNotebookToDeepnote(jupyterNotebooks[0], {
+      projectName: original.project.name,
+    })
+
+    const roundtrippedBlocks = roundtripped.project.notebooks[0].blocks
+    expect(roundtrippedBlocks.length).toBe(2)
+
+    const pivotBlock = roundtrippedBlocks[1]
+    expect(pivotBlock.type).toBe('pivot-table')
+    expect(pivotBlock.id).toBe('pivot-1')
+    expect(pivotBlock.metadata?.deepnote_variable_name).toBe('df')
+    expect(pivotBlock.metadata?.deepnote_pivot_rows).toEqual(['region'])
+    expect(pivotBlock.metadata?.deepnote_pivot_cols).toEqual(['product'])
+    expect(pivotBlock.metadata?.deepnote_pivot_aggregator).toBe('sum')
+    expect(pivotBlock.metadata?.deepnote_pivot_value_field).toBe('revenue')
+
+    // Surrounding code block should be unchanged
+    expect(roundtrippedBlocks[0].type).toBe('code')
+    expect(roundtrippedBlocks[0].content).toBe(
+      'df = pd.DataFrame({"region": ["EU"], "product": ["A"], "revenue": [10]})'
+    )
+  })
+
+  it('Deepnote pivot table → Percent format: becomes a code cell with the display snippet', () => {
+    const original = createDeepnoteWithPivotTableBlock()
+
+    const percentNotebooks = convertDeepnoteToPercentNotebooks(original)
+    const pivotCell = percentNotebooks[0].notebook.cells[1]
+
+    expect(pivotCell.cellType).toBe('code')
+    expect(pivotCell.content).toContain(PIVOT_OUTPUT_MIME_TYPE)
+  })
+
+  it('Deepnote pivot table → Quarto format: becomes a code cell with the display snippet', () => {
+    const original = createDeepnoteWithPivotTableBlock()
+
+    const quartoDocuments = convertDeepnoteToQuartoDocuments(original)
+    const codeCells = quartoDocuments[0].document.cells.filter(c => c.cellType === 'code')
+
+    expect(codeCells.some(c => c.content.includes(PIVOT_OUTPUT_MIME_TYPE))).toBe(true)
+  })
+
+  it('Deepnote pivot table → Marimo format: becomes a code cell with the display snippet', () => {
+    const original = createDeepnoteWithPivotTableBlock()
+
+    const marimoApps = convertDeepnoteToMarimoApps(original)
+    const codeCells = marimoApps[0].app.cells.filter(c => c.cellType === 'code')
+
+    expect(codeCells.some(c => c.content.includes(PIVOT_OUTPUT_MIME_TYPE))).toBe(true)
+  })
+
+  it('Deepnote schema validates pivot table blocks', () => {
+    const original = createDeepnoteWithPivotTableBlock()
+    const validationResult = deepnoteFileSchema.safeParse(original)
+    expect(validationResult.success).toBe(true)
+  })
+})
+
+// ============================================================================
 // FORMAT INTEGRITY VALIDATION
 // ============================================================================
 

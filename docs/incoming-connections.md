@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-Many tools, such as [Tensorboard](https://www.tensorflow.org/tensorboard) and [Streamlit](https://streamlit.io/), require a local webserver to be spun up to serve docs, dashboards, and other web interfaces. They often prompt you to open an address like `http://localhost:8080)`.
+Many tools, such as [Tensorboard](https://www.tensorflow.org/tensorboard) and [Streamlit](https://streamlit.io/), require a local webserver to be spun up to serve docs, dashboards, and other web interfaces. They often prompt you to open an address like `http://localhost:8080`.
 
 When you enable incoming connections, Deepnote exposes port `8080` on the internet under an address such as `b9d13315-f12a-4931-857c-ed6b4c59dcad.deepnoteproject.com`. You can use this address to access services running on port `8080` on your Deepnote machine.
 

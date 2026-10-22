@@ -22,7 +22,7 @@ Available on Team and Enterprise plans
 
 ## How to connect to Snowflake
 
-Open the **Settings** panel from the top-right of your project, and under **Integrations** click the **+** button and choose **Create new integration**.
+Open **Settings** in the top-right corner of your project. Under **Integrations**, click **+**, then **Add a new integration**.
 ![Create new integration](../assets/docs/U4rUqFckSUObXKjdz7kt.webp)
 
 <br></br>
@@ -83,7 +83,9 @@ Now that you're connected to Snowflake, you can do the following:
 Deepnote also provides [an integration with Snowpark](snowpark) that allows you to write code in the notebook but execute using the warehouse's compute resources.
 </Callout>
 
-![Using Snowflake in Deepnote](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
+This example runs sample values in Snowflake and does not read a warehouse table.
+
+![Sample attribution query running in Snowflake](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Allowing Deepnote to access Snowflake
 

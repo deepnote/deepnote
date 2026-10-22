@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/cloud",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Client for the Deepnote Cloud runs API",
   "keywords": [
     "deepnote",
@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "@deepnote/database-integrations": "workspace:*",
-    "fflate": "^0.8.2",
+    "fflate": "^0.8.3",
     "zod": "3.25.76"
   },
   "engines": {

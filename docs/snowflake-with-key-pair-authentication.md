@@ -60,7 +60,7 @@ After generating both keys, you'll need to register the public key with Snowflak
 ALTER USER [USERNAME] SET RSA_PUBLIC_KEY='MIIEvg...';
 ```
 
-Remember to replace `[USERNAME]` with your actual Snowflake username and insert the contents of your public key. Remove the `-----BEGIN PUBLIC KEY-----` and `-----END PUBLIC KEY-----` delimiters before inserting the key into the SQL statement.
+Replace `[USERNAME]` with your Snowflake username and use the public key from `snowflake_key.pub`.
 
 ## Setting up Snowflake integration in Deepnote
 
@@ -97,7 +97,9 @@ This authentication method is ideal when:
 
 With your integration configured and connected to your project, you're ready to work with your Snowflake data in Deepnote. You can write and run SQL queries against your Snowflake instance and explore your data structures using the schema browser. The key-pair authentication happens seamlessly in the background after you've provided your credentials.
 
-![Using Snowflake in Deepnote](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
+This example runs sample values in Snowflake and does not read a warehouse table.
+
+![Sample attribution query running in Snowflake](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Troubleshooting
 

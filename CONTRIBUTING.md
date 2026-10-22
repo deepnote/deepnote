@@ -7,15 +7,30 @@ Here's how you can get started.
 
 ## 📂 Repository structure
 
+A partial overview — see below for the full package list and root config files:
+
 ```text
 deepnote/
-├── packages/        # Core TypeScript packages
-│   ├── blocks/      # @deepnote/blocks - Block types and schemas
-│   ├── convert/     # @deepnote/convert - CLI for Jupyter ↔ Deepnote conversion
-│   ├── reactivity/  # @deepnote/reactivity - Reactivity and dependency graph
+├── packages/                  # Core TypeScript packages
+│   ├── blocks/                # @deepnote/blocks - Block types, schemas, and Python code generation
+│   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
+│   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API
+│   ├── cloud-sync/            # @deepnote/cloud-sync - Sync and publish local folders with Deepnote Cloud
+│   ├── convert/               # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
+│   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
+│   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI
+│   ├── mcp/                   # @deepnote/mcp - MCP server for AI-assisted notebook creation
+│   ├── reactivity/            # @deepnote/reactivity - Reactivity and dependency graph
+│   └── runtime-core/          # @deepnote/runtime-core - Core runtime for executing Deepnote projects
+├── skills/deepnote/ # Agent-facing reference docs (kept in sync with the packages above)
+├── test-fixtures/   # Shared test fixtures used across packages
 ├── docs/            # Documentation files
 ├── .github/         # GitHub workflows & templates
 │   └── workflows/   # CI/CD pipelines
+├── .nvmrc         # Pinned Node.js version
+├── package.json   # Root scripts and workspace-wide devDependencies
+├── pnpm-lock.yaml # Resolved dependency versions (source of truth)
+├── AGENTS.md
 ├── CONTRIBUTING.md
 └── README.md
 ```
@@ -40,7 +55,9 @@ Start by opening an issue or discussion to talk through your idea.
 
 ### Prerequisites
 
-> **Note:** Ensure you have [Docker](https://www.docker.com/get-started) installed before proceeding with local development.
+- Node.js, matching the version in [`.nvmrc`](.nvmrc) (e.g. `nvm use`)
+- [pnpm](https://pnpm.io/), matching the version in the `packageManager` field of `package.json`
+- To run `packages/local-runner` locally, a Python environment with [`deepnote-toolkit[server]`](https://pypi.org/project/deepnote-toolkit/) installed (see that package's README)
 
 ### Install dependencies
 
@@ -64,6 +81,14 @@ Run tests with coverage:
 
 ```bash
 pnpm test:coverage
+```
+
+Run the integration tests, which start a real `deepnote-toolkit` server (they are excluded from
+`pnpm test`; install the toolkit with `pip install "deepnote-toolkit[server]"` and point
+`DEEPNOTE_PYTHON` at that interpreter):
+
+```bash
+pnpm test:integration
 ```
 
 Run tests in watch mode (in a specific package):

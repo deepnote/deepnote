@@ -93,7 +93,7 @@ Locale-sensitive collation such as `localeCompare` must not be used.
 
 `filename` is the export-allocated document filename (`slugify(notebook name) || notebook id`, deduped
 within the export). The reference implementation is `canonicalProjectHash` in
-`@deepnote/cli` (`packages/cli/src/commands/sync.ts`).
+`@deepnote/cloud-sync` (`packages/cloud-sync/src/sync-workspace.ts`).
 
 For lost-update checks the server re-exports the project inside the import transaction, runs the same
 function, and compares to `baseContentHash`. The response returns the post-import hash as

@@ -25,8 +25,8 @@ The primary way to convert Deepnote projects to Jupyter format is through the De
 
 1. **Open your project** in Deepnote
 2. **Click the project menu** (three dots in the top right)
-3. **Select "Export"** from the dropdown
-4. **Choose "Download as .ipynb"** for Jupyter format
+3. **Select "Export as ..."** from the project menu
+4. **Choose ".ipynb"** from the export submenu for Jupyter format
 5. **Select notebooks** to export (or export all)
 6. **Download** the generated files
 
@@ -110,22 +110,22 @@ When exporting from Deepnote to Jupyter format, here's what to expect:
 
 ### What converts well
 
-- ✅ **Code cells**: Python code blocks convert directly to code cells
-- ✅ **Markdown cells**: Text blocks convert to markdown cells
-- ✅ **Cell outputs**: Execution results, plots, and tables are preserved
-- ✅ **Execution counts**: Cell execution order is maintained
+- **Code cells**: Python code blocks convert directly to code cells
+- **Markdown cells**: Text blocks convert to markdown cells
+- **Cell outputs**: Execution results, plots, and tables are preserved
+- **Execution counts**: Cell execution order is maintained
 
 ### What requires adaptation
 
-- ⚠️ **SQL blocks**: May convert to Python code using database connections
-- ⚠️ **Input blocks**: Convert to static Python variable assignments
-- ⚠️ **Visualizations**: May convert to code that generates the chart
-- ⚠️ **Multi-notebook projects**: Each notebook becomes a separate `.ipynb` file
+- **SQL blocks**: May convert to Python code using database connections
+- **Input blocks**: Convert to static Python variable assignments
+- **Visualizations**: May convert to code that generates the chart
+- **Multi-notebook projects**: Each notebook becomes a separate `.ipynb` file
 
 ### What doesn't convert
 
-- ❌ **Interactive inputs**: Sliders, dropdowns, date pickers (become static values)
-- ❌ **Button blocks**: Interactive buttons (not included in export)
-- ❌ **Big number blocks**: KPI displays (may become markdown or code)
-- ❌ **Project-level settings**: Environment variables, integrations
-- ❌ **Deepnote-specific features**: Scheduled runs, app deployments
+- **Interactive inputs**: Sliders, dropdowns, date pickers (become static values)
+- **Button blocks**: Interactive buttons (not included in export)
+- **Big number blocks**: KPI displays (may become markdown or code)
+- **Project-level settings**: Environment variables, integrations
+- **Deepnote-specific features**: Scheduled runs, app deployments
