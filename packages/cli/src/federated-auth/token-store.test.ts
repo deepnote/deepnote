@@ -93,6 +93,16 @@ describe('token-store', () => {
       await expect(readToken('integration-b')).resolves.toMatchObject({ refreshToken: 'rt-b' })
       expect(await fsPromises.readdir(tokenDir())).toHaveLength(2)
     })
+
+    it('lets two concurrent writeToken calls for the same id both succeed, leaving one file with one of the tokens', async () => {
+      await Promise.all([
+        writeToken('same-id', { refreshToken: 'rt-1', clientFingerprint: 'fp' }),
+        writeToken('same-id', { refreshToken: 'rt-2', clientFingerprint: 'fp' }),
+      ])
+
+      expect(await fsPromises.readdir(tokenDir())).toHaveLength(1)
+      await expect(readToken('same-id')).resolves.toMatchObject({ refreshToken: expect.stringMatching(/^rt-[12]$/) })
+    })
   })
 
   describe('case-insensitive lookup', () => {
@@ -303,6 +313,28 @@ describe('token-store', () => {
       const files = await fsPromises.readdir(tokenDir())
       const fileStat = await fsPromises.stat(join(tokenDir(), files[0] as string))
       expect(fileStat.mode & 0o777).toBe(0o600)
+    })
+
+    it('creates the temp file at 0600, so the refresh token is never readable by others before the chmod', async () => {
+      const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+      const creationModes: number[] = []
+      vi.mocked(fsPromises.open).mockImplementation(async (path, flags, mode) => {
+        const handle = await actual.open(path, flags, mode)
+        const stats = await handle.stat()
+        if (stats.isFile()) {
+          creationModes.push(stats.mode & 0o777)
+        }
+        return handle
+      })
+      // Pinned to a common umask: under 077 a temp file opened without a mode is also born 0600.
+      const previousUmask = process.umask(0o022)
+      try {
+        await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
+      } finally {
+        process.umask(previousUmask)
+      }
+
+      expect(creationModes).toEqual([0o600])
     })
 
     it('stores 0600 even when the process umask would strip the creation mode', async () => {

@@ -225,9 +225,10 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      const { startUrl, response } = await driveOAuthCallback()
-      await resultPromise
+      const [, { startUrl, response }] = await Promise.all([
+        createIntegrationsAuthAction(program)('my-bq', baseOptions()),
+        driveOAuthCallback(),
+      ])
 
       expect(response.status).toBe(200)
       expect(startUrl.host).toBe(DOMAIN)
@@ -253,9 +254,7 @@ describe('auth-integration', () => {
       )
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)(undefined, baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([createIntegrationsAuthAction(program)(undefined, baseOptions()), driveOAuthCallback()])
 
       await expect(readToken('bq-oauth-only')).resolves.toMatchObject({ integrationId: 'bq-oauth-only' })
     })
@@ -270,18 +269,19 @@ describe('auth-integration', () => {
       )
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)(undefined, baseOptions())
-
-      await screen.next()
-      const promptScreen = screen.getScreen()
-      expect(promptScreen).toContain('Select a BigQuery (Google OAuth) integration to authenticate:')
-      expect(promptScreen).toContain('BQ One [bq-one]')
-      expect(promptScreen).toContain('BQ Two [bq-two]')
-      screen.keypress('down')
-      screen.keypress('enter')
-
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([
+        createIntegrationsAuthAction(program)(undefined, baseOptions()),
+        (async () => {
+          await screen.next()
+          const promptScreen = screen.getScreen()
+          expect(promptScreen).toContain('Select a BigQuery (Google OAuth) integration to authenticate:')
+          expect(promptScreen).toContain('BQ One [bq-one]')
+          expect(promptScreen).toContain('BQ Two [bq-two]')
+          screen.keypress('down')
+          screen.keypress('enter')
+          await driveOAuthCallback()
+        })(),
+      ])
 
       await expect(readToken('bq-two')).resolves.toMatchObject({ integrationId: 'bq-two' })
       await expect(readToken('bq-one')).resolves.toBeUndefined()
@@ -303,9 +303,10 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain: `${DOMAIN}:443` }))
-      const { startUrl } = await driveOAuthCallback()
-      await resultPromise
+      const [, { startUrl }] = await Promise.all([
+        createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain: `${DOMAIN}:443` })),
+        driveOAuthCallback(),
+      ])
 
       expect(startUrl.host).toBe(DOMAIN)
       expect(googleRequests[0].body.get('redirect_uri')).toBe(`${startUrl.origin}/auth/bigquery/google-oauth-callback`)
@@ -317,9 +318,7 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)('MY-BQ', baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([createIntegrationsAuthAction(program)('MY-BQ', baseOptions()), driveOAuthCallback()])
 
       expect(mockOutput).toHaveBeenCalledWith(expect.stringContaining('Authenticated integration "my-bq"'))
       expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('"MY-BQ"'))
@@ -332,9 +331,7 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([createIntegrationsAuthAction(program)('my-bq', baseOptions()), driveOAuthCallback()])
 
       expect(googleRequests).toHaveLength(1)
       const [, sentSecret] = Buffer.from(googleRequests[0].authHeader.replace('Basic ', ''), 'base64')
@@ -348,9 +345,7 @@ describe('auth-integration', () => {
       await writeFile(envFilePath, 'CLIENTSECRET=from-dotenv-value\n')
       vi.stubEnv('CLIENTSECRET', 'from-process-env-value')
 
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([createIntegrationsAuthAction(program)('my-bq', baseOptions()), driveOAuthCallback()])
 
       const [, sentSecret] = Buffer.from(googleRequests[0].authHeader.replace('Basic ', ''), 'base64')
         .toString('utf-8')
@@ -410,6 +405,7 @@ describe('auth-integration', () => {
       ['a trailing path', 'oauth.test-domain.example/auth'],
       ['embedded userinfo', 'user:pw@oauth.test-domain.example'],
       ['a query string', 'oauth.test-domain.example?x=1'],
+      ['a fragment', 'oauth.test-domain.example#frag'],
     ])('rejects a --domain carrying %s, which new URL() reinterprets instead of refusing', async (_label, domain) => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
@@ -514,9 +510,10 @@ describe('auth-integration', () => {
     it('resolves through the API when a token is available, using the distinct --url (not --domain)', async () => {
       mockFetchIntegrations.mockResolvedValueOnce([apiBigQueryIntegration()])
 
-      const resultPromise = createIntegrationsAuthAction(program)('API-ONLY-BQ', baseOptions({ token: TOKEN }))
-      const { startUrl } = await driveOAuthCallback()
-      await resultPromise
+      const [, { startUrl }] = await Promise.all([
+        createIntegrationsAuthAction(program)('API-ONLY-BQ', baseOptions({ token: TOKEN })),
+        driveOAuthCallback(),
+      ])
 
       expect(mockFetchIntegrations).toHaveBeenCalledWith(API_URL, TOKEN, ['API-ONLY-BQ'])
       expect(startUrl.host).toBe(DOMAIN)
@@ -588,9 +585,7 @@ describe('auth-integration', () => {
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
       mockOpenInBrowser.mockRejectedValue(new Error('spawn xdg-open ENOENT'))
 
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([createIntegrationsAuthAction(program)('my-bq', baseOptions()), driveOAuthCallback()])
       await waitFor(() => mockWarn.mock.calls.length > 0)
 
       expect(mockWarn).toHaveBeenCalledWith('Could not open the browser automatically: spawn xdg-open ENOENT')
@@ -605,9 +600,7 @@ describe('auth-integration', () => {
       )
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
+      await Promise.all([createIntegrationsAuthAction(program)('my-bq', baseOptions()), driveOAuthCallback()])
 
       await expect(readToken('my-bq')).resolves.toEqual({
         version: 1,
@@ -625,18 +618,19 @@ describe('auth-integration', () => {
       await writeFile(join(tempHome, '.deepnote'), 'not a directory')
 
       const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      await driveOAuthCallback()
-
-      await expect(resultPromise).rejects.toMatchObject({
-        exitCode: ExitCode.Error,
-        message: expect.stringContaining(
-          `Google authorization succeeded, but the token could not be stored in ${join(tempHome, '.deepnote', 'federated-auth-tokens')}`
-        ),
-      })
-      await expect(resultPromise).rejects.toMatchObject({
-        message: expect.stringContaining('Run "deepnote integrations auth my-bq" again.'),
-      })
-      await expect(resultPromise).rejects.toMatchObject({ message: expect.not.stringContaining(SECRET_MARKER) })
+      await Promise.all([
+        expect(resultPromise).rejects.toMatchObject({
+          exitCode: ExitCode.Error,
+          message: expect.stringContaining(
+            `Google authorization succeeded, but the token could not be stored in ${join(tempHome, '.deepnote', 'federated-auth-tokens')}`
+          ),
+        }),
+        expect(resultPromise).rejects.toMatchObject({
+          message: expect.stringContaining('Run "deepnote integrations auth my-bq" again.'),
+        }),
+        expect(resultPromise).rejects.toMatchObject({ message: expect.not.stringContaining(SECRET_MARKER) }),
+        driveOAuthCallback(),
+      ])
       assertNoSecretLeak(SECRET_MARKER)
     })
   })

@@ -126,7 +126,9 @@ async function startFlow(overrides: FlowOverrides = {}): Promise<{
     },
     ...overrides,
   })
-  await waitFor(() => callbackUrl !== '')
+  // Racing `flow` gives it a rejection handler from the start, so a flow that fails while a test
+  // awaits a request is reported by that test's own assertion, not as an unhandled rejection.
+  await Promise.race([waitFor(() => callbackUrl !== ''), flow])
   return { flow, callbackUrl }
 }
 
@@ -183,8 +185,6 @@ describe('runOAuthFlow', () => {
 
   it('rejects when state is missing from the callback, before code is ever looked at', async () => {
     const { flow, callbackUrl } = await startFlow()
-    // Attached before the triggering request is sent: the rejection can otherwise fire, and get
-    // reported as unhandled, before a handler attached only after `await fetch(...)` returns.
     const rejection = flow.catch(caught => caught)
 
     const response = await fetch(withParams(callbackUrl, { code: AUTH_CODE }))
@@ -316,15 +316,15 @@ describe('runOAuthFlow', () => {
     const { flow, callbackUrl } = await startFlow({ tokenUrl: stub.url })
     const url = withParams(callbackUrl, { state: STATE, code: AUTH_CODE })
 
-    const firstResponse = fetch(url)
-    await waitFor(() => stub.attemptCount === 1)
-
-    const secondResponse = await fetch(url)
-    expect(secondResponse.status).toBe(409)
-    expect(stub.attemptCount).toBe(1)
-
-    stub.release()
-    const first = await firstResponse
+    const [first] = await Promise.all([
+      fetch(url),
+      waitFor(() => stub.attemptCount === 1).then(async () => {
+        const secondResponse = await fetch(url)
+        expect(secondResponse.status).toBe(409)
+        expect(stub.attemptCount).toBe(1)
+        stub.release()
+      }),
+    ])
     expect(first.status).toBe(200)
 
     await expect(flow).resolves.toEqual({ refreshToken: REFRESH_TOKEN })
@@ -341,14 +341,15 @@ describe('runOAuthFlow', () => {
     activeStub = stub
     const { flow, callbackUrl } = await startFlow({ tokenUrl: stub.url })
 
-    const firstResponse = fetch(withParams(callbackUrl, { state: STATE, code: AUTH_CODE }))
-    await waitFor(() => stub.attemptCount === 1)
-
-    const intruder = await fetch(withParams(callbackUrl, { state: 'WRONG-STATE', code: 'attacker-code' }))
-    expect(intruder.status).toBe(409)
-
-    stub.release()
-    expect((await firstResponse).status).toBe(200)
+    const [first] = await Promise.all([
+      fetch(withParams(callbackUrl, { state: STATE, code: AUTH_CODE })),
+      waitFor(() => stub.attemptCount === 1).then(async () => {
+        const intruder = await fetch(withParams(callbackUrl, { state: 'WRONG-STATE', code: 'attacker-code' }))
+        expect(intruder.status).toBe(409)
+        stub.release()
+      }),
+    ])
+    expect(first.status).toBe(200)
     await expect(flow).resolves.toEqual({ refreshToken: REFRESH_TOKEN })
     expect(stub.attemptCount).toBe(1)
   })

@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo, Socket } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +10,11 @@ import {
   InvalidClientError,
   InvalidGrantError,
 } from './google-oauth'
+
+vi.mock('node:crypto', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:crypto')>()
+  return { ...actual, randomBytes: vi.fn(actual.randomBytes) }
+})
 
 const CLIENT_ID = 'test-client-id-123'
 const CLIENT_SECRET = 'test-client-secret-456'
@@ -165,6 +171,26 @@ describe('google-oauth', () => {
       expect(stub.attemptCount).toBe(4)
     })
 
+    it('retries a 502 whose body is a non-JSON error page, then returns the token', async () => {
+      const stub = await startStub(attempt =>
+        attempt === 1
+          ? { type: 'raw', status: 502, body: '<html><body>502 Bad Gateway</body></html>' }
+          : { type: 'json', status: 200, body: { access_token: ACCESS_TOKEN } }
+      )
+      activeStub = stub
+      vi.spyOn(Math, 'random').mockReturnValue(0)
+
+      await expect(
+        fetchAccessToken({
+          clientId: CLIENT_ID,
+          clientSecret: CLIENT_SECRET,
+          refreshToken: REFRESH_TOKEN,
+          tokenUrl: stub.url,
+        })
+      ).resolves.toMatchObject({ accessToken: ACCESS_TOKEN })
+      expect(stub.attemptCount).toBe(2)
+    })
+
     it('exhausts its retries and propagates when every attempt fails transiently, instead of hanging', async () => {
       const stub = await startStub(attempt => {
         if (attempt === 1) return { type: 'destroy' }
@@ -272,12 +298,45 @@ describe('google-oauth', () => {
       expect((error as Error).message).toBe('Google rejected the OAuth client credentials (invalid_client).')
       expect(stub.attemptCount).toBe(1)
     })
+
+    it.each([
+      {
+        status: 400,
+        bodyKind: 'invalid_request',
+        body: { error: 'invalid_request', error_description: 'Missing required parameter: refresh_token' },
+        message:
+          'Google token endpoint rejected the request (invalid_request: Missing required parameter: refresh_token).',
+      },
+      {
+        status: 403,
+        bodyKind: 'non-OAuth body',
+        body: { message: 'Forbidden' },
+        message: 'Google token endpoint rejected the request (HTTP 403).',
+      },
+    ])(
+      'rejects HTTP $status ($bodyKind) without retrying, carrying the detail in the message',
+      async ({ status, body, message }) => {
+        const stub = await startSingleStub({ type: 'json', status, body })
+        activeStub = stub
+
+        await expect(
+          fetchAccessToken({
+            clientId: CLIENT_ID,
+            clientSecret: CLIENT_SECRET,
+            refreshToken: REFRESH_TOKEN,
+            tokenUrl: stub.url,
+          })
+        ).rejects.toMatchObject({ name: 'TokenHttpError', statusCode: status, message })
+        expect(stub.attemptCount).toBe(1)
+      }
+    )
   })
 
   describe('cancellation', () => {
-    it('gives up on its own deadline when the endpoint accepts the request and never answers', async () => {
+    it('gives up on its own deadline without another attempt when the endpoint accepts the request and never answers', async () => {
       const stub = await startSingleStub({ type: 'hang' })
       activeStub = stub
+      const fetchSpy = vi.spyOn(globalThis, 'fetch')
 
       await expect(
         fetchAccessToken({
@@ -290,6 +349,9 @@ describe('google-oauth', () => {
       ).rejects.toThrow('Google token request timed out.')
 
       expect(stub.attemptCount).toBe(1)
+      // fetch rejects a retry under the already-aborted signal before sending it, so only the fetch
+      // calls show whether one was attempted.
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
     })
 
     it("aborts an in-flight request on the caller's signal", async () => {
@@ -493,6 +555,20 @@ describe('google-oauth', () => {
       expect(challenge).toMatch(/^[A-Za-z0-9_-]{43}$/)
       expect(challenge).not.toBe(verifier)
       expect(generatePkcePair().verifier).not.toBe(verifier)
+    })
+
+    it('computes the S256 challenge over the verifier string, matching the RFC 7636 Appendix B example', () => {
+      vi.mocked(randomBytes).mockImplementationOnce(() =>
+        Buffer.from([
+          116, 24, 223, 180, 151, 153, 224, 37, 79, 250, 96, 125, 216, 173, 187, 186, 22, 212, 37, 77, 105, 214, 191,
+          240, 91, 88, 5, 88, 83, 132, 141, 121,
+        ])
+      )
+
+      expect(generatePkcePair()).toEqual({
+        verifier: 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk',
+        challenge: 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM',
+      })
     })
 
     it('generates a distinct url-safe state nonce per call', () => {
