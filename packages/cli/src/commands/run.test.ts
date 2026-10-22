@@ -22,8 +22,19 @@ const mockRunProject = vi.fn()
 const mockConstructor = vi.fn()
 let mockServerPort: number | null = 8888
 const mockGetBlockDependencies = vi.fn()
-const mockGetDagForBlocks = vi.fn<(...args: unknown[]) => Promise<{ dag: { nodes: unknown[]; edges: unknown[] } }>>()
-mockGetDagForBlocks.mockResolvedValue({ dag: { nodes: [], edges: [] } })
+const mockGetDagForBlocks =
+  vi.fn<
+    (...args: unknown[]) => Promise<{
+      dag: { nodes: unknown[]; edges: unknown[]; modulesEdges: unknown[] }
+      blocksWithErrorInContentDeps: unknown[]
+      newlyComputedBlocksContentDeps: unknown[]
+    }>
+  >()
+mockGetDagForBlocks.mockResolvedValue({
+  dag: { nodes: [], edges: [], modulesEdges: [] },
+  blocksWithErrorInContentDeps: [],
+  newlyComputedBlocksContentDeps: [],
+})
 const mockGetUpstreamBlocks = vi.fn()
 
 // Mock @deepnote/runtime-core before importing run
@@ -57,8 +68,6 @@ vi.mock('@deepnote/reactivity', () => {
   return {
     getBlockDependencies: (...args: unknown[]) => mockGetBlockDependencies(...args),
     getUpstreamBlocks: (...args: unknown[]) => mockGetUpstreamBlocks(...args),
-    // Needed by analyzeProject, which run.ts uses for --context. Without it that call throws and
-    // is swallowed by its own catch, so the context branch silently produced nothing in every test.
     getDagForBlocks: (...args: unknown[]) => mockGetDagForBlocks(...args),
   }
 })
@@ -82,20 +91,21 @@ vi.mock('@deepnote/database-integrations', async importOriginal => {
   }
 })
 
-// Mock injectIntegrationEnvVars for testing integration env var injection
-const mockInjectIntegrationEnvVars =
+// Mock injectIntegrationEnvVarsAndCheckCredentials for testing integration env var injection
+const mockInjectIntegrationEnvVarsAndCheckCredentials =
   vi.fn<
     (
       integrations: unknown[],
       workingDirectory: string,
       federatedIds: string[],
       options: { refreshFederatedTokens: boolean }
-    ) => string[]
+    ) => Promise<string[]>
   >()
-mockInjectIntegrationEnvVars.mockReturnValue([])
+mockInjectIntegrationEnvVarsAndCheckCredentials.mockResolvedValue([])
 vi.mock('../integrations/inject-integration-env-vars', () => ({
-  injectIntegrationEnvVars: (...args: [unknown[], string, string[], { refreshFederatedTokens: boolean }]) =>
-    mockInjectIntegrationEnvVars(...args),
+  injectIntegrationEnvVarsAndCheckCredentials: (
+    ...args: [unknown[], string, string[], { refreshFederatedTokens: boolean }]
+  ) => mockInjectIntegrationEnvVarsAndCheckCredentials(...args),
 }))
 
 // Mock openDeepnoteFileInCloud for --open flag tests
@@ -135,6 +145,12 @@ const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
 const MULTI_SELECT_FILE = join('test-fixtures', 'formats', 'deepnote', 'with-multi-select.deepnote')
+
+// The INTEGRATIONS_FILE has a SQL block referencing this integration ID
+const REQUIRED_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
+
+const INTEGRATIONS_FILE_SQL_BLOCK_ID = '13db6a85530043f5aad25fdcc34f6329'
+const INTEGRATIONS_FILE_CODE_BLOCK_ID = '3d9000d7403f08ed8c829e0f1d13f09e'
 
 function parseDeepnoteFixture(path: string) {
   return deserializeDeepnoteFile(fs.readFileSync(path, 'utf-8'))
@@ -264,8 +280,8 @@ describe('run command', () => {
         integrations: [],
         issues: [],
       })
-      // Reset injectIntegrationEnvVars to no-op by default
-      mockInjectIntegrationEnvVars.mockReturnValue([])
+      // Reset injectIntegrationEnvVarsAndCheckCredentials to no-op by default
+      mockInjectIntegrationEnvVarsAndCheckCredentials.mockResolvedValue([])
 
       // Reset saveExecutionSnapshot mock
       mockSaveExecutionSnapshot.mockResolvedValue({
@@ -1638,10 +1654,7 @@ describe('run command', () => {
 
         await action(INTEGRATIONS_FILE, { dryRun: true })
 
-        // The bolded contract: a dry run reads the token store and compares the fingerprint, but
-        // contacts Google for nothing and writes nothing. Flipping this flag is invisible without
-        // the assertion, because everything else about the command still succeeds.
-        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials).toHaveBeenCalledWith(
           expect.any(Array),
           expect.any(String),
           expect.any(Array),
@@ -1656,16 +1669,15 @@ describe('run command', () => {
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()
         mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
-        mockInjectIntegrationEnvVars.mockImplementation(() => {
-          throw new IntegrationAuthenticationError(
-            'Integration "100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d" is not authenticated. Run `deepnote integrations auth 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d`.'
+        mockInjectIntegrationEnvVarsAndCheckCredentials.mockRejectedValue(
+          new IntegrationAuthenticationError(
+            `Integration "${REQUIRED_INTEGRATION_ID}" is not authenticated. Run \`deepnote integrations auth ${REQUIRED_INTEGRATION_ID}\`.`
           )
-        })
+        )
 
         await expect(action(INTEGRATIONS_FILE, {})).rejects.toThrow('program.error called')
 
-        // The whole point of the gate: no kernel started, no block executed, so nothing the
-        // notebook would have done first can have left a side effect behind.
+        expect(mockConstructor).not.toHaveBeenCalled()
         expect(mockStart).not.toHaveBeenCalled()
         expect(mockRunProject).not.toHaveBeenCalled()
         expect(programErrorSpy).toHaveBeenCalledWith(
@@ -1674,10 +1686,9 @@ describe('run command', () => {
         )
       })
 
-      /** The integration the INTEGRATIONS_FILE fixture's SQL block references, as a federated one. */
       function federatedBigQueryIntegration() {
         return {
-          id: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+          id: REQUIRED_INTEGRATION_ID,
           name: 'Federated BigQuery',
           type: 'big-query',
           metadata: {
@@ -1690,9 +1701,6 @@ describe('run command', () => {
       }
 
       it('gates only the integrations the executing blocks reference, scoped by --block', async () => {
-        // Catches: the gate collecting no ids at all, which switches it off silently — an
-        // unauthenticated federated SQL block would then reach the kernel and fail mid-run with a
-        // raw Python error, the exact failure this branch exists to replace.
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()
         mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
@@ -1702,15 +1710,12 @@ describe('run command', () => {
           newlyComputedBlocksContentDeps: [],
         })
 
-        // The fixture's SQL block, which references the federated integration.
-        await action(INTEGRATIONS_FILE, { block: '13db6a85530043f5aad25fdcc34f6329' })
+        await action(INTEGRATIONS_FILE, { block: INTEGRATIONS_FILE_SQL_BLOCK_ID })
 
-        expect(mockInjectIntegrationEnvVars.mock.calls[0][2]).toEqual(['100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'])
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials.mock.calls[0][2]).toEqual([REQUIRED_INTEGRATION_ID])
       })
 
       it('demands no credentials for an integration a --block run never touches', async () => {
-        // Catches: dropping the block filter, which would make a single-code-block run demand
-        // credentials for every SQL block in the notebook and refuse to start without them.
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()
         mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
@@ -1720,10 +1725,9 @@ describe('run command', () => {
           newlyComputedBlocksContentDeps: [],
         })
 
-        // The fixture's first code block, with no upstream dependencies — no SQL block executes.
-        await action(INTEGRATIONS_FILE, { block: '3d9000d7403f08ed8c829e0f1d13f09e' })
+        await action(INTEGRATIONS_FILE, { block: INTEGRATIONS_FILE_CODE_BLOCK_ID })
 
-        expect(mockInjectIntegrationEnvVars.mock.calls[0][2]).toEqual([])
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials.mock.calls[0][2]).toEqual([])
       })
 
       it('does not report a federated BigQuery integration as missing in --context output', async () => {
@@ -1733,9 +1737,6 @@ describe('run command', () => {
 
         await action(INTEGRATIONS_FILE, { output: 'json', context: true })
 
-        // The context analysis runs the same check as `deepnote lint`, so it has to be told the
-        // same thing: the credential gate has already passed by the time this runs, and reporting
-        // the integration as missing here contradicts the run that just succeeded.
         const parsed = JSON.parse(getOutput(consoleLogSpy))
         const codes = (parsed.project?.issues?.details ?? []).map((issue: { code: string }) => issue.code)
         expect(codes).not.toContain('missing-integration')
@@ -1743,9 +1744,6 @@ describe('run command', () => {
     })
 
     describe('--token flag (API integrations)', () => {
-      // The INTEGRATIONS_FILE has a SQL block referencing this integration ID
-      const REQUIRED_INTEGRATION_ID = '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d'
-
       // Helper to create mock API integrations (same pattern as integrations.test.ts)
       function createMockApiIntegration(overrides: Partial<ApiIntegration> = {}): ApiIntegration {
         return {
@@ -1861,7 +1859,7 @@ describe('run command', () => {
         expect(mockFetchIntegrations).toHaveBeenCalledWith(DEFAULT_API_URL, 'my-token', [REQUIRED_INTEGRATION_ID])
 
         // Both local and API integrations should be passed to env var injection
-        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials).toHaveBeenCalledWith(
           expect.arrayContaining([
             expect.objectContaining({ id: 'local-only-id', name: 'Local DB' }),
             expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'API DB' }),
@@ -1896,7 +1894,7 @@ describe('run command', () => {
         expect(mockFetchIntegrations).not.toHaveBeenCalled()
 
         // Verify only the local integration was passed to env var injection
-        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials).toHaveBeenCalledWith(
           [
             expect.objectContaining({
               id: REQUIRED_INTEGRATION_ID,
@@ -1940,7 +1938,7 @@ describe('run command', () => {
 
         // API was called and the integration was passed through to env var injection
         expect(mockFetchIntegrations).toHaveBeenCalled()
-        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials).toHaveBeenCalledWith(
           [expect.objectContaining({ id: REQUIRED_INTEGRATION_ID, name: 'Test PostgreSQL' })],
           expect.any(String),
           expect.any(Array),
@@ -2023,7 +2021,7 @@ describe('run command', () => {
         expect(mockFetchIntegrations).not.toHaveBeenCalled()
 
         // Only the local integration should be passed to env var injection
-        expect(mockInjectIntegrationEnvVars).toHaveBeenCalledWith(
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials).toHaveBeenCalledWith(
           [
             expect.objectContaining({
               id: REQUIRED_INTEGRATION_ID.toUpperCase(),
@@ -2993,7 +2991,7 @@ describe('run command', () => {
         newlyComputedBlocksContentDeps: [],
       })
       mockParseIntegrationsFile.mockResolvedValue({ integrations: [], issues: [] })
-      mockInjectIntegrationEnvVars.mockReturnValue([])
+      mockInjectIntegrationEnvVarsAndCheckCredentials.mockResolvedValue([])
       mockSaveExecutionSnapshot.mockResolvedValue({
         snapshotPath: '/mock/snapshot.snapshot.deepnote',
         timestampedSnapshotPath: '/mock/snapshot-timestamped.snapshot.deepnote',

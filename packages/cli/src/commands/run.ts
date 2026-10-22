@@ -46,7 +46,7 @@ import { ExitCode, NotFoundInProjectError } from '../exit-codes'
 import { IntegrationAuthenticationError } from '../federated-auth/resolve-bigquery-sql-env-vars'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
-import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
+import { injectIntegrationEnvVarsAndCheckCredentials } from '../integrations/inject-integration-env-vars'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import {
   debug,
@@ -266,7 +266,6 @@ interface ProjectSetup {
   isMachineOutput: boolean
   convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
-  /** Resolved once here so both callers (dry run and real run) execute the exact same block set. */
   blockIds: string[] | undefined
 }
 
@@ -422,16 +421,10 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     isMachineOutput,
   })
 
-  // Resolved here (rather than by each caller) so the credential gate below and the eventual
-  // execution both act on the exact same block set — see collectFederatedIntegrationIds.
   const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
-  const federatedIds = collectFederatedIntegrationIds(file, options, blockIds)
+  const executingSqlIntegrationIds = collectExecutingSqlIntegrationIds(file, { ...options, blockIds })
 
-  // Gate on live credentials before any of the notebook runs: a missing or stale federated token
-  // fails the command here, with no kernel started and no block executed. This also injects
-  // integration environment variables into process.env so SQL blocks can access database
-  // connections. `--dry-run` only checks that credentials are stored, never contacts Google.
-  await injectIntegrationEnvVars(allIntegrations, workingDirectory, federatedIds, {
+  await injectIntegrationEnvVarsAndCheckCredentials(allIntegrations, workingDirectory, executingSqlIntegrationIds, {
     refreshFederatedTokens: !options.dryRun,
   })
 
@@ -462,7 +455,7 @@ function collectExecutableBlocks(
 ): DryRunBlockInfo[] {
   const notebooks = getNotebooksForExecutionScope(file, options)
   const idsToValidate = options.blockIds ?? (options.block ? [options.block] : [])
-  const blockIdFilter = options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
+  const blockIdFilter = executionBlockIdFilter(options)
 
   // Collect all executable blocks
   const executableBlocks: DryRunBlockInfo[] = []
@@ -493,6 +486,10 @@ function collectExecutableBlocks(
   }
 
   return executableBlocks
+}
+
+function executionBlockIdFilter(options: { block?: string; blockIds?: string[] }): Set<string> | null {
+  return options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
 }
 
 function selectScopeNotebooks(
@@ -569,17 +566,9 @@ async function resolveUpstreamExecutionBlockIds(
   return blockIds
 }
 
-/**
- * SQL integration ids referenced by blocks that will actually execute, scoped by `blockIds` (the
- * upstream-resolved set under `--block`) the same way `collectExecutableBlocks` scopes its listing.
- * Unlike `collectRequiredIntegrationIds`, which is notebook-wide, this is what lets the credential
- * gate skip an integration a `--block` run never touches instead of demanding credentials for every
- * SQL block in the notebook.
- */
-function collectFederatedIntegrationIds(
+function collectExecutingSqlIntegrationIds(
   file: DeepnoteFile,
-  options: { notebook?: string; block?: string },
-  blockIds: string[] | undefined
+  options: { notebook?: string; block?: string; blockIds: string[] | undefined }
 ): string[] {
   // Credential collection must not be what fails a run over an unknown `--notebook`. Under
   // `--block` the throw already happens earlier, in resolveUpstreamExecutionBlockIds; without it the
@@ -594,7 +583,7 @@ function collectFederatedIntegrationIds(
     }
     throw error
   }
-  const blockIdFilter = blockIds ? new Set(blockIds) : options.block ? new Set([options.block]) : null
+  const blockIdFilter = executionBlockIdFilter(options)
 
   const ids = new Set<string>()
   for (const notebook of notebooks) {
@@ -1366,9 +1355,6 @@ async function buildMachineRunResult({
     const { stats, lint, dag } = await analyzeProject(file, {
       notebook: options.notebook,
       pythonInterpreter: pythonEnv,
-      // Same check `deepnote lint` runs, so it must be told the same thing: without this a
-      // federated BigQuery integration reads as missing here even though the credential gate
-      // already passed and the run succeeded.
       federatedIntegrationIds: collectFederatedBigQueryIntegrationIds(allIntegrations),
     })
     const blockMap = buildBlockMap(file, { notebook: options.notebook })

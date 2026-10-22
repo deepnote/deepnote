@@ -29,7 +29,6 @@ function createTestFile(
   } as DeepnoteFile
 }
 
-/** Runs `fn` with `keys` deleted from `process.env`, restoring their prior values afterwards. */
 async function withoutEnvVars<T>(keys: string[], fn: () => Promise<T>): Promise<T> {
   const saved = keys.map(k => [k, process.env[k]] as const)
   for (const k of keys) delete process.env[k]
@@ -354,12 +353,12 @@ describe('analysis utilities', () => {
       })
     })
 
-    it('matches the block’s sql_integration_id against federatedIntegrationIds case-insensitively', async () => {
-      await withoutEnvVars(['SQL_MY_BIGQUERY'], async () => {
+    it('matches sql_integration_id against federatedIntegrationIds case-insensitively on both sides', async () => {
+      await withoutEnvVars(['SQL_FEDERATED_BQ'], async () => {
         const file = createTestFile([
-          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'My-BigQuery' } },
+          { id: 'b1', type: 'sql', content: 'SELECT 1', metadata: { sql_integration_id: 'FEDERATED-bq' } },
         ])
-        const { lint } = await checkForIssues(file, { federatedIntegrationIds: new Set(['my-bigquery']) })
+        const { lint } = await checkForIssues(file, { federatedIntegrationIds: new Set(['Federated-BQ']) })
 
         expect(lint.issues.some(i => i.code === 'missing-integration')).toBe(false)
       })

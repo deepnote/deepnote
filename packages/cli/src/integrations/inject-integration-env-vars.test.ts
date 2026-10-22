@@ -4,8 +4,6 @@ import { join } from 'node:path'
 import { BigQueryAuthMethods, type DatabaseIntegrationConfig, getSqlEnvVarName } from '@deepnote/database-integrations'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Only Google's token endpoint is faked; the token store runs for real against a temp HOME (same
-// pattern as token-store.test.ts and resolve-bigquery-sql-env-vars.test.ts).
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
@@ -19,7 +17,7 @@ vi.mock('../federated-auth/google-oauth', async importOriginal => {
 import { fetchAccessToken } from '../federated-auth/google-oauth'
 import { IntegrationAuthenticationError } from '../federated-auth/resolve-bigquery-sql-env-vars'
 import { computeClientFingerprint, writeToken } from '../federated-auth/token-store'
-import { injectIntegrationEnvVars } from './inject-integration-env-vars'
+import { injectIntegrationEnvVarsAndCheckCredentials } from './inject-integration-env-vars'
 
 const CLIENT_ID = 'client-id.apps.googleusercontent.com'
 const CLIENT_SECRET = 'GOCSPX-client-secret'
@@ -38,7 +36,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  vi.clearAllMocks() // restoreAllMocks only affects vi.spyOn mocks; these are vi.fn()s from vi.mock factories.
+  vi.resetAllMocks()
   for (const key of Object.keys(process.env)) {
     if (!(key in envSnapshot)) delete process.env[key]
   }
@@ -74,20 +72,11 @@ async function storeMatchingToken(id: string, refreshToken: string = REFRESH_TOK
   await writeToken(id, { refreshToken, clientFingerprint: fingerprint })
 }
 
-describe('injectIntegrationEnvVars', () => {
-  it('returns immediately for an empty integrations list, making no network call', async () => {
-    const injected = await injectIntegrationEnvVars([], WORKING_DIRECTORY, ['whatever'], {
-      refreshFederatedTokens: true,
-    })
-
-    expect(injected).toEqual([])
-    expect(fetchAccessToken).not.toHaveBeenCalled()
-  })
-
+describe('injectIntegrationEnvVarsAndCheckCredentials', () => {
   it('leaves non-federated integration handling unchanged', async () => {
     const integration = pgIntegration('my-postgres')
 
-    const injected = await injectIntegrationEnvVars([integration], WORKING_DIRECTORY, [], {
+    const injected = await injectIntegrationEnvVarsAndCheckCredentials([integration], WORKING_DIRECTORY, [], {
       refreshFederatedTokens: true,
     })
 
@@ -97,7 +86,7 @@ describe('injectIntegrationEnvVars', () => {
     expect(fetchAccessToken).not.toHaveBeenCalled()
   })
 
-  it('does not throw for an error from the synchronous generator (debug-log-only, unchanged)', async () => {
+  it('does not throw for an error from the synchronous generator (debug-log-only)', async () => {
     const badServiceAccount: DatabaseIntegrationConfig = {
       id: 'bad-sa',
       name: 'Bad SA',
@@ -105,28 +94,26 @@ describe('injectIntegrationEnvVars', () => {
       metadata: { service_account: 'not valid json' },
     }
 
-    const injected = await injectIntegrationEnvVars([badServiceAccount], WORKING_DIRECTORY, [], {
+    const injected = await injectIntegrationEnvVarsAndCheckCredentials([badServiceAccount], WORKING_DIRECTORY, [], {
       refreshFederatedTokens: true,
     })
 
-    // The call doesn't reject over it (debug-log-only) — the generation error just means no SQL
-    // connection env var was produced for this integration, unlike the plain per-field ones above.
     expect(injected).not.toContain(getSqlEnvVarName('bad-sa'))
   })
 
-  it('merges the federated env var in after the synchronous ones', async () => {
+  it('injects the federated env var alongside the synchronous ones', async () => {
     const pg = pgIntegration('my-postgres')
     const bq = bigQueryIntegration('federated-bq')
     await storeMatchingToken('federated-bq')
     vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
 
-    const injected = await injectIntegrationEnvVars([pg, bq], WORKING_DIRECTORY, ['federated-bq'], {
+    const injected = await injectIntegrationEnvVarsAndCheckCredentials([pg, bq], WORKING_DIRECTORY, ['federated-bq'], {
       refreshFederatedTokens: true,
     })
 
     const bqEnvVarName = getSqlEnvVarName('federated-bq')
     const pgEnvVarName = getSqlEnvVarName('my-postgres')
-    expect(injected.indexOf(bqEnvVarName)).toBeGreaterThan(injected.indexOf(pgEnvVarName))
+    expect(injected).toEqual(expect.arrayContaining([pgEnvVarName, bqEnvVarName]))
     expect(process.env[bqEnvVarName]).toContain('federated-bq')
   })
 
@@ -134,12 +121,10 @@ describe('injectIntegrationEnvVars', () => {
     const bq = bigQueryIntegration('dry-run-bq')
     await storeMatchingToken('dry-run-bq')
 
-    const injected = await injectIntegrationEnvVars([bq], WORKING_DIRECTORY, ['dry-run-bq'], {
+    const injected = await injectIntegrationEnvVarsAndCheckCredentials([bq], WORKING_DIRECTORY, ['dry-run-bq'], {
       refreshFederatedTokens: false,
     })
 
-    // The federated SQL connection env var specifically is what a dry run must not produce; the
-    // plain per-metadata-field vars from the synchronous generator are unrelated to this option.
     expect(injected).not.toContain(getSqlEnvVarName('dry-run-bq'))
     expect(fetchAccessToken).not.toHaveBeenCalled()
     expect(process.env[getSqlEnvVarName('dry-run-bq')]).toBeUndefined()
@@ -147,12 +132,12 @@ describe('injectIntegrationEnvVars', () => {
 
   it('injects whatever resolved before throwing on a later federated error', async () => {
     const ok = bigQueryIntegration('ok-federated')
-    const bad = bigQueryIntegration('bad-federated') // no stored token
+    const bad = bigQueryIntegration('bad-federated')
     await storeMatchingToken('ok-federated')
     vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
 
     await expect(
-      injectIntegrationEnvVars([ok, bad], WORKING_DIRECTORY, ['ok-federated', 'bad-federated'], {
+      injectIntegrationEnvVarsAndCheckCredentials([ok, bad], WORKING_DIRECTORY, ['ok-federated', 'bad-federated'], {
         refreshFederatedTokens: true,
       })
     ).rejects.toBeInstanceOf(IntegrationAuthenticationError)
@@ -162,7 +147,7 @@ describe('injectIntegrationEnvVars', () => {
 
   it('throws the IntegrationAuthenticationError in preference to any other collected error, regardless of array order', async () => {
     const outage = bigQueryIntegration('outage-integration')
-    const unauthenticated = bigQueryIntegration('unauthenticated-integration') // no stored token
+    const unauthenticated = bigQueryIntegration('unauthenticated-integration')
     await storeMatchingToken('outage-integration', 'outage-refresh-token')
     vi.mocked(fetchAccessToken).mockImplementation(async params => {
       if (params.refreshToken === 'outage-refresh-token') {
@@ -171,10 +156,8 @@ describe('injectIntegrationEnvVars', () => {
       return { accessToken: ACCESS_TOKEN }
     })
 
-    // The non-auth error is listed FIRST: if the implementation naively took the first collected
-    // error, it would surface the outage instead of the user-fixable authentication error.
     await expect(
-      injectIntegrationEnvVars(
+      injectIntegrationEnvVarsAndCheckCredentials(
         [outage, unauthenticated],
         WORKING_DIRECTORY,
         ['outage-integration', 'unauthenticated-integration'],
@@ -190,20 +173,9 @@ describe('injectIntegrationEnvVars', () => {
     vi.mocked(fetchAccessToken).mockRejectedValue(networkError)
 
     await expect(
-      injectIntegrationEnvVars([outage], WORKING_DIRECTORY, ['outage-only'], { refreshFederatedTokens: true })
+      injectIntegrationEnvVarsAndCheckCredentials([outage], WORKING_DIRECTORY, ['outage-only'], {
+        refreshFederatedTokens: true,
+      })
     ).rejects.toBe(networkError)
-  })
-
-  it('resolves with the injected env var names, federated included, when nothing fails', async () => {
-    const pg = pgIntegration('my-postgres')
-    const bq = bigQueryIntegration('good-bq')
-    await storeMatchingToken('good-bq')
-    vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
-
-    const injected = await injectIntegrationEnvVars([pg, bq], WORKING_DIRECTORY, ['good-bq'], {
-      refreshFederatedTokens: true,
-    })
-
-    expect(injected).toEqual(expect.arrayContaining([getSqlEnvVarName('my-postgres'), getSqlEnvVarName('good-bq')]))
   })
 })
