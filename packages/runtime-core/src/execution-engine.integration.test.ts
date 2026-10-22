@@ -179,10 +179,11 @@ describe('ExecutionEngine against a real deepnote-toolkit server', () => {
 
   it('passes an input block value with a line separator and prompt-like text through unchanged', async () => {
     const file = codeNotebook('', 'print(f"LEN={len(v)}")')
+    const [placeholder] = file.project.notebooks[0].blocks
     file.project.notebooks[0].blocks[0] = {
-      id: 'block-1',
-      blockGroup: 'group-1',
-      sortingKey: 'a0',
+      id: placeholder.id,
+      blockGroup: placeholder.blockGroup,
+      sortingKey: placeholder.sortingKey,
       type: 'input-text',
       content: '',
       metadata: { deepnote_variable_name: 'v', deepnote_variable_value: '' },

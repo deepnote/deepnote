@@ -1,4 +1,4 @@
-import type { DeepnoteFile } from '@deepnote/blocks'
+import { type DeepnoteFile, generateSortingKey } from '@deepnote/blocks'
 
 /** A single-notebook project whose blocks are the given Python snippets, in order. */
 export function codeNotebook(...codeBlocks: string[]): DeepnoteFile {
@@ -15,7 +15,7 @@ export function codeNotebook(...codeBlocks: string[]): DeepnoteFile {
           blocks: codeBlocks.map((content, index) => ({
             id: `block-${index + 1}`,
             blockGroup: `group-${index + 1}`,
-            sortingKey: `a${index}`,
+            sortingKey: generateSortingKey(index),
             type: 'code' as const,
             content,
             metadata: {},
