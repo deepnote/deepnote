@@ -97,8 +97,6 @@ This authentication method is ideal when:
 
 With your integration configured and connected to your project, you're ready to work with your Snowflake data in Deepnote. You can write and run SQL queries against your Snowflake instance and explore your data structures using the schema browser. The key-pair authentication happens seamlessly in the background after you've provided your credentials.
 
-This example runs sample values in Snowflake and does not read a warehouse table.
-
 ![Sample attribution query running in Snowflake](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Troubleshooting

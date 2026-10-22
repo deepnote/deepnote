@@ -83,8 +83,6 @@ Now that you're connected to Snowflake, you can do the following:
 Deepnote also provides [an integration with Snowpark](snowpark) that allows you to write code in the notebook but execute using the warehouse's compute resources.
 </Callout>
 
-This example runs sample values in Snowflake and does not read a warehouse table.
-
 ![Sample attribution query running in Snowflake](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Allowing Deepnote to access Snowflake
