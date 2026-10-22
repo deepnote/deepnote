@@ -82,7 +82,7 @@ deepnote integrations auth <integration-id>
 
 ## Exit codes
 
-**Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage (missing token, API error, or a malformed local integrations file; for `auth`, also an `env:` reference that is unset or resolves to a blank value, or a blank `clientId`, `clientSecret`, or `project`).
+**Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage (missing token, API error, or a malformed local integrations file; for `auth`, also an `env:` reference that is unset, or a `clientId`, `clientSecret`, or `project` that is blank, whether written directly or through `env:`).
 
 ## Malformed integrations file
 

@@ -9,7 +9,6 @@ import {
   DEFAULT_INTEGRATIONS_FILE,
   databaseIntegrationConfigSchema,
   EnvVarResolutionError,
-  extractEnvVarName,
   fetchIntegrations,
   resolveEnvVarRefsFromMap,
 } from '@deepnote/database-integrations'
@@ -38,15 +37,6 @@ export interface IntegrationsAuthOptions {
   token?: string
 }
 
-/** An `env:` reference resolved to an empty or whitespace-only value. */
-export class BlankEnvVarError extends Error {
-  constructor(varName: string, path: string) {
-    const pathInfo = path ? ` at "${path}"` : ''
-    super(`Environment variable "${varName}" is empty or contains only whitespace${pathInfo}.`)
-    this.name = 'BlankEnvVarError'
-  }
-}
-
 /**
  * `new URL()` normalizes the authority — lowercasing the host, dropping a default port — while raw
  * interpolation does not, so deriving the start URL and `redirectUri` separately can hand Google two
@@ -67,7 +57,7 @@ function resolveProxyOrigin(domain: string): string {
   return url.origin
 }
 
-/** A credential field that is present but blank — written empty in the document, not via `env:`. */
+/** A credential field that is empty or whitespace-only once `env:` references are resolved. */
 export class BlankCredentialFieldError extends Error {
   constructor(integrationId: string, field: string) {
     super(`Integration "${integrationId}" has an empty \`${field}\`. Set it before authenticating.`)
@@ -113,28 +103,6 @@ async function promptSelectFederatedIntegration(
   })
 }
 
-function rejectBlankEnvVarRefs(value: unknown, vars: Record<string, string | undefined>, path = ''): void {
-  if (typeof value === 'string') {
-    const varName = extractEnvVarName(value)
-    const resolved = varName === null ? undefined : vars[varName]
-    if (varName !== null && resolved !== undefined && resolved.trim().length === 0) {
-      throw new BlankEnvVarError(varName, path)
-    }
-    return
-  }
-  if (Array.isArray(value)) {
-    for (const [index, item] of value.entries()) {
-      rejectBlankEnvVarRefs(item, vars, path ? `${path}[${index}]` : `[${index}]`)
-    }
-    return
-  }
-  if (value !== null && typeof value === 'object') {
-    for (const [key, nested] of Object.entries(value)) {
-      rejectBlankEnvVarRefs(nested, vars, path ? `${path}.${key}` : key)
-    }
-  }
-}
-
 async function resolveLocalConfig(params: {
   found: YAMLMap
   envFilePath: string
@@ -144,9 +112,7 @@ async function resolveLocalConfig(params: {
   const dotEnvVars = await readDotEnv(envFilePath)
   const envVars: Record<string, string | undefined> = { ...dotEnvVars, ...getProcessEnv() }
 
-  const rawJson = found.toJSON()
-  rejectBlankEnvVarRefs(rawJson, envVars)
-  const resolvedJson = resolveEnvVarRefsFromMap(rawJson, envVars)
+  const resolvedJson = resolveEnvVarRefsFromMap(found.toJSON(), envVars)
 
   const parsed = databaseIntegrationConfigSchema.safeParse(resolvedJson)
   if (!parsed.success) {
@@ -299,7 +265,6 @@ export function createIntegrationsAuthAction(
         error instanceof ApiError ||
         error instanceof MalformedIntegrationsFileError ||
         error instanceof EnvVarResolutionError ||
-        error instanceof BlankEnvVarError ||
         error instanceof BlankCredentialFieldError
           ? ExitCode.InvalidUsage
           : ExitCode.Error

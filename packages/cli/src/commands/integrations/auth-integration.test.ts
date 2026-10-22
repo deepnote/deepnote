@@ -365,27 +365,6 @@ describe('auth-integration', () => {
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
       expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
     })
-
-    it.each([
-      ['empty', 'BLANK_SECRET=\n'],
-      ['whitespace-only', 'BLANK_SECRET="   "\n'],
-    ])(
-      'fails before opening the browser when an env: variable is %s, naming the variable, with exit code 2',
-      async (_label, envContent) => {
-        await writeFile(
-          filePath,
-          integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', clientSecretRef: 'env:BLANK_SECRET' }))
-        )
-        await writeFile(envFilePath, envContent)
-
-        await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions())).rejects.toMatchObject({
-          exitCode: ExitCode.InvalidUsage,
-          message: expect.stringContaining('Environment variable "BLANK_SECRET" is empty or contains only whitespace'),
-        })
-        expect(mockOpenInBrowser).not.toHaveBeenCalled()
-        expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
-      }
-    )
   })
 
   describe('pre-flight validation', () => {
@@ -418,15 +397,34 @@ describe('auth-integration', () => {
       expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
     })
 
-    it('rejects a credential field written blank in the document, naming the field', async () => {
-      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', clientSecretRef: "''" })))
+    it.each([
+      ['a project written blank in the document', { project: "''" }, `CLIENTSECRET=${SECRET_MARKER}\n`, 'project'],
+      [
+        'a clientId from an empty env: variable',
+        { clientId: 'env:BLANK_VALUE' },
+        `BLANK_VALUE=\nCLIENTSECRET=${SECRET_MARKER}\n`,
+        'clientId',
+      ],
+      [
+        'a clientSecret from a whitespace-only env: variable',
+        { clientSecretRef: 'env:BLANK_VALUE' },
+        'BLANK_VALUE="   "\n',
+        'clientSecret',
+      ],
+    ])(
+      'rejects %s with exit code 2, naming the field, before opening the browser',
+      async (_label, entry, envContent, field) => {
+        await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', ...entry })))
+        await writeFile(envFilePath, envContent)
 
-      await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions())).rejects.toMatchObject({
-        exitCode: ExitCode.InvalidUsage,
-        message: expect.stringContaining('Integration "my-bq" has an empty `clientSecret`'),
-      })
-      expect(mockOpenInBrowser).not.toHaveBeenCalled()
-    })
+        await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions())).rejects.toMatchObject({
+          exitCode: ExitCode.InvalidUsage,
+          message: expect.stringContaining(`Integration "my-bq" has an empty \`${field}\``),
+        })
+        expect(mockOpenInBrowser).not.toHaveBeenCalled()
+        expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
+      }
+    )
 
     it('names the offending field and the integration when the entry fails schema validation', async () => {
       await writeFile(
