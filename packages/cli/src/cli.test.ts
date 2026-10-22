@@ -177,6 +177,12 @@ describe('CLI', () => {
         return 0
     fi`)
       expect(output).toContain('--storage-mode --timeout --push --yes --url')
+      expect(output).toContain(`integrations)
+            COMPREPLY=( $(compgen -W "pull auth" -- "\${cur}") )`)
+      expect(output).toContain(`auth)
+            if [[ "\${subcommand}" == "integrations" || "\${subcommand}" == "auth" ]]; then
+                if [[ "\${cur}" == -* ]]; then
+                    COMPREPLY=( $(compgen -W "--file --env-file --domain --url --token" -- "\${cur}") )`)
       consoleSpy.mockRestore()
     })
 
@@ -197,6 +203,13 @@ describe('CLI', () => {
       )
       expect(output).toContain("'--push[Push the local .deepnote blocks to the Deepnote notebook before running]'")
       expect(output).toContain("'--yes[Skip the --push confirmation prompt]'")
+      expect(output).toContain("'1: :->subcommand'")
+      const integrationsBlock = output.slice(output.indexOf("'integrations subcommands'"))
+      expect(integrationsBlock).toContain('case $words[1] in')
+      const integrationsArgs = integrationsBlock.slice(integrationsBlock.indexOf('case $words[1] in'))
+      const [authBranch, defaultBranch] = integrationsArgs.split('*)')
+      expect(authBranch).toContain("'--domain[Deepnote domain]:domain:'")
+      expect(defaultBranch.slice(0, defaultBranch.indexOf('esac'))).not.toContain('--domain')
       consoleSpy.mockRestore()
     })
 
@@ -219,6 +232,12 @@ describe('CLI', () => {
       )
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from run' -l yes -d 'Skip the --push confirmation prompt'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from integrations' -a auth -d 'Authenticate a big-query integration using Google OAuth'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from integrations; and __fish_seen_subcommand_from auth' -l domain -d 'Deepnote domain'"
       )
       consoleSpy.mockRestore()
     })
