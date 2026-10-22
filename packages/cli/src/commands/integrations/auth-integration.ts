@@ -38,11 +38,7 @@ export interface IntegrationsAuthOptions {
   token?: string
 }
 
-/**
- * An `env:` reference resolved to an empty or whitespace-only value. Distinct from
- * `EnvVarResolutionError`, whose message asserts the variable "is not defined" — which would be
- * false here, since it is defined, just blank.
- */
+/** An `env:` reference resolved to an empty or whitespace-only value. */
 export class BlankEnvVarError extends Error {
   constructor(varName: string, path: string) {
     const pathInfo = path ? ` at "${path}"` : ''
@@ -52,11 +48,11 @@ export class BlankEnvVarError extends Error {
 }
 
 /**
- * One parsed origin for both the start URL and `redirectUri`. `new URL()` normalizes the authority
- * — lowercasing the host, dropping a default port — while raw interpolation does not, so deriving
- * the two separately can hand Google two different `redirect_uri` strings. The proxy derives its own
- * from the inbound Host header and never echoes it back, so that mismatch surfaces only as Google's
- * `redirect_uri_mismatch`, after the user has already consented.
+ * `new URL()` normalizes the authority — lowercasing the host, dropping a default port — while raw
+ * interpolation does not, so deriving the start URL and `redirectUri` separately can hand Google two
+ * different `redirect_uri` strings. The proxy derives its own from the inbound Host header and never
+ * echoes it back, so that mismatch surfaces only as Google's `redirect_uri_mismatch`, after the user
+ * has already consented.
  */
 function resolveProxyOrigin(domain: string): string {
   let url: URL
@@ -84,10 +80,6 @@ interface FederatedBigQuerySummary {
   name: string
 }
 
-/**
- * Lightweight scan for `big-query` + `google-oauth` entries, used only to populate the picker when
- * no id is given. No full schema validation — that happens once an entry is actually selected.
- */
 function getFederatedBigQuerySummaries(doc: Document): FederatedBigQuerySummary[] {
   const integrations = doc.get('integrations')
   if (!isSeq(integrations)) {
@@ -121,12 +113,6 @@ async function promptSelectFederatedIntegration(
   })
 }
 
-/**
- * `resolveEnvVarRefsFromMap` only rejects an `env:` reference whose variable is undefined; one set
- * to an empty or whitespace-only value resolves to `''` and passes schema validation, silently
- * sending a blank `clientSecret` to Google. Walk the raw (pre-resolution) config for `env:`
- * references and reject those too, before resolving.
- */
 function rejectBlankEnvVarRefs(value: unknown, vars: Record<string, string | undefined>, path = ''): void {
   if (typeof value === 'string') {
     const varName = extractEnvVarName(value)
@@ -149,7 +135,6 @@ function rejectBlankEnvVarRefs(value: unknown, vars: Record<string, string | und
   }
 }
 
-/** Resolves the config for an integration found in the local YAML document. */
 async function resolveLocalConfig(params: {
   found: YAMLMap
   envFilePath: string
@@ -161,8 +146,6 @@ async function resolveLocalConfig(params: {
 
   const rawJson = found.toJSON()
   rejectBlankEnvVarRefs(rawJson, envVars)
-  // No try/catch here, unlike edit-integration.ts's debug-only fallback: an unresolved `env:`
-  // reference must fail before the browser opens, not send Google the literal `env:VAR` string.
   const resolvedJson = resolveEnvVarRefsFromMap(rawJson, envVars)
 
   const parsed = databaseIntegrationConfigSchema.safeParse(resolvedJson)
@@ -173,7 +156,6 @@ async function resolveLocalConfig(params: {
   return parsed.data
 }
 
-/** Resolves the config for an integration not present locally, via the Deepnote API. */
 async function resolveApiConfig(params: {
   targetId: string
   token: string | undefined
@@ -193,8 +175,6 @@ async function resolveApiConfig(params: {
   const wanted = targetId.toLowerCase()
   const match = apiConfigs.find(config => config.id.toLowerCase() === wanted)
   if (!match) {
-    // The workspace may well have returned it and had it rejected as off-schema. Sending the user
-    // to `pull` for that reports the integration exists, which reads as the CLI contradicting itself.
     const rejected = conversionErrors.find(error => error.integrationId.toLowerCase() === wanted)
     if (rejected) {
       throw new Error(
@@ -214,7 +194,6 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
   const domain = options.domain ?? DEFAULT_DOMAIN
   const baseUrl = options.url ?? DEFAULT_API_URL
 
-  // The same .env file that resolves `env:` references may also hold the token.
   dotenv.config({ path: path.resolve(envFilePath), quiet: true })
   const token = resolveToken(options.token)
 
@@ -237,9 +216,6 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
   const config = found
     ? await resolveLocalConfig({ found, envFilePath, targetId })
     : await resolveApiConfig({ targetId, token, baseUrl })
-  // The canonical id read back from the resolved config, never the string the user typed or picked
-  // — so the stored `integrationId` and the success message both agree with what the resolver that
-  // mints access tokens for `deepnote run` will later look up.
   const canonicalId = config.id
 
   if (config.type !== 'big-query') {
@@ -253,9 +229,6 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
     )
   }
   const { clientId, clientSecret, project } = config.metadata
-  // The `env:` walker above only sees references. A field written blank directly in the document
-  // passes schema validation and would reach Google as an empty credential, failing `invalid_client`
-  // after the user has consented — the outcome this pre-flight validation exists to prevent.
   for (const [field, value] of [
     ['clientId', clientId],
     ['clientSecret', clientSecret],
@@ -286,8 +259,6 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
       startUrl.searchParams.set('code_challenge', challenge)
       startUrl.searchParams.set('final_redirect', callbackUrl)
 
-      // Always shown, --quiet included: this URL is the only way to proceed in a headless
-      // session or when the browser fails to open, and the auto-open below is never awaited.
       output(`Open this URL to continue in your browser:\n\n  ${startUrl.toString()}\n`)
       openInBrowser(startUrl.toString()).catch((error: unknown) => {
         warn(`Could not open the browser automatically: ${error instanceof Error ? error.message : String(error)}`)
@@ -301,9 +272,6 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
       clientFingerprint: computeClientFingerprint({ clientId, clientSecret, project }),
     })
   } catch (error) {
-    // Google already issued the grant at this point — the browser page only ever claimed that
-    // much, never end-to-end success (see oauth-loopback-server.ts). The terminal is authoritative,
-    // so a storage failure here must say plainly that the command needs to be run again.
     const detail = error instanceof Error ? error.message : String(error)
     throw new Error(
       `Google authorization succeeded, but the token could not be stored in ${getTokenStoreDir()}: ${detail}\n` +
@@ -314,12 +282,7 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
   output(chalk.green(`Authenticated integration "${canonicalId}". Stored credentials in ${getTokenStoreDir()}.`))
 }
 
-/**
- * Creates the action handler for the `integrations auth` subcommand. Error handling mirrors the
- * `integrations pull` action rather than `edit`: `auth` reads the same integrations document and
- * calls the same integrations endpoint as `pull`, so it returns the same codes for the same
- * failures. `edit`'s ExitPromptError handling is reused as-is, since `pull` never prompts.
- */
+/** Creates the action handler for the `integrations auth` subcommand. */
 export function createIntegrationsAuthAction(
   program: Command
 ): (id: string | undefined, options: IntegrationsAuthOptions) => Promise<void> {

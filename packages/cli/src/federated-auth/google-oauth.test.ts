@@ -12,7 +12,7 @@ import {
 
 const CLIENT_ID = 'test-client-id-123'
 const CLIENT_SECRET = 'test-client-secret-456'
-// Basic base64(CLIENT_ID:CLIENT_SECRET) — hand-computed, not derived from the code under test.
+// Basic base64(CLIENT_ID:CLIENT_SECRET)
 const EXPECTED_BASIC_AUTH_HEADER = 'Basic dGVzdC1jbGllbnQtaWQtMTIzOnRlc3QtY2xpZW50LXNlY3JldC00NTY='
 const REDIRECT_URI = 'https://deepnote.com/auth/bigquery/google-oauth-callback'
 const AUTH_CODE = 'auth-code-abc'
@@ -41,7 +41,6 @@ interface Stub {
   close(): Promise<void>
 }
 
-/** A local stand-in for Google's token endpoint. `plan` decides each attempt's outcome by its 1-based attempt number. */
 async function startStub(plan: (attempt: number) => StubAction): Promise<Stub> {
   let attemptCount = 0
   const requests: RecordedRequest[] = []
@@ -102,7 +101,6 @@ function startSingleStub(action: StubAction): Promise<Stub> {
   return startStub(() => action)
 }
 
-/** Polls on a real timer until `condition` holds — retry tests fake `setTimeout`, so waits here must not use it. */
 async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
   const start = Date.now()
   while (!condition()) {
@@ -114,15 +112,8 @@ async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void
 }
 
 /**
- * Advances past exactly one retry backoff, with fake timers scoped tightly around the advance and
- * released immediately after. Node's built-in fetch (undici) re-arms its own connection/keepalive
- * timers via a live `globalThis.setTimeout` read on every tick — confirmed by instrumenting it: a
- * fresh request triggers `FastTimer.refresh` → `globalThis.setTimeout(tick, 499)`, and the pool's
- * keepalive timer re-arms itself the same way roughly every 3s. So `setTimeout` faked for the
- * duration of a real request risks capturing one of undici's own timers, not just ours. Faking only
- * this narrow window — after the current attempt has already landed for real, and released again
- * before the next attempt fires — keeps every actual request running under real timers throughout,
- * so undici's machinery never observes the fake clock.
+ * Fakes `setTimeout` only between attempts: Node's fetch (undici) reads `globalThis.setTimeout` live to
+ * arm its own connection and keep-alive timers, so faking it across a real request can capture those.
  */
 async function driveOneBackoff(): Promise<void> {
   vi.useFakeTimers({ toFake: ['setTimeout'] })
@@ -252,7 +243,6 @@ describe('google-oauth', () => {
           : { type: 'json', status: 200, body: { access_token: ACCESS_TOKEN } }
       )
       activeStub = stub
-      // Pins the equal-jitter draw to its maximum: the first backoff is exactly BASE_BACKOFF_MS.
       vi.spyOn(Math, 'random').mockReturnValue(1)
 
       await fetchAccessToken({
@@ -351,8 +341,6 @@ describe('google-oauth', () => {
       expect(request?.body).toBe(
         'grant_type=authorization_code&code=auth-code-abc&code_verifier=verifier-xyz&redirect_uri=https%3A%2F%2Fdeepnote.com%2Fauth%2Fbigquery%2Fgoogle-oauth-callback'
       )
-      expect(request?.body).not.toContain(CLIENT_ID)
-      expect(request?.body).not.toContain(CLIENT_SECRET)
     })
 
     it('fetchAccessToken: POST, Basic auth, form-encoded body, no client credentials in the body', async () => {
@@ -372,8 +360,6 @@ describe('google-oauth', () => {
       expect(request?.headers.authorization).toBe(EXPECTED_BASIC_AUTH_HEADER)
       expect(request?.headers['content-type']).toBe('application/x-www-form-urlencoded')
       expect(request?.body).toBe(`grant_type=refresh_token&refresh_token=${REFRESH_TOKEN}`)
-      expect(request?.body).not.toContain(CLIENT_ID)
-      expect(request?.body).not.toContain(CLIENT_SECRET)
     })
 
     it('encodes a refresh token containing =, &, +, and a space', async () => {
@@ -502,7 +488,7 @@ describe('google-oauth', () => {
       const { challenge, verifier } = generatePkcePair()
 
       // 43 base64url characters is 32 raw bytes — the RFC 7636 minimum verifier length, and the
-      // width of a SHA-256 digest. A weaker hash or plain base64 fails one of these.
+      // width of a SHA-256 digest.
       expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/)
       expect(challenge).toMatch(/^[A-Za-z0-9_-]{43}$/)
       expect(challenge).not.toBe(verifier)

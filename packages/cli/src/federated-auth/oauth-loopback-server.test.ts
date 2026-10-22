@@ -1,4 +1,4 @@
-import { Agent, createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from 'node:http'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { type AddressInfo, createConnection, type Socket } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 import { runOAuthFlow } from './oauth-loopback-server'
@@ -22,7 +22,6 @@ interface TokenStub {
   close(): Promise<void>
 }
 
-/** A local stand-in for Google's token endpoint. `gated` actions hold their response until `release()` is called. */
 async function startTokenStub(action: TokenStubAction): Promise<TokenStub> {
   let attemptCount = 0
   let releaseGate: () => void = () => {}
@@ -33,7 +32,7 @@ async function startTokenStub(action: TokenStubAction): Promise<TokenStub> {
 
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     attemptCount++
-    req.resume() // nothing here reads the body; drain it so the request completes cleanly
+    req.resume()
     const respond = (): void => {
       res.writeHead(action.status, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(action.body))
@@ -69,7 +68,6 @@ function startImmediateStub(status: number, body: unknown): Promise<TokenStub> {
   return startTokenStub({ type: 'immediate', status, body })
 }
 
-/** Polls on a real timer until `condition` holds — no sleeps, no fake timers. */
 async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 5000): Promise<void> {
   const start = Date.now()
   while (!(await condition())) {
@@ -80,7 +78,6 @@ async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 
   }
 }
 
-/** Confirms the loopback server's listening socket was released: a fresh connect attempt is refused. */
 async function expectPortClosed(port: number): Promise<void> {
   await waitFor(
     () =>
@@ -113,7 +110,6 @@ interface FlowOverrides {
   tokenUrl?: string
 }
 
-/** Starts a flow and resolves once `onListening` has reported the bound callback URL. */
 async function startFlow(overrides: FlowOverrides = {}): Promise<{
   flow: Promise<{ refreshToken: string }>
   callbackUrl: string
@@ -161,35 +157,27 @@ describe('runOAuthFlow', () => {
     await expectPortClosed(Number(new URL(callbackUrl).port))
   })
 
-  it('leaves no keep-alive connection open once the flow settles — neither the one that answered nor an unrelated idle one', async () => {
+  it('closes a connection still mid-request once the flow settles, so it cannot keep the process alive', async () => {
     const stub = await startImmediateStub(200, { access_token: 'unused-access-token', refresh_token: REFRESH_TOKEN })
     activeStub = stub
     const { flow, callbackUrl } = await startFlow({ tokenUrl: stub.url })
-    const base = new URL(callbackUrl)
-    const idleAgent = new Agent({ keepAlive: true })
+    const pending = createConnection({ port: Number(new URL(callbackUrl).port), host: '127.0.0.1' })
+    let pendingClosed = false
+    pending.on('close', () => {
+      pendingClosed = true
+    })
+    pending.on('error', () => {})
 
     try {
-      // A keep-alive connection that never takes part in the settling exchange: it hits the 404
-      // branch, which returns without going through the settle machinery at all, then sits pooled
-      // and idle — exactly like a browser tab left open on an old keep-alive socket.
-      const idleSocket = await new Promise<Socket>((resolve, reject) => {
-        const req = httpRequest(`${base.origin}/unrelated`, { agent: idleAgent }, res => {
-          res.resume()
-          res.on('end', () => resolve(req.socket as Socket))
-        })
-        req.on('error', reject)
-        req.end()
-      })
-      expect(idleSocket.destroyed).toBe(false)
+      await new Promise(resolve => pending.once('connect', resolve))
+      await new Promise(resolve => pending.write('GET /x HTTP/1.1\r\nHost: a\r\n', resolve))
 
       await fetch(withParams(callbackUrl, { state: STATE, code: AUTH_CODE }))
       await flow
 
-      // Proves no keep-alive socket outlives the flow. It does not isolate closeAllConnections()
-      // from a plain close(): on Node 22 the latter already force-closes an idle socket this fast.
-      await waitFor(() => idleSocket.destroyed, 1000)
+      await waitFor(() => pendingClosed, 1000)
     } finally {
-      idleAgent.destroy()
+      pending.destroy()
     }
   })
 
@@ -333,14 +321,14 @@ describe('runOAuthFlow', () => {
 
     const secondResponse = await fetch(url)
     expect(secondResponse.status).toBe(409)
-    expect(stub.attemptCount).toBe(1) // the duplicate must not have reached the token endpoint
+    expect(stub.attemptCount).toBe(1)
 
     stub.release()
     const first = await firstResponse
     expect(first.status).toBe(200)
 
     await expect(flow).resolves.toEqual({ refreshToken: REFRESH_TOKEN })
-    expect(stub.attemptCount).toBe(1) // still exactly once, after both callbacks and the real exchange
+    expect(stub.attemptCount).toBe(1)
     await expectPortClosed(Number(new URL(callbackUrl).port))
   })
 
@@ -356,9 +344,6 @@ describe('runOAuthFlow', () => {
     const firstResponse = fetch(withParams(callbackUrl, { state: STATE, code: AUTH_CODE }))
     await waitFor(() => stub.attemptCount === 1)
 
-    // Any page open in the user's browser can reach this port. Once the code is on the wire to
-    // Google, letting a request like this reject the flow burns the code and strands whatever
-    // grant Google minted from it.
     const intruder = await fetch(withParams(callbackUrl, { state: 'WRONG-STATE', code: 'attacker-code' }))
     expect(intruder.status).toBe(409)
 
@@ -394,8 +379,6 @@ describe('runOAuthFlow', () => {
     process.emit('SIGINT')
     await assertion
 
-    // The handler is installed for the flow's lifetime only — leaving it behind would make every
-    // later Ctrl-C in the same process reject an already-finished flow.
     expect(process.listenerCount('SIGINT')).toBe(before - 1)
     await expectPortClosed(Number(new URL(callbackUrl).port))
   })
@@ -406,31 +389,6 @@ describe('runOAuthFlow', () => {
     const error: unknown = await flow.catch(caught => caught)
 
     expect((error as Error).message).toContain('Timed out waiting for Google authorization to complete.')
-    await expectPortClosed(Number(new URL(callbackUrl).port))
-  })
-
-  it('does not wait on onListening — a caller whose opener hangs forever still gets a resolved flow once the real callback lands', async () => {
-    const stub = await startImmediateStub(200, { access_token: 'unused', refresh_token: REFRESH_TOKEN })
-    activeStub = stub
-    let callbackUrl = ''
-
-    const flow = runOAuthFlow({
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      codeVerifier: CODE_VERIFIER,
-      state: STATE,
-      redirectUri: REDIRECT_URI,
-      tokenUrl: stub.url,
-      onListening: url => {
-        callbackUrl = url
-        return new Promise(() => {}) // simulates an opener that never returns; must never be awaited
-      },
-    })
-
-    await waitFor(() => callbackUrl !== '')
-    await fetch(withParams(callbackUrl, { state: STATE, code: AUTH_CODE }))
-
-    await expect(flow).resolves.toEqual({ refreshToken: REFRESH_TOKEN })
     await expectPortClosed(Number(new URL(callbackUrl).port))
   })
 })

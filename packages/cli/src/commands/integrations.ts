@@ -84,9 +84,7 @@ export async function readIntegrationsDocument(filePath: string): Promise<Docume
 
 /**
  * Find the YAML map node for an integration by its ID in the document's integrations sequence.
- * Matches case-insensitively: the run command's configured-id check and the built-in-integration
- * check both fold case, and the generated SQL env var name is uppercased, so an exact-case lookup
- * here would be the odd one out and would silently diverge from them.
+ * Matches case-insensitively.
  */
 export function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
   const integrations = doc.get('integrations')

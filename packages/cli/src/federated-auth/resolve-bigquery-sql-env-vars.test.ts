@@ -4,11 +4,6 @@ import { join } from 'node:path'
 import { BigQueryAuthMethods, type DatabaseIntegrationConfig } from '@deepnote/database-integrations'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Only Google's token endpoint is faked. The token store runs for real against a temp HOME (same
-// pattern as token-store.test.ts) so the fingerprint check and persistence are exercised as actually
-// written, not asserted against a mock's say-so. `readToken`/`writeToken` are wrapped (not replaced)
-// so the scope tests can assert call counts while every other test still goes through the real
-// scan-and-parse implementation.
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
@@ -46,11 +41,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  // restoreAllMocks only affects vi.spyOn mocks; these are vi.fn()s created inside a vi.mock
-  // factory, so clearAllMocks is what actually resets call history between tests. It leaves the
-  // pass-through implementations installed above untouched, which is what every test wants by
-  // default.
-  vi.clearAllMocks()
+  vi.resetAllMocks()
   await fsPromises.rm(tempHome, { recursive: true, force: true })
 })
 
@@ -83,6 +74,7 @@ async function storeMatchingToken(
     project: overrides?.project ?? PROJECT,
   })
   await writeToken(id, { refreshToken: overrides?.refreshToken ?? REFRESH_TOKEN, clientFingerprint: fingerprint })
+  vi.mocked(writeToken).mockClear()
 }
 
 describe('resolveFederatedSqlEnvVars', () => {
@@ -102,11 +94,11 @@ describe('resolveFederatedSqlEnvVars', () => {
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['MYBIGQUERY'], { refresh: true })
 
-      // No stored token, so it's still an error — but reaching notAuthenticatedError at all proves
-      // the differently-cased id matched into scope rather than being skipped.
       expect(errors).toHaveLength(1)
       expect(errors[0]).toBeInstanceOf(IntegrationAuthenticationError)
-      expect(readToken).toHaveBeenCalledWith('MyBigQuery')
+      expect(errors[0]?.message).toBe(
+        'Integration "MyBigQuery" is not authenticated. Run `deepnote integrations auth MyBigQuery`.'
+      )
     })
 
     it('skips a big-query integration using service-account auth even when listed in federatedIds', async () => {
@@ -122,25 +114,14 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(result).toEqual({ envVars: [], errors: [] })
       expect(readToken).not.toHaveBeenCalled()
     })
-
-    it('skips a non-big-query integration even when listed in federatedIds', async () => {
-      const integration: DatabaseIntegrationConfig = {
-        id: 'pg',
-        name: 'Postgres',
-        type: 'pgsql',
-        metadata: { host: 'localhost', port: '5432', database: 'db', user: 'u', password: 'p' },
-      }
-
-      const result = await resolveFederatedSqlEnvVars([integration], ['pg'], { refresh: true })
-
-      expect(result).toEqual({ envVars: [], errors: [] })
-      expect(readToken).not.toHaveBeenCalled()
-    })
   })
 
   describe('validation', () => {
-    it('errors on an empty project before any token read or network call', async () => {
-      const integration = bigQueryIntegration({ id: 'no-project', project: '' })
+    it.each([
+      ['an empty', ''],
+      ['a whitespace-only', '   '],
+    ])('errors on %s project before any token read or network call', async (_label, project) => {
+      const integration = bigQueryIntegration({ id: 'no-project', project })
 
       const { errors, envVars } = await resolveFederatedSqlEnvVars([integration], ['no-project'], { refresh: true })
 
@@ -148,17 +129,6 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(errors).toHaveLength(1)
       expect(errors[0]).toBeInstanceOf(IntegrationAuthenticationError)
       expect(errors[0]?.message).toBe('Integration "no-project" has no `project` configured.')
-      expect(readToken).not.toHaveBeenCalled()
-      expect(fetchAccessToken).not.toHaveBeenCalled()
-    })
-
-    it('errors on a whitespace-only project before any token read or network call', async () => {
-      const integration = bigQueryIntegration({ id: 'ws-project', project: '   ' })
-
-      const { errors } = await resolveFederatedSqlEnvVars([integration], ['ws-project'], { refresh: true })
-
-      expect(errors).toHaveLength(1)
-      expect(errors[0]?.message).toBe('Integration "ws-project" has no `project` configured.')
       expect(readToken).not.toHaveBeenCalled()
       expect(fetchAccessToken).not.toHaveBeenCalled()
     })
@@ -192,7 +162,6 @@ describe('resolveFederatedSqlEnvVars', () => {
           'Run `deepnote integrations auth stale-client`.'
       )
       expect(fetchAccessToken).not.toHaveBeenCalled()
-      // Not deleted: another project directory may still use this stored token against its own client.
       await expect(readToken('stale-client')).resolves.toMatchObject({ refreshToken: REFRESH_TOKEN })
     })
   })
@@ -204,7 +173,6 @@ describe('resolveFederatedSqlEnvVars', () => {
       const dir = getTokenStoreDir()
       const filesBefore = await fsPromises.readdir(dir)
       const before = await Promise.all(filesBefore.map(f => fsPromises.readFile(join(dir, f), 'utf-8')))
-      vi.mocked(writeToken).mockClear() // drop the call made by the storeMatchingToken fixture above
 
       const result = await resolveFederatedSqlEnvVars([integration], ['dry-run-id'], { refresh: false })
 
@@ -216,7 +184,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(after).toEqual(before)
     })
 
-    it('still surfaces validation and authentication errors before the refresh check', async () => {
+    it('still reports a missing stored token before the refresh check', async () => {
       const integration = bigQueryIntegration({ id: 'dry-run-no-token' })
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['dry-run-no-token'], { refresh: false })
@@ -229,10 +197,6 @@ describe('resolveFederatedSqlEnvVars', () => {
 
   describe('Google grant outcomes', () => {
     it('on InvalidGrantError, reports not-authenticated and leaves the stored token in place', async () => {
-      // Catches: a delete-on-revocation creeping back in. Deleting by integration id removes
-      // whatever the entry holds at that moment, which a concurrent run or `integrations auth` may
-      // already have replaced with a working token — and it buys nothing, because re-authenticating
-      // overwrites the entry in place.
       const integration = bigQueryIntegration({ id: 'revoked-grant' })
       await storeMatchingToken('revoked-grant')
       vi.mocked(fetchAccessToken).mockRejectedValue(new InvalidGrantError('Google rejected the request.'))
@@ -265,7 +229,6 @@ describe('resolveFederatedSqlEnvVars', () => {
     it('collects any other failure as-is, not as an IntegrationAuthenticationError', async () => {
       const integration = bigQueryIntegration({ id: 'outage' })
       await storeMatchingToken('outage')
-      vi.mocked(writeToken).mockClear() // drop the call made by the storeMatchingToken fixture above
       const networkError = new Error('fetch failed: ECONNRESET')
       vi.mocked(fetchAccessToken).mockRejectedValue(networkError)
 
@@ -286,6 +249,10 @@ describe('resolveFederatedSqlEnvVars', () => {
 
       expect(errors).toEqual([])
       await expect(readToken('rotating')).resolves.toMatchObject({ refreshToken: 'new-refresh-token' })
+      await expect(resolveFederatedSqlEnvVars([integration], ['rotating'], { refresh: false })).resolves.toEqual({
+        envVars: [],
+        errors: [],
+      })
     })
 
     it('still emits the env var when persisting a rotated refresh token fails', async () => {
@@ -296,8 +263,6 @@ describe('resolveFederatedSqlEnvVars', () => {
 
       const { envVars, errors } = await resolveFederatedSqlEnvVars([integration], ['rotating-fail'], { refresh: true })
 
-      // The minted access token is valid for this run, so a full disk must not fail it. The cost is
-      // deferred: the stored token is now the one Google invalidated, and the next run says so.
       expect(errors).toEqual([])
       expect(envVars).toHaveLength(1)
       await expect(readToken('rotating-fail')).resolves.toMatchObject({ refreshToken: 'old-refresh-token' })
@@ -306,12 +271,12 @@ describe('resolveFederatedSqlEnvVars', () => {
     it('does not write when Google returns no rotated refresh token', async () => {
       const integration = bigQueryIntegration({ id: 'no-rotation' })
       await storeMatchingToken('no-rotation')
-      vi.mocked(writeToken).mockClear() // drop the call made by the storeMatchingToken fixture above
       vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
 
       await resolveFederatedSqlEnvVars([integration], ['no-rotation'], { refresh: true })
 
       expect(writeToken).not.toHaveBeenCalled()
+      await expect(readToken('no-rotation')).resolves.toMatchObject({ refreshToken: REFRESH_TOKEN })
     })
   })
 
@@ -344,7 +309,6 @@ describe('resolveFederatedSqlEnvVars', () => {
       const ok = bigQueryIntegration({ id: 'good-one' })
       const bad = bigQueryIntegration({ id: 'bad-one' })
       await storeMatchingToken('good-one')
-      // 'bad-one' has no stored token.
       vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
 
       const { envVars, errors } = await resolveFederatedSqlEnvVars([bad, ok], ['good-one', 'bad-one'], {

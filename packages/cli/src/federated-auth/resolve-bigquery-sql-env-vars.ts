@@ -12,9 +12,7 @@ import { computeClientFingerprint, readToken, writeToken } from './token-store'
 /**
  * A federated BigQuery credential problem the user can fix by running
  * `deepnote integrations auth` — missing configuration, no stored token, a token issued for a
- * different client, or a revoked/rejected grant. Kept distinct from every other error this module
- * collects (a token-store filesystem error, an exhausted retry against Google) so `run.ts` can gate
- * the run before the execution engine starts and map exactly this class to `ExitCode.InvalidUsage`.
+ * different client, or a revoked/rejected grant.
  */
 export class IntegrationAuthenticationError extends Error {
   constructor(message: string) {
@@ -32,8 +30,7 @@ function notAuthenticatedError(id: string): IntegrationAuthenticationError {
 /**
  * Mints an access token for every federated (Google OAuth) BigQuery integration in `federatedIds`
  * and turns it into the `SQL_<ID>` env var the generated Python code reads. An integration outside
- * `federatedIds` — not referenced by a block that will actually execute — costs no token store read
- * and no network call.
+ * `federatedIds` costs no token store read and no network call.
  *
  * With `options.refresh: false` (dry run), stops once a matching stored credential is confirmed: no
  * network call, no write to the token store.
@@ -100,10 +97,6 @@ export async function resolveFederatedSqlEnvVars(
         rotatedRefreshToken = result.newRefreshToken
       } catch (error) {
         if (error instanceof InvalidGrantError) {
-          // The revoked token is left on disk. Removing it means deleting by integration id, which
-          // takes whatever the entry holds now — and a concurrent run or `integrations auth` may
-          // already have replaced it with a working token. It buys nothing either: re-authenticating
-          // overwrites the entry in place, and the message below is the same one a missing entry gets.
           errors.push(notAuthenticatedError(id))
         } else if (error instanceof InvalidClientError) {
           errors.push(
@@ -112,8 +105,6 @@ export async function resolveFederatedSqlEnvVars(
             )
           )
         } else {
-          // fetchAccessToken has already exhausted its own retries, so this is an outage, not a
-          // user-fixable credential state — rethrown to be collected as-is by the outer catch.
           throw error
         }
         continue
@@ -128,10 +119,6 @@ export async function resolveFederatedSqlEnvVars(
         try {
           await writeToken(id, { refreshToken: rotatedRefreshToken, clientFingerprint: fingerprint })
         } catch (error) {
-          // Persisted after the env var, and never fatal: the access token in hand is valid for this
-          // run, so a full disk or a read-only home must not fail it. The cost is deferred rather
-          // than avoided — Google has already invalidated the token we could not replace, so the
-          // next run gets `invalid_grant` and asks for one re-authentication.
           warn(
             `Could not store the rotated refresh token for "${id}": ${error instanceof Error ? error.message : String(error)}. ` +
               `This run continues; the next one will ask you to run \`deepnote integrations auth ${id}\` again.`

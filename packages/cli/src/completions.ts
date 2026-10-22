@@ -253,7 +253,6 @@ _deepnote_completions() {
             fi
             ;;
         auth)
-            # Complete integrations auth options
             if [[ "\${subcommand}" == "integrations" || "\${subcommand}" == "auth" ]]; then
                 if [[ "\${cur}" == -* ]]; then
                     COMPREPLY=( $(compgen -W "--file --env-file --domain --url --token" -- "\${cur}") )

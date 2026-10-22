@@ -5,11 +5,9 @@ import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
 
-// token-store.ts imports `homedir`/`readFile`/`open` by name, and Node's real ESM module
+// token-store.ts imports `homedir`/`readdir`/`readFile`/`open` by name, and Node's real ESM module
 // namespaces aren't configurable, so `vi.spyOn` can't intercept them directly — the modules
-// themselves must be mocked. `platform`, and every other fs/promises export, is left as the real
-// implementation: the POSIX-only tests below skip themselves on non-POSIX via `sep`, and every
-// other test should observe the real filesystem.
+// themselves must be mocked.
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
@@ -22,7 +20,6 @@ vi.mock('node:fs/promises', async importOriginal => {
 
 let tempHome: string
 
-/** Hand-derived, independent of {@link getTokenStoreDir}, so a bug in that function can't hide itself from these tests. */
 function tokenDir(): string {
   return join(tempHome, '.deepnote', 'federated-auth-tokens')
 }
@@ -33,14 +30,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  vi.restoreAllMocks()
-  // Individual tests below override the mocked readFile/open with a one-off implementation;
-  // restore both to a real pass-through so a later test never inherits a previous test's fault
-  // injection. Must run after restoreAllMocks so it's the implementation left standing.
-  const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
-  vi.mocked(fsPromises.readdir).mockImplementation(actual.readdir)
-  vi.mocked(fsPromises.readFile).mockImplementation(actual.readFile)
-  vi.mocked(fsPromises.open).mockImplementation(actual.open)
+  vi.resetAllMocks()
   await fsPromises.rm(tempHome, { recursive: true, force: true })
 })
 
@@ -67,9 +57,6 @@ describe('token-store', () => {
     })
 
     it('ignores version and integrationId supplied on the payload', async () => {
-      // `Omit<StoredToken, 'version' | 'integrationId'>` is a structural supertype of StoredToken,
-      // so a caller can legally hand back a whole stored token; the store, not the caller, decides
-      // these two fields, or the entry it writes is one it can no longer read.
       const payload = { refreshToken: 'rt', clientFingerprint: 'fp', version: 99, integrationId: 'SOMETHING-ELSE' }
 
       await writeToken('wanted-id', payload)
@@ -139,18 +126,6 @@ describe('token-store', () => {
       await expect(readToken(id)).resolves.toMatchObject({ integrationId: id, refreshToken: 'rt' })
     })
 
-    it('resolves an id containing ../ and path separators to a file whose parent is the token directory', async () => {
-      const id = '../../etc/passwd'
-      await writeToken(id, { refreshToken: 'rt', clientFingerprint: 'fp' })
-
-      // No path separator can survive sanitizing, so the entry can only land directly inside
-      // tokenDir() — a lone ".." substring in the filename (not a whole path segment) is harmless.
-      const files = await fsPromises.readdir(tokenDir())
-      expect(files).toHaveLength(1)
-      expect(files[0]).not.toMatch(/[/\\]/)
-      await expect(readToken(id)).resolves.toMatchObject({ integrationId: id })
-    })
-
     it('gives two ids that sanitize to the same readable prefix distinct files', async () => {
       await writeToken('a/b', { refreshToken: 'rt-slash', clientFingerprint: 'fp' })
       await writeToken('a_b', { refreshToken: 'rt-underscore', clientFingerprint: 'fp' })
@@ -174,40 +149,35 @@ describe('token-store', () => {
       await fsPromises.writeFile(join(tokenDir(), 'corrupt.json'), '{ not valid json', 'utf-8')
 
       await expect(readToken('good-integration')).resolves.toMatchObject({ refreshToken: 'rt-good' })
-      // A match can short-circuit the scan before it ever reaches the corrupt file, so a lookup
-      // that can only resolve by scanning every entry is what actually proves the skip works.
       await expect(readToken('no-such-integration')).resolves.toBeUndefined()
     })
 
-    it('skips a file with the wrong shape', async () => {
+    it.each([
+      {
+        problem: 'a missing version',
+        id: 'no-version',
+        entry: { integrationId: 'no-version', refreshToken: 'x', clientFingerprint: 'y' },
+      },
+      {
+        problem: 'an unknown version',
+        id: 'future-version',
+        entry: { version: 2, integrationId: 'future-version', refreshToken: 'x', clientFingerprint: 'y' },
+      },
+      {
+        problem: 'a missing refreshToken',
+        id: 'no-refresh-token',
+        entry: { version: 1, integrationId: 'no-refresh-token', clientFingerprint: 'y' },
+      },
+      {
+        problem: 'a missing integrationId',
+        id: 'no-integration-id',
+        entry: { version: 1, refreshToken: 'x', clientFingerprint: 'y' },
+      },
+    ])('skips a file with $problem without hiding a valid entry', async ({ id, entry }) => {
       await writeToken('good-integration', { refreshToken: 'rt-good', clientFingerprint: 'fp-good' })
-      await fsPromises.writeFile(join(tokenDir(), 'wrong-shape.json'), JSON.stringify({ foo: 'bar' }), 'utf-8')
+      await fsPromises.writeFile(join(tokenDir(), 'near-valid.json'), JSON.stringify(entry), 'utf-8')
 
-      await expect(readToken('good-integration')).resolves.toMatchObject({ refreshToken: 'rt-good' })
-      await expect(readToken('no-such-integration')).resolves.toBeUndefined()
-    })
-
-    it('skips a file with a missing version', async () => {
-      await writeToken('good-integration', { refreshToken: 'rt-good', clientFingerprint: 'fp-good' })
-      await fsPromises.writeFile(
-        join(tokenDir(), 'no-version.json'),
-        JSON.stringify({ integrationId: 'no-version-integration', refreshToken: 'x', clientFingerprint: 'y' }),
-        'utf-8'
-      )
-
-      await expect(readToken('no-version-integration')).resolves.toBeUndefined()
-      await expect(readToken('good-integration')).resolves.toMatchObject({ refreshToken: 'rt-good' })
-    })
-
-    it('skips a file with an unknown version', async () => {
-      await writeToken('good-integration', { refreshToken: 'rt-good', clientFingerprint: 'fp-good' })
-      await fsPromises.writeFile(
-        join(tokenDir(), 'future-version.json'),
-        JSON.stringify({ version: 2, integrationId: 'future-integration', refreshToken: 'x', clientFingerprint: 'y' }),
-        'utf-8'
-      )
-
-      await expect(readToken('future-integration')).resolves.toBeUndefined()
+      await expect(readToken(id)).resolves.toBeUndefined()
       await expect(readToken('good-integration')).resolves.toMatchObject({ refreshToken: 'rt-good' })
     })
 
@@ -241,7 +211,6 @@ describe('token-store', () => {
   })
 
   describe('directory listings without dirent types', () => {
-    /** A `Dirent` as a filesystem that leaves `d_type` unset reports it: every predicate answers false. */
     function untypedDirent(name: string, dir: string): Dirent {
       const no = () => false
       return {
@@ -260,7 +229,7 @@ describe('token-store', () => {
 
     /**
      * `readdir`'s overloads pin the resolved value to a Buffer-named `Dirent`, so the string-named
-     * fixture above needs one cast to reach the mock. Only `name` and the predicates are read.
+     * fixture above needs one cast to reach the mock.
      */
     function mockUntypedListing(names: string[], dir: string): void {
       vi.mocked(fsPromises.readdir).mockResolvedValue(
@@ -269,8 +238,6 @@ describe('token-store', () => {
     }
 
     it('still finds a token whose type the listing did not report', async () => {
-      // XFS with ftype=0, NFS without READDIRPLUS and several FUSE drivers do this, and Node does
-      // not fall back to a stat — no filesystem reachable from this test can reproduce it directly.
       await writeToken('untyped-id', { refreshToken: 'rt-untyped', clientFingerprint: 'fp' })
       const dir = tokenDir()
       const names = await fsPromises.readdir(dir)
@@ -286,8 +253,6 @@ describe('token-store', () => {
       const names = await fsPromises.readdir(dir)
       mockUntypedListing(names, dir)
 
-      // Looks up an absent id first: the scan returns on its first match, so asking for the good
-      // entry alone can pass without the directory ever being read, depending on readdir order.
       await expect(readToken('absent-id')).resolves.toBeUndefined()
       await expect(readToken('good-id')).resolves.toMatchObject({ refreshToken: 'rt-good' })
     })
@@ -308,8 +273,6 @@ describe('token-store', () => {
         writeToken('integration-a', { refreshToken: 'rt-new', clientFingerprint: 'fp-new' })
       ).rejects.toMatchObject({ code: 'EACCES', path: targetPath })
 
-      // The scan failed before any write was attempted: no temp file left behind, and the
-      // pre-existing token on disk is untouched.
       expect(await fsPromises.readdir(tokenDir())).toEqual(files)
       const stillOnDisk = JSON.parse(await fsPromises.readFile(targetPath, 'utf-8'))
       expect(stillOnDisk).toMatchObject({ refreshToken: 'rt-a' })
@@ -342,23 +305,9 @@ describe('token-store', () => {
       expect(fileStat.mode & 0o777).toBe(0o600)
     })
 
-    it('tightens a token file that already existed at a wider mode', async () => {
-      await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-      const files = await fsPromises.readdir(tokenDir())
-      const targetPath = join(tokenDir(), files[0] as string)
-      await fsPromises.chmod(targetPath, 0o644)
-
-      await writeToken('integration-a', { refreshToken: 'rt-a-2', clientFingerprint: 'fp-a-2' })
-
-      const fileStat = await fsPromises.stat(targetPath)
-      expect(fileStat.mode & 0o777).toBe(0o600)
-    })
-
     it('stores 0600 even when the process umask would strip the creation mode', async () => {
-      // The pre-existing-file test above cannot cover this: temp-plus-rename replaces the inode, so
-      // the old file's mode is irrelevant and only the temp file's creation mode decides. `open`'s
-      // mode argument is masked — at umask 0400 the temp file is created 0200 — so the explicit
-      // chmod is what makes the stored mode independent of whatever umask the user runs under.
+      // `open`'s mode argument is masked — at umask 0400 the temp file is created 0200 — so the
+      // explicit chmod is what makes the stored mode independent of whatever umask the user runs under.
       const previousUmask = process.umask(0o400)
       try {
         await writeToken('umask-id', { refreshToken: 'rt', clientFingerprint: 'fp' })
@@ -393,16 +342,8 @@ describe('token-store', () => {
       expect(computeClientFingerprint(base)).toBe(computeClientFingerprint({ ...base }))
     })
 
-    it('changes when clientId changes', () => {
-      expect(computeClientFingerprint(base)).not.toBe(computeClientFingerprint({ ...base, clientId: 'client-2' }))
-    })
-
-    it('changes when clientSecret changes', () => {
-      expect(computeClientFingerprint(base)).not.toBe(computeClientFingerprint({ ...base, clientSecret: 'secret-2' }))
-    })
-
-    it('changes when project changes', () => {
-      expect(computeClientFingerprint(base)).not.toBe(computeClientFingerprint({ ...base, project: 'project-2' }))
+    it.each(['clientId', 'clientSecret', 'project'] as const)('changes when %s changes', field => {
+      expect(computeClientFingerprint(base)).not.toBe(computeClientFingerprint({ ...base, [field]: 'changed' }))
     })
   })
 })

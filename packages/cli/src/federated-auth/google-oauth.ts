@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 
-/** Google's OAuth 2.0 token endpoint. Overridable per call via `tokenUrl` so tests can stub it. */
 export const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 
 /** 256 bits of entropy, base64url-encoded to 43 characters — the RFC 7636 minimum verifier length. */
@@ -18,12 +17,12 @@ export function generatePkcePair(): { challenge: string; verifier: string } {
   return { challenge, verifier }
 }
 
-/** CSRF nonce for the `state` parameter, checked on every callback branch. */
+/** CSRF nonce for the `state` parameter. */
 export function generateStateNonce(): string {
   return randomUrlSafeToken()
 }
 
-/** Refresh token was rejected as revoked or expired — re-authenticating fixes this. */
+/** Google rejected the refresh token or the authorization code (`invalid_grant`) — re-authenticating fixes this. */
 export class InvalidGrantError extends Error {
   constructor(message: string) {
     super(message)
@@ -39,7 +38,6 @@ export class InvalidClientError extends Error {
   }
 }
 
-/** HTTP-level failure from the token endpoint that isn't a recognized OAuth error code. */
 class TokenHttpError extends Error {
   readonly statusCode: number
 
@@ -61,21 +59,14 @@ const oauthErrorResponseSchema = z.object({
   error_description: z.string().optional(),
 })
 
-/** One attempt's request timeout, covering both `fetch` and reading the response body. */
 const ATTEMPT_TIMEOUT_MS = 10_000
-/**
- * Default ceiling for a whole call, retries included. `deepnote run` mints one token per federated
- * integration before any block executes, so a network that accepts and never answers — a captive
- * portal, a half-up VPN — must not hold the run for the sum of every attempt timeout.
- */
 const OVERALL_TIMEOUT_MS = 20_000
-/** 1 initial attempt + up to 3 retries — bounded so a dead network fails fast. */
 const MAX_ATTEMPTS = 4
 const BASE_BACKOFF_MS = 250
 
 /**
- * Aborts on `callerSignal` or after `timeoutMs`. The timeout reason carries a printable message
- * because the CLI surfaces `error.message` verbatim, and `AbortSignal.timeout` names no operation.
+ * The timeout reason carries a printable message because the CLI surfaces `error.message` verbatim,
+ * and `AbortSignal.timeout` names no operation.
  */
 function deadlineSignal(callerSignal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
   const controller = new AbortController()
@@ -92,7 +83,6 @@ function sleep(ms: number): Promise<void> {
 
 const errorNameSchema = z.object({ name: z.string() })
 
-/** Same transient-failure classification `pollRunUntilComplete` uses for Deepnote API requests. */
 function isRetryable(error: unknown): boolean {
   if (error instanceof TokenHttpError) {
     return error.statusCode === 429 || error.statusCode >= 500
@@ -105,7 +95,6 @@ function basicAuthHeader(clientId: string, clientSecret: string): string {
   return `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`
 }
 
-/** One HTTP attempt against the token endpoint. Never retries — the caller owns that policy. */
 async function requestToken(
   tokenUrl: string,
   clientId: string,
@@ -158,7 +147,6 @@ async function requestToken(
   return parsed.data
 }
 
-/** Retries `requestToken` on transient failure with exponential backoff and equal jitter. */
 async function requestTokenWithRetries(
   tokenUrl: string,
   clientId: string,
@@ -170,9 +158,7 @@ async function requestTokenWithRetries(
     try {
       return await requestToken(tokenUrl, clientId, clientSecret, body, callSignal)
     } catch (error) {
-      // A cancelled call and an expired deadline are verdicts: `error` already carries why. A
-      // cancellation landing mid-backoff is caught here after the next attempt short-circuits
-      // on the aborted signal, so Ctrl-C costs at most one backoff — under a second.
+      // A cancelled call and an expired deadline are verdicts: `error` already carries why.
       if (callSignal.aborted || attempt >= MAX_ATTEMPTS || !isRetryable(error)) {
         throw error
       }
@@ -190,8 +176,7 @@ async function requestTokenWithRetries(
  * Attempted exactly once, unlike {@link fetchAccessToken}. An authorization code is single-use, and
  * a lost response is indistinguishable from an undelivered request — so a retry can replay a code
  * Google has already consumed, which per RFC 6749 §4.1.2 lets it revoke every token minted from
- * that code. The failure costs one re-run of `deepnote integrations auth`; the retry can strand a
- * live offline grant that nothing here can revoke.
+ * that code.
  */
 export async function exchangeAuthorizationCode(params: {
   clientId: string

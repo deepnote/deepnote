@@ -10,7 +10,7 @@ import { debug } from '../output'
  * @param url - The URL to open
  * @returns Promise that resolves once the browser command has been launched
  * @throws Error if the browser command could not be spawned (e.g. `ENOENT`) — a non-zero exit from
- *   a successfully spawned opener is no longer observed, so callers should also print the URL
+ *   a successfully spawned opener is not observed, so callers should also print the URL
  */
 export async function openInBrowser(url: string): Promise<void> {
   const { command, args } = getOpenCommand(url)
@@ -24,7 +24,6 @@ export async function openInBrowser(url: string): Promise<void> {
     })
 
     child.on('spawn', () => {
-      // Otherwise this handle holds the event loop open for as long as the browser runs.
       child.unref()
       resolve()
     })

@@ -8,13 +8,6 @@ import { debug } from '../output'
 import { isErrnoENOENT, isErrnoException } from '../utils/file-resolver'
 import { sanitizePathSegment } from '../utils/sync-paths'
 
-/**
- * Per-integration refresh token storage under `~/.deepnote/federated-auth-tokens/`. A directory of
- * one file per integration rather than one aggregate document, so a writer only ever touches the
- * path it owns, a corrupt entry can only ever break its own integration, and `readdir` is the
- * index — there is nothing else that has to be kept in sync with it.
- */
-
 const storedTokenSchema = z.object({
   version: z.literal(1),
   integrationId: z.string(),
@@ -88,8 +81,6 @@ async function findStoredToken(integrationId: string): Promise<FoundToken | unde
     try {
       raw = await readFile(filePath, 'utf-8')
     } catch (error) {
-      // Vanished between readdir and readFile, or turned out to be a directory the listing could
-      // not type — treat either like it was never there rather than failing the whole scan.
       if (isErrnoENOENT(error) || isErrnoException(error, 'EISDIR')) {
         continue
       }
@@ -187,7 +178,7 @@ async function fsyncDirectoryBestEffort(dir: string): Promise<void> {
  * write and the target ends at exactly `STORE_FILE_MODE` no matter what mode (or nothing) was
  * there before — rename replaces the inode rather than mutating it. The temp file is created
  * beside the target (a cross-device rename fails `EXDEV`) with `wx` so it can't silently overwrite
- * an unrelated leftover, and is unlinked on any failure before or during the rename.
+ * an unrelated leftover.
  */
 async function writeFileAtomically(targetPath: string, data: string): Promise<void> {
   const dir = dirname(targetPath)
@@ -213,12 +204,9 @@ async function writeFileAtomically(targetPath: string, data: string): Promise<vo
 }
 
 /**
- * Stores (or replaces) the token for `integrationId`. Stamps `version` and `integrationId` after
- * the payload rather than before it: `Omit<StoredToken, …>` is a structural supertype of
- * `StoredToken`, so a caller may legally pass a whole stored token, and spreading it last would let
- * it reinstate the fields this function exists to own — writing an entry `readToken` then rejects. An
- * existing entry for this id under any casing is overwritten in place — re-authenticating under
- * different casing replaces the stored token instead of orphaning it beside a new file.
+ * Stores (or replaces) the token for `integrationId`. An existing entry for this id under any
+ * casing is overwritten in place — re-authenticating under different casing replaces the stored
+ * token instead of orphaning it beside a new file.
  */
 export async function writeToken(
   integrationId: string,
@@ -227,7 +215,12 @@ export async function writeToken(
   const existing = await findStoredToken(integrationId)
   const dir = getTokenStoreDir()
   const targetPath = existing?.path ?? join(dir, tokenFileName(integrationId))
-  const stored: StoredToken = { ...token, version: 1, integrationId }
+  const stored: StoredToken = {
+    version: 1,
+    integrationId,
+    refreshToken: token.refreshToken,
+    clientFingerprint: token.clientFingerprint,
+  }
 
   await ensureStoreDirectory(dir)
   await writeFileAtomically(targetPath, `${JSON.stringify(stored, null, 2)}\n`)

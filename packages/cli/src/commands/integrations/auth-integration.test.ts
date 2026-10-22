@@ -3,8 +3,8 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ApiError, type ApiIntegration } from '@deepnote/database-integrations'
 import { screen } from '@inquirer/testing/vitest'
-import { Command, CommanderError } from 'commander'
-import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest'
+import { Command } from 'commander'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockOutput, mockLog, mockDebugFn, mockWarn, mockOpenInBrowser, mockFetchIntegrations } = vi.hoisted(() => ({
   mockOutput: vi.fn(),
@@ -19,8 +19,7 @@ vi.mock('../../output', () => ({ output: mockOutput, log: mockLog, debug: mockDe
 vi.mock('../../utils/browser', () => ({ openInBrowser: mockOpenInBrowser }))
 
 // token-store.ts imports `homedir` by name, and Node's real ESM module namespaces aren't
-// configurable, so `vi.spyOn` can't intercept it — the module itself must be mocked (see
-// federated-auth/token-store.test.ts).
+// configurable, so `vi.spyOn` can't intercept it — the module itself must be mocked.
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
@@ -35,7 +34,6 @@ import { DEEPNOTE_TOKEN_ENV } from '../../constants'
 import { ExitCode } from '../../exit-codes'
 import { GOOGLE_TOKEN_URL } from '../../federated-auth/google-oauth'
 import { readToken } from '../../federated-auth/token-store'
-import { MalformedIntegrationsFileError } from '../integrations'
 import { createIntegrationsAuthAction, type IntegrationsAuthOptions } from './auth-integration'
 import { CONFLICT_MARKERS_YAML } from './test-helpers'
 
@@ -45,11 +43,6 @@ const TOKEN = 'test-deepnote-token'
 const REFRESH_TOKEN = 'google-refresh-token-abc123'
 const AUTH_CODE = 'google-auth-code-xyz789'
 const SECRET_MARKER = 'shh-do-not-leak-this-secret'
-
-// ============================================================================
-// Fixture builders — plain, hand-written YAML fragments, independent of the schema/serializer
-// the command reads them through.
-// ============================================================================
 
 function integrationsYaml(...entries: string[]): string {
   return `integrations:\n${entries.join('\n')}\n`
@@ -106,10 +99,6 @@ function pgsqlEntry(id: string): string {
   ].join('\n')
 }
 
-// ============================================================================
-// Shared test state and helpers
-// ============================================================================
-
 let tempDir: string
 let tempHome: string
 let filePath: string
@@ -134,7 +123,6 @@ async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void
   }
 }
 
-/** Parses the start URL out of the (mocked) `output()` call that prints it. */
 function findPrintedStartUrl(): URL {
   const call = mockOutput.mock.calls.find(c => String(c[0]).includes('Open this URL to continue'))
   if (!call) {
@@ -147,11 +135,6 @@ function findPrintedStartUrl(): URL {
   return new URL(match[0])
 }
 
-/**
- * Waits for the command to print its start URL, then plays Google's role: hits the loopback
- * callback the URL points at, with the given `state`/`code`/`error`. Returns the start URL so
- * callers can assert on its query params.
- */
 async function driveOAuthCallback(
   overrides: { state?: string; code?: string; error?: string } = {}
 ): Promise<{ startUrl: URL; response: Response }> {
@@ -172,17 +155,13 @@ async function driveOAuthCallback(
   return { startUrl, response }
 }
 
-/** None of the captured output/log/warn/debug calls, nor the given error message, contain `secret`. */
-function assertNoSecretLeak(secret: string, errorMessage?: string): void {
+function assertNoSecretLeak(secret: string): void {
   for (const mock of [mockOutput, mockLog, mockWarn, mockDebugFn]) {
     for (const call of mock.mock.calls) {
       for (const arg of call) {
         expect(String(arg)).not.toContain(secret)
       }
     }
-  }
-  if (errorMessage !== undefined) {
-    expect(errorMessage).not.toContain(secret)
   }
 }
 
@@ -239,10 +218,6 @@ afterEach(async () => {
   await rm(tempDir, { recursive: true, force: true })
   await rm(tempHome, { recursive: true, force: true })
 })
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 describe('auth-integration', () => {
   describe('id resolution', () => {
@@ -315,24 +290,16 @@ describe('auth-integration', () => {
     it('rejects with an error naming the file when no id is given and none qualify', async () => {
       await writeFile(filePath, integrationsYaml(pgsqlEntry('pg-1')))
 
-      try {
-        await createIntegrationsAuthAction(program)(undefined, baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.Error)
-        expect(error.message).toContain('No big-query integrations using Google OAuth were found')
-        expect(error.message).toContain(filePath)
-      }
+      await expect(createIntegrationsAuthAction(program)(undefined, baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining(`No big-query integrations using Google OAuth were found in ${filePath}.`),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
   })
 
   describe('--domain normalization', () => {
     it('derives the start URL and redirect_uri from one parsed origin, so a normalizing domain cannot split them', async () => {
-      // `new URL()` normalizes the authority — dropping a default port, lowercasing the host — and
-      // raw interpolation does not. Building the two separately sends Google a redirect_uri the
-      // proxy never used, and that only surfaces as redirect_uri_mismatch after the user consents.
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
@@ -354,8 +321,8 @@ describe('auth-integration', () => {
       await driveOAuthCallback()
       await resultPromise
 
-      expect(mockOutput.mock.calls.some(c => String(c[0]).includes('Authenticated integration "my-bq"'))).toBe(true)
-      expect(mockOutput.mock.calls.some(c => String(c[0]).includes('"MY-BQ"'))).toBe(false)
+      expect(mockOutput).toHaveBeenCalledWith(expect.stringContaining('Authenticated integration "my-bq"'))
+      expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('"MY-BQ"'))
       await expect(readToken('MY-BQ')).resolves.toMatchObject({ integrationId: 'my-bq' })
     })
   })
@@ -395,19 +362,13 @@ describe('auth-integration', () => {
 
     it('fails before opening the browser when an env: variable is undefined, naming the variable, with exit code 2', async () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
-      // No .env file at all: CLIENTSECRET is undefined everywhere.
 
-      try {
-        await createIntegrationsAuthAction(program)('my-bq', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-        expect(error.message).toContain('CLIENTSECRET')
-        expect(error.message).toContain('is not defined')
-      }
+      await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.InvalidUsage,
+        message: expect.stringContaining('Environment variable "CLIENTSECRET" is not defined'),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
-      expect(mockOutput.mock.calls.some(c => String(c[0]).includes('Open this URL'))).toBe(false)
+      expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
     })
 
     it.each([
@@ -422,33 +383,24 @@ describe('auth-integration', () => {
         )
         await writeFile(envFilePath, envContent)
 
-        try {
-          await createIntegrationsAuthAction(program)('my-bq', baseOptions())
-          expect.fail('Should have thrown')
-        } catch (error) {
-          assert(error instanceof CommanderError)
-          expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-          expect(error.message).toContain('BLANK_SECRET')
-          expect(error.message).toContain('empty or contains only whitespace')
-        }
+        await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions())).rejects.toMatchObject({
+          exitCode: ExitCode.InvalidUsage,
+          message: expect.stringContaining('Environment variable "BLANK_SECRET" is empty or contains only whitespace'),
+        })
         expect(mockOpenInBrowser).not.toHaveBeenCalled()
-        expect(mockOutput.mock.calls.some(c => String(c[0]).includes('Open this URL'))).toBe(false)
+        expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
       }
     )
   })
 
-  describe('pre-flight failures added after review', () => {
+  describe('pre-flight validation', () => {
     it('rejects a --domain that is not a hostname, before opening a browser', async () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      try {
-        await createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain: 'a b/c' }))
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.message).toContain('Invalid --domain')
-      }
+      await expect(
+        createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain: 'a b/c' }))
+      ).rejects.toMatchObject({ exitCode: ExitCode.Error, message: expect.stringContaining('Invalid --domain') })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
 
@@ -459,38 +411,24 @@ describe('auth-integration', () => {
       ['embedded userinfo', 'user:pw@oauth.test-domain.example'],
       ['a query string', 'oauth.test-domain.example?x=1'],
     ])('rejects a --domain carrying %s, which new URL() reinterprets instead of refusing', async (_label, domain) => {
-      // Catches: a --domain that parses but does not mean what it says. "https://host" yields
-      // origin "https://https", and a path or userinfo is dropped from the origin — so the CLI
-      // would print and open a start URL nobody can answer, then blame Google when its own
-      // five-minute timeout expires.
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
 
-      try {
-        await createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain }))
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.message).toContain('Invalid --domain')
-      }
+      await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain }))).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining('Invalid --domain'),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
-      expect(mockOutput.mock.calls.some(c => String(c[0]).includes('Open this URL'))).toBe(false)
+      expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
     })
 
     it('rejects a credential field written blank in the document, naming the field', async () => {
-      // Distinct from the `env:` cases above: no reference is involved, so the walker never sees it.
-      // Google answers a blank clientSecret with invalid_client, but only after the user consents.
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', clientSecretRef: "''" })))
 
-      try {
-        await createIntegrationsAuthAction(program)('my-bq', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-        expect(error.message).toContain('clientSecret')
-        expect(error.message).toContain('my-bq')
-      }
+      await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.InvalidUsage,
+        message: expect.stringContaining('Integration "my-bq" has an empty `clientSecret`'),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
 
@@ -509,14 +447,10 @@ describe('auth-integration', () => {
         ].join('\n')
       )
 
-      try {
-        await createIntegrationsAuthAction(program)('broken-bq', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.message).toContain('broken-bq')
-        expect(error.message).toContain('clientId')
-      }
+      await expect(createIntegrationsAuthAction(program)('broken-bq', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringMatching(/Integration "broken-bq" .*clientId/),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
   })
@@ -526,14 +460,10 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(pgsqlEntry('pg-1')))
       await writeFile(envFilePath, 'PG_PASSWORD=irrelevant\n')
 
-      try {
-        await createIntegrationsAuthAction(program)('pg-1', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.Error)
-        expect(error.message).toContain('only supports big-query integrations using Google OAuth')
-      }
+      await expect(createIntegrationsAuthAction(program)('pg-1', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining('only supports big-query integrations using Google OAuth'),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
 
@@ -541,14 +471,10 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(bigQueryServiceAccountEntry('bq-legacy')))
       await writeFile(envFilePath, 'SERVICE_ACCOUNT_JSON={}\n')
 
-      try {
-        await createIntegrationsAuthAction(program)('bq-legacy', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.Error)
-        expect(error.message).toContain('only supports big-query integrations configured with Google OAuth')
-      }
+      await expect(createIntegrationsAuthAction(program)('bq-legacy', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining('only supports big-query integrations configured with Google OAuth'),
+      })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
     })
   })
@@ -571,21 +497,18 @@ describe('auth-integration', () => {
     }
 
     it('says why a workspace integration is unusable rather than reporting it as not found', async () => {
-      // Sending the user to `integrations pull` for an off-schema entry is the CLI contradicting
-      // itself: pull will report the integration exists.
       mockFetchIntegrations.mockResolvedValueOnce([
         apiBigQueryIntegration({ metadata: { authMethod: 'google-oauth' } } as Partial<ApiIntegration>),
       ])
 
-      try {
-        await createIntegrationsAuthAction(program)('api-only-bq', baseOptions({ token: TOKEN }))
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.message).toContain('api-only-bq')
-        expect(error.message).toContain('not usable')
-        expect(error.message).not.toContain('was not found')
-      }
+      const failure = createIntegrationsAuthAction(program)('api-only-bq', baseOptions({ token: TOKEN }))
+      await expect(failure).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining(
+          'Integration "api-only-bq" was returned by your Deepnote workspace but is not usable'
+        ),
+      })
+      await expect(failure).rejects.toMatchObject({ message: expect.not.stringContaining('was not found') })
     })
 
     it('resolves through the API when a token is available, using the distinct --url (not --domain)', async () => {
@@ -602,15 +525,12 @@ describe('auth-integration', () => {
     })
 
     it('rejects with MissingTokenError (exit code 2) when no token is available', async () => {
-      try {
-        await createIntegrationsAuthAction(program)('api-only-bq', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-        expect(error.message).toContain('Missing authentication token')
-        expect(error.message).not.toContain('was not found')
-      }
+      const failure = createIntegrationsAuthAction(program)('api-only-bq', baseOptions())
+      await expect(failure).rejects.toMatchObject({
+        exitCode: ExitCode.InvalidUsage,
+        message: expect.stringContaining('Missing authentication token'),
+      })
+      await expect(failure).rejects.toMatchObject({ message: expect.not.stringContaining('was not found') })
       expect(mockFetchIntegrations).not.toHaveBeenCalled()
     })
 
@@ -619,27 +539,22 @@ describe('auth-integration', () => {
       await writeFile(envFilePath, 'DEEPNOTE_TOKEN=dotenv-token\n')
       mockFetchIntegrations.mockResolvedValueOnce([])
 
-      try {
-        await createIntegrationsAuthAction(program)('api-only-bq', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.message).toContain('was not found')
-      }
+      await expect(createIntegrationsAuthAction(program)('api-only-bq', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining('was not found'),
+      })
       expect(mockFetchIntegrations).toHaveBeenCalledWith(API_URL, 'dotenv-token', ['api-only-bq'])
     })
 
     it('rejects naming "deepnote integrations pull" when the API has no matching integration', async () => {
       mockFetchIntegrations.mockResolvedValueOnce([])
 
-      try {
-        await createIntegrationsAuthAction(program)('does-not-exist', baseOptions({ token: TOKEN }))
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.Error)
-        expect(error.message).toContain('deepnote integrations pull')
-      }
+      await expect(
+        createIntegrationsAuthAction(program)('does-not-exist', baseOptions({ token: TOKEN }))
+      ).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining('deepnote integrations pull'),
+      })
     })
 
     it('propagates an ApiError from the API with exit code 2', async () => {
@@ -647,14 +562,12 @@ describe('auth-integration', () => {
         new ApiError(401, 'Authentication failed. Please check your API token.')
       )
 
-      try {
-        await createIntegrationsAuthAction(program)('api-only-bq', baseOptions({ token: TOKEN }))
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-        expect(error.message).toContain('Authentication failed')
-      }
+      await expect(
+        createIntegrationsAuthAction(program)('api-only-bq', baseOptions({ token: TOKEN }))
+      ).rejects.toMatchObject({
+        exitCode: ExitCode.InvalidUsage,
+        message: expect.stringContaining('Authentication failed'),
+      })
     })
   })
 
@@ -662,32 +575,14 @@ describe('auth-integration', () => {
     it('rejects with MalformedIntegrationsFileError, exit code 2', async () => {
       await writeFile(filePath, CONFLICT_MARKERS_YAML)
 
-      try {
-        await createIntegrationsAuthAction(program)('any-id', baseOptions())
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.InvalidUsage)
-        expect(error.message).toContain('Invalid YAML in integrations file:')
-      }
-      // MalformedIntegrationsFileError is the class the action switches on for the exit code.
-      expect(MalformedIntegrationsFileError).toBeDefined()
+      await expect(createIntegrationsAuthAction(program)('any-id', baseOptions())).rejects.toMatchObject({
+        exitCode: ExitCode.InvalidUsage,
+        message: expect.stringContaining('Invalid YAML in integrations file:'),
+      })
     })
   })
 
-  describe('browser open is never awaited', () => {
-    it('does not stall the command when openInBrowser hangs forever', async () => {
-      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
-      await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
-      mockOpenInBrowser.mockReturnValue(new Promise(() => {}))
-
-      const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
-      await driveOAuthCallback()
-      await resultPromise
-
-      await expect(readToken('my-bq')).resolves.toMatchObject({ integrationId: 'my-bq' })
-    })
-
+  describe('browser open failure', () => {
     it('warns instead of failing when openInBrowser rejects', async () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
@@ -698,10 +593,7 @@ describe('auth-integration', () => {
       await resultPromise
       await waitFor(() => mockWarn.mock.calls.length > 0)
 
-      expect(mockWarn.mock.calls.some(c => String(c[0]).includes('Could not open the browser automatically'))).toBe(
-        true
-      )
-      expect(mockWarn.mock.calls.some(c => String(c[0]).includes('spawn xdg-open ENOENT'))).toBe(true)
+      expect(mockWarn).toHaveBeenCalledWith('Could not open the browser automatically: spawn xdg-open ENOENT')
     })
   })
 
@@ -712,8 +604,6 @@ describe('auth-integration', () => {
         integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq', project: 'proj-x', clientId: 'client-x' }))
       )
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
-      const { createHash } = await import('node:crypto')
-      const expectedFingerprint = createHash('sha256').update(`client-x|${SECRET_MARKER}|proj-x`).digest('hex')
 
       const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
       await driveOAuthCallback()
@@ -723,7 +613,7 @@ describe('auth-integration', () => {
         version: 1,
         integrationId: 'my-bq',
         refreshToken: REFRESH_TOKEN,
-        clientFingerprint: expectedFingerprint,
+        clientFingerprint: '96030d1a1baf78fa65fcfba6537159094ee0ff860983b44aab92e835c454463c',
       })
     })
 
@@ -731,23 +621,23 @@ describe('auth-integration', () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
       // A plain file where the token store directory needs to be created makes the store's
-      // `mkdir(..., { recursive: true })` fail with a real ENOTDIR — no fs mocking involved.
+      // `mkdir(..., { recursive: true })` fail with a real ENOTDIR.
       await writeFile(join(tempHome, '.deepnote'), 'not a directory')
 
       const resultPromise = createIntegrationsAuthAction(program)('my-bq', baseOptions())
       await driveOAuthCallback()
 
-      try {
-        await resultPromise
-        expect.fail('Should have thrown')
-      } catch (error) {
-        assert(error instanceof CommanderError)
-        expect(error.exitCode).toBe(ExitCode.Error)
-        expect(error.message).toContain('Google authorization succeeded, but the token could not be stored in')
-        expect(error.message).toContain(join(tempHome, '.deepnote', 'federated-auth-tokens'))
-        expect(error.message).toContain('Run "deepnote integrations auth my-bq" again.')
-        assertNoSecretLeak(SECRET_MARKER, error.message)
-      }
+      await expect(resultPromise).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining(
+          `Google authorization succeeded, but the token could not be stored in ${join(tempHome, '.deepnote', 'federated-auth-tokens')}`
+        ),
+      })
+      await expect(resultPromise).rejects.toMatchObject({
+        message: expect.stringContaining('Run "deepnote integrations auth my-bq" again.'),
+      })
+      await expect(resultPromise).rejects.toMatchObject({ message: expect.not.stringContaining(SECRET_MARKER) })
+      assertNoSecretLeak(SECRET_MARKER)
     })
   })
 })

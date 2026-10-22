@@ -3,9 +3,8 @@ import { createServer } from 'node:http'
 import { exchangeAuthorizationCode } from './google-oauth'
 
 /**
- * Purely local bound on the whole flow — comfortably longer than a consent screen takes, short
- * enough that an abandoned flow doesn't pin a port indefinitely. Not coupled to the proxy's own
- * pending-flow TTL, which the proxy prunes only at the next start and never enforces on the callback.
+ * Not coupled to the proxy's own pending-flow TTL, which the proxy prunes only at the next start and
+ * never enforces on the callback.
  */
 const DEFAULT_TIMEOUT_MS = 5 * 60 * 1000
 
@@ -36,9 +35,7 @@ function toError(value: unknown): Error {
 
 /**
  * Writes the response and only then calls `settle` — closing the server before the bytes are
- * flushed can RST the connection and hand the browser a broken page instead of ours. Already-dead
- * sockets (the flow settled by another route, e.g. the timeout, while this handler was mid-await)
- * settle immediately without attempting a write.
+ * flushed can RST the connection and hand the browser a broken page instead of ours.
  */
 function respondThenSettle(res: ServerResponse, status: number, body: string, settle: () => void): void {
   if (res.writableEnded || res.destroyed) {
@@ -55,8 +52,7 @@ function respondThenSettle(res: ServerResponse, status: number, body: string, se
  * code, and tears the server down.
  *
  * `onListening` is called with the bound callback URL once the server is ready to accept it and is
- * never awaited — the caller opens a browser, which is not this function's concern and must not be
- * allowed to stall it.
+ * never awaited.
  *
  * Rejects on a `state` mismatch, a provider error (`?error=...`), an exchange failure, the
  * `timeoutMs` deadline, or SIGINT. Resolves with the refresh token on success.
@@ -94,8 +90,8 @@ export async function runOAuthFlow(params: {
     function cleanup(): void {
       clearTimeout(timeoutHandle)
       process.off('SIGINT', onSigint)
-      // A browser tab left open on this response's keep-alive connection would otherwise hold a
-      // half-open socket and the CLI would never exit.
+      // `close()` ends only idle connections, so one with a request still in progress, such as
+      // unfinished headers, would keep the process alive.
       server.closeAllConnections()
       server.close()
     }
@@ -126,10 +122,8 @@ export async function runOAuthFlow(params: {
         return
       }
 
-      // Nothing after a claim may settle the flow — not even a bogus callback. The code is already
-      // on the wire to Google by then, so rejecting here would burn it and strand whatever grant
-      // Google minted, which §8 has no way to revoke. Any page open in the user's browser can
-      // reach this port, so this gate is what stops it ending a legitimate flow.
+      // Nothing after a claim may settle the flow — not even a bogus callback. Any page open in the
+      // user's browser can reach this port, so this gate is what stops it ending a legitimate flow.
       if (claimed) {
         res.writeHead(409, { 'Content-Type': 'text/plain' }).end('This authorization link has already been used.')
         return
@@ -168,9 +162,6 @@ export async function runOAuthFlow(params: {
           code,
           codeVerifier: params.codeVerifier,
           redirectUri: params.redirectUri,
-          // Lets the flow's own deadline and SIGINT handler cancel an exchange already in flight —
-          // without this a detached fetch can mint a live refresh token after the flow it belonged
-          // to has already failed.
           signal: abortController.signal,
           tokenUrl: params.tokenUrl,
         })
@@ -194,10 +185,6 @@ export async function runOAuthFlow(params: {
     })
     process.on('SIGINT', onSigint)
 
-    // Everything above is armed before `listen` (and therefore before `onListening` can possibly
-    // run): awaiting the opener first would strand an already-completed flow when it hangs, and
-    // would turn the already-armed timeout, with nothing yet awaiting it, into an unhandled
-    // rejection that kills the process.
     server.listen(0, '127.0.0.1', () => {
       const address = server.address()
       if (typeof address !== 'object' || address === null) {
@@ -207,8 +194,8 @@ export async function runOAuthFlow(params: {
       try {
         params.onListening(`http://127.0.0.1:${address.port}/callback`)
       } catch (error) {
-        // The caller builds its start URL in here from user input, and this runs inside a
-        // 'listening' emitter — an escaping throw would kill the process instead of failing the flow.
+        // This runs inside a 'listening' emitter — an escaping throw would kill the process instead
+        // of failing the flow.
         settleReject(toError(error))
       }
     })
