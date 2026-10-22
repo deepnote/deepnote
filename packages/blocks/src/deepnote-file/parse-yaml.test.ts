@@ -266,6 +266,36 @@ describe('parseYaml', () => {
         link: 'https://site.com/path&param=value',
       })
     })
+
+    it('throws an error for an anchor on the value of a quoted key', () => {
+      const yamlContent = `
+      "base": &base
+        name: Test
+    `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
+      expect(() => parseYaml(yamlContent)).toThrow(/anchors.*not allowed/i)
+    })
+
+    it('does not reject anchor and alias syntax inside a block scalar', () => {
+      const yamlContent = `
+      blocks:
+        - type: markdown
+          content: |-
+            defaults: &defaults
+              image: python:3.11
+            test:
+              <<: *defaults
+    `
+      const result = parseYaml(yamlContent)
+      expect(result).toEqual({
+        blocks: [
+          {
+            type: 'markdown',
+            content: 'defaults: &defaults\n  image: python:3.11\ntest:\n  <<: *defaults',
+          },
+        ],
+      })
+    })
   })
 
   describe('merge key rejection', () => {
@@ -328,6 +358,16 @@ describe('parseYaml', () => {
     `
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
+    })
+
+    it('does not reject tag syntax inside a block scalar', () => {
+      const yamlContent = `
+      content: |-
+        flag: !important
+        - !note
+    `
+      const result = parseYaml(yamlContent)
+      expect(result).toEqual({ content: 'flag: !important\n- !note' })
     })
   })
 
