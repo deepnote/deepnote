@@ -6,7 +6,7 @@ noContent: false
 
 ![Telegram & Deepnote](../assets/docs/SVsS0TITFN05V8eXMgRR.webp)
 
-Telegram is a messaging app with a focus on speed and security It's fast, simple, and free. You can use Telegram on all your devices at the same time — your messages sync seamlessly across any number of your phones, tablets, or computers. This guide walks you through using Telegram to deliver notifications at different points of your data workflows on Deepnote (like delivering machine learning model training updates).
+Telegram is a messaging app with a focus on speed and security. It's fast, simple, and free. You can use Telegram on multiple devices at the same time because it syncs your messages across phones, tablets, and computers. This guide shows you how to use Telegram to send notifications from your Deepnote data workflows, such as machine learning model training updates.
 
 ![Telegram notifications](../assets/docs/5NDfLBAT9uSucPOvStPy.webp)
 
