@@ -46,6 +46,8 @@ No matter the scope, Agent always:
 
 While running, Agent shows all changes in real time. You can click any action item to jump to the relevant block.
 
+In data app and Streamlit app projects, clicking a block action opens the notebook editor and highlights the block. Use **Show app** in the top bar to return to the preview, or **Show notebook** to open the editor.
+
 When a run finishes, you’ll see a **summary of changes** with a **before-and-after diff view** for code edits. You can undo all changes from a run by clicking the bin icon. If you follow up with a new request, Agent continues from the updated state of your notebook.
 
 ![accept changes agent (1).png](../assets/docs/AaDC4FvhQQq2MDrtSUqtMz-cmetz4wckxctz07n07wkxakss.webp)
