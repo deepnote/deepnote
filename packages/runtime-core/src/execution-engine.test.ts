@@ -1095,14 +1095,9 @@ describe('ExecutionEngine', () => {
     const AGENT_FIXTURE = loadFixture('agent-block.deepnote')
 
     beforeEach(() => {
-      vi.stubEnv('OPENAI_API_KEY', 'test-api-key')
       mockExecuteAgentBlock.mockResolvedValue({
         finalOutput: 'Analysis complete.',
       })
-    })
-
-    afterEach(() => {
-      vi.unstubAllEnvs()
     })
 
     it.each([new KernelDiedError('Kernel died'), new ServerExitedError('Server exited')])(

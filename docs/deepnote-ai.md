@@ -7,7 +7,7 @@ noContent: false
 
 Deepnote AI is designed to make your data work more efficient and productive. Ask questions in plain language, and Deepnote AI will craft or revise code according to your instructions. It can also provide concise explanations for complex pieces of code, enhancing your understanding. Whether you’re a Python pro or a coding beginner, Deepnote AI assists you every step of the way to gain the insights you need.
 
-Deepnote AI is multi-provider. You can choose from a range of models — including Anthropic's Claude and OpenAI's GPT families — using the model selector, or select **Automatic** to let Deepnote pick the best model for your task.
+Deepnote AI supports multiple providers. Use the model selector to choose a model from Anthropic's Claude or OpenAI's GPT families. Select **Automatic** to let Deepnote choose a model for your task.
 
 <Callout status="info">
 Deepnote AI is available on **Pro**, **Team** and **Enterprise** plans.
