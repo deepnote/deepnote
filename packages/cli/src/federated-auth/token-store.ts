@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { chmod, mkdir, open, readdir, readFile, rename, unlink } from 'node:fs/promises'
+import { chmod, mkdir, open, readFile, rename, unlink } from 'node:fs/promises'
 import { homedir, platform } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { z } from 'zod'
@@ -25,15 +25,10 @@ export function getTokenStoreDir(): string {
   return join(homedir(), DEEPNOTE_CONFIG_DIR_NAME, FEDERATED_AUTH_TOKENS_DIR_NAME)
 }
 
-/**
- * Derives a token file's name from an integration id. Not the lookup key — ids are matched by
- * scanning file contents (see {@link findStoredToken}), because sanitizing is lossy (`a/b` and
- * `a_b` collapse together), so the digest carries identity; the sanitized prefix only makes the
- * directory readable to a human inspecting it.
- */
 function tokenFileName(integrationId: string): string {
-  const readable = sanitizePathSegment(integrationId).slice(0, 64)
-  const digest = createHash('sha256').update(integrationId).digest('hex')
+  const key = integrationId.toLowerCase()
+  const readable = sanitizePathSegment(key).slice(0, 64)
+  const digest = createHash('sha256').update(key).digest('hex')
   return `${readable}-${digest.slice(0, 16)}.json`
 }
 
@@ -42,31 +37,16 @@ export function computeClientFingerprint(m: { clientId: string; clientSecret: st
   return createHash('sha256').update(`${m.clientId}|${m.clientSecret}|${m.project}`).digest('hex')
 }
 
-interface FoundToken {
-  path: string
-  token: StoredToken
-}
-
 /**
- * Scans the store for the entry whose `integrationId` matches, case-insensitively — the rest of
- * the CLI already folds integration id case, and an exact-case lookup here would silently diverge
- * from it. `undefined` covers both a store that doesn't exist yet (the normal state before the
- * first authentication) and a scan that completed with no match; a file whose content is malformed
- * is skipped rather than failing the scan, so one bad entry can't hide a good one. Any other
- * filesystem error propagates as-is — it already names its own path and errno.
+ * Returns the token stored for `integrationId`, matched case-insensitively. `undefined` means "not
+ * authenticated": no entry is stored for the id, or the stored entry is malformed. Other filesystem
+ * errors propagate.
  */
-async function findStoredToken(integrationId: string): Promise<FoundToken | undefined> {
-  const dir = getTokenStoreDir()
-  let entries: string[]
+export async function readToken(integrationId: string): Promise<StoredToken | undefined> {
+  const filePath = join(getTokenStoreDir(), tokenFileName(integrationId))
+  let raw: string
   try {
-    entries = (await readdir(dir, { withFileTypes: true }))
-      // Rejects what is positively known not to be a file, rather than admitting only what is
-      // known to be one: a filesystem that leaves the dirent type unset (XFS with `ftype=0`, NFS
-      // without READDIRPLUS, several FUSE drivers) answers false to every predicate, and an
-      // `isFile()` filter there hides every token while re-authenticating changes nothing. The
-      // read below settles anything still ambiguous.
-      .filter(entry => !entry.isDirectory() && !entry.isSymbolicLink() && entry.name.endsWith('.json'))
-      .map(entry => entry.name)
+    raw = await readFile(filePath, 'utf-8')
   } catch (error) {
     if (isErrnoENOENT(error)) {
       return undefined
@@ -74,44 +54,22 @@ async function findStoredToken(integrationId: string): Promise<FoundToken | unde
     throw error
   }
 
-  const wanted = integrationId.toLowerCase()
-  for (const entry of entries) {
-    const filePath = join(dir, entry)
-    let raw: string
-    try {
-      raw = await readFile(filePath, 'utf-8')
-    } catch (error) {
-      if (isErrnoENOENT(error) || isErrnoException(error, 'EISDIR')) {
-        continue
-      }
-      throw error
-    }
-
-    let json: unknown
-    try {
-      json = JSON.parse(raw)
-    } catch {
-      debug(`Skipping token file with invalid JSON: ${filePath}`)
-      continue
-    }
-    const parsed = storedTokenSchema.safeParse(json)
-    if (!parsed.success) {
-      debug(`Skipping token file with an unexpected shape: ${filePath}`)
-      continue
-    }
-    if (parsed.data.integrationId.toLowerCase() === wanted) {
-      return { path: filePath, token: parsed.data }
-    }
+  let json: unknown
+  try {
+    json = JSON.parse(raw)
+  } catch {
+    debug(`Ignoring token file with invalid JSON: ${filePath}`)
+    return undefined
   }
-  return undefined
-}
-
-/**
- * Looks up the stored token for `integrationId`, matched case-insensitively. `undefined` means
- * "not authenticated" — the caller cannot and should not distinguish an empty store from no match.
- */
-export async function readToken(integrationId: string): Promise<StoredToken | undefined> {
-  return (await findStoredToken(integrationId))?.token
+  const parsed = storedTokenSchema.safeParse(json)
+  if (!parsed.success) {
+    debug(`Ignoring token file with an unexpected shape: ${filePath}`)
+    return undefined
+  }
+  if (parsed.data.integrationId.toLowerCase() !== integrationId.toLowerCase()) {
+    return undefined
+  }
+  return parsed.data
 }
 
 function sleep(ms: number): Promise<void> {
@@ -203,18 +161,13 @@ async function writeFileAtomically(targetPath: string, data: string): Promise<vo
   await fsyncDirectoryBestEffort(dir)
 }
 
-/**
- * Stores (or replaces) the token for `integrationId`. An existing entry for this id under any
- * casing is overwritten in place — re-authenticating under different casing replaces the stored
- * token instead of orphaning it beside a new file.
- */
+/** Stores (or replaces) the token for `integrationId`; ids that differ only in case share one entry. */
 export async function writeToken(
   integrationId: string,
   token: Omit<StoredToken, 'version' | 'integrationId'>
 ): Promise<void> {
-  const existing = await findStoredToken(integrationId)
   const dir = getTokenStoreDir()
-  const targetPath = existing?.path ?? join(dir, tokenFileName(integrationId))
+  const targetPath = join(dir, tokenFileName(integrationId))
   const stored: StoredToken = {
     version: 1,
     integrationId,

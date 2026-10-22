@@ -1,11 +1,10 @@
-import type { Dirent } from 'node:fs'
 import * as fsPromises from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
 
-// token-store.ts imports `homedir`/`readdir`/`readFile`/`open` by name, and Node's real ESM module
+// token-store.ts imports `homedir`/`readFile`/`open` by name, and Node's real ESM module
 // namespaces aren't configurable, so `vi.spyOn` can't intercept them directly — the modules
 // themselves must be mocked.
 vi.mock('node:os', async importOriginal => {
@@ -15,7 +14,7 @@ vi.mock('node:os', async importOriginal => {
 
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...actual, readdir: vi.fn(actual.readdir), readFile: vi.fn(actual.readFile), open: vi.fn(actual.open) }
+  return { ...actual, readFile: vi.fn(actual.readFile), open: vi.fn(actual.open) }
 })
 
 let tempHome: string
@@ -144,6 +143,31 @@ describe('token-store', () => {
       await expect(readToken('a/b')).resolves.toMatchObject({ integrationId: 'a/b', refreshToken: 'rt-slash' })
       await expect(readToken('a_b')).resolves.toMatchObject({ integrationId: 'a_b', refreshToken: 'rt-underscore' })
     })
+
+    it.each([
+      {
+        id: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d',
+        fileName: '100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d-81a9873d193ec44f.json',
+      },
+      { id: 'My-BQ', fileName: 'my-bq-492dc046191d2d87.json' },
+      { id: 'Team/BQ', fileName: 'team_bq-b867264a9e228b22.json' },
+    ])('keeps the on-disk name for $id stable as $fileName', async ({ id, fileName }) => {
+      await writeToken(id, { refreshToken: 'rt', clientFingerprint: 'fp' })
+
+      expect(await fsPromises.readdir(tokenDir())).toEqual([fileName])
+    })
+
+    it('reads as not authenticated when the file named for an id holds a different integration id', async () => {
+      await writeToken('my-bq', { refreshToken: 'rt', clientFingerprint: 'fp' })
+      const files = await fsPromises.readdir(tokenDir())
+      await fsPromises.writeFile(
+        join(tokenDir(), files[0] as string),
+        JSON.stringify({ version: 1, integrationId: 'other-id', refreshToken: 'rt-other', clientFingerprint: 'fp' }),
+        'utf-8'
+      )
+
+      await expect(readToken('my-bq')).resolves.toBeUndefined()
+    })
   })
 
   describe('absence', () => {
@@ -154,138 +178,48 @@ describe('token-store', () => {
   })
 
   describe('malformed entries', () => {
-    it('skips a file with invalid JSON without hiding a valid entry for a different id', async () => {
-      await writeToken('good-integration', { refreshToken: 'rt-good', clientFingerprint: 'fp-good' })
-      await fsPromises.writeFile(join(tokenDir(), 'corrupt.json'), '{ not valid json', 'utf-8')
-
-      await expect(readToken('good-integration')).resolves.toMatchObject({ refreshToken: 'rt-good' })
-      await expect(readToken('no-such-integration')).resolves.toBeUndefined()
-    })
-
     it.each([
+      { problem: 'invalid JSON', id: 'bad-json', content: '{ not valid json' },
       {
         problem: 'a missing version',
         id: 'no-version',
-        entry: { integrationId: 'no-version', refreshToken: 'x', clientFingerprint: 'y' },
+        content: JSON.stringify({ integrationId: 'no-version', refreshToken: 'x', clientFingerprint: 'y' }),
       },
       {
         problem: 'an unknown version',
         id: 'future-version',
-        entry: { version: 2, integrationId: 'future-version', refreshToken: 'x', clientFingerprint: 'y' },
+        content: JSON.stringify({
+          version: 2,
+          integrationId: 'future-version',
+          refreshToken: 'x',
+          clientFingerprint: 'y',
+        }),
       },
       {
         problem: 'a missing refreshToken',
         id: 'no-refresh-token',
-        entry: { version: 1, integrationId: 'no-refresh-token', clientFingerprint: 'y' },
+        content: JSON.stringify({ version: 1, integrationId: 'no-refresh-token', clientFingerprint: 'y' }),
       },
       {
         problem: 'a missing integrationId',
         id: 'no-integration-id',
-        entry: { version: 1, refreshToken: 'x', clientFingerprint: 'y' },
+        content: JSON.stringify({ version: 1, refreshToken: 'x', clientFingerprint: 'y' }),
       },
-    ])('skips a file with $problem without hiding a valid entry', async ({ id, entry }) => {
-      await writeToken('good-integration', { refreshToken: 'rt-good', clientFingerprint: 'fp-good' })
-      await fsPromises.writeFile(join(tokenDir(), 'near-valid.json'), JSON.stringify(entry), 'utf-8')
+    ])('reads a stored entry with $problem as not authenticated rather than throwing', async ({ id, content }) => {
+      await writeToken(id, { refreshToken: 'rt', clientFingerprint: 'fp' })
+      const files = await fsPromises.readdir(tokenDir())
+      await fsPromises.writeFile(join(tokenDir(), files[0] as string), content, 'utf-8')
 
       await expect(readToken(id)).resolves.toBeUndefined()
-      await expect(readToken('good-integration')).resolves.toMatchObject({ refreshToken: 'rt-good' })
-    })
-
-    it('leaves a corrupt entry and a valid entry intact after a later write for a third integration', async () => {
-      await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-      await fsPromises.writeFile(join(tokenDir(), 'corrupt.json'), 'not json at all', 'utf-8')
-
-      await writeToken('integration-c', { refreshToken: 'rt-c', clientFingerprint: 'fp-c' })
-
-      expect(await fsPromises.readdir(tokenDir())).toHaveLength(3)
-      await expect(readToken('integration-a')).resolves.toMatchObject({ refreshToken: 'rt-a' })
-      await expect(readToken('integration-c')).resolves.toMatchObject({ refreshToken: 'rt-c' })
-      await expect(fsPromises.readFile(join(tokenDir(), 'corrupt.json'), 'utf-8')).resolves.toBe('not json at all')
-    })
-
-    it('ignores a leftover .tmp file from an interrupted write', async () => {
-      await fsPromises.mkdir(tokenDir(), { recursive: true })
-      await fsPromises.writeFile(
-        join(tokenDir(), 'orphan.integration.tmp'),
-        JSON.stringify({
-          version: 1,
-          integrationId: 'orphan-integration',
-          refreshToken: 'stale',
-          clientFingerprint: 'stale',
-        }),
-        'utf-8'
-      )
-
-      await expect(readToken('orphan-integration')).resolves.toBeUndefined()
-    })
-  })
-
-  describe('directory listings without dirent types', () => {
-    function untypedDirent(name: string, dir: string): Dirent {
-      const no = () => false
-      return {
-        name,
-        parentPath: dir,
-        path: dir,
-        isFile: no,
-        isDirectory: no,
-        isSymbolicLink: no,
-        isBlockDevice: no,
-        isCharacterDevice: no,
-        isFIFO: no,
-        isSocket: no,
-      } as Dirent
-    }
-
-    /**
-     * `readdir`'s overloads pin the resolved value to a Buffer-named `Dirent`, so the string-named
-     * fixture above needs one cast to reach the mock.
-     */
-    function mockUntypedListing(names: string[], dir: string): void {
-      vi.mocked(fsPromises.readdir).mockResolvedValue(
-        names.map(name => untypedDirent(name, dir)) as unknown as Awaited<ReturnType<typeof fsPromises.readdir>>
-      )
-    }
-
-    it('still finds a token whose type the listing did not report', async () => {
-      await writeToken('untyped-id', { refreshToken: 'rt-untyped', clientFingerprint: 'fp' })
-      const dir = tokenDir()
-      const names = await fsPromises.readdir(dir)
-      mockUntypedListing(names, dir)
-
-      await expect(readToken('untyped-id')).resolves.toMatchObject({ refreshToken: 'rt-untyped' })
-    })
-
-    it('skips a directory entry the listing could not type, rather than failing the whole scan', async () => {
-      await writeToken('good-id', { refreshToken: 'rt-good', clientFingerprint: 'fp' })
-      const dir = tokenDir()
-      await fsPromises.mkdir(join(dir, 'stray-directory.json'))
-      const names = await fsPromises.readdir(dir)
-      mockUntypedListing(names, dir)
-
-      await expect(readToken('absent-id')).resolves.toBeUndefined()
-      await expect(readToken('good-id')).resolves.toMatchObject({ refreshToken: 'rt-good' })
     })
   })
 
   describe('filesystem errors', () => {
-    it('surfaces a mocked EACCES read as a path-specific error and attempts no write', async () => {
-      await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-      const files = await fsPromises.readdir(tokenDir())
-      const targetPath = join(tokenDir(), files[0] as string)
-      const eacces = Object.assign(new Error(`EACCES: permission denied, open '${targetPath}'`), {
-        code: 'EACCES',
-        path: targetPath,
-      })
+    it('propagates a read error other than ENOENT rather than reading as not authenticated', async () => {
+      const eacces = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
       vi.mocked(fsPromises.readFile).mockRejectedValueOnce(eacces)
 
-      await expect(
-        writeToken('integration-a', { refreshToken: 'rt-new', clientFingerprint: 'fp-new' })
-      ).rejects.toMatchObject({ code: 'EACCES', path: targetPath })
-
-      expect(await fsPromises.readdir(tokenDir())).toEqual(files)
-      const stillOnDisk = JSON.parse(await fsPromises.readFile(targetPath, 'utf-8'))
-      expect(stillOnDisk).toMatchObject({ refreshToken: 'rt-a' })
+      await expect(readToken('integration-a')).rejects.toBe(eacces)
     })
 
     it('leaves the write successful and the token readable even when the best-effort directory fsync fails', async () => {
