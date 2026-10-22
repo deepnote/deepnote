@@ -1,10 +1,11 @@
 import { join } from 'node:path'
+import { normalizeStreamlitEntrypoint } from '@deepnote/cloud-sync'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { MissingTokenError, resolveToken } from '../utils/auth'
-import { normalizeStreamlitEntrypoint, publishStreamlitApp } from '../utils/publish-streamlit-app'
+import { publishStreamlitApp } from '../utils/publish-streamlit-app'
 
 export interface StreamlitPublishOptions {
   projectId: string

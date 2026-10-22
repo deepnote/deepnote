@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-Distribute your homework and assignments among your students, let them complete their tasks, and collect them back — all within the same environment.
+Distribute homework and assignments to your students, let them complete their tasks, and collect their work in the same environment.
 
 Each of your workspaces has individual private spaces visible only to you. You can create multiple projects in this space and share each of them with individual students for individual assignments.
 

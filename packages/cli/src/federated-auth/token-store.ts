@@ -6,7 +6,6 @@ import { z } from 'zod'
 import { DEEPNOTE_CONFIG_DIR_NAME, FEDERATED_AUTH_TOKENS_DIR_NAME } from '../constants'
 import { debug } from '../output'
 import { isErrnoENOENT, isErrnoException } from '../utils/file-resolver'
-import { sanitizePathSegment } from '../utils/sync-paths'
 
 const storedTokenSchema = z.object({
   version: z.literal(1),
@@ -19,6 +18,7 @@ export type StoredToken = z.infer<typeof storedTokenSchema>
 
 const STORE_DIR_MODE = 0o700
 const STORE_FILE_MODE = 0o600
+const UNSAFE_FILE_NAME_CHARACTERS = /[<>:"/\\|?*\p{Cc}]/gu
 
 /** Root of the per-integration token store. Created lazily by {@link writeToken}. */
 export function getTokenStoreDir(): string {
@@ -27,7 +27,7 @@ export function getTokenStoreDir(): string {
 
 function tokenFileName(integrationId: string): string {
   const key = integrationId.toLowerCase()
-  const readable = sanitizePathSegment(key).slice(0, 64)
+  const readable = key.replace(UNSAFE_FILE_NAME_CHARACTERS, '_').slice(0, 64)
   const digest = createHash('sha256').update(key).digest('hex')
   return `${readable}-${digest.slice(0, 16)}.json`
 }

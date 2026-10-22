@@ -1,34 +1,14 @@
-import { posix } from 'node:path'
-import {
-  createStreamlitApp,
-  listStreamlitApps,
-  type StreamlitApp,
-  StreamlitAppTimeoutError,
-  waitForStreamlitApp,
-} from '@deepnote/cloud'
+import { StreamlitAppTimeoutError, waitForStreamlitApp } from '@deepnote/cloud'
+import { createOrFindStreamlitApp, type PublishedStreamlitApp } from '@deepnote/cloud-sync'
 import { ApiError } from '@deepnote/database-integrations'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
 import { getChalk, getOutputConfig, log, error as logError, warn } from '../output'
-import { isSafeRelativeFilePath } from './sync-paths'
 
 export interface PublishStreamlitAppOptions {
   url: string
   projectId: string
   wait: boolean
-}
-
-interface PublishedStreamlitApp {
-  app: StreamlitApp
-  created: boolean
-}
-
-export function normalizeStreamlitEntrypoint(path: string): string | null {
-  if (path.trim() !== path || path.includes('\0') || path.endsWith('/') || path.split('/').includes('..')) {
-    return null
-  }
-  const normalized = posix.normalize(path).replace(/^\/+/, '')
-  return isSafeRelativeFilePath(normalized) ? normalized : null
 }
 
 export async function publishStreamlitApp(
@@ -68,28 +48,6 @@ export async function publishStreamlitApp(
         ? `${error.message}. Check the project in Deepnote and start its machine if stopped, then run this command again to keep waiting.`
         : `Could not check the app status: ${errorMessage(error)}`
     )
-  }
-}
-
-async function createOrFindStreamlitApp(
-  baseUrl: string,
-  token: string,
-  projectId: string,
-  entrypoint: string
-): Promise<PublishedStreamlitApp> {
-  try {
-    return { app: await createStreamlitApp(baseUrl, token, { projectId, entrypoint }), created: true }
-  } catch (error) {
-    if (!(error instanceof ApiError && error.statusCode === 409 && /already exists/i.test(error.message))) {
-      throw error
-    }
-    // Stored entrypoints may carry a leading slash.
-    const apps = await listStreamlitApps(baseUrl, token, projectId)
-    const app = apps.find(app => app.entrypoint.replace(/^\/+/, '') === entrypoint)
-    if (!app) {
-      throw error
-    }
-    return { app, created: false }
   }
 }
 

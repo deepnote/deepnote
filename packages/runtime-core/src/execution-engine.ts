@@ -338,14 +338,6 @@ export class ExecutionEngine {
             throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
-          const apiKey = process.env.OPENAI_API_KEY
-          if (!apiKey) {
-            throw new Error(
-              'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
-                'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
-            )
-          }
-
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
           let agentDeadline: number | undefined
@@ -437,7 +429,6 @@ export class ExecutionEngine {
           }
 
           const agentContext: AgentBlockContext = {
-            openAiToken: apiKey,
             mcpServers: projectMcpServers,
             notebookContext,
             addAndExecuteCodeBlock,
