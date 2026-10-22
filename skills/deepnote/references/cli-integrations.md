@@ -63,7 +63,7 @@ deepnote integrations edit <integration-id>
 
 Authenticate a `big-query` integration using Google OAuth so `deepnote run` can execute SQL blocks against it locally. Only `big-query` integrations with `authMethod: google-oauth` are supported; anything else is rejected. Without `[id]`, auto-picks the only matching integration, prompts with a picker if there are several, and fails if there are none. If `[id]` is not in the local integrations file, it is resolved from the Deepnote API instead, via `--token` or `DEEPNOTE_TOKEN`.
 
-Opens a browser to complete Google's consent screen (also prints the URL, for headless sessions or if the browser fails to open) and stores the resulting refresh token under `~/.deepnote/federated-auth-tokens/` — one file per integration, mode `0600` in a `0700` directory on POSIX; on Windows confidentiality relies on the `%USERPROFILE%` ACL instead of the file mode. Requires a browser and a signed-in Deepnote session — interactive only, no headless or CI path (use service-account authentication for CI). Applies to local runs only: `--cloud` authenticates BigQuery server-side and never reads this token store.
+Opens a browser to complete Google's consent screen (also prints the URL, in case the browser does not open automatically on this machine) and stores the resulting refresh token under `~/.deepnote/federated-auth-tokens/` — one file per integration, mode `0600` in a `0700` directory on POSIX; on Windows confidentiality relies on the `%USERPROFILE%` ACL instead of the file mode. Requires a browser and a signed-in Deepnote session — interactive only, no headless or CI path (use service-account authentication for CI). Applies to local runs only: `--cloud` authenticates BigQuery server-side and never reads this token store.
 
 | Option              | Description                                         | Default                    |
 | ------------------- | --------------------------------------------------- | -------------------------- |
@@ -82,7 +82,7 @@ deepnote integrations auth <integration-id>
 
 ## Exit codes
 
-**Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage (missing token, API error, or a malformed local integrations file).
+**Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage (missing token, API error, or a malformed local integrations file; for `auth`, also an `env:` reference that is unset or resolves to a blank value, or a blank `clientId`, `clientSecret`, or `project`).
 
 ## Malformed integrations file
 
