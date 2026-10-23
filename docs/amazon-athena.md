@@ -56,7 +56,7 @@ We need two S3 buckets - one for our data and one for Athena query results.
 
 We'll use the NYC Airbnb dataset for this guide:
 
-1. First, download the Airbnb dataset from DeepNote by visiting http://deepnote.com/static/data/AB_NYC_2019.csv in your web browser
+1. First, download the [Airbnb dataset](https://deepnote.com/static/data/AB_NYC_2019.csv).
 2. Save the file to your computer
 3. In the AWS console, navigate to your `deepnote-athena-demo-data` bucket
 4. Click **Upload**
