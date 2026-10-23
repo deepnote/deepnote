@@ -51,6 +51,15 @@ function run(...args: string[]) {
   return program.parseAsync(['node', 'deepnote', 'publish', ...args])
 }
 
+function captureStderr(): string[] {
+  const written: string[] = []
+  vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+    written.push(String(chunk))
+    return true
+  })
+  return written
+}
+
 describe('deepnote publish', () => {
   it('trims whitespace from a pasted token', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
@@ -138,12 +147,14 @@ describe('deepnote publish', () => {
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit')
     })
+    const stderr = captureStderr()
 
     await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '--path', 'elsewhere/assets')).rejects.toThrow(
       'exit'
     )
 
     expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderr.join('')).toContain('Target path must be _deepnote_static or a directory below it\n')
     expect(mockedGetProject).not.toHaveBeenCalled()
   })
 
@@ -626,12 +637,14 @@ describe('deepnote publish', () => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('exit')
       })
+      const stderr = captureStderr()
 
       await expect(
         run(buildDir, '--project-id', 'p1', '--token', 'tok', '--sync-root', join(tempDir, 'Alpha'))
       ).rejects.toThrow('exit')
 
       expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain(`No .deepnote-sync.json found in ${join(tempDir, 'Alpha')}.\n`)
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
@@ -642,12 +655,18 @@ describe('deepnote publish', () => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('exit')
       })
+      const stderr = captureStderr()
 
       await expect(run(buildDir, '--project-id', 'p1', '--token', 'tok', '--sync-root', tempDir)).rejects.toThrow(
         'exit'
       )
 
       expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain(
+        `The sync manifest at ${join(tempDir, '.deepnote-sync.json')} tracks project p1 in Alpha, ` +
+          'but that directory does not exist. ' +
+          'Sync the workspace first, or pass --no-sync-root to publish without updating it.\n'
+      )
       expect(mockedUpload).not.toHaveBeenCalled()
     })
 
@@ -657,10 +676,16 @@ describe('deepnote publish', () => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('exit')
       })
+      const stderr = captureStderr()
 
       await expect(run(buildDir, '--project-id', 'p1', '--token', 'tok')).rejects.toThrow('exit')
 
       expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain(
+        `The sync manifest at ${join(tempDir, '.deepnote-sync.json')} is not valid JSON. ` +
+          'Fix or delete it (deleting re-syncs everything from scratch). ' +
+          'Pass --no-sync-root to publish without updating the workspace.\n'
+      )
       expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
@@ -670,12 +695,17 @@ describe('deepnote publish', () => {
       const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('exit')
       })
+      const stderr = captureStderr()
 
       await expect(run(buildDir, '--project-id', 'p2', '--token', 'tok', '--sync-root', tempDir)).rejects.toThrow(
         'exit'
       )
 
       expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain(
+        `The sync manifest at ${join(tempDir, '.deepnote-sync.json')} does not track project p2. ` +
+          'Sync the workspace first, or pass --no-sync-root to publish without updating it.\n'
+      )
       expect(mockedUpload).not.toHaveBeenCalled()
     })
 

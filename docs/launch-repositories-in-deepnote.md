@@ -10,7 +10,7 @@ Deepnote supports launching repositories as Deepnote projects (so every user who
 
 ### Launching repositories in Deepnote
 
-Deepnote supports launching repositories as Deepnote projects (so every user who clicks on the link will see a new project created just for them with the contents of the repository). Copy the link below and URL encode your repository link (you can use [https://www.urlencoder.io/](https://www.urlencoder.io/)).
+Deepnote supports launching repositories as Deepnote projects (so every user who clicks on the link will see a new project created just for them with the contents of the repository). Copy the link below and URL encode your repository link (you can use [URL Encoder](https://www.urlencoder.io/)).
 
 Example launch link (don't forget to URL encode the link you want to open)
 
