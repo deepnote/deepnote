@@ -323,6 +323,17 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/merge keys.*not allowed/i)
     })
+
+    it('does not reject a quoted << key', () => {
+      const yamlContent = `
+      double:
+        "<<": a
+      single:
+        '<<': b
+    `
+      const result = parseYaml(yamlContent)
+      expect(result).toEqual({ double: { '<<': 'a' }, single: { '<<': 'b' } })
+    })
   })
 
   describe('custom tag rejection', () => {
@@ -358,6 +369,24 @@ describe('parseYaml', () => {
     `
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
+    })
+
+    it('throws an error for an unknown tag in the core schema namespace', () => {
+      const yamlContent = `
+      value: !<tag:yaml.org,2002:not-a-core-tag> data
+    `
+      expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
+      expect(() => parseYaml(yamlContent)).toThrow(/tags are not allowed.*tag:yaml\.org,2002:not-a-core-tag/i)
+    })
+
+    it('does not reject core schema tags', () => {
+      const yamlContent = `
+      string: !!str 123
+      integer: !!int "42"
+      list: !!seq [a]
+    `
+      const result = parseYaml(yamlContent)
+      expect(result).toEqual({ string: '123', integer: 42, list: ['a'] })
     })
 
     it('does not reject tag syntax inside a block scalar', () => {

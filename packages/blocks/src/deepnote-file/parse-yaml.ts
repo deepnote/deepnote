@@ -1,4 +1,4 @@
-import { type Document, isScalar, parseDocument, visit } from 'yaml'
+import { type Document, isScalar, parseDocument, Scalar, visit } from 'yaml'
 
 import { DeepnoteError, EncodingError, ParseError, ProhibitedYamlFeatureError, YamlParseError } from '../errors'
 
@@ -48,8 +48,10 @@ function validateNoBomPrefix(yamlContent: string): void {
   }
 }
 
-/** Tags from the YAML core schema, such as `!!str`, resolve to this prefix. */
-const CORE_TAG_PREFIX = 'tag:yaml.org,2002:'
+/** Tags of the YAML 1.2 core schema, such as `!!str`. Any other tag is a custom tag. */
+const CORE_SCHEMA_TAGS = new Set(
+  ['map', 'seq', 'str', 'null', 'bool', 'int', 'float'].map(name => `tag:yaml.org,2002:${name}`)
+)
 
 /**
  * Validates that the parsed YAML document doesn't contain prohibited features:
@@ -74,12 +76,13 @@ function validateYamlStructure(doc: Document): void {
       if (node.anchor) {
         hasAnchor = true
       }
-      if (node.tag && !node.tag.startsWith(CORE_TAG_PREFIX)) {
+      if (node.tag && !CORE_SCHEMA_TAGS.has(node.tag)) {
         tags.push(node.tag)
       }
     },
     Pair(_, pair) {
-      if (isScalar(pair.key) && pair.key.value === '<<') {
+      // A quoted `<<` key is literal data, not a merge key.
+      if (isScalar(pair.key) && pair.key.type === Scalar.PLAIN && pair.key.value === '<<') {
         hasMergeKey = true
       }
     },
