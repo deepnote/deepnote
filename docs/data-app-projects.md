@@ -1,7 +1,7 @@
 ---
 title: Data app projects
 description: Describe a dashboard or data tool, and Deepnote Agent builds it as a web app backed by a notebook.
-noIndex: false
+noIndex: true
 noContent: false
 ---
 
