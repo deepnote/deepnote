@@ -9,6 +9,8 @@ Deepnote AI is designed to make your data work more efficient and productive. As
 
 Deepnote AI supports multiple providers. Use the model selector to choose a model from Anthropic's Claude or OpenAI's GPT families. Select **Automatic** to let Deepnote choose a model for your task.
 
+**GPT-6.1 Sol** replaces GPT-6 Sol in **Settings & Members → AI**, and existing GPT-6 Sol workspace preferences are automatically upgraded. Enterprise workspaces with EU models enabled can select **GPT-6.1 Sol EU**; existing GPT-6 Sol EU preferences are upgraded to that option.
+
 <Callout status="info">
 Deepnote AI is available on **Pro**, **Team** and **Enterprise** plans.
 </Callout>
