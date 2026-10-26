@@ -7,6 +7,8 @@ noContent: false
 
 ![Apps 2.png](../assets/docs/6ecwQuqREaUWb33uWO8g.webp)
 
+To have Deepnote Agent build a custom app for you instead, see [Data app projects](/docs/data-app-projects).
+
 ### How to create an app
 
 To publish a project as an app, open the notebook you would like to publish and select **Create app** in the top right corner.

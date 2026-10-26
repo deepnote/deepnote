@@ -6,6 +6,8 @@ noContent: false
 
 Streamlit is a popular open-source Python framework for creating interactive dashboards and data apps. With Deepnote's native Streamlit support, you can host and share these apps directly in your workspace. All you need is your Python script - Deepnote handles the rest.
 
+To have Deepnote Agent write and host a Streamlit app for you, see [Streamlit app projects](/docs/streamlit-app-projects).
+
 Get started by exploring our [example apps](https://deepnote.com/explore#streamlit-apps) or watch our quick guide:
 
 <Embed url='https://www.loom.com/embed/e4bb3ea481e642d288733ea0c1c275f5?hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true' />

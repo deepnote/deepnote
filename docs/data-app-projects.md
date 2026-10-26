@@ -1,7 +1,7 @@
 ---
 title: Data app projects
 description: Describe a dashboard or data tool, and Deepnote Agent builds it as a web app backed by a notebook.
-noIndex: true
+noIndex: false
 noContent: false
 ---
 
@@ -50,7 +50,9 @@ A data app can show another app's data by connecting to that app's notebook inst
 
 ## Fixing errors
 
-When the app hits an error, a message appears above it. Click **Fix** to let the agent fix it. The agent also reloads the app after each change and fixes the errors it finds.
+After each change, the agent reloads the app, checks it for errors, and fixes them on its own. If an error is still there after two tries, it tells you what's still failing.
+
+If the app hits an error while you're using it, a message appears above the app. Click **Fix** to let the agent fix it.
 
 ## Changing the look
 

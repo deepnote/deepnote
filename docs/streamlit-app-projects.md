@@ -1,7 +1,7 @@
 ---
 title: Streamlit app projects
 description: Describe an interactive Python app, and Deepnote Agent writes and hosts it with Streamlit.
-noIndex: true
+noIndex: false
 noContent: false
 ---
 
