@@ -149,7 +149,7 @@ You can also find it in an environment variable `DEEPNOTE_PROJECT_ID` if you wan
 
 Here's an [example notebook](https://deepnote.com/@deepnote/Download-files-in-app-03df4fac-84e9-45c0-aff6-691016698a7b) demonstrating how to do that.
 
-The access controls of the published app are still respected – only people with access to the app can access the files. Note: all files in the /work directory (what you see in the project's **Files** section) can be accessed this way, so make sure you are not exposing anything sensitive.
+The published app's access controls still apply. Only people with access to the app can access the files. Note: all files in the /work directory (what you see in the project's **Files** section) can be accessed this way, so make sure you are not exposing anything sensitive.
 
 Keep in mind that parallel executions of the app (two users at the same time) could overwrite each other's files. If that is a concern, consider generating unique filenames at execution time, and printing the generated URL for each user.
 

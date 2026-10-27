@@ -65,7 +65,7 @@ Create an SQL block and write native SQL queries against your CSVs and databases
 
 ### Python blocks
 
-You probably expected Python blocks, but there's more to it than that. Use the preinstalled libraries, `pip install,` whatever you want — you can even define your environment with Docker.
+You probably expected Python blocks, but there's more to it than that. Use the preinstalled libraries, install other packages with `pip`, or define your environment with Docker.
 
 ![Python package imports with hidden output](../assets/docs/deepnote-first-steps/python-package-imports.webp)
 

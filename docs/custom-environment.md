@@ -20,7 +20,7 @@ Custom environments are especially valuable for complex projects where dependenc
 
 We recommend building your custom Dockerfile on top of our `deepnote/python:3.x` base image to ensure compatibility with all Deepnote features. If you're creating an environment from scratch, your image must meet these requirements:
 
-- Python (versions 3.10-3.13) installed and accessible via the `python` command
+- Python (versions 3.10-3.14) installed and accessible via the `python` command
 - Built for the `linux/amd64` platform (M1 Mac users: use `-platform linux/amd64` flag)
 - Functioning `pip` installation that can install packages to Python's path
 - `bash` and `curl` installed
@@ -35,7 +35,7 @@ pip install tensorflow -c https://tk.deepnote.com/constraints<PYTHON_VERSION>.tx
 
 ```
 
-This constraints file helps prevent library conflicts and ensures compatibility with Deepnote's features like the variable explorer and interactive DataFrame views. Don't worry about installing additional dependencies for these features—we'll automatically detect and load them at runtime.
+This constraints file helps prevent library conflicts and ensures compatibility with Deepnote's features like the variable explorer and interactive DataFrame views. You don't need to install dependencies for these features. Deepnote detects and loads them at runtime.
 
 ## How to create a custom environment?
 

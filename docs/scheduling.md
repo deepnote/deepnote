@@ -19,17 +19,19 @@ Deepnote makes it easy to take your explorations to production. For example:
 
 ### How to schedule a notebook
 
-1. Click the calendar icon **Schedule notebook**, which is at the top of the notebook, right next to the **Run notebook** button
-2. Configure the frequency at which you would like the notebook to run and then click **Save.**
+1. Click the calendar icon **Schedule notebook**, which is at the top of the notebook, next to the **Run** button
+2. Enable **Schedule notebook**, configure the frequency at which you want the notebook to run, and then click **Save schedule**.
 3. Additionally, you can also configure notifications for successful and failed runs, either by email or into Slack.
 
-![Scheduling notifications.jpg](../assets/docs/5vnhJjTRfuHyBA0aJTNC.jpg)
+![Scheduling notifications](../assets/docs/scheduling/scheduling-notifications.webp)
+
+Each notebook in a project can have its own schedule.
 
 ### How to know if your scheduled notebook ran successfully
 
-If an exception is raised during the run, the run is considered failed; otherwise, it's successful. Please note that if an error is raised in a block, the subsequent blocks are not executed. Every run automatically creates a [run snapshot](/docs/run-snapshots) — an immutable record of the notebook's state after execution. You can review snapshots of successful and failed runs from the Runs sidebar or the project logs.
+If an exception is raised during the run, the run is considered failed; otherwise, it's successful. Please note that if an error is raised in a block, the subsequent blocks are not executed. Every run automatically creates a [run snapshot](/docs/run-snapshots), an immutable record of the notebook's state after execution. You can review snapshots of successful and failed runs from the Runs sidebar or the project logs.
 
-![Scheduling versions.jpg](../assets/docs/5NYCPGefRZScMa2R0l8S.jpg)
+![Scheduling versions](../assets/docs/scheduling/scheduling-versions.webp)
 
 <Callout status="info">
 Schedules that fail repeatedly are automatically paused to avoid wasting compute on runs that keep erroring. You can review and re-enable a paused schedule from the scheduling settings.
@@ -37,12 +39,8 @@ Schedules that fail repeatedly are automatically paused to avoid wasting compute
 
 ### Federated authentication
 
-Scheduled notebooks can use integrations that rely on federated (OAuth) authentication, such as Snowflake and BigQuery OAuth. Scheduled runs authenticate using the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable, unattended execution we recommend using service account (BigQuery) or username-and-password (Snowflake) authentication instead.
+Scheduled notebooks can use integrations that rely on federated (OAuth) authentication, such as Snowflake and BigQuery OAuth. Scheduled runs authenticate using the OAuth tokens of the user who set up the schedule. Those tokens can expire or be revoked. For reliable, unattended execution, we recommend service account authentication for BigQuery or username-and-password authentication for Snowflake.
 
 ### Alerts
 
 You can use the scheduled notebook to periodically check the consistency of your data and use the notification system to alert you when the notebook fails (i.e. the consistency check fails).
-
-### Current limitations
-
-- Only one scheduled notebook per project is supported. If you need to schedule more, we recommend splitting the work across multiple projects.
