@@ -102,7 +102,7 @@ There are a number of steps to follow which will be described in the following s
 
 1.  After heading back to Deepnote, create a Snowflake integration as described in our main [Snowflake docs](snowflake).
 
-2.  Select Azure AD as the authentication method and fill in **Client ID** and **Client Secret** based on `<OAUTH_CLIENT_ID>` and `<OAUTH_CLIENT_SECRET>` defined in [the section above](snowflake-with-azure-ad#create-snowflake-oauth-client-application).
+2.  Select **AzureAD** as the authentication method and fill in **Client ID** and **Client Secret** based on `<OAUTH_CLIENT_ID>` and `<OAUTH_CLIENT_SECRET>` defined in [the section above](snowflake-with-azure-ad#create-snowflake-oauth-client-application).
 
 3.  Fill in **Resource** as the `<RESOURCE_ID>` of your Snowflake OAuth Resource application from step 7 of [the first section](snowflake-with-azure-ad#create-snowflake-oauth-resource-application).
 
@@ -117,14 +117,14 @@ There are a number of steps to follow which will be described in the following s
 - When signing in to your Snowflake integration in Deepnote, make sure that your Azure AD email matches the `LOGIN_NAME` field of your Snowflake account.
 </Callout>
 
-### Using the the Snowflake integration with Azure AD
+### Using the Snowflake integration with Azure AD
 
 In order to use the integration, every user will have to authenticate using their own Snowflake account. They can do it either by pressing the button on a SQL block with this integration, in the three-dot menu of the integration in the right sidebar, or by responding to a prompt when they execute a SQL block.
-![azure_ad_snowflake_auth.png](../assets/docs/Xhw4oFmScOKeEyqaQ0FR.webp)
+![Authenticate a Snowflake Azure AD integration from a SQL block or the right sidebar](../assets/docs/Xhw4oFmScOKeEyqaQ0FR.webp)
 
 When you create an app from a notebook that uses the integration, every app user will need to authenticate with their own account. They will be prompted to sign in using Azure AD during the execution of the app. The results they see will depend on the permissions they have.
 
 <Callout status="info">
 - User authentication is also required to browse the Snowflake schema.
-- Scheduled notebooks can use this authentication method: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Because those tokens can expire or be revoked, scheduled runs may fail unexpectedly — for reliable scheduling, create a Snowflake integration with username and password as the authentication method instead.
+- Scheduled notebooks can use this authentication method: scheduled runs authenticate with the OAuth tokens of the user who set up the schedule. Those tokens can expire or be revoked. For reliable scheduling, create a Snowflake integration with username and password as the authentication method instead.
 </Callout>
