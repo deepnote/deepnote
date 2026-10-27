@@ -31,7 +31,7 @@ overrides:
   flatted: '>=3.4.2'
   glob: '>=11.1.0'
   hono: '>=4.13.11'
-  ip-address: '>=10.5.1'
+  ip-address: '>=10.7.4'
   js-yaml: '>=4.3.2 <5'
   lodash: '>=4.18.0'
   lodash-es: '>=4.18.0'
@@ -2333,8 +2333,8 @@ packages:
     resolution: {integrity: sha512-QQnnxNyfvmHFIsj7gkPcYymR8Jdw/o7mp5ZFihxn6h8Ci6fh3Dx4E1gPjpQEpIuPo9XVNY/ZUwh4BPMjGyL01g==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
-  ip-address@10.7.2:
-    resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
+  ip-address@10.7.4:
+    resolution: {integrity: sha512-DWBMKyeM25D70nrIiTkgQth59/G+naKOTep6huF9j+GmeK3DMD60Zvxg5d5qQnz+38AHgou6ean2LECX+lrKDg==}
     engines: {node: '>= 12'}
 
   ip-regex@2.1.0:
@@ -4894,7 +4894,7 @@ snapshots:
     dependencies:
       debug: 4.4.3
       express: 5.2.1
-      ip-address: 10.7.2
+      ip-address: 10.7.4
     transitivePeerDependencies:
       - supports-color
 
@@ -5089,7 +5089,7 @@ snapshots:
 
   ini@4.1.1: {}
 
-  ip-address@10.7.2: {}
+  ip-address@10.7.4: {}
 
   ip-regex@2.1.0: {}
 

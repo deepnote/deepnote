@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import type { DeepnoteSnapshot } from '@deepnote/blocks'
 import { deserializeDeepnoteFile, serializeDeepnoteFile, serializeDeepnoteSnapshot } from '@deepnote/blocks'
 import {
+  countBlocksWithOutputs,
   findSnapshotsForProject,
   getSnapshotPath,
   loadLatestSnapshot,
@@ -279,16 +280,7 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
     if (filePath.endsWith('.snapshot.deepnote')) {
       const snapshot = await loadSnapshotFile(absolutePath)
 
-      // Count outputs
-      let totalOutputs = 0
-      for (const notebook of snapshot.project.notebooks) {
-        for (const block of notebook.blocks) {
-          const execBlock = block as { outputs?: unknown[] }
-          if (execBlock.outputs && execBlock.outputs.length > 0) {
-            totalOutputs++
-          }
-        }
-      }
+      const totalOutputs = countBlocksWithOutputs(snapshot)
 
       return {
         content: [
@@ -337,16 +329,7 @@ async function handleSnapshotLoad(args: Record<string, unknown>) {
       }
     }
 
-    // Count outputs
-    let totalOutputs = 0
-    for (const notebook of snapshot.project.notebooks) {
-      for (const block of notebook.blocks) {
-        const execBlock = block as { outputs?: unknown[] }
-        if (execBlock.outputs && execBlock.outputs.length > 0) {
-          totalOutputs++
-        }
-      }
-    }
+    const totalOutputs = countBlocksWithOutputs(snapshot)
 
     return {
       content: [
@@ -401,16 +384,7 @@ async function handleSnapshotSplit(args: Record<string, unknown>) {
     const snapshotPath = getSnapshotPath(absolutePath, file, { ...snapshotDirOptions, timestamp })
     await fs.mkdir(path.dirname(snapshotPath), { recursive: true })
 
-    // Count outputs being extracted
-    let outputCount = 0
-    for (const notebook of snapshot.project.notebooks) {
-      for (const block of notebook.blocks) {
-        const execBlock = block as { outputs?: unknown[] }
-        if (execBlock.outputs && execBlock.outputs.length > 0) {
-          outputCount++
-        }
-      }
-    }
+    const outputCount = countBlocksWithOutputs(snapshot)
 
     // Save snapshot
     const snapshotContent = serializeDeepnoteSnapshot(snapshot)
@@ -498,16 +472,7 @@ async function handleSnapshotMerge(args: Record<string, unknown>) {
     // Merge outputs into source
     const merged = mergeSnapshotIntoSource(source, snapshot, { skipMismatched })
 
-    // Count merged outputs
-    let outputCount = 0
-    for (const notebook of merged.project.notebooks) {
-      for (const block of notebook.blocks) {
-        const execBlock = block as { outputs?: unknown[] }
-        if (execBlock.outputs && execBlock.outputs.length > 0) {
-          outputCount++
-        }
-      }
-    }
+    const outputCount = countBlocksWithOutputs(merged)
 
     // Save result
     const finalPath = outputPath ? path.resolve(outputPath) : absoluteSourcePath
