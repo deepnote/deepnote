@@ -202,6 +202,7 @@ Always run these checks before considering work complete:
 - Source code: `packages/*/src/`
 - Tests: Co-located with source as `*.test.ts`
 - Test fixtures: `test-fixtures/` (shared across all packages)
+- Cross-package test helpers: `test-helpers/` at the repository root (imported by relative path, not published)
 - Types: Define inline or in separate `types.ts` files
 - Build output: `packages/*/dist/` (gitignored)
 

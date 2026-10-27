@@ -22,7 +22,7 @@ Available on Team and Enterprise plans
 
 ## How to connect to Snowflake
 
-Open the **Settings** panel from the top-right of your project, and under **Integrations** click the **+** button and choose **Create new integration**.
+Open **Settings** in the top-right corner of your project. Under **Integrations**, click **+**, then **Add a new integration**.
 ![Create new integration](../assets/docs/U4rUqFckSUObXKjdz7kt.webp)
 
 <br></br>
@@ -45,7 +45,7 @@ This authentication method is straightforward and works well for individual use 
 
 For enhanced security, Deepnote supports [Snowflake's Key-pair authentication](/docs/snowflake-with-key-pair-authentication), allowing you to authenticate users with private keys instead of passwords.
 
-When creating a Snowflake integration, select "Key-pair" as the authentication type. After creating the integration and connecting it to your project, users will be prompted to provide their username and private key when they first access Snowflake resources through the schema browser or when running queries.
+When creating a Snowflake integration, select **Key-pair (individual credentials)** or **Key-pair (service account)** as the authentication method. For **Key-pair (individual credentials)**, after creating the integration and connecting it to your project, users will be prompted to provide their username and private key when they first access Snowflake resources through the schema browser or when running queries. For **Key-pair (service account)**, provide the service-account username and private key during integration setup.
 
 Key-pair authentication provides a more secure alternative to password-based access while maintaining a seamless experience when working with Snowflake data in Deepnote.
 
@@ -83,7 +83,7 @@ Now that you're connected to Snowflake, you can do the following:
 Deepnote also provides [an integration with Snowpark](snowpark) that allows you to write code in the notebook but execute using the warehouse's compute resources.
 </Callout>
 
-![Using Snowflake in Deepnote](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
+![Sample attribution query running in Snowflake](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Allowing Deepnote to access Snowflake
 
