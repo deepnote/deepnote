@@ -25,7 +25,7 @@ After your first prompt, the app opens next to the chat. Keep asking for changes
 
 A Streamlit app project has two parts:
 
-- **The app:** Python code in `app.py`, hosted on the project's machine. It reloads whenever its code changes, and its [status](/docs/streamlit#app-status) shows whether it's live, sleeping, or deploying.
+- **The app:** Python code in `app.py`, hosted on the project's machine. By default, it reloads whenever its code changes, and its [status](/docs/streamlit#app-status) shows whether it's live, sleeping, or deploying.
 - **The notebook:** where the agent explores data and tests queries before moving them into the app. The app runs separately and can't see the notebook's variables, so it loads its own data.
 
 To see the notebook, click **Show notebook** in the top bar. Click **Show app** to go back.
