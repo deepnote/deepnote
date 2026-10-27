@@ -78,6 +78,10 @@ describe('toPythonLiteral', () => {
     it('does not escape printable non-ASCII (unicode passthrough)', () => {
       expect(toPythonLiteral('café')).toBe("'café'")
     })
+
+    it('escapes the LS line separator', () => {
+      expect(toPythonLiteral('a\u2028b')).toBe("'a\\u2028b'")
+    })
   })
 
   describe('arrays', () => {

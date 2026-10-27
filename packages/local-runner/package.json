@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/local-runner",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Run a .deepnote notebook with edited inputs against a local Python backend, and serve it to a static page.",
   "keywords": [
     "deepnote",
@@ -42,12 +42,12 @@
     "@deepnote/cloud": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",
-    "@jupyterlab/nbformat": "^4.3.2"
+    "@jupyterlab/nbformat": "^4.6.3"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "tsx": "^4.22.4",
-    "typescript": "^5.0.0"
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=22.14.0",

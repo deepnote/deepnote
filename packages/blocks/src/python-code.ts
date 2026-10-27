@@ -22,6 +22,7 @@ import {
   isInputTextBlock,
 } from './blocks/input-blocks'
 import { createPythonCodeForNotebookFunctionBlock, isNotebookFunctionBlock } from './blocks/notebook-function-blocks'
+import { createPythonCodeForPivotTableBlock, isPivotTableBlock } from './blocks/pivot-table-blocks'
 import { createPythonCodeForSqlBlock, isSqlBlock } from './blocks/sql-blocks'
 import { createPythonCodeForVisualizationBlock, isVisualizationBlock } from './blocks/visualization-blocks'
 import type { DeepnoteBlock } from './deepnote-file/deepnote-file-schema'
@@ -75,6 +76,10 @@ export function createPythonCode(block: DeepnoteBlock, executionContext?: Button
     return createPythonCodeForVisualizationBlock(block)
   }
 
+  if (isPivotTableBlock(block)) {
+    return createPythonCodeForPivotTableBlock(block)
+  }
+
   if (isButtonBlock(block)) {
     return createPythonCodeForButtonBlock(block, executionContext)
   }
@@ -87,5 +92,22 @@ export function createPythonCode(block: DeepnoteBlock, executionContext?: Button
     return createPythonCodeForNotebookFunctionBlock(block)
   }
 
-  throw new UnsupportedBlockTypeError(`Creating python code from block type ${block.type} is not supported yet.`)
+  switch (block.type) {
+    // Non executable blocks
+    case 'markdown':
+    case 'image':
+    case 'separator':
+    case 'text-cell-h1':
+    case 'text-cell-h2':
+    case 'text-cell-h3':
+    case 'text-cell-p':
+    case 'text-cell-bullet':
+    case 'text-cell-todo':
+    case 'text-cell-callout':
+      throw new UnsupportedBlockTypeError(`Creating python code from block type ${block.type} is not supported yet.`)
+    default:
+      block satisfies never
+  }
+
+  throw new UnsupportedBlockTypeError(`Unexpected block type encountered`)
 }

@@ -1,6 +1,7 @@
 export type { AgentStreamEvent } from '@deepnote/runtime-core'
 export type { InputBlockInfo } from './apply-input-overrides'
 export { applyInputOverrides, listInputBlocks } from './apply-input-overrides'
+export { mapBlockIds, toBlockSpec } from './block-spec'
 export type {
   CloudRun,
   GetCloudRunOptions,
@@ -19,9 +20,31 @@ export type { RunInCloudOptions, RunInCloudResult } from './run-in-cloud'
 export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
-export type { ScheduleInCloudOptions, ScheduleInCloudResult } from './schedule-in-cloud'
-export { scheduleInCloud } from './schedule-in-cloud'
-export type { CloudSchedulerFn, RunnerFn, ServeStaticHandle, ServeStaticOptions } from './serve-static'
+export type {
+  ScheduleInCloudOptions,
+  ScheduleInCloudResult,
+  UnscheduleInCloudOptions,
+  UnscheduleInCloudResult,
+} from './schedule-in-cloud'
+export { scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
+export type {
+  CloudSchedulerFn,
+  RunnerFn,
+  RunOptions,
+  RunResult,
+  RunTarget,
+  ServeStaticHandle,
+  ServeStaticOptions,
+} from './serve-static'
 export { serveStatic } from './serve-static'
 export type { SnapshotBlock, SnapshotInput, SnapshotNotebook, SnapshotView } from './snapshot-view'
 export { parseSnapshot, toSnapshotView } from './snapshot-view'
+export type {
+  BlockMove,
+  DetailedSyncPlan,
+  SyncChange,
+  SyncOptions,
+  SyncPlan,
+  SyncResult,
+} from './sync-notebook-content'
+export { planMoves, planNotebookSync, syncNotebookContent } from './sync-notebook-content'

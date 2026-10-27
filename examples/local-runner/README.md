@@ -1,17 +1,21 @@
 # @deepnote/local-runner examples
 
-Two small reference apps, one for each way you'd surface a `.deepnote` notebook on the web. They
-share a visual language on purpose — the difference is the deployment model, not the styling.
+Three small reference apps for surfacing a `.deepnote` notebook on the web. They share a visual
+language on purpose — the difference is the deployment model, not the styling.
 
-| Example                                  | What it is                                                                                                           | Needs a server?     | Run it                         |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------- | ------------------------------ |
-| [**run-app**](./run-app)                 | A page that **runs or schedules** the notebook locally or in Deepnote Cloud, with editable inputs and cloud history. | Yes — `serveStatic` | `pnpm example:local-runner`    |
-| [**snapshot-viewer**](./snapshot-viewer) | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.  | No                  | `pnpm example:snapshot-viewer` |
+| Example                                  | What it is                                                                                                                                 | Needs a server?       | Run it                         |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------- | ------------------------------ |
+| [**run-app**](./run-app)                 | A page that **runs or schedules** the notebook — in Deepnote Cloud by default, or a local kernel — with editable inputs and cloud history. | Yes — `serveStatic`   | `pnpm example:local-runner`    |
+| [**cloud-app**](./cloud-app)             | A published client-only app that **runs one configured notebook** in Deepnote Cloud with the signed-in viewer's short-lived credentials.   | No application server | Publish to Deepnote            |
+| [**snapshot-viewer**](./snapshot-viewer) | A fully static page that **views** an already-run snapshot — outputs, charts, and an agent readout, with no kernel.                        | No                    | `pnpm example:snapshot-viewer` |
 
-The rule of thumb: **run notebooks when you have a server; view snapshots when you only have static
-hosting.** Both scripts build the package first, so a clean checkout works with one command.
+Use the run app when you need a local kernel, scheduling, or cloud run history and can run an
+application server. Use the cloud app for a published, client-only UI that runs one configured
+notebook through Deepnote. Use the snapshot viewer when the output is already available and no
+execution is needed. The run-app and snapshot-viewer scripts build the package first, so a clean
+checkout works with one command.
 
-Both examples draw on two committed artifacts at the `examples/` root:
+The run app and snapshot viewer draw on two committed artifacts at the `examples/` root:
 
 - [`local-runner-showcase.deepnote`](../local-runner-showcase.deepnote) — an input-rich sales
   dashboard (a KPI, a table, a chart, and a written summary), closing with an **agent block** that

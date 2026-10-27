@@ -25,6 +25,9 @@ deepnote --help
 # Show version
 deepnote --version
 
+# Sync your Deepnote workspace to a local directory (and push edits back)
+deepnote sync workspace
+
 # Run a project/notebook file (.deepnote, .ipynb, .py, .qmd)
 deepnote run path/to/file.deepnote
 
@@ -48,6 +51,15 @@ deepnote convert notebook.ipynb
 
 # Schedule recurring runs in Deepnote Cloud
 deepnote schedule report.deepnote --daily --at 09:00
+
+# Publish an app to an existing Deepnote project
+deepnote publish ./dist --project-id <uuid>
+
+# Stop serving it later without deleting its files
+deepnote static-site access --project-id <uuid> --sharing disabled
+
+# Serve a file already in the project as a Streamlit app
+deepnote streamlit publish apps/dashboard.py --project-id <uuid>
 ```
 
 ## Commands
@@ -141,27 +153,34 @@ deepnote run my-project.deepnote
 
 **Options:**
 
-| Option                  | Description                                                              | Default                    |
-| ----------------------- | ------------------------------------------------------------------------ | -------------------------- |
-| `--python <path>`       | Path to Python interpreter or virtual environment                        | auto-detected              |
-| `--cwd <path>`          | Working directory for execution                                          | file directory             |
-| `--notebook <name>`     | Run only the specified notebook                                          | all notebooks              |
-| `--block <id>`          | Run only the specified block                                             | all blocks                 |
-| `-i, --input <key=val>` | Set input variable value (can be repeated)                               |                            |
-| `--list-inputs`         | List input variables without running                                     | `false`                    |
-| `--prompt <text>`       | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`) |                            |
-| `-o, --output <fmt>`    | Output format: `json`, `toon`, or `llm`                                  | text                       |
-| `--dry-run`             | Show execution plan without running                                      | `false`                    |
-| `--top`                 | Display resource usage (CPU/memory) during execution                     | `false`                    |
-| `--profile`             | Show per-block timing and memory summary                                 | `false`                    |
-| `--open`                | Open project in Deepnote Cloud after successful execution                | `false`                    |
-| `--context`             | Include analysis context in output (requires `-o json/toon/llm`)         | `false`                    |
-| `--cloud`               | Run in Deepnote Cloud, then download the snapshot locally                | `false`                    |
-| `--notebook-id <uuid>`  | Cloud notebook id to run (with `--cloud`)                                |                            |
-| `--out <path>`          | Write the downloaded cloud snapshot to this exact path                   |                            |
-| `--timeout <seconds>`   | Max seconds to wait for a cloud run (with `--cloud`)                     | `600`                      |
-| `--url <url>`           | API base URL                                                             | `https://api.deepnote.com` |
-| `--token <token>`       | Bearer token (or `DEEPNOTE_TOKEN` env var)                               |                            |
+| Option                        | Description                                                                          | Default                    |
+| ----------------------------- | ------------------------------------------------------------------------------------ | -------------------------- |
+| `--python <path>`             | Path to Python interpreter or virtual environment                                    | auto-detected              |
+| `--cwd <path>`                | Working directory for execution                                                      | file directory             |
+| `--startup-timeout <seconds>` | Seconds allowed for each of the toolkit server and the kernel to become ready        | `120` and `30`             |
+| `--block-timeout <seconds>`   | Interrupt a block and fail the run if it executes longer than this (local runs only) | unlimited                  |
+| `--notebook <name>`           | Run only the specified notebook                                                      | all notebooks              |
+| `--block <id>`                | Run only the specified block                                                         | all blocks                 |
+| `-i, --input <key=val>`       | Set input variable value (can be repeated)                                           |                            |
+| `--list-inputs`               | List input variables without running                                                 | `false`                    |
+| `--prompt <text>`             | Run an LLM agent block with the given prompt (requires `OPENAI_API_KEY`)             |                            |
+| `-o, --output <fmt>`          | Output format: `json`, `toon`, or `llm`                                              | text                       |
+| `--dry-run`                   | Show execution plan without running                                                  | `false`                    |
+| `--top`                       | Display resource usage (CPU/memory) during execution                                 | `false`                    |
+| `--profile`                   | Show per-block timing and memory summary                                             | `false`                    |
+| `--open`                      | Open project in Deepnote Cloud after successful execution                            | `false`                    |
+| `--context`                   | Include analysis context in output (requires `-o json/toon/llm`)                     | `false`                    |
+| `--cloud`                     | Run in Deepnote Cloud, then download the snapshot locally                            | `false`                    |
+| `--notebook-id <uuid>`        | Cloud notebook id to run (with `--cloud`)                                            |                            |
+| `--out <path>`                | Write the downloaded cloud snapshot to this exact path                               |                            |
+| `--storage-mode <mode>`       | Project-storage access for a detached cloud run: `read-write`, `readonly`            | `read-write`               |
+| `--timeout <seconds>`         | Max seconds to wait for a cloud run (with `--cloud`)                                 | `600`                      |
+| `--push`                      | Push the local `.deepnote` blocks to the Deepnote notebook before running            | `false`                    |
+| `--yes`                       | Skip the `--push` confirmation prompt                                                | `false`                    |
+| `--url <url>`                 | API base URL                                                                         | `https://api.deepnote.com` |
+| `--token <token>`             | Bearer token (or `DEEPNOTE_TOKEN` env var)                                           |                            |
+
+For agent blocks, `--block-timeout` covers the whole agent loop, including model requests and tool calls. Generated Python blocks share the remaining time. Expiry cancels the agent and reports `execution-timeout`; cancellation waits for in-flight tool cleanup.
 
 **Examples:**
 
@@ -174,6 +193,12 @@ deepnote run notebook.ipynb
 
 # Run with a specific Python virtual environment
 deepnote run my-project.deepnote --python path/to/venv
+
+# Fail fast in CI: 60s for the runtime to start, 5 minutes per block
+deepnote run my-project.deepnote --startup-timeout 60 --block-timeout 300 -o json
+
+# Stream the toolkit server's own log while running
+deepnote --debug run my-project.deepnote
 
 # Run only a specific notebook
 deepnote run my-project.deepnote --notebook "Data Analysis"
@@ -196,6 +221,9 @@ DEEPNOTE_TOKEN=... deepnote run --cloud --notebook-id 0f1e2d3c-4b5a-6789-abcd-ef
 # Run a .deepnote (notebook id read from the file) in the cloud, with inputs
 DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --input name="Alice"
 
+# Keep project storage read-only during a detached full-notebook run
+DEEPNOTE_TOKEN=... deepnote run my-project.deepnote --cloud --storage-mode readonly
+
 # Run an agent with a prompt (appends an agent block to the file)
 OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
 
@@ -210,21 +238,57 @@ JSON arrays of strings for multi-select inputs and absolute date ranges, for exa
 These rules are the same for `--cloud` runs. Typing a value needs the notebook's input blocks, so
 `--input` requires the local `.deepnote` file — pass the file rather than only `--notebook-id`.
 
+Full-notebook cloud runs are detached: Deepnote executes a copy without updating outputs in the
+live editor. Project files remain shared and writable by default. `--storage-mode readonly` makes
+persistent project storage read-only for that run; temporary files and reads still work, and
+databases, integrations, external APIs, and other systems remain live. Block-scoped cloud runs are
+the exception: the API runs them in live mode, so they update live-editor outputs and cannot be
+combined with `--storage-mode`.
+
+`--push` sends the local file's blocks to the Deepnote notebook before the run, so the run executes
+what is on disk rather than what was last saved in Deepnote. The sync is destructive — a cloud
+block the file does not have is deleted, and a block whose type or metadata changed is recreated
+under a new id (a `--block` selection is remapped automatically) — so the CLI prints the plan and
+asks first. `--yes` confirms non-interactively and is required when output is piped or
+machine-readable; `--dry-run` prints the plan and exits without sending or running anything (with
+`-o json`/`-o toon` the plan itself is emitted); a declined confirmation exits `0` without running.
+
+Cloud execution status and snapshot delivery are reported separately. The CLI briefly polls after
+terminal status because snapshot attachment can lag; empty snapshot content is treated as no
+snapshot. If an empty or markdown-only local notebook successfully produces no snapshot, the CLI
+writes a valid output-free snapshot from the local source and marks it `artifactStatus:
+synthesized`. Any other run that produces no snapshot — including a remote-only run by
+`--notebook-id` — exits `1` with `artifactStatus: not_produced`; an advertised snapshot that
+cannot be downloaded or saved reports `artifactStatus: unavailable` and exits `1`. `success` in
+machine output means the run succeeded and its snapshot was delivered (`saved` or `synthesized`).
+
+#### Runtime failures
+
+A local run stops at the first failing block and never hangs: a kernel that dies, a toolkit server
+that goes away mid-run, and a server that fails to start are all reported within seconds. With
+`-o json` / `-o toon` the result carries `failureCategory` on the run and on the failed block, one of
+`in-block` (the block's code raised), `kernel-died`, `execution-timeout` (see `--block-timeout`),
+`server-exited`, `server-launch` (the toolkit is not installed for that Python, a server dependency
+is missing, no port is free, or `--startup-timeout` elapsed) or `kernel-launch`. When the runtime
+knows a remedy it adds `hint`; a startup failure emits `{ success: false, error, failureCategory, hint }`.
+Without `--python`, the CLI also picks up a `.venv` or `venv` next to (or above) the notebook when
+`deepnote-toolkit` is installed in it.
+
 #### Agent Block (`--prompt` and agent blocks)
 
-The `--prompt` flag appends an agent block to the notebook (or creates one from scratch) and runs it. The agent can read prior block outputs, execute Python code, and add new blocks to the notebook autonomously.
+`--prompt` adds an agent block and runs the notebook. Without a file, it creates a new notebook.
+The agent can read outputs, run Python, and add code and text blocks.
 
-**Requirements:**
+```bash
+OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the sales data"
+```
 
-- `OPENAI_API_KEY` environment variable must be set (works with any OpenAI-compatible API)
-- Optionally set `OPENAI_BASE_URL` for non-OpenAI providers (Ollama, LiteLLM, etc.)
-- Model selection precedence:
-  - If the agent block sets `deepnote_agent_model` to a specific model, that model is used.
-  - If `deepnote_agent_model` is `"auto"` (or omitted), `OPENAI_MODEL` is used when set.
-  - If neither a block-specific model nor `OPENAI_MODEL` is set, the runtime falls back to `gpt-5`.
-  - `OPENAI_BASE_URL` only changes the provider endpoint; it does not change the precedence above or the final `gpt-5` fallback.
+`--prompt` uses OpenAI with `OPENAI_MODEL`, or `gpt-6.1-sol` if unset. To use Claude or another
+provider, set `metadata.deepnote_agent_model` on an existing agent block, such as `claude-opus-5-5`
+with `ANTHROPIC_API_KEY`. See [agent block providers](../runtime-core/README.md#agent-block-providers)
+for all providers and custom endpoints, and [Cloud model support](../runtime-core/README.md#sharing-notebooks-with-cloud).
 
-When database integrations are configured, the agent is automatically made aware of them and can query them using `deepnote-toolkit`.
+The agent can also query configured database integrations using `deepnote-toolkit`.
 
 ### `lint <path>`
 
@@ -486,16 +550,144 @@ deepnote open my-project.deepnote
 deepnote open my-project.deepnote -o json
 ```
 
+### `publish <dir>`
+
+Publish an app to an existing Deepnote project. An **app** is HTML, CSS, and JavaScript hosted by
+Deepnote and run in the browser; it can be interactive and call the Deepnote API. To serve a Python
+file already in the project as a Streamlit app, use [`streamlit publish`](#streamlit-publish-entrypoint).
+
+The command uploads a local build directory and enables app sharing after every upload succeeds.
+
+```bash
+deepnote publish ./dist --project-id <uuid>
+```
+
+**Options:**
+
+| Option                           | Description                                                           | Default                                     |
+| -------------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `--project-id <uuid>`            | Project to publish to (required)                                      |                                             |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
+| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published app         | unchanged                                   |
+| `--prune`                        | Delete remote files below `--path` that are absent locally            | `false`                                     |
+| `--sync-root <dir>`              | Sync workspace whose mirror to update                                 | search upwards from the published directory |
+| `--no-sync-root`                 | Publish without looking for or updating a sync workspace              | `false`                                     |
+| `--force`                        | Publish even when Deepnote holds changes the workspace has not synced | `false`                                     |
+| `--token <token>`                | Deepnote API token                                                    | `DEEPNOTE_TOKEN`                            |
+| `--url <url>`                    | Deepnote API base URL                                                 | `https://api.deepnote.com`                  |
+
+Use `--api-access enabled` only when an app needs to read notebook inputs or start runs through
+the Deepnote API.
+
+Every published file is readable by anyone who can view the site, so the command refuses to publish
+a directory that contains a `.env` or `.env.*` file at any depth (exit code `2`, nothing uploaded).
+Publish a clean build output directory, not a project root.
+
+Files over 100 MiB cannot be uploaded; a directory containing one is refused the same way, before any
+remote file is replaced.
+
+#### Working with `deepnote sync`
+
+When publishing from a synced workspace, the command updates its `.files/` mirror and
+`.deepnote-sync.json`. If a file to be replaced or pruned has changed remotely since its recorded
+baseline, publish stops: pull and reconcile the changes, or use `--force` to overwrite them.
+Use `--sync-root` to select a workspace or `--no-sync-root` for a CI deployment.
+
+`publish --prune` deletes **remote** files absent from the build. `sync --prune` deletes **local**
+files absent from Deepnote.
+
+**Examples:**
+
+```bash
+# Publish an app with viewer API access
+deepnote publish ./dist --project-id <uuid> --api-access enabled
+
+# Remove files left behind by an older build
+deepnote publish ./dist --project-id <uuid> --prune
+
+# Publish a versioned subdirectory
+deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
+
+# CI deploy: never touch a sync workspace
+deepnote publish ./dist --project-id <uuid> --no-sync-root
+```
+
+### `static-site access`
+
+Change access to an already-published app without uploading or deleting files. At least one
+of `--sharing` and `--api-access` is required.
+
+```bash
+# Stop serving the app; its files remain stored
+deepnote static-site access --project-id <uuid> --sharing disabled
+
+# Serve the stored files again and allow viewer-scoped Deepnote API calls
+deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
+
+# Revoke viewer API access without changing the current sharing setting
+deepnote static-site access --project-id <uuid> --api-access disabled
+```
+
+Disabling sharing also disables viewer API access. Re-enabling sharing later serves the same stored
+files at the canonical URL. Use `--token` or `DEEPNOTE_TOKEN` for authentication and `--url` to
+select a non-default API origin.
+
+### `streamlit publish <entrypoint>`
+
+Serve a Python file already in the project's Files as a **Streamlit app**, a Python UI that runs on
+the project's hardware. The entrypoint is a project-relative path; the command registers it and does
+not upload it.
+
+```bash
+deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+```
+
+**Options:**
+
+| Option                | Description                               | Default                    |
+| --------------------- | ----------------------------------------- | -------------------------- |
+| `--project-id <uuid>` | Project to publish to (required)          |                            |
+| `--no-wait`           | Exit without waiting for the app to start | `false`                    |
+| `--token <token>`     | Deepnote API token                        | `DEEPNOTE_TOKEN`           |
+| `--url <url>`         | Deepnote API base URL                     | `https://api.deepnote.com` |
+
+Upload the entrypoint and its dependencies into the project's Files in Deepnote before publishing.
+If a notebook push is already pending in a sync workspace, `deepnote sync --all-files` can include
+the working files. For a `.py`-only edit, upload in Deepnote; sync does not push that edit alone.
+
+Creating a Streamlit app restarts the project machine and interrupts active work. The command
+prints the app URL and waits up to 10 minutes for it to start. An existing Streamlit app keeps its
+ID and URL and does not restart the machine. The command waits for existing Streamlit apps too.
+Use `--no-wait` to return after either creation or lookup without checking readiness.
+
+API calls from a hosted Streamlit app work only when the project owner has enabled Streamlit app
+API access, and only for signed-in viewers with direct access to the project.
+
+Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
+Sync replaces changed files by deleting and uploading them, so publish again after syncing an edited
+entrypoint and use the returned URL, which may change. See the
+[publishing guide](../../docs/deepnote-cli-publish.md) for access requirements and failure handling.
+
+**Examples:**
+
+```bash
+# Serve a file already in the project as a Streamlit app and wait for it to start
+deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+
+# Publish without waiting for the app to start
+deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait
+```
+
 ### `schedule <path>`
 
-Create or update a recurring notebook run in Deepnote Cloud. This does not run the notebook
+Create, update, or remove a recurring notebook run in Deepnote Cloud. This does not run the notebook
 immediately. If the local project is missing in Deepnote, the CLI creates it without opening a browser first.
 
 ```bash
 deepnote schedule report.deepnote --daily --at 09:00
 ```
 
-Choose exactly one frequency:
+Choose exactly one frequency, or pass `--remove`:
 
 | Option                  | Description                                     | Default                    |
 | ----------------------- | ----------------------------------------------- | -------------------------- |
@@ -511,11 +703,14 @@ Choose exactly one frequency:
 | `--url <url>`           | Deepnote API base URL                           | `https://api.deepnote.com` |
 | `--no-create`           | Fail rather than create a missing project       | `false`                    |
 | `--open`                | Open the scheduled notebook after configuration | `false`                    |
+| `--remove`              | Remove the notebook's schedule                  | `false`                    |
 | `-o, --output json`     | Print machine-readable JSON                     | text                       |
 
-Deepnote supports one scheduled notebook per project. Re-running this command updates that project
-schedule, including when a different notebook is selected. Scheduling availability depends on the
-workspace plan.
+Each notebook has its own schedule. Running the command again updates that notebook's schedule;
+other notebooks keep theirs. Scheduling availability depends on the workspace plan.
+
+`--remove` deletes the notebook's schedule. It never creates a project, works on any plan, and exits
+`0` when there is nothing to remove.
 
 Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
 monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same
@@ -536,6 +731,9 @@ deepnote schedule report.deepnote --daily --open
 
 # Machine-readable output
 deepnote schedule report.deepnote --hourly -o json
+
+# Remove one notebook's schedule
+deepnote schedule project.deepnote --notebook "Weekly review" --remove
 ```
 
 ### `sync [dir]`
@@ -567,6 +765,14 @@ the cloud copy is deleted, so an interrupted upload is retried on the next `--al
 Working-directory files larger than 100 MiB are rejected because these transfers are buffered in
 memory; use another transfer method for larger data files.
 
+Sync is not the only writer of a project's files — [`deepnote publish`](#publish-dir) deploys into
+`_deepnote_static/` and the Deepnote app can write anything — so each file is checked against the
+cloud inventory before it is uploaded. A file whose cloud copy changed, or was deleted, since the
+manifest last recorded it goes through the same `--on-conflict` override-or-skip choice as a diverged
+notebook; skipped files are reported as `N file(s) kept from Deepnote`. Files synced before
+`updatedAt` was recorded have no baseline to compare and are still overwritten; they become
+verifiable after the next pull.
+
 If a push changes `project.name`, the current run finishes in the existing local directory. The next
 sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.
 Renaming the local directory itself does not rename the cloud project. The full import contract is in
@@ -590,6 +796,7 @@ the listed workspace; verify the API token and `--url` before retrying.
 | `--delete-missing-notebooks` | On push, delete cloud notebooks removed from the local project          | off          |
 | `--prune`                    | Delete local files for projects/files that no longer exist in the cloud | off          |
 | `--dry-run`                  | Show what would be synced without writing anything                      | off          |
+| `--concurrency <n>`          | How many projects to sync at once                                       | `8`          |
 | `-o, --output <fmt>`         | Output format: `json` or `llm`                                          | text         |
 
 **Examples:**
@@ -642,12 +849,14 @@ deepnote integrations pull
 
 **Options:**
 
-| Option              | Description                                    | Default             |
-| ------------------- | ---------------------------------------------- | ------------------- |
-| `--url <url>`       | API base URL                                   | Deepnote API        |
-| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                     |
-| `--file <path>`     | Path to integrations file                      | `integrations.yaml` |
-| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`              |
+| Option              | Description                                    | Default                    |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `--url <url>`       | API base URL                                   | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                            |
+| `--file <path>`     | Path to integrations file                      | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file for storing secrets        | `.env`                     |
+
+If the local integrations file contains invalid YAML (for example, unresolved merge conflict markers), the command fails with exit code 2 and does not modify any files — fix or delete the file manually, then re-run.
 
 **Examples:**
 
@@ -661,6 +870,39 @@ deepnote integrations pull --token <token>
 # Pull to a custom file path
 deepnote integrations pull --file my-integrations.yaml
 ```
+
+### `integrations add`
+
+Add a new database integration interactively. Prompts for the integration type, a name, and the type-specific connection fields. Secret values are written to the `.env` file and referenced from the YAML as `env:` placeholders.
+
+```bash
+deepnote integrations add
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+### `integrations edit [id]`
+
+Edit an existing database integration interactively. Without `[id]`, shows a picker of the integrations found in the file.
+
+```bash
+deepnote integrations edit
+deepnote integrations edit <integration-id>
+```
+
+**Options:**
+
+| Option              | Description                             | Default              |
+| ------------------- | --------------------------------------- | -------------------- |
+| `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
+| `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
+
+Like `integrations pull`, both commands fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
 
 ### `completion <shell>`
 
@@ -733,10 +975,24 @@ These options work with all commands:
 
 ## Environment Variables
 
-| Variable      | Description                                |
-| ------------- | ------------------------------------------ |
-| `NO_COLOR`    | Set to any value to disable colored output |
-| `FORCE_COLOR` | Set to `1` to force colors, `0` to disable |
+| Variable         | Description                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `DEEPNOTE_TOKEN` | API token for commands that talk to Deepnote Cloud (`sync`, `publish`, `schedule`, `run --cloud`, ...) |
+| `NO_COLOR`       | Set to any value to disable colored output                                                             |
+| `FORCE_COLOR`    | Set to `1` to force colors, `0` to disable                                                             |
+
+`DEEPNOTE_TOKEN` can also live in a `.env` file. Which one depends on the command:
+
+- `run`: the run's working directory (`--cwd`, otherwise the notebook's directory). With `--cloud`: next to
+  the local `.deepnote` file, or the current directory when only `--notebook-id` is given
+- `schedule`: next to the `.deepnote` file
+- `sync`: the sync root
+- `publish`, `streamlit publish` and `static-site access`: the current directory
+- `integrations pull`: the file given by `--env-file` (default `.env`)
+
+`--token` wins over everything, and a value already set in the shell wins over `.env`.
+
+Create an API key in Deepnote under **Settings & members > Security > API keys** (see the [Deepnote API docs](https://deepnote.com/docs/deepnote-api)).
 
 The CLI follows the [NO_COLOR](https://no-color.org/) and [FORCE_COLOR](https://force-color.org/) standards.
 

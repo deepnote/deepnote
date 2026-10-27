@@ -20,11 +20,11 @@ A Deepnote project contains:
 - **Integrations** - Database and service connections available to all notebooks
 - **Project-wide resources** - Files, data, and configurations shared across notebooks
 
-> **Key Concept:** A Deepnote project groups related notebooks with shared settings and integrations. On disk, each notebook is stored as its own `.deepnote` file — a project is a directory of single-notebook files, not one combined file.
+> **Key concept:** A Deepnote project groups related notebooks with shared settings and integrations. On disk, each notebook is stored as its own `.deepnote` file. A project is a directory of single-notebook files, not one combined file.
 
 ## Organization patterns
 
-### 📊 Data processing pipeline
+### Data processing pipeline
 
 **Use case:** Sequential data processing with clear stages
 
@@ -37,7 +37,7 @@ A Deepnote project contains:
 
 **Benefits:** Clear execution order, easy to understand flow, simple to maintain, good for automation
 
-### 🧩 Modular analysis
+### Modular analysis
 
 **Use case:** Complex analysis with reusable components
 
@@ -51,7 +51,7 @@ A Deepnote project contains:
 
 **Benefits:** Code reuse across notebooks, easier maintenance, clearer separation of concerns
 
-### 🔀 Multiple related analyses
+### Multiple related analyses
 
 **Use case:** Different analyses on the same dataset
 
@@ -66,7 +66,7 @@ A Deepnote project contains:
 
 **Benefits:** Parallel development, feature isolation, easy navigation, better team collaboration
 
-### 🧪 Machine learning experiments
+### Machine learning experiments
 
 **Use case:** Tracking and comparing multiple ML experiments
 
@@ -125,7 +125,7 @@ Both environments support the same organizational patterns:
 **Local development** (`.deepnote` files)
 
 - Full control over project structure
-- Edit with VS Code, Cursor, or Windsurf
+- Edit with VS Code or Cursor
 - Version control with git
 - Execute code with local Python kernel
 

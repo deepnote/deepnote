@@ -1,18 +1,50 @@
-# Claude Development Guide
+# Agent Development Guide
 
-This document provides guidelines for Claude (AI assistant) when working on the Deepnote monorepo.
+This document provides guidelines for AI coding agents working on the Deepnote monorepo.
 
 ## Repository Overview
 
 This is a TypeScript monorepo for Deepnote's open-source packages, managed with pnpm workspaces. The repository contains:
 
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
+- **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
+- **packages/cloud-sync** - Node-only workflows between a local folder and Deepnote Cloud (sync manifest, sync engine, app publishing)
 - **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
+- **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
+- **packages/mcp** - MCP server for AI-assisted Deepnote notebook creation and manipulation
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
+- **packages/runtime-core** - Core runtime for executing Deepnote projects
+
+### Repository Routing
+
+Start with the owning package and its README before searching broadly. Avoid traversing unrelated packages.
+
+| When working on                                                | Start with                                            |
+| -------------------------------------------------------------- | ----------------------------------------------------- |
+| `.deepnote` schemas, block behavior, or Python code generation | `packages/blocks/`                                    |
+| Notebook format conversion                                     | `packages/convert/`                                   |
+| CLI commands and output                                        | `packages/cli/`                                       |
+| MCP tools and resources                                        | `packages/mcp/`                                       |
+| Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
+| Syncing and publishing local folders with Deepnote Cloud       | `packages/cloud-sync/`                                |
+| Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
+| Dependency and reactivity analysis                             | `packages/reactivity/`                                |
+| Database integration definitions                               | `packages/database-integrations/`                     |
+| Shared test data                                               | `test-fixtures/`                                      |
+| Agent-facing format, CLI, and MCP references                   | `skills/deepnote/references/`                         |
 
 ## Development Workflow
+
+### Setup
+
+Use the Node.js version specified in `.nvmrc` (e.g. `nvm use`) before installing dependencies, so the install and the root `prepare` script run under the correct version.
+
+```bash
+# Install dependencies for the monorepo and its packages
+pnpm install
+```
 
 ### Running Commands
 
@@ -26,6 +58,10 @@ pnpm test
 
 # Run tests with coverage
 pnpm test:coverage
+
+# Run the integration tests against a real deepnote-toolkit server (excluded from `pnpm test`).
+# Needs `pip install "deepnote-toolkit[server]"`; point DEEPNOTE_PYTHON at that interpreter.
+pnpm test:integration
 ```
 
 #### Type Checking
@@ -88,6 +124,8 @@ Always run these checks before considering work complete:
 - Follow existing test patterns in the codebase (see `packages/blocks/src/blocks/*.test.ts`)
 - Test edge cases, error handling, and special characters
 - For functions that generate code, test the exact output format
+- Tests must not depend on live network calls or real Deepnote Cloud credentials — mock external APIs. Verifying behavior against the real Deepnote Cloud API is a manual, explicitly-requested step outside `pnpm test`, and any resources created that way (projects, notebooks, runs) must be cleaned up afterward
+- Tests that start the real `deepnote-toolkit` server belong in `*.integration.test.ts` files. They are excluded from `pnpm test`, run with `pnpm test:integration`, and are exercised in CI by the "Runtime Integration" job. Run only one integration suite at a time per machine: its leaked-process guard sees every toolkit process of the interpreter, so a concurrent run's servers are reported as leaks
 
 #### TypeScript Guidelines
 
@@ -109,7 +147,7 @@ Always run these checks before considering work complete:
 
 **Location:** `packages/blocks/`
 
-**Purpose:** Core package for working with Deepnote blocks, converting between Deepnote and Jupyter formats, and generating Python code from block configurations.
+**Purpose:** Core package for defining Deepnote blocks, reading and writing `.deepnote` files, and generating Python code from block configurations.
 
 **Key modules:**
 
@@ -119,7 +157,7 @@ Always run these checks before considering work complete:
   - `data-frame.ts` - DataFrame configuration for table display
   - `input-blocks.ts` - Input widgets (text, checkbox, select, etc.)
   - `python-utils.ts` - Python string escaping utilities
-- `src/deserialize-file/` - .deepnote file parsing
+- `src/deepnote-file/` - `.deepnote` schemas, parsing, serialization, and deserialization
 - `src/python-code.ts` - Main entry point for Python code generation
 
 **Common patterns:**
@@ -164,6 +202,7 @@ Always run these checks before considering work complete:
 - Source code: `packages/*/src/`
 - Tests: Co-located with source as `*.test.ts`
 - Test fixtures: `test-fixtures/` (shared across all packages)
+- Cross-package test helpers: `test-helpers/` at the repository root (imported by relative path, not published)
 - Types: Define inline or in separate `types.ts` files
 - Build output: `packages/*/dist/` (gitignored)
 
@@ -180,13 +219,36 @@ const testFixturesDir = path.join(__dirname, "../../../test-fixtures");
 const fixturePath = path.join(testFixturesDir, "my-fixture.ipynb");
 ```
 
+## Keeping Documentation in Sync
+
+Before opening a pull request, check whether the change makes any documentation stale, and update it in the same pull request:
+
+- `docs/` — user-facing product documentation, published at <https://deepnote.com/docs>. This directory is the source of truth for the whole product, including features developed in other repositories. Update it whenever user-visible behavior changes: CLI commands and flags, the `.deepnote` format, hosted MCP, integrations, or app behavior.
+- `packages/<name>/README.md` and `packages/<name>/docs/` — reference for the package you changed.
+- `skills/deepnote/references/` — agent-facing references; see the rules below.
+- `README.md`, `CONTRIBUTING.md`, and `FILES.md` — repository layout, setup, and workflow changes.
+
+Update only the pages your change actually affects. An unrelated documentation rewrite belongs in its own pull request.
+
 ## Keeping the Deepnote Skill in Sync
 
 The `skills/deepnote/` directory contains reference documentation used by AI agents. When making changes to any of the following, you **must** also update the corresponding skill files:
 
 - **`.deepnote` file format** (block types, metadata, schema) — update `skills/deepnote/references/blocks-*.md` and `skills/deepnote/references/schema.ts`
-- **CLI commands** (options, output formats, exit codes, new commands) — update `skills/deepnote/references/cli-*.md`
-- **MCP tools** (tool names, parameters, behavior) — update `skills/deepnote/references/cli-*.md` (MCP mirrors CLI commands)
+- **CLI commands** (options, output formats, exit codes, new commands) — update the corresponding `skills/deepnote/references/cli-*.md`
+- **Local `@deepnote/mcp`** (tool names, parameters, behavior) — update `packages/mcp/README.md` and any local-MCP skill reference that describes it. Do not record local MCP behavior in the CLI references: the local MCP server is its own surface, not a mirror of the CLI
+- **Hosted MCP** (`https://deepnote.com/mcp`) — update `docs/deepnote-mcp.md`, and coordinate the separate codex-plugin consumer, which is not maintained in this repository
+- **App types, publishing ownership, runtime choices, or token boundaries** — update `skills/deepnote/references/apps.md`
+
+Update more than one reference only when the underlying behavior actually crosses those surfaces.
+
+## Git & Pull Request Rules
+
+- The `main` branch is protected: no direct commits or force pushes. All changes must go through pull requests.
+- Never rebase or force-push a branch you don't own. If someone else's PR needs to be brought up to date with `main`, merge `main` into their branch and resolve conflicts in the merge commit — don't rewrite their history.
+- Keep pull requests small and focused on a single purpose. Link the related issue in the PR description unless the change is self-explanatory.
+- Only add `Co-authored-by:` lines with the explicit consent of the person being credited.
+- See `CONTRIBUTING.md` for the full contributor and release workflow.
 
 ## Important Notes
 
@@ -199,13 +261,11 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 
 ## Tools & Technologies
 
-- **Package Manager:** pnpm 10.18.1+
-- **Node Version:** 22.14.0+
-- **Build Tool:** tsdown
-- **Test Framework:** Vitest
-- **Linter:** Biome
-- **Formatter:** Biome + Prettier (for md/yaml)
-- **Type Checker:** TypeScript 5.9.3
+- Use the Node.js version specified in `.nvmrc`.
+- Use pnpm as configured by the `packageManager` and `engines` fields in `package.json`.
+- Treat `package.json` as the source of truth for scripts and direct dependencies.
+- Treat `pnpm-lock.yaml` as the source of truth for resolved dependency versions.
+- The project uses TypeScript, tsdown, Vitest, Biome, and Prettier.
 
 ## Getting Help
 
