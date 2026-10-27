@@ -28,6 +28,7 @@ streamlit
 pyspark
 Supabase
 supabase
+pooler
 Trino
 nbdime
 Fastai
