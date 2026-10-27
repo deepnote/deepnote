@@ -11,10 +11,6 @@ Deepnote Agent helps you generate, edit, explain, and complete code. It can also
 Deepnote Agent is available on Free, Team, and Enterprise plans. Free includes limited requests. See [Pricing](https://deepnote.com/pricing) for current limits.
 </Callout>
 
-<Callout status="warning">
-Deepnote Agent utilizes generative AI technology (powered by providers such as Anthropic and OpenAI) to provide answers based on your instructions and offer code completion suggestions. The generated outputs such as code and text can include errors, biases and inaccuracies. Please always review code before running it.
-</Callout>
-
 ## Enable Agent
 
 If Agent is disabled in your workspace, turn on **Deepnote Agent** in **Settings & members** → **AI**. You can use **Provide access to block outputs** to choose whether Agent can read block outputs, including row-level data. For details about data shared with AI providers such as Anthropic and OpenAI, see [Data privacy](/docs/ai-data-privacy).
