@@ -1,10 +1,11 @@
 {
+  "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "properties": {
     "integrations": {
       "type": "array",
       "items": {
-        "anyOf": [
+        "oneOf": [
           {
             "type": "object",
             "properties": {
@@ -72,10 +73,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -114,17 +115,17 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
                 "const": "big-query"
               },
               "metadata": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "type": "object",
                     "properties": {
@@ -164,15 +165,8 @@
               "federated_auth_method": {
                 "anyOf": [
                   {
-                    "anyOf": [
-                      {
-                        "not": {}
-                      },
-                      {
-                        "type": "string",
-                        "enum": ["service-account", "google-oauth"]
-                      }
-                    ]
+                    "type": "string",
+                    "enum": ["service-account", "google-oauth"]
                   },
                   {
                     "type": "null"
@@ -187,10 +181,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -250,10 +244,40 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "const": "cloud-sql"
+              },
+              "metadata": {
+                "type": "object",
+                "properties": {
+                  "service_account": {
+                    "type": "string"
+                  }
+                },
+                "required": ["service_account"],
+                "additionalProperties": false
+              },
+              "federated_auth_method": {
+                "type": "null"
+              }
+            },
+            "required": ["id", "name", "type", "metadata"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -307,10 +331,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -358,10 +382,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -371,28 +395,28 @@
                 "type": "object",
                 "properties": {
                   "host": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                    "type": "string"
                   },
                   "user": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                    "type": "string"
                   },
                   "password": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                    "type": "string"
                   },
                   "database": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                    "type": "string"
                   },
                   "sshEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                    "type": "boolean"
                   },
                   "sshHost": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                    "type": "string"
                   },
                   "sshPort": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                    "type": "string"
                   },
                   "sshUser": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                    "type": "string"
                   },
                   "port": {
                     "type": "string"
@@ -421,10 +445,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -434,28 +458,28 @@
                 "type": "object",
                 "properties": {
                   "host": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                    "type": "string"
                   },
                   "user": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                    "type": "string"
                   },
                   "password": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                    "type": "string"
                   },
                   "database": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                    "type": "string"
                   },
                   "sshEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                    "type": "boolean"
                   },
                   "sshHost": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                    "type": "string"
                   },
                   "sshPort": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                    "type": "string"
                   },
                   "sshUser": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                    "type": "string"
                   },
                   "port": {
                     "type": "string"
@@ -487,10 +511,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -500,28 +524,28 @@
                 "type": "object",
                 "properties": {
                   "host": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                    "type": "string"
                   },
                   "user": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                    "type": "string"
                   },
                   "password": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                    "type": "string"
                   },
                   "database": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                    "type": "string"
                   },
                   "sshEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                    "type": "boolean"
                   },
                   "sshHost": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                    "type": "string"
                   },
                   "sshPort": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                    "type": "string"
                   },
                   "sshUser": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                    "type": "string"
                   },
                   "port": {
                     "type": "string"
@@ -550,10 +574,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -625,10 +649,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -638,28 +662,28 @@
                 "type": "object",
                 "properties": {
                   "host": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                    "type": "string"
                   },
                   "user": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                    "type": "string"
                   },
                   "password": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                    "type": "string"
                   },
                   "database": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                    "type": "string"
                   },
                   "sshEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                    "type": "boolean"
                   },
                   "sshHost": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                    "type": "string"
                   },
                   "sshPort": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                    "type": "string"
                   },
                   "sshUser": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                    "type": "string"
                   },
                   "port": {
                     "type": "string"
@@ -688,10 +712,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -713,10 +737,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -726,40 +750,40 @@
                 "type": "object",
                 "properties": {
                   "host": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                    "type": "string"
                   },
                   "user": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                    "type": "string"
                   },
                   "password": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                    "type": "string"
                   },
                   "database": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                    "type": "string"
                   },
                   "sshEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                    "type": "boolean"
                   },
                   "sshHost": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                    "type": "string"
                   },
                   "sshPort": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                    "type": "string"
                   },
                   "sshUser": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                    "type": "string"
                   },
                   "port": {
-                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/port"
+                    "type": "string"
                   },
                   "sslEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/sslEnabled"
+                    "type": "boolean"
                   },
                   "caCertificateName": {
-                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/caCertificateName"
+                    "type": "string"
                   },
                   "caCertificateText": {
-                    "$ref": "#/properties/integrations/items/anyOf/7/properties/metadata/properties/caCertificateText"
+                    "type": "string"
                   }
                 },
                 "required": ["host", "user", "password", "database"],
@@ -776,10 +800,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -838,34 +862,34 @@
                     "type": "object",
                     "properties": {
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "host": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/host"
+                        "type": "string"
                       },
                       "port": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/port"
+                        "type": "string"
                       },
                       "sshEnabled": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshEnabled"
+                        "type": "boolean"
                       },
                       "sshHost": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshHost"
+                        "type": "string"
                       },
                       "sshPort": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshPort"
+                        "type": "string"
                       },
                       "sshUser": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshUser"
+                        "type": "string"
                       },
                       "sslEnabled": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sslEnabled"
+                        "type": "boolean"
                       },
                       "caCertificateName": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateName"
+                        "type": "string"
                       },
                       "caCertificateText": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateText"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -888,34 +912,34 @@
                     "type": "object",
                     "properties": {
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "host": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/host"
+                        "type": "string"
                       },
                       "port": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/port"
+                        "type": "string"
                       },
                       "sshEnabled": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshEnabled"
+                        "type": "boolean"
                       },
                       "sshHost": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshHost"
+                        "type": "string"
                       },
                       "sshPort": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshPort"
+                        "type": "string"
                       },
                       "sshUser": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sshUser"
+                        "type": "string"
                       },
                       "sslEnabled": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/sslEnabled"
+                        "type": "boolean"
                       },
                       "caCertificateName": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateName"
+                        "type": "string"
                       },
                       "caCertificateText": {
-                        "$ref": "#/properties/integrations/items/anyOf/13/properties/metadata/anyOf/0/properties/caCertificateText"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -930,15 +954,8 @@
               "federated_auth_method": {
                 "anyOf": [
                   {
-                    "anyOf": [
-                      {
-                        "not": {}
-                      },
-                      {
-                        "type": "string",
-                        "enum": ["username-and-password", "iam-role", "individual-credentials"]
-                      }
-                    ]
+                    "type": "string",
+                    "enum": ["username-and-password", "iam-role", "individual-credentials"]
                   },
                   {
                     "type": "null"
@@ -953,17 +970,17 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
                 "const": "snowflake"
               },
               "metadata": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "type": "object",
                     "properties": {
@@ -1009,28 +1026,28 @@
                     "type": "object",
                     "properties": {
                       "accountName": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                        "type": "string"
                       },
                       "warehouse": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                        "type": "string"
                       },
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "role": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                        "type": "string"
                       },
                       "dbt": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                        "type": "boolean"
                       },
                       "dbtServiceToken": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                        "type": "string"
                       },
                       "dbtPrimaryJobId": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                        "type": "string"
                       },
                       "dbtProxyServerUrl": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -1067,28 +1084,28 @@
                     "type": "object",
                     "properties": {
                       "accountName": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                        "type": "string"
                       },
                       "warehouse": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                        "type": "string"
                       },
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "role": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                        "type": "string"
                       },
                       "dbt": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                        "type": "boolean"
                       },
                       "dbtServiceToken": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                        "type": "string"
                       },
                       "dbtPrimaryJobId": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                        "type": "string"
                       },
                       "dbtProxyServerUrl": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -1108,28 +1125,28 @@
                     "type": "object",
                     "properties": {
                       "accountName": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                        "type": "string"
                       },
                       "warehouse": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                        "type": "string"
                       },
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "role": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                        "type": "string"
                       },
                       "dbt": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                        "type": "boolean"
                       },
                       "dbtServiceToken": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                        "type": "string"
                       },
                       "dbtPrimaryJobId": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                        "type": "string"
                       },
                       "dbtProxyServerUrl": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -1155,28 +1172,28 @@
                     "type": "object",
                     "properties": {
                       "accountName": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                        "type": "string"
                       },
                       "warehouse": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                        "type": "string"
                       },
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "role": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                        "type": "string"
                       },
                       "dbt": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                        "type": "boolean"
                       },
                       "dbtServiceToken": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                        "type": "string"
                       },
                       "dbtPrimaryJobId": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                        "type": "string"
                       },
                       "dbtProxyServerUrl": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -1190,28 +1207,28 @@
                     "type": "object",
                     "properties": {
                       "accountName": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/accountName"
+                        "type": "string"
                       },
                       "warehouse": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/warehouse"
+                        "type": "string"
                       },
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "role": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/role"
+                        "type": "string"
                       },
                       "dbt": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbt"
+                        "type": "boolean"
                       },
                       "dbtServiceToken": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtServiceToken"
+                        "type": "string"
                       },
                       "dbtPrimaryJobId": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtPrimaryJobId"
+                        "type": "string"
                       },
                       "dbtProxyServerUrl": {
-                        "$ref": "#/properties/integrations/items/anyOf/14/properties/metadata/anyOf/0/properties/dbtProxyServerUrl"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -1235,15 +1252,8 @@
               "federated_auth_method": {
                 "anyOf": [
                   {
-                    "anyOf": [
-                      {
-                        "not": {}
-                      },
-                      {
-                        "type": "string",
-                        "enum": ["okta", "snowflake", "azure", "key-pair", "password", "service-account-key-pair"]
-                      }
-                    ]
+                    "type": "string",
+                    "enum": ["okta", "snowflake", "azure", "key-pair", "password", "service-account-key-pair"]
                   },
                   {
                     "type": "null"
@@ -1258,10 +1268,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -1297,10 +1307,10 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
@@ -1310,28 +1320,28 @@
                 "type": "object",
                 "properties": {
                   "host": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/host"
+                    "type": "string"
                   },
                   "user": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/user"
+                    "type": "string"
                   },
                   "password": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/password"
+                    "type": "string"
                   },
                   "database": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/database"
+                    "type": "string"
                   },
                   "sshEnabled": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshEnabled"
+                    "type": "boolean"
                   },
                   "sshHost": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshHost"
+                    "type": "string"
                   },
                   "sshPort": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshPort"
+                    "type": "string"
                   },
                   "sshUser": {
-                    "$ref": "#/properties/integrations/items/anyOf/0/properties/metadata/properties/sshUser"
+                    "type": "string"
                   },
                   "port": {
                     "type": "string"
@@ -1351,17 +1361,17 @@
             "type": "object",
             "properties": {
               "id": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/id"
+                "type": "string"
               },
               "name": {
-                "$ref": "#/properties/integrations/items/anyOf/0/properties/name"
+                "type": "string"
               },
               "type": {
                 "type": "string",
                 "const": "trino"
               },
               "metadata": {
-                "anyOf": [
+                "oneOf": [
                   {
                     "type": "object",
                     "properties": {
@@ -1420,34 +1430,34 @@
                     "type": "object",
                     "properties": {
                       "host": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/host"
+                        "type": "string"
                       },
                       "port": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/port"
+                        "type": "string"
                       },
                       "database": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/database"
+                        "type": "string"
                       },
                       "sshEnabled": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshEnabled"
+                        "type": "boolean"
                       },
                       "sshHost": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshHost"
+                        "type": "string"
                       },
                       "sshPort": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshPort"
+                        "type": "string"
                       },
                       "sshUser": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sshUser"
+                        "type": "string"
                       },
                       "sslEnabled": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/sslEnabled"
+                        "type": "boolean"
                       },
                       "caCertificateName": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/caCertificateName"
+                        "type": "string"
                       },
                       "caCertificateText": {
-                        "$ref": "#/properties/integrations/items/anyOf/17/properties/metadata/anyOf/0/properties/caCertificateText"
+                        "type": "string"
                       },
                       "authMethod": {
                         "type": "string",
@@ -1476,15 +1486,8 @@
               "federated_auth_method": {
                 "anyOf": [
                   {
-                    "anyOf": [
-                      {
-                        "not": {}
-                      },
-                      {
-                        "type": "string",
-                        "enum": ["trino-oauth", "password"]
-                      }
-                    ]
+                    "type": "string",
+                    "enum": ["trino-oauth", "password"]
                   },
                   {
                     "type": "null"
@@ -1500,6 +1503,5 @@
     }
   },
   "required": ["integrations"],
-  "additionalProperties": false,
-  "$schema": "http://json-schema.org/draft-07/schema#"
+  "additionalProperties": false
 }

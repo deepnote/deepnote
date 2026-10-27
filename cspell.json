@@ -110,6 +110,7 @@
     "pids",
     "plannable",
     "pnpm",
+    "prefault",
     "pyformat",
     "pylsp",
     "pymongo",
