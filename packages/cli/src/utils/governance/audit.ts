@@ -21,10 +21,22 @@ import { getBlockLabel } from '../block-label'
 import { findExternalEndpoints } from './egress'
 import { redactSecrets, runProjectGovernanceChecks } from './index'
 import { type SeverityScore, scoreFinding } from './scoring'
+import {
+  DEFAULT_MIN_CONFIDENCE,
+  type DivergenceGroup,
+  type DivergenceKind,
+  type DivergenceScope,
+  dissenters,
+  divergenceSignal,
+  findDivergence,
+  type QueryObservation,
+} from './sql-divergence'
+import { extractQueryFacts } from './sql-facts'
 import { canonicalTableKey, findTableReferences, UNKNOWN_INTEGRATION_SCOPE } from './sql-tables'
 import { type AssetAge, assetAge, formatAge, medianAgeDays } from './staleness'
 import { buildSubjectIndex, SCATTER_NOTEBOOK_THRESHOLD } from './subject-index'
 import { createSubjectFingerprinter, redactSubjects } from './subjects'
+import { type TriageResult, toCandidate, VERDICT_SIGNAL } from './triage'
 import { type LoadedWorkspace, projectBlocks, type WorkspaceLoadError, type WorkspaceProject } from './workspace'
 
 /** A lint issue, placed in the workspace it was found in and ranked against the rest. */
@@ -168,6 +180,12 @@ export interface WorkspaceAudit {
   }
   integrations: IntegrationUsage[]
   tables: TableUsage[]
+  /** Anchors the workspace disagrees on, best-attested first. Every variant and location included,
+   *  so the precision of this check can be measured rather than asserted. */
+  divergence: DivergenceGroup[]
+  /** Findings a model judged not to be defects. Kept out of the ranking and in the report, so the
+   *  suppression is inspectable rather than just a smaller number. */
+  suppressed: AuditIssue[]
   egress: EgressUsage[]
   staleness: StalenessSummary
   /** Credentials found in more than one project. Within-project reuse is a lint-level finding. */
@@ -185,6 +203,21 @@ export interface WorkspaceAudit {
 export interface AuditOptions {
   /** Restrict the audit to one project, matched by name or id. */
   project?: string
+  /** Skip the consensus checks entirely. They are the only ones whose precision is unvalidated. */
+  divergence?: boolean
+  /** Anchor families to look for. Defaults to all three. */
+  divergenceKinds?: DivergenceKind[]
+  /** How strictly two queries must share a warehouse before they are compared. */
+  divergenceScope?: DivergenceScope
+  /** Precision measured from a reviewed sample, per kind. Displaces the prior where present. */
+  measuredPrecision?: Partial<Record<DivergenceKind, number>>
+  /** Consensus confidence below which a divergence group is reported but raises no issue. */
+  minConfidence?: number
+  /**
+   * Model verdicts by candidate id, when `--triage` ran. Absent by default, and absence means the
+   * deterministic path verbatim — same findings, same order.
+   */
+  triage?: Map<string, TriageResult>
   /** Domains belonging to your own organization, so colleagues are not counted as data subjects. */
   internalDomains?: string[]
   /** Fixed clock, so tests and reproducible reports do not depend on the time of day. */
@@ -202,7 +235,13 @@ export interface AuditOptions {
  */
 export const CONSENSUS_PROJECT_FLOOR = 100
 
-const DIVERGENCE_NOTE = `Divergence checks need roughly ${CONSENSUS_PROJECT_FLOOR}+ projects before consensus means anything, and are not run here.`
+const DIVERGENCE_SCALE_NOTE =
+  `Divergence ran, but consensus thins out below roughly ${CONSENSUS_PROJECT_FLOOR} projects. ` +
+  'Weight each group by its confidence rather than by the fact that it was reported.'
+
+const DIVERGENCE_PRECISION_NOTE =
+  'Divergence precision is unvalidated. Run "deepnote audit --divergence" to see every group with ' +
+  'every variant and location, and judge it before acting on the ranking.'
 
 const EGRESS_LOWER_BOUND_NOTE =
   'Egress is a lower bound: it sees hosts written into block content, not hosts assembled from variables at run time.'
@@ -218,6 +257,8 @@ const SEVERITY = {
   'credential-shared': 'error',
   'pii-subject-scatter': 'warning',
   'asset-stale': 'warning',
+  // A warning, never an error: the check knows a query is unusual, not that it is wrong.
+  'sql-divergence': 'warning',
 } as const
 
 /**
@@ -379,6 +420,37 @@ function notebookLastTouchedAt(notebook: WorkspaceProject['notebooks'][number]):
   return latest
 }
 
+/** How a SQL block's integration was determined. */
+export type IntegrationSource = 'declared' | 'inferred' | 'unknown'
+
+/**
+ * The integration a SQL block runs against.
+ *
+ * A sizeable minority of SQL blocks carry no `sql_integration_id`. Comparing those only against
+ * each other is the right default — two tables of the same name behind two connections are not
+ * the same table, and guessing would merge them.
+ *
+ * But the ambiguity is not always there. When the project declares exactly one integration, every
+ * SQL block in it runs against that one; there is nothing else for it to run against. Attributing
+ * the block is then not a guess, and leaving it in the unknown bucket costs real comparisons: the
+ * block is excluded from its own warehouse's consensus and pooled instead with blocks from
+ * projects it has nothing to do with.
+ *
+ * Projects declaring none, or more than one, keep their blocks in the unknown bucket. The rule
+ * that applied is recorded on every finding, so the inference is auditable rather than invisible.
+ */
+export function resolveBlockIntegration(
+  declared: string | undefined,
+  projectIntegrationIds: readonly string[]
+): { id?: string; source: IntegrationSource } {
+  if (declared !== undefined) {
+    return { id: declared, source: 'declared' }
+  }
+  return projectIntegrationIds.length === 1
+    ? { id: projectIntegrationIds[0], source: 'inferred' }
+    : { source: 'unknown' }
+}
+
 /** `--project` matches a project by exact id, or by name case-insensitively. */
 function matchesProject(project: WorkspaceProject, filter: string): boolean {
   return project.id === filter || project.name.toLowerCase() === filter.toLowerCase()
@@ -426,6 +498,18 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   const tables = new Map<string, TableUsage>()
   /** Tables referenced by each block, so a SQL finding can be scored by what depends on them. */
   const tablesByBlock = new Map<string, string[]>()
+  /** Every SQL block's claims, which is the corpus the consensus checks run over. */
+  const observations: QueryObservation[] = []
+
+  // Integration types come from whichever project declared them; a block only carries the id.
+  const declaredTypes = new Map<string, string>()
+  for (const project of projects) {
+    for (const integration of project.integrations) {
+      if (integration.type) {
+        declaredTypes.set(integration.id, integration.type)
+      }
+    }
+  }
 
   for (const project of projects) {
     projectAges.set(project.id, assetAge(project.modifiedAt, now))
@@ -444,6 +528,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   for (const project of projects) {
     const blockMap = blockMapFor(project)
     const projectIsLive = projectAges.get(project.id)?.liveness === 'live'
+    // A project declaring exactly one integration leaves its undeclared SQL blocks unambiguous.
+    const projectIntegrationIds = project.integrations.map(integration => integration.id)
     blockLabelsByProject.set(project.id, new Map([...blockMap].map(([id, info]) => [id, info.label])))
     notebookCount += project.notebooks.length
 
@@ -475,7 +561,14 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         const content =
           typeof (block as { content?: unknown }).content === 'string' ? (block as { content: string }).content : ''
 
-        const integrationId = sqlIntegrationIdOf(block)
+        const declaredIntegrationId = sqlIntegrationIdOf(block)
+        // Blocks that name their integration keep it; blocks in a single-integration project are
+        // attributed to it. Everything else stays unscoped. The tables section and the divergence
+        // anchors both read this, so they continue to agree on what a table is.
+        const { id: integrationId, source: integrationSource } = resolveBlockIntegration(
+          declaredIntegrationId,
+          projectIntegrationIds
+        )
         if (block.type === 'sql') {
           sqlBlockCount++
           const referenced = findTableReferences(content)
@@ -511,8 +604,32 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
             usage.blockCount++
             tables.set(key, usage)
           }
+
+          observations.push({
+            location: {
+              projectId: project.id,
+              projectName: project.name,
+              notebookName: notebook.name,
+              path: notebook.path,
+              blockId: block.id,
+              blockLabel: blockMap.get(block.id)?.label ?? block.id,
+              integrationSource,
+            },
+            // Which warehouse the query runs against. Two tables called `users` behind two
+            // connections are not one subject, so the consensus checks scope on this.
+            facts: extractQueryFacts(content, {
+              ...(integrationId ? { integrationId } : {}),
+              ...(integrationId && declaredTypes.get(integrationId)
+                ? { integrationType: declaredTypes.get(integrationId) }
+                : {}),
+            }),
+          })
         }
-        if (integrationId) {
+        // The inventory counts what a block actually names. An inferred attribution is good enough
+        // to scope a comparison; it is not evidence that the block ran against the integration,
+        // and counting it as usage would make an orphan look used.
+        if (declaredIntegrationId) {
+          const integrationId = declaredIntegrationId
           const usage: IntegrationUsage = integrations.get(integrationId) ?? {
             id: integrationId,
             consumers: [],
@@ -779,13 +896,149 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
     }
   }
 
+  // Consensus. This is the only check that cannot be decided from any one file: a query is
+  // "divergent" purely relative to what the rest of the workspace does with the same subject, so it
+  // runs last, over every SQL block the walk collected.
+  //
+  // Every qualifying group is reported, but only those whose consensus clears `minConfidence`
+  // become issues. The groups below the line are the ones a reviewer has to click through before
+  // the precision of this check is anything more than an assertion, which is why they are kept in
+  // the report rather than dropped.
+  const minConfidence = options.minConfidence ?? DEFAULT_MIN_CONFIDENCE
+  const divergence =
+    options.divergence === false
+      ? []
+      : findDivergence(observations, { kinds: options.divergenceKinds, scope: options.divergenceScope })
+
+  // Two reach indexes, because a group's scope decides which one answers its question.
+  //
+  // `tables` already holds one row per (short name, integration) — the same identity the anchors
+  // use. An `integration`-scoped group is about exactly one warehouse, so it reads that row and no
+  // other: merging across integrations and taking the maximum would score a disagreement in a
+  // three-project staging warehouse with the reach of a thirty-project production one, which is
+  // the cross-warehouse mixing integration scoping exists to prevent.
+  //
+  // `type` and `none` groups genuinely span integrations, so they fall back to the merged index.
+  // That still over-counts for `type` — it merges every integration rather than every integration
+  // of that type — but those scopes are the deliberate relaxations, and over-counting reach inside
+  // a scope the user widened on purpose is the lesser error.
+  const reachByTableKey = new Map<string, { live: number; total: number }>()
+  const reachByShortName = new Map<string, { live: number; total: number }>()
+  for (const usage of tables.values()) {
+    reachByTableKey.set(canonicalTableKey(usage.name, usage.integrationId), {
+      live: usage.liveProjectCount,
+      total: usage.projectCount,
+    })
+    const existing = reachByShortName.get(usage.name)
+    reachByShortName.set(usage.name, {
+      live: Math.max(existing?.live ?? 0, usage.liveProjectCount),
+      total: Math.max(existing?.total ?? 0, usage.projectCount),
+    })
+  }
+
+  for (const group of divergence) {
+    if (group.confidence < minConfidence) {
+      continue
+    }
+    // A verdict, when `--triage` ran, replaces the per-kind prior in `signal`. Both numbers are
+    // recorded on the finding so a reviewer can always tell which one they are reading.
+    const verdict = options.triage?.get(toCandidate(group).id)
+    const reachFor = (table: string): { live: number; total: number } | undefined =>
+      group.scopeRule === 'integration'
+        ? reachByTableKey.get(canonicalTableKey(table, group.scopeKey))
+        : reachByShortName.get(table)
+    const measured = options.measuredPrecision ?? {}
+    const prior = divergenceSignal(group, measured)
+    const signal = verdict ? group.confidence * VERDICT_SIGNAL[verdict.verdict] : prior
+    const consensusCount = group.consensus.members.length
+    const attestation = `${consensusCount} of ${group.observations} queries across ${group.projectCount} ${group.projectCount === 1 ? 'project' : 'projects'}`
+
+    for (const { variant, member } of dissenters(group)) {
+      const message =
+        group.kind === 'join'
+          ? `This query joins ${group.anchorLabel} on ${variant.label}. ${attestation} join them on ${group.consensus.label}.`
+          : group.kind === 'metric'
+            ? `${group.anchorLabel} is defined here as ${variant.label}. ${attestation} define it as ${group.consensus.label}.`
+            : `This query reads ${group.tables[0]} without constraining ${group.anchor}. ${attestation} do.`
+
+      issues.push({
+        severity: SEVERITY['sql-divergence'],
+        code: 'sql-divergence',
+        message,
+        blockId: member.location.blockId,
+        blockLabel: member.location.blockLabel,
+        notebookName: member.location.notebookName,
+        projectId: member.location.projectId,
+        projectName: member.location.projectName,
+        path: member.location.path,
+        score: scoreFinding('sql-divergence', {
+          age: ageFor(member.location.projectId, member.location.notebookName),
+          // What a disagreement costs is set by how much live work reads the tables it is about.
+          reach: group.tables.reduce(
+            (totals, table) => {
+              const reach = reachFor(table)
+              return reach
+                ? { live: Math.max(totals.live, reach.live), total: Math.max(totals.total, reach.total) }
+                : totals
+            },
+            { live: 0, total: 0 }
+          ),
+          signal,
+        }),
+        details: {
+          kind: group.kind,
+          anchor: group.anchor,
+          consensus: group.consensus.label,
+          variant: variant.label,
+          // The four numbers behind the ranking, so a reviewer can recompute it or disagree with
+          // one of them without re-running the audit.
+          observations: group.observations,
+          consensusCount,
+          projectCount: group.projectCount,
+          confidence: Number(group.confidence.toFixed(4)),
+          // Which number produced `score.signal`, and what the other one was. Without this a
+          // reader cannot tell a model's judgment from a hardcoded constant.
+          // Which queries were allowed into this comparison, and on what rule.
+          scopeRule: group.scopeRule,
+          scopeKey: group.scopeKey,
+          // And how *this* query came to be in that scope: its block named the integration, or
+          // the project declared exactly one and it was attributed.
+          ...(member.location.integrationSource ? { integrationSource: member.location.integrationSource } : {}),
+          signalSource: verdict ? 'triage' : measured[group.kind] !== undefined ? 'measured' : 'prior',
+          prior: Number(prior.toFixed(4)),
+          ...(measured[group.kind] !== undefined ? { measuredPrecision: measured[group.kind] } : {}),
+          ...(verdict
+            ? {
+                verdict: verdict.verdict,
+                verdictReason: verdict.reason,
+                ...(verdict.canonical ? { canonical: verdict.canonical } : {}),
+              }
+            : {}),
+          ...(member.evidence ? { evidence: member.evidence } : {}),
+          ...(member.line ? { line: member.line } : {}),
+        },
+      })
+    }
+  }
+
   // Score everything, then rank. Scoring happens here rather than at each push because three of the
   // four factors — neglect, and both halves of blast radius — are only knowable once the whole
   // workspace has been read.
-  const scoredIssues: AuditIssue[] = issues.map(issue => ({
+  const allScored: AuditIssue[] = issues.map(issue => ({
     ...issue,
     score: issue.score ?? scoreIssue(issue, { ageFor, tables, tablesByBlock, projectAges, subjectIndex }),
   }))
+
+  // A model verdict of `false-positive` takes a finding out of the work queue but not out of the
+  // report. Suppression that cannot be inspected is indistinguishable from a check that quietly
+  // stopped working, which in a compliance tool is the expensive kind of silence.
+  //
+  // Both halves of this split reach the report, and both go through the boundary pass on the way
+  // out. A notebook name does not stop naming a person because the finding that located it was
+  // ranked out of the queue, and `suppressed` was the fourth field to escape redaction by sitting
+  // beside the array someone had remembered to cover.
+  const suppressed = allScored.filter(issue => issue.details?.verdict === 'false-positive')
+  const scoredIssues = allScored.filter(issue => issue.details?.verdict !== 'false-positive')
 
   // Highest score first: the ranking is the work queue. Ties fall back to severity and then code, so
   // two runs over the same tree produce the same order.
@@ -815,9 +1068,26 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
   if (subjectIndex.summary.subjects > 0 && (options.internalDomains ?? []).length === 0) {
     notes.push('No --internal-domain was given, so colleagues and customers are counted alike as data subjects.')
   }
-  if (workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
+  if (divergence.length > 0) {
+    notes.push(DIVERGENCE_PRECISION_NOTE)
+  }
+  const unscopedQueries = observations.filter(observation => !observation.facts.integrationId).length
+  const inferredQueries = observations.filter(
+    observation => observation.location.integrationSource === 'inferred'
+  ).length
+  if (options.divergence !== false && unscopedQueries > 0) {
     notes.push(
-      `${DIVERGENCE_NOTE} This workspace has ${workspace.projects.length} project${workspace.projects.length === 1 ? '' : 's'}.`
+      `${unscopedQueries} of ${observations.length} SQL blocks could not be attributed to an integration — their block names none and their project declares none or several. They are compared only with each other, never against a known warehouse, because two tables of the same name behind two connections are not the same table.`
+    )
+  }
+  if (options.divergence !== false && inferredQueries > 0) {
+    notes.push(
+      `${inferredQueries} SQL blocks name no integration but sit in a project that declares exactly one, so they are attributed to it. Each affected finding records this in details.integrationSource.`
+    )
+  }
+  if (options.divergence !== false && workspace.projects.length < CONSENSUS_PROJECT_FLOOR) {
+    notes.push(
+      `${DIVERGENCE_SCALE_NOTE} This workspace has ${workspace.projects.length} project${workspace.projects.length === 1 ? '' : 's'}.`
     )
   }
   if (options.project) {
@@ -850,6 +1120,8 @@ export function auditWorkspace(workspace: LoadedWorkspace, options: AuditOptions
         ).length,
       }))
       .sort((a, b) => b.blockCount - a.blockCount || (a.name ?? a.id).localeCompare(b.name ?? b.id)),
+    divergence,
+    suppressed,
     // Ranked by live reach, not by raw reach: a table twenty abandoned projects query is not a
     // bigger dependency than one three live projects query.
     tables: [...tables.values()].sort(

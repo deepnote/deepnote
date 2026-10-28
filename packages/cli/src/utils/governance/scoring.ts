@@ -31,6 +31,7 @@ export type ScoredCode =
   | 'ingress-integration-undeclared'
   | 'pii-subject-scatter'
   | 'asset-stale'
+  | 'sql-divergence'
 
 interface CodeWeights {
   signal: number
@@ -68,6 +69,11 @@ const WEIGHTS: Record<ScoredCode, CodeWeights> = {
   'ingress-integration-undeclared': { signal: 0.95, exposure: 0.3 },
   'pii-subject-scatter': { signal: 0.8, exposure: 0.8, exposureFloor: true },
   'asset-stale': { signal: 1, exposure: 0.15 },
+  // Signal is always supplied per finding, from the Wilson bound on that anchor's consensus times
+  // the kind's precision prior; this value is only a fallback. Exposure is high because a metric or
+  // a join that disagrees with the rest of the workspace produces a *wrong number* somewhere
+  // downstream rather than an error anyone will see.
+  'sql-divergence': { signal: 0.4, exposure: 0.7 },
 }
 
 const DEFAULT_WEIGHTS: CodeWeights = { signal: 0.5, exposure: 0.5 }

@@ -1,0 +1,39 @@
+metadata:
+  createdAt: '2024-05-02T08:00:00.000Z'
+  modifiedAt: '2026-09-02T16:45:00.000Z'
+project:
+  id: 33333333-aaaa-4aaa-8aaa-333333333333
+  name: Support CSAT
+  integrations:
+    - id: dddddddd-1111-4111-8111-dddddddddddd
+      name: Warehouse
+      type: snowflake
+  notebooks:
+    - id: cccc1111dddd2222eeee3333ffff4444
+      name: Satisfaction
+      blocks:
+        - blockGroup: cccc1111dddd2222eeee3333ffff0001
+          id: cccc1111dddd2222eeee3333ffff0001
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: csat
+          content: |-
+            SELECT avg(t.score) AS csat
+            FROM tickets t
+            JOIN users u ON t.user_id = u.id
+            WHERE t.is_test = false
+        - blockGroup: cccc1111dddd2222eeee3333ffff0002
+          id: cccc1111dddd2222eeee3333ffff0002
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: dddddddd-1111-4111-8111-dddddddddddd
+            deepnote_variable_name: orders_by_user
+          content: |-
+            SELECT o.id
+            FROM analytics.public.orders AS o
+            INNER JOIN prod.users AS u ON u.id = o.user_id
+            WHERE o.is_test = false
+version: '1'
