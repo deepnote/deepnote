@@ -1,0 +1,60 @@
+metadata:
+  createdAt: '2025-06-02T09:14:00.000Z'
+  modifiedAt: '2026-02-11T16:40:00.000Z'
+project:
+  id: 7c2d3e40-1a5b-4d6f-8e9a-3b4c5d6e7f80
+  name: Governance block labels
+  integrations:
+    - id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+      name: Coercing warehouse
+      type: mysql
+    - id: 200eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+      name: Identifier-quoting warehouse
+      type: pgsql
+  notebooks:
+    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5d
+      name: Keys
+      blocks:
+        # A one-line assignment: the block's first line *is* the credential, so every rule that
+        # reports this block — not just the credential check — has to resolve its label safely.
+        # The variable is used nowhere, so `unused-variable` reports it too.
+        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f80
+          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f8
+          type: code
+          sortingKey: a0
+          content: |-
+            SEGMENT_WRITE_KEY = "AKIAIOSFODNN7EXAMPLE"
+    - id: 2b3c4d5e6f7a4b5c8d9e0f1a2b3c4d5e
+      name: Dialects
+      blocks:
+        # MySQL reads "true" as a string, so this is the same defect as the single-quoted form.
+        - blockGroup: c2a2b3c4d5e6f708192a3b4c5d6e7f80
+          id: 8f1a2b3c4d5e6f708192a3b4c5d6e7f8
+          type: sql
+          sortingKey: a0
+          metadata:
+            sql_integration_id: 100eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+            deepnote_variable_name: coercing
+          content: |-
+            SELECT id FROM users WHERE is_active = "true"
+        # The negative case. PostgreSQL reads "true" as a column name, so this is not a finding.
+        - blockGroup: c3a2b3c4d5e6f708192a3b4c5d6e7f80
+          id: 7f1a2b3c4d5e6f708192a3b4c5d6e7f8
+          type: sql
+          sortingKey: a1
+          metadata:
+            sql_integration_id: 200eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+            deepnote_variable_name: identifier_quoted
+          content: |-
+            SELECT id FROM users WHERE is_active = "true"
+        # Single quotes are a string literal everywhere, so this is flagged on either warehouse.
+        - blockGroup: c4a2b3c4d5e6f708192a3b4c5d6e7f80
+          id: 6f1a2b3c4d5e6f708192a3b4c5d6e7f8
+          type: sql
+          sortingKey: a2
+          metadata:
+            sql_integration_id: 200eef5b-8ad8-4d35-8e5e-3dfeeb387d4d
+            deepnote_variable_name: single_quoted
+          content: |-
+            SELECT id FROM users WHERE is_active = 'true'
+version: '1'
