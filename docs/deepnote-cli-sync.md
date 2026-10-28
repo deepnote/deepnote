@@ -250,6 +250,8 @@ run continues.
 ## Related
 
 - [Deepnote CLI](/docs/deepnote-cli) — install the CLI and see every command
+- [Auditing a workspace with the Deepnote CLI](/docs/deepnote-cli-audit) — inventory integrations and
+  data flows across the tree sync writes
 - [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product Git-linked feature
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
