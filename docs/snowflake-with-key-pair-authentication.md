@@ -24,8 +24,6 @@ You have two options when generating your private key - unencrypted or encrypted
 
 For an unencrypted private key:
 
-<!-- cspell:ignore nocrypt -->
-
 ```sh
 openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_key.p8 -nocrypt
 ```
