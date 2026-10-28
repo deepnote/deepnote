@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-![Apps 2.png](../assets/docs/6ecwQuqREaUWb33uWO8g.webp)
+![Airbnb pricing app with maps and a borough price summary](../assets/docs/data-apps/airbnb-pricing-app.webp)
 
 ### How to create an app
 
@@ -15,7 +15,7 @@ Next, click the **Add all blocks** button to add all blocks to the app, or add b
 
 For executable blocks you can choose to only display the output, the code, or both.
 
-In the App settings, you can use toggles to **Hide all code blocks**, **Make app full-width**, or **Show table of contents**.
+In **App settings**, you can turn on **Hide code blocks**, **Make app full-width**, or **Show table of contents**.
 
 <Callout status="info">
 Note there can be only **one**  app per project. In order to create more apps split your work across multiple projects.
@@ -25,11 +25,11 @@ Note there can be only **one**  app per project. In order to create more apps sp
 
 Just like you can set the [sharing settings for projects](/docs/share-projects), you can set the access controls for your app. For example, it is possible to have a private project with a public app. In this case, no one will be able to open and edit your project; however, the app will be visible to anyone.
 
-Visibility of the app can be set through the **Permissions** dropdown in the _App settings._
+Set app visibility through the **Sharing** dropdown in **App settings**.
 
 The following access levels are available:
 
-- **Workspace & collaborators.** The only people who can access the app are the ones who have access to the original project. This will depend on your [project sharing settings](/docs/share-projects).
+- **Same as this project.** Only people who can view the project can access the app. Access depends on your [project sharing settings](/docs/share-projects).
 - **Anyone with a link.** Only people with whom you share the link can access the app. It is hidden from your public profile and search engines.
 - **Public.** Your app is visible in your public profile and can be indexed by search engines. This is useful if you would like others to come across your work.
 
@@ -55,15 +55,15 @@ You can change the width of a block or column by dragging the border between the
 
 Complex layouts work best when combined with the "full-width" setting - see an example of an app on the picture below:
 
-<ImageBorder variant="blue">![Screenshot 2024-05-03 at 13.56.00.png](../assets/docs/RnGEydvTmKDP405EsMZk.webp)</ImageBorder>
+![Books app with three filters and two charts arranged in columns](../assets/docs/data-apps/books-app-layout.webp)
 
-### Show notebook outputs in app
+### Show last run results
 
-By default, your app users start with a clean slate, and all block outputs are empty. If you'd like to show the results from the last notebook execution (for example a scheduled run, or something you ran manually), you can enable the setting **Show notebook outputs in app**.
+New apps use **Run app from scratch**, which starts with empty outputs. To show the results from the last notebook run, select **Show last run results** under **App data** in **App settings**.
 
 Note, that when your app has multiple input blocks, your users might need to provide a value for each one before the notebook executes without any null values.
 
-When the setting is enabled, the app users will see the values of input blocks and all block outputs currently visible in the notebook.
+With **Show last run results** selected, viewers see the input values and outputs from the last notebook run.
 
 ### Embedding
 
@@ -73,11 +73,11 @@ Once your app is embedded, you can parameterize it the same way as a normal app 
 
 To embed an app, click on the "Embed" button in the Sharing section of App settings.
 
-<ImageBorder variant="blue">![embed-app-settings.png](../assets/docs/yI96GF5SzO1WvGIUQawl.webp)</ImageBorder>
+![App sharing settings with Anyone with a link selected and the Embed button](../assets/docs/data-apps/app-sharing-settings.webp)
 
 In the modal window, turn on embedding. Once the setting is enabled, Deepnote will allow the app to be rendered in an iframe, and the preview of the embedded app will render on the left side of the modal.
 
-<ImageBorder variant="colorful">![embed-app-modal.png](../assets/docs/Qd7LB2LiRcSgBuCi5rcI.webp)</ImageBorder>
+![Embed your app dialog with embedding turned off](../assets/docs/data-apps/embed-app-dialog.webp)
 
 To embed the app within tools like Notion, Confluence, or Medium, use the **Embed url**. These tools will automatically use the link to render an iframe. If you want to embed your app directly within a website where you have control over the HTML markup, you can use the Embed code link. You can adjust the width and height attributes of the iframe to get the desired size of the app.
 
@@ -95,7 +95,7 @@ Keep in mind that you can embed individual blocks as well! You can read more abo
 
 The viewers can refresh the app results by clicking the **Run** button in the top-right corner, or by selecting a different value for any of the input blocks. This executes the notebook from top to bottom, or, with the [Reactivity](#reactivity) option turned on and kernel already existing for the session - only the blocks affected by the inputs.
 
-The apps are interactive by default, unless you disable the setting _Allow viewers to run the app_.
+Apps are interactive by default. To disable interaction, turn off **Allow app to be run**.
 
 #### How does interactivity work?
 
@@ -159,4 +159,4 @@ _Watch it all come together in this 1-minute demo:_
 
 ### Deleting apps
 
-You can delete an app at any time by going to _App settings_ and selecting **Delete app**.
+You can remove an app at any time by opening **App settings** and selecting **Unpublish app**.
