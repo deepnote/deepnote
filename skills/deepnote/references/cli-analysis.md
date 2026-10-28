@@ -111,6 +111,8 @@ credentials are shared across projects. Everything is local: no warehouse connec
 | `--no-triage-cache`      | Ignore cached verdicts                                                            |
 | `--export-review <f>`    | Write every group with a blank verdict, for review                                |
 | `--import-review <f>`    | Read verdicts back; measured precision replaces the defaults                      |
+| `--packages`             | List every package that is not pinned, instead of the first few                   |
+| `--sbom`                 | Write a CycloneDX bill of materials instead of the report                         |
 
 **Workspace-scoped checks:**
 
@@ -123,6 +125,7 @@ credentials are shared across projects. Everything is local: no warehouse connec
 | `pii-subject-scatter`            | One person's data appears in more than one notebook                    | warning  |
 | `asset-stale`                    | A notebook untouched for three years or more                           | warning  |
 | `sql-divergence`                 | A query defines a join, filter or metric differently from the rest     | warning  |
+| `dependency-drift`               | Maintained projects pin one package to different versions              | warning  |
 
 Every project is also run through the `lint --governance` checks, so one audit covers both scopes.
 Findings carry `projectId`, `projectName` and `path` on top of the usual lint issue fields.
@@ -178,6 +181,18 @@ replaces the default in `signal`, with the displaced number kept in `details.pri
 `false-positive` moves the finding from `issues` to `suppressed`. Any failure warns once and the
 deterministic score stands; triage never fails a run.
 
+**Dependencies (`packages`).** Collected from `environment.packages` (the resolved lockfile),
+`project.settings.requirements`, and `!pip install` / `%pip install` / `conda install` lines inside
+code blocks. The lockfile is authoritative — a loose `requirements` entry beside a locked version is
+not a finding — **except** where a block re-installs the package, which runs after the environment
+is built and overrides it. Per-package rows carry `name`, `versions`, `maintainedVersions`, `pin`
+(`pinned` / `ranged` / `unpinned`), `purl` and the projects that declare it.
+
+`dependency-drift` counts only projects that are still maintained: a notebook abandoned in 2021
+pinning the 2021 version is pinning working, not disagreement. `--sbom` replaces the report with a
+CycloneDX 1.5 document, one component per package _version_ so each `purl` is matchable by a
+vulnerability scanner.
+
 The report also inventories `tables` (name, `projectCount`, `liveProjectCount`, `blockCount`) and
 `staleness` (live / aging / cold / undated notebooks, median age). An undated notebook is never
 reported as abandoned.
@@ -206,6 +221,8 @@ deepnote audit workspace --project "Churn analysis"
 deepnote audit workspace -o json
 deepnote audit workspace --divergence
 deepnote audit workspace --divergence --divergence-kind join --min-confidence 0.5
+deepnote audit workspace --packages
+deepnote audit workspace --sbom > sbom.json
 ```
 
 ## `deepnote lint [path]`
@@ -228,12 +245,14 @@ Check a .deepnote file or integrations yaml file for issues. `[path]` is optiona
 
 **Governance checks (`--governance` only):**
 
-| Code                   | Finding                                                                   | Severity |
-| ---------------------- | ------------------------------------------------------------------------- | -------- |
-| `sql-null-comparison`  | `= NULL` / `!= NULL`, which never matches a row — use `IS NULL`           | error    |
-| `sql-tautology`        | A column compared to itself, so the join or filter is a no-op             | error    |
-| `sql-string-boolean`   | A column compared to the string `'true'`/`'false'` instead of the keyword | warning  |
-| `credential-hardcoded` | A credential written into a block                                         | error \* |
+| Code                   | Finding                                                                       | Severity |
+| ---------------------- | ----------------------------------------------------------------------------- | -------- |
+| `sql-null-comparison`  | `= NULL` / `!= NULL`, which never matches a row — use `IS NULL`               | error    |
+| `sql-tautology`        | A column compared to itself, so the join or filter is a no-op                 | error    |
+| `sql-string-boolean`   | A column compared to the string `'true'`/`'false'` instead of the keyword     | warning  |
+| `credential-hardcoded` | A credential written into a block                                             | error \* |
+| `dependency-unpinned`  | A dependency with no exact version, so the project may install something else | warning  |
+| `dependency-untracked` | A package installed by a block but missing from `environment.packages`        | warning  |
 
 \* The pattern rules (AWS keys, GitHub and Slack tokens, private keys, connection-string passwords)
 report an error; the heuristic rule — a long literal assigned to a secret-named variable — reports a
@@ -253,6 +272,13 @@ not declare, is treated as identifier-quoting and not reported.
 A block that holds a credential is labelled `<type> (<short id>)` instead of its first line, in
 every issue raised against it by any rule. For the one-line `TOKEN = "…"` assignment the credential
 checks most often fire on, that first line is the secret itself.
+
+The dependency checks read `environment.packages`, `project.settings.requirements` and
+`!pip install` lines inside code blocks. `environment.packages` is the resolved lockfile and is
+treated as authoritative, so a loose `requirements` entry beside a locked version raises nothing —
+_except_ where a block re-installs the package, which runs after the environment is built and
+overrides the lock. `summary.dependencies` carries `total`, `pinned`, `ranged`, `unpinned` and
+`untracked`. Nothing is resolved over the network, so this covers direct dependencies only.
 
 `--governance` is project-scoped. The workspace-scoped checks — duplicated metric definitions,
 personal data scattered across notebooks, writes to third-party hosts, abandoned assets — compare
