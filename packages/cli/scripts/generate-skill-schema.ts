@@ -69,8 +69,6 @@ async function run() {
 
 // biome-ignore lint/suspicious/noExplicitAny: walking arbitrary JSON schema structure
 function stripBlocksFromFile(schema: any) {
-  // Navigate to project.properties.notebooks.items.properties.blocks and replace
-  // the items with a $ref comment
   try {
     const projectProps = schema.properties?.project?.properties
     if (!projectProps?.notebooks?.items?.properties?.blocks) {
@@ -79,7 +77,7 @@ function stripBlocksFromFile(schema: any) {
     projectProps.notebooks.items.properties.blocks = {
       type: 'array',
       description: 'Array of DeepnoteBlock objects (see DeepnoteBlock type above)',
-      items: {},
+      tsType: 'DeepnoteBlock[]',
     }
   } catch {
     // If structure doesn't match, leave as-is

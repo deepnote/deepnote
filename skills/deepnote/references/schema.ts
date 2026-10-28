@@ -1012,7 +1012,7 @@ export interface DeepnoteFile {
       /**
        * Array of DeepnoteBlock objects (see DeepnoteBlock type above)
        */
-      blocks: any[];
+      blocks: DeepnoteBlock[];
       executionMode?: 'block' | 'downstream';
       id: string;
       isModule?: boolean;
