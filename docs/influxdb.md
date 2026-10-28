@@ -8,13 +8,9 @@ coverImage: g890zy2wQGiGh2NahdVa
 
 Use Deepnote to query time series data in InfluxDB v2 with Python and Flux.
 
-### 1. Duplicate the InfluxDB template
+### 1. Download and import the InfluxDB example
 
-[Open the InfluxDB template](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Query-InfluxDB-from-Deepnote-46097291-95c8-4a64-a247-541975d8aadc/%2Fnotebook.ipynb)
-
-![InfluxDB template with the Duplicate button in the top-right corner](../assets/docs/VoHNl6juQ5qUFurTn0DR.webp)
-
-Click the "duplicate" button on the top right corner to do this. Once you've got the template in your Deepnote workspace, you can connect it to your InfluxDB instance.
+Download the [InfluxDB example notebook](https://github.com/deepnote/deepnote/blob/main/examples/query-influxdb-from-deepnote.ipynb) and follow the [Jupyter notebook import steps](/docs/importing-and-exporting-jupyter-notebooks) to add it to your project. After importing it, connect the notebook to your InfluxDB instance.
 
 ### 2. Connect to InfluxDB from Deepnote
 
