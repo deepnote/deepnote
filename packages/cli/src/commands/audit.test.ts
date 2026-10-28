@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vite
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { type AuditOptions, createAuditAction, describeNearest } from './audit'
 
-/** A three-project synced workspace with one of every workspace-scoped finding. */
+/** A four-project synced workspace with one of every workspace-scoped finding. */
 const WORKSPACE = join('test-fixtures', 'workspace-audit')
 
 /** The secret the fixture hardcodes in two projects. It must never reach the output. */
@@ -46,7 +46,7 @@ describe('audit command', () => {
       await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
 
       const output = getOutput(consoleSpy)
-      expect(output).toContain('3 projects, 3 notebooks')
+      expect(output).toContain('4 projects, 4 notebooks')
       expect(output).toContain('Ingress — integrations')
       expect(output).toContain('Warehouse (snowflake)')
       expect(output).toContain('Egress — external hosts')
@@ -75,7 +75,7 @@ describe('audit command', () => {
       const output = getOutput(consoleSpy)
       expect(output).toContain('Egress is a lower bound')
       expect(output).toContain('Divergence checks need roughly')
-      expect(output).toContain('This workspace has 3 projects')
+      expect(output).toContain('This workspace has 4 projects')
     })
 
     it('summarizes findings by check, and lists them with --issues', async () => {
@@ -95,6 +95,46 @@ describe('audit command', () => {
       await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
 
       expect(exitSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('data subjects', () => {
+    it('counts the people the workspace holds data about, and how far they are spread', async () => {
+      await createAuditAction(program)(WORKSPACE, { internalDomain: ['globex.co'] })
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Data subjects')
+      expect(output).toContain('2 people in 5 locations, 1 external')
+      expect(output).toContain('1 person appears in more than one notebook')
+      expect(output).toContain('pii-subject-scatter')
+    })
+
+    it('never names the person, in text or in JSON', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+      const text = getOutput(consoleSpy)
+      consoleSpy.mockClear()
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      expect(text).not.toContain('jane.doe@acme-corp.io')
+      expect(getOutput(consoleSpy)).not.toContain('jane.doe@acme-corp.io')
+    })
+
+    it('says that nobody was classified when no internal domain was given', async () => {
+      await createAuditAction(program)(WORKSPACE, DEFAULT_OPTIONS)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('pass --internal-domain')
+      expect(output).toContain('No --internal-domain was given')
+    })
+
+    it('reports the scatter finding without a fingerprint, which would be per-run', async () => {
+      await createAuditAction(program)(WORKSPACE, { output: 'json' })
+
+      const report = JSON.parse(getOutput(consoleSpy))
+      const scatter = report.issues.find((issue: { code: string }) => issue.code === 'pii-subject-scatter')
+      expect(scatter.details).toMatchObject({ domain: 'acme-corp.io', notebookCount: 2, projectCount: 2 })
+      expect(scatter.details.fingerprint).toBeUndefined()
+      expect(report.subjects).toMatchObject({ total: 2, scattered: 1 })
     })
   })
 
@@ -146,10 +186,10 @@ describe('audit command', () => {
 
       const report = JSON.parse(getOutput(consoleSpy))
       expect(report.scope).toBe('workspace')
-      expect(report.summary.projects).toBe(3)
+      expect(report.summary.projects).toBe(4)
       expect(report.integrations).toHaveLength(3)
       expect(report.credentials).toHaveLength(1)
-      expect(report.flow.nodes.filter((n: { kind: string }) => n.kind === 'project')).toHaveLength(3)
+      expect(report.flow.nodes.filter((n: { kind: string }) => n.kind === 'project')).toHaveLength(4)
       expect(report.flow.edges.some((e: { kind: string }) => e.kind === 'writes')).toBe(true)
       expect(report.notes.length).toBeGreaterThan(0)
     })
@@ -314,6 +354,84 @@ describe('audit command', () => {
         expect(written).not.toContain('hunter2correct')
         // Still useful: the name is masked, not withheld.
         expect(written).toContain('Closest match')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+  })
+
+  describe('audit command — personal data in a name is masked everywhere it appears', () => {
+    // A project and a notebook named after the people the work is for. Both are ordinary workspace
+    // hygiene, and both put an address into fields nobody classifies as sensitive.
+    const CUSTOMER = 'alice.smith@customer-corp.example'
+    const PARTNER = 'bob.jones@partner.example'
+
+    async function namedWorkspace(): Promise<string> {
+      const root = await mkdtemp(join(tmpdir(), 'deepnote-audit-subjects-'))
+      await mkdir(join(root, 'reports'), { recursive: true })
+      await writeFile(
+        join(root, 'reports', 'project.deepnote'),
+        [
+          'metadata:',
+          "  createdAt: '2025-06-02T09:14:00.000Z'",
+          "  modifiedAt: '2026-02-11T16:40:00.000Z'",
+          'project:',
+          '  id: 66666666-6666-4666-8666-666666666666',
+          `  name: ${JSON.stringify(`Report for ${CUSTOMER}`)}`,
+          '  notebooks:',
+          '    - id: 1a2b3c4d5e6f4a5b8c9d0e1f2a3b4c5d',
+          `      name: ${JSON.stringify(`Notes ${PARTNER}`)}`,
+          '      blocks:',
+          '        - blockGroup: c1a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 9f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: code',
+          '          sortingKey: a0',
+          '          content: TOKEN = "AKIAIOSFODNN7EXAMPLE"',
+          '        - blockGroup: c2a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 8f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: code',
+          '          sortingKey: a1',
+          '          content: requests.post("https://hooks.example.com/ingest", data=df)',
+          '        - blockGroup: c3a2b3c4d5e6f708192a3b4c5d6e7f80',
+          '          id: 7f1a2b3c4d5e6f708192a3b4c5d6e7f8',
+          '          type: sql',
+          '          sortingKey: a2',
+          `          content: ${JSON.stringify(`SELECT id FROM users WHERE owner = '${CUSTOMER}'`)}`,
+          "version: '1'",
+        ].join('\n')
+      )
+      return root
+    }
+
+    it.each([
+      ['the JSON report', { output: 'json' } as AuditOptions],
+      ['the default text report', { issues: true } as AuditOptions],
+    ])('names nobody in %s, at any depth', async (_name, options) => {
+      setOutputConfig({ color: false })
+      const root = await namedWorkspace()
+      try {
+        await createAuditAction(program)(root, options)
+
+        // Every field at every depth, not a hand-picked list. The project name reaches
+        // `credentials[].projects[]`, `egress[].projects[]`, `integrations[].consumers[]` and the
+        // flow-map labels; the notebook name reaches `issues[].notebookName` and `path`.
+        const serialized = getOutput(consoleSpy)
+        expect(serialized).not.toContain(CUSTOMER)
+        expect(serialized).not.toContain(PARTNER)
+        expect(serialized).not.toContain('alice.smith')
+        expect(serialized).not.toContain('bob.jones')
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    })
+
+    it('still names the project and notebook, with only the address removed', async () => {
+      const root = await namedWorkspace()
+      try {
+        await createAuditAction(program)(root, { output: 'json' })
+        const report = JSON.parse(getOutput(consoleSpy)) as { issues: Array<{ notebookName: string }> }
+
+        expect(report.issues[0].notebookName).toContain('Notes')
       } finally {
         await rm(root, { recursive: true, force: true })
       }
