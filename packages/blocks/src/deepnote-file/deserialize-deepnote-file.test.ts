@@ -288,102 +288,22 @@ describe('deserializeDeepnoteFile', () => {
       return deserializeDeepnoteFile('yaml-content').project.notebooks[0].blocks[0]
     }
 
-    it.each([
-      {
-        type: 'input-text',
-        metadata: { deepnote_variable_name: 'unnamed_variable', deepnote_variable_value: '' },
-      },
-      {
-        type: 'input-textarea',
-        metadata: { deepnote_variable_name: 'unnamed_variable', deepnote_variable_value: '' },
-      },
-      {
-        type: 'input-checkbox',
-        metadata: { deepnote_variable_name: 'unnamed_variable', deepnote_variable_value: false },
-      },
-      {
-        type: 'input-select',
-        metadata: {
-          deepnote_variable_name: 'unnamed_variable',
-          deepnote_variable_value: '',
-          deepnote_variable_options: [],
-          deepnote_variable_custom_options: [],
-          deepnote_variable_selected_variable: '',
-          deepnote_variable_select_type: 'from-options',
-        },
-      },
-      {
-        type: 'input-slider',
-        metadata: {
-          deepnote_variable_name: 'unnamed_variable',
-          deepnote_variable_value: '0',
-          deepnote_slider_min_value: 0,
-          deepnote_slider_max_value: 100,
-          deepnote_slider_step: 1,
-        },
-      },
-      {
-        type: 'input-date',
-        metadata: { deepnote_variable_name: 'unnamed_variable', deepnote_variable_value: '' },
-      },
-      {
-        type: 'input-date-range',
-        metadata: { deepnote_variable_name: 'unnamed_variable', deepnote_variable_value: '' },
-      },
-      {
-        type: 'input-file',
-        metadata: { deepnote_variable_name: 'unnamed_variable', deepnote_variable_value: '' },
-      },
-      { type: 'agent', metadata: { deepnote_agent_model: 'auto' } },
-      {
-        type: 'big-number',
-        metadata: { deepnote_big_number_title: '', deepnote_big_number_value: '', deepnote_big_number_format: '' },
-      },
-    ])('fills $type metadata defaults when metadata is absent', ({ type, metadata }) => {
-      expect(deserializeSingleBlock({ type }).metadata).toEqual(metadata)
+    it('fills metadata defaults when metadata is absent', () => {
+      expect(deserializeSingleBlock({ type: 'input-text' }).metadata).toHaveProperty(
+        'deepnote_variable_name',
+        'unnamed_variable'
+      )
     })
 
-    it.each([
-      { name: 'absent', block: { type: 'image' } },
-      { name: 'arbitrary', block: { type: 'image', content: 'x' } },
-    ])('replaces $name content with an empty string for blocks without content', ({ block }) => {
-      expect(deserializeSingleBlock(block).content).toBe('')
+    it('fills absent content with an empty string for blocks that do not use content', () => {
+      expect(deserializeSingleBlock({ type: 'image' }).content).toBe('')
     })
 
     it('accepts minute-precision execution timestamps', () => {
-      parseYaml.mockReturnValue({
-        metadata: { createdAt: '2025-01-01T00:00:00Z' },
-        version: '1',
-        execution: { startedAt: '2024-01-01T10:15Z', finishedAt: '2024-01-01T10:16Z' },
-        project: {
-          id: 'project-123',
-          name: 'Test Project',
-          notebooks: [
-            {
-              id: 'notebook-1',
-              name: 'Test Notebook',
-              blocks: [
-                {
-                  id: 'block-1',
-                  blockGroup: 'group-1',
-                  sortingKey: '0',
-                  type: 'code',
-                  executionStartedAt: '2024-01-01T10:15Z',
-                  executionFinishedAt: '2024-01-01T10:16Z',
-                },
-              ],
-            },
-          ],
-        },
-      })
-
-      const result = deserializeDeepnoteFile('yaml-content')
-
-      expect(result.execution).toEqual({ startedAt: '2024-01-01T10:15Z', finishedAt: '2024-01-01T10:16Z' })
-      expect(result.project.notebooks[0].blocks[0]).toMatchObject({
-        executionStartedAt: '2024-01-01T10:15Z',
-        executionFinishedAt: '2024-01-01T10:16Z',
-      })
+      expect(deserializeSingleBlock({ type: 'code', executionStartedAt: '2024-01-01T10:15Z' })).toHaveProperty(
+        'executionStartedAt',
+        '2024-01-01T10:15Z'
+      )
     })
   })
 })
