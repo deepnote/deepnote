@@ -14,8 +14,7 @@ Deepnote is a workspace for data analysis with Python, SQL, and no-code tools. C
 ### Analyze with AI
 
 - [**Describe and visualize:**](https://deepnote.com/docs/ai-data-visualization) Generate visualizations and code by describing your goal.
-- [**Auto AI:**](https://deepnote.com/docs/deepnote-ai) Write, execute, and debug code with AI.
-- [**Deepnote Agent:**](https://deepnote.com/docs/deepnote-agent) Delegate multi-step data tasks to a sidebar agent that can create and edit blocks, run code, and inspect outputs.
+- [**Deepnote Agent:**](https://deepnote.com/docs/deepnote-agent) Use Agent to generate and edit code, run blocks, and inspect outputs across your notebook.
 - **Code completion:** Use context-aware code suggestions as you type.
 
 ### Unify

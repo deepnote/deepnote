@@ -90,6 +90,7 @@ SECURITYADMIN
 pkcs
 topk
 pubout
+nocrypt
 auslh
 SCIM
 authorisation
