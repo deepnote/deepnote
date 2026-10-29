@@ -342,7 +342,14 @@ describe('cat command', () => {
       const lines = getOutput(consoleSpy).split('\n')
       const headerIndex = lines.indexOf(`separator (${SEPARATOR_ID})`)
       expect(headerIndex).toBeGreaterThanOrEqual(0)
-      expect(lines.slice(headerIndex + 1, headerIndex + 3)).toEqual(['', '  ---'])
+      expect(lines.slice(headerIndex - 1, headerIndex + 5)).toEqual([
+        '────────────────────────────────────────────────────────────',
+        `separator (${SEPARATOR_ID})`,
+        '',
+        '  ---',
+        '',
+        '────────────────────────────────────────────────────────────',
+      ])
     })
 
     it('keeps empty content in JSON output', async () => {

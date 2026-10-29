@@ -247,8 +247,7 @@ function filterBlocks(blocks: DeepnoteBlock[], options: CatOptions): DeepnoteBlo
 }
 
 /**
- * Get the content to show for a block in text output. Kept apart from `getBlockContent`
- * because JSON output must report the stored content (`''` for separators), not the display form.
+ * Get the content to show for a block in text output.
  */
 function getDisplayContent(block: DeepnoteBlock): string | undefined {
   switch (block.type) {
