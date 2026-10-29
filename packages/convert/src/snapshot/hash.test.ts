@@ -300,6 +300,7 @@ describe('addContentHashes', () => {
                 type: 'separator',
                 blockGroup: 'bg-1',
                 sortingKey: '0000',
+                content: '',
                 metadata: {},
               },
             ],

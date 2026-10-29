@@ -7,7 +7,10 @@ export const SQL_CELL_VARIABLE_TYPES = ['dataframe', 'query_preview'] as const
 // =============================================================================
 
 /** Preprocesses any content value to empty string for blocks that don't use content */
-const emptyContent = () => z.preprocess(() => '', z.literal('').optional())
+const emptyContent = () => z.preprocess(() => '', z.literal(''))
+
+/** zod's default ISO datetime requires seconds; files may hold minute-precision timestamps. */
+const isoDatetime = () => z.union([z.iso.datetime(), z.iso.datetime({ precision: z.TimePrecision.Minute })])
 
 // =============================================================================
 // Base metadata schemas
@@ -37,10 +40,10 @@ const executableBlockMetadataSchema = baseBlockMetadataSchema
     execution_context_id: z.string().optional(),
     deepnote_cell_height: z.number().optional(),
     deepnote_output_heights: z.array(z.number().nullable()).optional(),
-    deepnote_table_state: z.record(z.any()).optional(),
+    deepnote_table_state: z.record(z.string(), z.any()).optional(),
     last_executed_function_notebook_id: z.string().optional(),
     last_function_run_started_at: z.number().optional(),
-    function_notebook_export_states: z.record(z.any()).optional(),
+    function_notebook_export_states: z.record(z.string(), z.any()).optional(),
   })
   .passthrough()
 
@@ -75,8 +78,8 @@ const baseBlockFields = {
 const executableBlockFields = {
   ...baseBlockFields,
   executionCount: z.number().nullable().optional(),
-  executionFinishedAt: z.string().datetime().optional(),
-  executionStartedAt: z.string().datetime().optional(),
+  executionFinishedAt: isoDatetime().optional(),
+  executionStartedAt: isoDatetime().optional(),
   outputs: z.array(z.any()).optional(),
 }
 
@@ -88,7 +91,7 @@ const markdownBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('markdown'),
   content: z.string().optional(),
-  metadata: baseBlockMetadataSchema.extend({ deepnote_cell_height: z.number().optional() }).default({}),
+  metadata: baseBlockMetadataSchema.extend({ deepnote_cell_height: z.number().optional() }).prefault({}),
 })
 
 const imageBlockSchema = z.object({
@@ -101,56 +104,56 @@ const imageBlockSchema = z.object({
       deepnote_img_width: z.enum(['actual', '50%', '75%', '100%']).optional(),
       deepnote_img_alignment: z.enum(['left', 'center', 'right']).optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const separatorBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('separator'),
   content: emptyContent(),
-  metadata: baseBlockMetadataSchema.default({}),
+  metadata: baseBlockMetadataSchema.prefault({}),
 })
 
 const textCellH1BlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('text-cell-h1'),
   content: z.string().optional(),
-  metadata: textCellMetadataSchema.default({}),
+  metadata: textCellMetadataSchema.prefault({}),
 })
 
 const textCellH2BlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('text-cell-h2'),
   content: z.string().optional(),
-  metadata: textCellMetadataSchema.default({}),
+  metadata: textCellMetadataSchema.prefault({}),
 })
 
 const textCellH3BlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('text-cell-h3'),
   content: z.string().optional(),
-  metadata: textCellMetadataSchema.default({}),
+  metadata: textCellMetadataSchema.prefault({}),
 })
 
 const textCellPBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('text-cell-p'),
   content: z.string().optional(),
-  metadata: textCellMetadataSchema.default({}),
+  metadata: textCellMetadataSchema.prefault({}),
 })
 
 const textCellBulletBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('text-cell-bullet'),
   content: z.string().optional(),
-  metadata: textCellMetadataSchema.default({}),
+  metadata: textCellMetadataSchema.prefault({}),
 })
 
 const textCellTodoBlockSchema = z.object({
   ...baseBlockFields,
   type: z.literal('text-cell-todo'),
   content: z.string().optional(),
-  metadata: textCellMetadataSchema.extend({ checked: z.boolean().optional() }).default({}),
+  metadata: textCellMetadataSchema.extend({ checked: z.boolean().optional() }).prefault({}),
 })
 
 const textCellCalloutBlockSchema = z.object({
@@ -159,7 +162,7 @@ const textCellCalloutBlockSchema = z.object({
   content: z.string().optional(),
   metadata: textCellMetadataSchema
     .extend({ color: z.enum(['blue', 'green', 'yellow', 'red', 'purple']).optional() })
-    .default({}),
+    .prefault({}),
 })
 
 // =============================================================================
@@ -170,7 +173,7 @@ const codeBlockSchema = z.object({
   ...executableBlockFields,
   type: z.literal('code'),
   content: z.string().optional(),
-  metadata: executableBlockMetadataSchema.extend({ function_export_name: z.string().optional() }).default({}),
+  metadata: executableBlockMetadataSchema.extend({ function_export_name: z.string().optional() }).prefault({}),
 })
 
 const sqlBlockSchema = z.object({
@@ -185,7 +188,7 @@ const sqlBlockSchema = z.object({
       is_compiled_sql_query_visible: z.boolean().optional(),
       function_export_name: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const notebookFunctionBlockSchema = z.object({
@@ -195,10 +198,10 @@ const notebookFunctionBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       function_notebook_id: z.string().nullable(),
-      function_notebook_inputs: z.record(z.any()).optional(),
-      function_notebook_export_mappings: z.record(z.any()).optional(),
+      function_notebook_inputs: z.record(z.string(), z.any()).optional(),
+      function_notebook_export_mappings: z.record(z.string(), z.any()).optional(),
     })
-    .default({ function_notebook_id: null }),
+    .prefault({ function_notebook_id: null }),
 })
 
 const visualizationBlockSchema = z.object({
@@ -208,12 +211,12 @@ const visualizationBlockSchema = z.object({
   metadata: executableBlockMetadataSchema
     .extend({
       deepnote_variable_name: z.string().optional(),
-      deepnote_visualization_spec: z.record(z.any()).optional(),
+      deepnote_visualization_spec: z.record(z.string(), z.any()).optional(),
       deepnote_config_collapsed: z.boolean().optional(),
       deepnote_chart_height: z.number().optional(),
-      deepnote_chart_filter: z.record(z.any()).optional(),
+      deepnote_chart_filter: z.record(z.string(), z.any()).optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const pivotTableBlockSchema = z.object({
@@ -222,7 +225,7 @@ const pivotTableBlockSchema = z.object({
   content: emptyContent(),
   // The `deepnote_pivot_*` configuration fields are intentionally undeclared: the block is in beta
   // and metadata passthrough preserves them whatever their current shape.
-  metadata: executableBlockMetadataSchema.extend({ deepnote_variable_name: z.string().optional() }).default({}),
+  metadata: executableBlockMetadataSchema.extend({ deepnote_variable_name: z.string().optional() }).prefault({}),
 })
 
 const buttonBlockSchema = z.object({
@@ -236,7 +239,7 @@ const buttonBlockSchema = z.object({
       deepnote_button_behavior: z.enum(['run', 'set_variable']).optional(),
       deepnote_variable_name: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const bigNumberBlockSchema = z.object({
@@ -254,14 +257,14 @@ const bigNumberBlockSchema = z.object({
       deepnote_big_number_comparison_type: z.string().optional(),
       deepnote_big_number_comparison_format: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 export const mcpServerSchema = z.object({
   name: z.string(),
   command: z.string(),
   args: z.array(z.string()).optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
 })
 
 export type McpServerConfig = z.infer<typeof mcpServerSchema>
@@ -281,7 +284,7 @@ const agentBlockSchema = z.object({
       deepnote_agent_model: z.string().default('auto'),
       deepnote_mcp_servers: z.array(mcpServerSchema).optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 // =============================================================================
@@ -297,7 +300,7 @@ const inputTextBlockSchema = z.object({
       deepnote_variable_value: z.string().default(''),
       deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputTextareaBlockSchema = z.object({
@@ -309,7 +312,7 @@ const inputTextareaBlockSchema = z.object({
       deepnote_variable_value: z.string().default(''),
       deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.string().optional()),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputCheckboxBlockSchema = z.object({
@@ -322,7 +325,7 @@ const inputCheckboxBlockSchema = z.object({
       deepnote_variable_default_value: z.preprocess(val => (val === null ? undefined : val), z.boolean().optional()),
       deepnote_input_checkbox_label: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputSelectBlockSchema = z.object({
@@ -343,7 +346,7 @@ const inputSelectBlockSchema = z.object({
       deepnote_allow_multiple_values: z.boolean().optional(),
       deepnote_allow_empty_values: z.boolean().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputSliderBlockSchema = z.object({
@@ -358,7 +361,7 @@ const inputSliderBlockSchema = z.object({
       deepnote_slider_max_value: z.number().default(100),
       deepnote_slider_step: z.number().default(1),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputDateBlockSchema = z.object({
@@ -372,7 +375,7 @@ const inputDateBlockSchema = z.object({
       deepnote_allow_empty_values: z.boolean().optional(),
       deepnote_input_date_version: z.number().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputDateRangeBlockSchema = z.object({
@@ -387,7 +390,7 @@ const inputDateRangeBlockSchema = z.object({
         z.union([z.tuple([z.string(), z.string()]), z.string()]).optional()
       ),
     })
-    .default({}),
+    .prefault({}),
 })
 
 const inputFileBlockSchema = z.object({
@@ -399,7 +402,7 @@ const inputFileBlockSchema = z.object({
       deepnote_variable_value: z.string().default(''),
       deepnote_allowed_file_extensions: z.string().optional(),
     })
-    .default({}),
+    .prefault({}),
 })
 
 // =============================================================================
@@ -512,7 +515,7 @@ export const environmentSchema = z
   .object({
     customImage: z.string().optional(),
     hash: z.string().optional(),
-    packages: z.record(z.string()).optional(),
+    packages: z.record(z.string(), z.string()).optional(),
     platform: z.string().optional(),
     python: z
       .object({
@@ -549,9 +552,9 @@ export type ExecutionError = z.infer<typeof executionErrorSchema>
 export const executionSchema = z
   .object({
     error: executionErrorSchema,
-    finishedAt: z.string().datetime().optional(),
-    inputs: z.record(z.unknown()).optional(),
-    startedAt: z.string().datetime().optional(),
+    finishedAt: isoDatetime().optional(),
+    inputs: z.record(z.string(), z.unknown()).optional(),
+    startedAt: isoDatetime().optional(),
     summary: executionSummarySchema,
     triggeredBy: z.enum(['user', 'schedule', 'api', 'ci']).optional(),
   })

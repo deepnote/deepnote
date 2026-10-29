@@ -2981,6 +2981,7 @@ describe('Database integration env variables', () => {
               id: 'my-unknown',
               name: 'My Unknown Connection',
               metadata: {
+                // @ts-expect-error we are testing the unknown type
                 test: 'my-test',
               },
             },
