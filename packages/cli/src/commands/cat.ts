@@ -205,7 +205,7 @@ async function printBlock(block: DeepnoteBlock, options: CatOptions): Promise<vo
 
   // Show content unless --tree mode
   if (!options.tree) {
-    let content = block.type === 'separator' ? '---' : getBlockContent(block)
+    let content = getDisplayContent(block)
     if (content) {
       output('')
       if (block.type === 'markdown' || block.type.startsWith('text-cell-')) {
@@ -244,6 +244,19 @@ function filterBlocks(blocks: DeepnoteBlock[], options: CatOptions): DeepnoteBlo
   }
 
   return blocks.filter(b => b.type === typeFilter)
+}
+
+/**
+ * Get the content to show for a block in text output. Kept apart from `getBlockContent`
+ * because JSON output must report the stored content (`''` for separators), not the display form.
+ */
+function getDisplayContent(block: DeepnoteBlock): string | undefined {
+  switch (block.type) {
+    case 'separator':
+      return '---'
+    default:
+      return getBlockContent(block)
+  }
 }
 
 /**
