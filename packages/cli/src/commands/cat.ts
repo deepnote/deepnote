@@ -205,7 +205,7 @@ async function printBlock(block: DeepnoteBlock, options: CatOptions): Promise<vo
 
   // Show content unless --tree mode
   if (!options.tree) {
-    let content = getBlockContent(block)
+    let content = block.type === 'separator' ? '---' : getBlockContent(block)
     if (content) {
       output('')
       if (block.type === 'markdown' || block.type.startsWith('text-cell-')) {
@@ -253,11 +253,6 @@ function getBlockContent(block: DeepnoteBlock): string | undefined {
   // Blocks with direct content
   if ('content' in block && typeof block.content === 'string') {
     return block.content
-  }
-
-  // Separator blocks show a horizontal line
-  if (block.type === 'separator') {
-    return '---'
   }
 
   return undefined
