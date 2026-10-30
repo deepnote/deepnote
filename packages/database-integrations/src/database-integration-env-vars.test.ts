@@ -1,3 +1,4 @@
+import { createPythonCode, type SqlBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
 import {
   BigQueryServiceAccountParseError,
@@ -2981,6 +2982,7 @@ describe('Database integration env variables', () => {
               id: 'my-unknown',
               name: 'My Unknown Connection',
               metadata: {
+                // @ts-expect-error we are testing the unknown type
                 test: 'my-test',
               },
             },
@@ -3034,6 +3036,42 @@ describe('Database integration env variables', () => {
         },
         param_style: 'pyformat',
       })
+    })
+  })
+
+  describe('environment variable names', () => {
+    it('injects the connection variable under the name that generated SQL block code reads', () => {
+      const integrationId = '3e2bed0f-e89b'
+      const sqlBlock: SqlBlock = {
+        id: 'block-1',
+        type: 'sql',
+        content: 'SELECT 1',
+        blockGroup: 'group-1',
+        sortingKey: 'a0',
+        metadata: { sql_integration_id: integrationId },
+      }
+
+      const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+        [
+          {
+            type: 'alloydb',
+            id: integrationId,
+            name: 'My AlloyDB Connection',
+            metadata: {
+              host: 'my-host',
+              port: '5432',
+              user: 'my-user',
+              password: 'my-password',
+              database: 'my-database',
+            },
+          },
+        ],
+        { projectRootDirectory: '/path/to/project' }
+      )
+      expect(errors).toHaveLength(0)
+
+      expect(createPythonCode(sqlBlock)).toContain("'SQL_3E2BED0F_E89B'")
+      expect(envVars.map(envVar => envVar.name)).toContain('SQL_3E2BED0F_E89B')
     })
   })
 })

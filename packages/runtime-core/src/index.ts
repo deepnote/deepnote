@@ -1,4 +1,8 @@
 export type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+export {
+  EXECUTABLE_BLOCK_TYPES as executableBlockTypeSet,
+  EXECUTABLE_BLOCK_TYPES_LIST as executableBlockTypes,
+} from '@deepnote/blocks'
 export type { IDisplayData, IError, IExecuteResult, IOutput, IStream } from '@jupyterlab/nbformat'
 export type { AgentBlockContext, AgentBlockResult, AgentStreamEvent } from './agent-handler'
 export {
@@ -10,7 +14,7 @@ export {
 export type { AgentProviderId, ParsedAgentModel } from './agent-provider'
 export { getAgentApiKeyEnvVar, parseAgentModel } from './agent-provider'
 export type { ExecutionEngineOptions, ExecutionOptions } from './execution-engine'
-export { ExecutionEngine, executableBlockTypeSet, executableBlockTypes } from './execution-engine'
+export { ExecutionEngine } from './execution-engine'
 export type { ExecutionCallbacks, ExecutionResult, KernelConnectOptions, KernelExecuteOptions } from './kernel-client'
 export { createJsonWebSocketFactory, DEFAULT_KERNEL_STARTUP_TIMEOUT_MS, KernelClient } from './kernel-client'
 export type {

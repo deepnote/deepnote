@@ -109,7 +109,7 @@ Snowflake account URL can be copied from the Snowflake UI, as shown on a screens
        external_oauth_type = okta
        external_oauth_issuer = '<OKTA_ISSUER>'
        external_oauth_jws_keys_url = '<OKTA_JWS_KEY_ENDPOINT>'
-       external_oauth_audience_list = ('<snowflake_account_url')
+       external_oauth_audience_list = ('<snowflake_account_url>')
        external_oauth_token_user_mapping_claim = 'sub'
        external_oauth_snowflake_user_mapping_attribute = 'login_name';
    ```
@@ -124,7 +124,7 @@ Snowflake account URL can be copied from the Snowflake UI, as shown on a screens
 
 4.  Fill in Identity Provider as `<OKTA_IDENTITY_PROVIDER_ID>` .
 
-5.  Fill in Authorization Server as the `<OKTA_AUTHORIZATION_SERVER_ID>`.
+5.  Fill in **Authorization server ID** as the `<OKTA_AUTHORIZATION_SERVER_ID>`.
 
 6.  **Optional:** If you didn’t set `external_oauth_any_role_mode = 'ENABLE'` when creating a security integration in Snowflake, you must fill in Role [as defined by the Okta scope](snowflake-with-azure-ad#Create-Security-integration-in-Snowflake) (just add the role name and not the `session:role` prefix).
 

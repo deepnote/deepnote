@@ -947,7 +947,7 @@ describe('lint command - linting integrations yaml directly', () => {
     expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
       "Configuration issues in <tmp>/invalid-type.yaml
 
-        ✖ invalid_union_discriminator: Integration "Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+        ✖ invalid_union: Integration "Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
           at integrations[0].type
 
       Summary: 1 configuration error"
@@ -1095,7 +1095,7 @@ describe('lint command - linting integrations yaml directly', () => {
           {
             path: 'integrations[0].type',
             message: expect.stringContaining('Invalid discriminator value'),
-            code: 'invalid_union_discriminator',
+            code: 'invalid_union',
           },
         ],
       },
@@ -1370,7 +1370,7 @@ describe('lint command - integrations file loading', () => {
             {
               path: 'integrations[0].type',
               message: expect.stringContaining('Invalid discriminator value'),
-              code: 'invalid_union_discriminator',
+              code: 'invalid_union',
             },
           ],
         },
@@ -1532,7 +1532,7 @@ describe('lint command - integrations file loading', () => {
       expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
         "Configuration issues in <tmp>/text-output-bad-integrations.yaml
 
-          ✖ invalid_union_discriminator: Integration "My Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+          ✖ invalid_union: Integration "My Bad DB": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
             at integrations[0].type
 
         Summary: 1 configuration error"
@@ -1578,7 +1578,7 @@ describe('lint command - integrations file loading', () => {
       expect(withStableTmpPaths(textOutput, tempDir)).toMatchInlineSnapshot(`
         "Configuration issues in <tmp>/path-info-integrations.yaml
 
-          ✖ invalid_union_discriminator: Integration "Bad": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
+          ✖ invalid_union: Integration "Bad": Invalid discriminator value. Expected 'alloydb' | 'athena' | 'big-query' | 'clickhouse' | 'cloud-sql' | 'databricks' | 'dremio' | 'mariadb' | 'materialize' | 'mindsdb' | 'mongodb' | 'mysql' | 'pandas-dataframe' | 'pgsql' | 'redshift' | 'snowflake' | 'spanner' | 'sql-server' | 'trino'
             at integrations[0].type
 
         Summary: 1 configuration error"

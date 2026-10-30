@@ -9,8 +9,8 @@ const DEFAULT_START_TIMEOUT_MS = 10 * 60_000
 
 const streamlitAppSchema = z
   .object({
-    id: z.string().uuid(),
-    projectId: z.string().uuid(),
+    id: z.guid(),
+    projectId: z.guid(),
     entrypoint: z.string().min(1),
     url: z.string().url(),
     createdAt: z.string().min(1),

@@ -28,6 +28,7 @@ streamlit
 pyspark
 Supabase
 supabase
+pooler
 Trino
 nbdime
 Fastai
@@ -89,6 +90,7 @@ SECURITYADMIN
 pkcs
 topk
 pubout
+nocrypt
 auslh
 SCIM
 authorisation

@@ -108,6 +108,33 @@ describe('findNotebook', () => {
     expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'Nope' })).toBeUndefined()
   })
 
+  it('refuses to pick between several matching projects when a unique match is required', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([
+        { id: 'p-old', name: 'P', createdAt: '2026-01-01', notebooks: [{ id: 'nb-old', name: 'Main' }] },
+        { id: 'p-new', name: 'P', createdAt: '2026-02-01', notebooks: [{ id: 'nb-new', name: 'Main' }] },
+      ])
+    )
+
+    await expect(
+      findNotebook(BASE_URL, TOKEN, { projectName: 'P', notebookName: 'Main', unique: true })
+    ).rejects.toThrow('2 Deepnote projects named "P" match this notebook.')
+  })
+
+  it('ignores same-named projects without the notebook when a unique match is required', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      projectsPage([
+        { id: 'p-other', name: 'P', createdAt: '2026-02-01', notebooks: [{ id: 'nb-x', name: 'Other' }] },
+        { id: 'p-wanted', name: 'P', createdAt: '2026-01-01', notebooks: [{ id: 'nb-y', name: 'Main' }] },
+      ])
+    )
+
+    expect(await findNotebook(BASE_URL, TOKEN, { projectName: 'P', notebookName: 'Main', unique: true })).toEqual({
+      notebookId: 'nb-y',
+      projectId: 'p-wanted',
+    })
+  })
+
   it('throws rather than reporting absence when the page walk runs out of pages', async () => {
     // A workspace still offering pages is a lookup that has not finished. Answering "not here" from
     // it is how `createIfMissing` ends up creating a project that already exists.
