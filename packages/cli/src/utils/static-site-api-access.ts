@@ -10,6 +10,8 @@ export function embeddedApiAccessNote(c: ChalkInstance): string {
     ),
     c.dim('  Notebooks can be in this project or others in the same workspace where the viewer has direct access.'),
     c.dim('  Runs in other projects also require execute permission.'),
-    c.dim('  Every other endpoint answers 403. Check the app as a viewer with `deepnote publish <dir> --preview`.'),
+    c.dim(
+      '  Every other endpoint answers 403. Check the app as a viewer with `deepnote publish <dir> --preview --project-id <id>`.'
+    ),
   ].join('\n')
 }

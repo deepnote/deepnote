@@ -51,11 +51,12 @@ export function matchViewerRoute(method: string, pathname: string): ViewerRouteM
  *
  * A heuristic for the publish-time warning, not a guarantee: it sees string and template literals
  * (`${...}` counts as one path segment), not paths assembled by concatenation. A literal ending in
- * `/` is treated as a prefix and only reported when no viewer route starts with it.
+ * `/` is treated as a prefix and only reported when no viewer route starts with it. Block comments
+ * are skipped, since bundles that are not minified keep their documentation.
  */
 export function findOutOfScopeApiPaths(source: string): string[] {
   const found = new Set<string>()
-  for (const match of source.matchAll(/\/v2(?:\/(?:\$\{[^}]*\}|[A-Za-z0-9_.:%-]+))*\/?/g)) {
+  for (const match of stripBlockComments(source).matchAll(API_PATH)) {
     const literal = match[0]
     if (PUBLIC_PATHS.some(path => literal === path || literal.startsWith(`${path}/`))) continue
     const isPrefix = literal.endsWith('/')
@@ -70,6 +71,17 @@ export function findOutOfScopeApiPaths(source: string): string[] {
     if (!inScope) found.add(literal)
   }
   return [...found]
+}
+
+/** `/v2` followed by at least one segment: a `${...}` placeholder or a name starting with a letter. */
+const API_PATH = /\/v2(?:\/(?:\$\{[^}]*\}|[A-Za-z][A-Za-z0-9_.:%-]*))+\/?/g
+
+/**
+ * Remove `/* ... *\/` comments. Line comments are left alone: telling `//` in a comment from `//` in a
+ * URL needs a real tokenizer, and documentation is what lands in block comments.
+ */
+export function stripBlockComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, ' ')
 }
 
 const WILDCARD = '\u0000'

@@ -13,6 +13,8 @@ export default defineConfig([
     format: ['iife'],
     platform: 'browser',
     globalName: 'DeepnoteApp',
+    // Minified: smaller to publish with an app, and free of the comments a build scan would read.
+    minify: true,
     dts: false,
   },
 ])

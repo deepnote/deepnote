@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { findOutOfScopeApiPaths, matchViewerRoute, VIEWER_SCOPE } from './viewer-scope'
 
@@ -72,5 +74,26 @@ describe('findOutOfScopeApiPaths', () => {
   it('ignores public endpoints and reports each path once', () => {
     const source = "'/v2/openapi.json' '/v2/docs/apps' '/v2/me' '/v2/me'"
     expect(findOutOfScopeApiPaths(source)).toEqual(['/v2/me'])
+  })
+
+  it('ignores paths in block comments, and bare or placeholder-free fragments', () => {
+    const source = `
+      /**
+       * Mirrors app-viewer-router.ts: every other authenticated \`/v2\` route answers 403.
+       * Finds \`/v2/...\` literals. See /v2/projects for the full API.
+       */
+      fetch('/v2/runs')
+    `
+    expect(findOutOfScopeApiPaths(source)).toEqual([])
+    expect(findOutOfScopeApiPaths("/* a */ fetch('/v2/projects') /* b */")).toEqual(['/v2/projects'])
+  })
+
+  it("does not flag the client's own source, which apps bundle", () => {
+    const sourceDir = __dirname
+    const files = readdirSync(sourceDir).filter(name => name.endsWith('.ts') && !name.endsWith('.test.ts'))
+    expect(files.length).toBeGreaterThan(2)
+    for (const name of files) {
+      expect([name, findOutOfScopeApiPaths(readFileSync(join(sourceDir, name), 'utf-8'))]).toEqual([name, []])
+    }
   })
 })

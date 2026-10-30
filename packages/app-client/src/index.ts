@@ -25,4 +25,10 @@ export {
 export type { HostedScopeReport } from './hosted-scope-check'
 export { APP_TOKEN_MINT_ROUTE, checkHostedViewerScope } from './hosted-scope-check'
 export type { ViewerRoute, ViewerRouteMatch, ViewerRouteName } from './viewer-scope'
-export { findOutOfScopeApiPaths, matchViewerRoute, VIEWER_SCOPE, VIEWER_SCOPE_DENIED_MESSAGE } from './viewer-scope'
+export {
+  findOutOfScopeApiPaths,
+  matchViewerRoute,
+  stripBlockComments,
+  VIEWER_SCOPE,
+  VIEWER_SCOPE_DENIED_MESSAGE,
+} from './viewer-scope'

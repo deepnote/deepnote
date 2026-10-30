@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join, relative, sep } from 'node:path'
-import { findOutOfScopeApiPaths, TOKEN_REQUEST_MESSAGE } from '@deepnote/app-client'
+import { findOutOfScopeApiPaths, stripBlockComments, TOKEN_REQUEST_MESSAGE } from '@deepnote/app-client'
 
 const SCANNED_EXTENSIONS = new Set(['.html', '.htm', '.js', '.mjs', '.cjs'])
 /** Big files are almost always vendored libraries, not the app's own API calls. */
@@ -45,14 +45,16 @@ export async function scanAppBuild(dir: string): Promise<AppBuildScan> {
     const file = relative(dir, path).split(sep).join('/')
     if (file.split('/').includes('node_modules')) continue
     if ((await stat(path)).size > MAX_SCANNED_BYTES) continue
-    const source = await readFile(path, 'utf-8')
+    const raw = await readFile(path, 'utf-8')
+    // Bundles that are not minified keep documentation comments; only code should count.
+    const source = stripBlockComments(raw)
 
     const outOfScope = findOutOfScopeApiPaths(source)
     if (outOfScope.length > 0) scan.outOfScope.push({ file, paths: outOfScope })
     const localServer = [...new Set(Array.from(source.matchAll(LOCAL_SERVER_ROUTE), match => match[0]))]
     if (localServer.length > 0) scan.localServerCalls.push({ file, paths: localServer })
     if (DEEPNOTE_API_CALL.test(source)) scan.apiFiles.push(file)
-    if (source.includes(TOKEN_REQUEST_MESSAGE)) scan.hasTokenHandshake = true
+    if (raw.includes(TOKEN_REQUEST_MESSAGE)) scan.hasTokenHandshake = true
   }
   const byFile = (a: FileFindings, b: FileFindings) => a.file.localeCompare(b.file)
   scan.outOfScope.sort(byFile)

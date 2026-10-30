@@ -66,4 +66,18 @@ describe('scanAppBuild', () => {
 
     expect(scan).toEqual({ outOfScope: [], localServerCalls: [], apiFiles: ['app.js'], hasTokenHandshake: false })
   })
+
+  it('reads code, not documentation comments', async () => {
+    await fs.writeFile(
+      join(dir, 'vendor.js'),
+      '/**\n * Talks to /v2/projects and the local /api/run route.\n */\nexport const x = 1'
+    )
+
+    expect(await scanAppBuild(dir)).toEqual({
+      outOfScope: [],
+      localServerCalls: [],
+      apiFiles: [],
+      hasTokenHandshake: false,
+    })
+  })
 })
