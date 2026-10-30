@@ -75,12 +75,45 @@ describe('createAppClient', () => {
     })
   })
 
-  it('reads the shell origin from ?shellOrigin=', async () => {
+  it('reads a loopback shell origin from ?shellOrigin= (local preview)', async () => {
     const shell = fakeShell({ search: '?shellOrigin=http%3A%2F%2F127.0.0.1%3A4000', answer: false })
     const client = createAppClient({ host: shell.host, fetch: vi.fn(), handshakeTimeoutMs: 20 })
 
     await expect(client.connect()).rejects.toMatchObject({ code: 'no-token' })
     expect(shell.requests[0]?.targetOrigin).toBe('http://127.0.0.1:4000')
+  })
+
+  it.each([
+    'https://evil.example',
+    'http://evil.example',
+    'https://127.0.0.1.evil.example',
+    'javascript:alert(1)',
+    'not a url',
+  ])(
+    'ignores a non-loopback ?shellOrigin=%s, so another site cannot embed the app and feed it a token',
+    async origin => {
+      const shell = fakeShell({ search: `?shellOrigin=${encodeURIComponent(origin)}`, answer: false })
+      const client = createAppClient({ host: shell.host, fetch: vi.fn(), handshakeTimeoutMs: 20 })
+      const connecting = client.connect()
+
+      shell.deliver({ origin, fromParent: true, data: credential('attacker-token') })
+
+      await expect(connecting).rejects.toMatchObject({ code: 'no-token' })
+      expect(shell.requests.every(request => request.targetOrigin === SHELL)).toBe(true)
+    }
+  )
+
+  it('uses an explicitly configured shell origin over the query string', async () => {
+    const shell = fakeShell({ search: '?shellOrigin=http%3A%2F%2F127.0.0.1%3A4000', answer: false })
+    const client = createAppClient({
+      host: shell.host,
+      fetch: vi.fn(),
+      shellOrigin: 'https://deepnote.example.org',
+      handshakeTimeoutMs: 20,
+    })
+
+    await expect(client.connect()).rejects.toMatchObject({ code: 'no-token' })
+    expect(shell.requests[0]?.targetOrigin).toBe('https://deepnote.example.org')
   })
 
   it('ignores token replies from another origin or another frame', async () => {

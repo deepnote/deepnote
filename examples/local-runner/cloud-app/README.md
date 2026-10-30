@@ -21,14 +21,16 @@ from the page, because viewers cannot list a notebook's run history.
 
 ### Configuration
 
-Runtime configuration comes from `APP_CONFIG` in the HTML. `notebookId` and `shellOrigin` can also be
-set through query parameters:
+Runtime configuration comes from `APP_CONFIG` in the HTML. `notebookId` can also be set through a query
+parameter. `shellOrigin` cannot: anyone can embed a published app with any query string, so taking the
+token's origin from the URL would let another site hand the app a token. The client accepts only a
+loopback `?shellOrigin=`, which is what local preview passes.
 
-| Parameter     | Default                | Description                                                                  |
-| ------------- | ---------------------- | ---------------------------------------------------------------------------- |
-| `notebookId`  | —                      | Required notebook to run                                                     |
-| `shellOrigin` | `https://deepnote.com` | Origin of the embedding Deepnote shell, pinned so only it can supply a token |
-| `inputs`      | `[]`                   | Optional input definitions; empty means discover them from the notebook API  |
+| Parameter     | Default                | Description                                                                 |
+| ------------- | ---------------------- | --------------------------------------------------------------------------- |
+| `notebookId`  | —                      | Required notebook to run                                                    |
+| `shellOrigin` | `https://deepnote.com` | Origin of the embedding Deepnote page; set it for another deployment        |
+| `inputs`      | `[]`                   | Optional input definitions; empty means discover them from the notebook API |
 
 Publishing the files is not enough for the embedded path. A project needs **API access for apps**
 enabled, which is a separate opt-in from app sharing. Without it the shell answers the handshake
@@ -38,16 +40,18 @@ with nothing at all, and the app reports that it could not acquire a token.
 
 ```bash
 # Builds the packages, copies app-client.js next to index.html, and serves a viewer preview
-DEEPNOTE_TOKEN=... NOTEBOOK_ID=<notebook-id> pnpm example:cloud-app
+DEEPNOTE_TOKEN=... PROJECT_ID=<project-id> NOTEBOOK_ID=<notebook-id> pnpm example:cloud-app
 ```
 
-Open the printed URL. The preview embeds the app the way Deepnote does and hands it a local viewer
-token. Calls a viewer can make are forwarded to Deepnote with your `DEEPNOTE_TOKEN`; everything else
-answers 403, as it will once published. The bar above the app can expire the token (to exercise
+Open the printed URL. The preview embeds the app the way Deepnote does and hands it a viewer token.
+With `PROJECT_ID`, that is a real viewer token Deepnote mints for you, so Deepnote answers every call
+as it will for viewers; the project needs app sharing and API access enabled. Without it, the token is
+simulated: calls a viewer can make are forwarded with your `DEEPNOTE_TOKEN`, and everything else
+answers 403. The bar above the app can expire the token (to exercise
 refresh) or revoke API access, and the panel below it logs every API call. `TOKEN_TTL=30` shortens the
 token's lifetime.
 
-With the CLI, the same preview is `deepnote publish examples/local-runner/cloud-app --preview`, once
+With the CLI, the same preview is `deepnote publish examples/local-runner/cloud-app --preview --project-id <project-id>`, once
 `app-client.js` is in the directory.
 
 ## Publishing to deepnote.com

@@ -838,6 +838,7 @@ describe('deepnote publish', () => {
         shellOrigin: 'http://127.0.0.1:4000',
         appOrigin: 'http://127.0.0.1:4001',
         mode: 'viewer',
+        tokenSource: 'simulated',
         events: () => [],
         expireTokens: vi.fn(),
         revoke: vi.fn(),
@@ -860,6 +861,7 @@ describe('deepnote publish', () => {
         token: 'tok',
         apiUrl: 'https://api.deepnote.com',
         mode: 'viewer',
+        projectId: undefined,
         tokenTtlSeconds: 30,
         port: 4000,
       })
@@ -867,6 +869,18 @@ describe('deepnote publish', () => {
       expect(handle.close).toHaveBeenCalled()
       expect(mockedGetProject).not.toHaveBeenCalled()
       expect(mockedUpload).not.toHaveBeenCalled()
+    })
+
+    it('uses a real viewer token for --project-id', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+
+      const running = run(tempDir, '--preview', '--project-id', 'p1', '--token', 'tok')
+      await waitForPreview()
+      process.emit('SIGINT')
+      await running
+
+      expect(mockedPreview).toHaveBeenCalledWith(expect.objectContaining({ mode: 'viewer', projectId: 'p1' }))
+      expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
     it('uses author mode with --as-author', async () => {
@@ -901,6 +915,20 @@ describe('deepnote publish', () => {
       expect(exitSpy).toHaveBeenCalledWith(2)
       expect(stderr.join('')).toContain(message)
       expect(mockedPreview).not.toHaveBeenCalled()
+    })
+
+    it('exits with code 1 and a readable message when the preview cannot start', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      mockedPreview.mockRejectedValue(new Error('listen EADDRINUSE: address already in use 127.0.0.1:4000'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+      const stderr = captureStderr()
+
+      await expect(run(tempDir, '--preview', '--token', 'tok', '--port', '4000')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(1)
+      expect(stderr.join('')).toContain('Could not start the preview: listen EADDRINUSE')
     })
 
     it('exits with code 2 when the directory does not exist', async () => {

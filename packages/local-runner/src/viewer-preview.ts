@@ -8,13 +8,24 @@ import { renderPreviewShell } from './viewer-preview-shell'
 const DEFAULT_API_URL = 'https://api.deepnote.com'
 const DEFAULT_TOKEN_TTL_SECONDS = 15 * 60
 const MAX_EVENTS = 200
+/**
+ * How long a refused mint is reused. The app asks for a token every few hundred milliseconds until
+ * answered; without this, each ask would be another request to Deepnote.
+ */
+const MINT_FAILURE_REUSE_MS = 5000
 
 /**
- * `viewer` reproduces a published app's viewer token: only its routes, shaped the way Deepnote answers
- * them. `author` forwards every `/v2` call with the developer's own token, for tooling that is not
- * meant to be published.
+ * `viewer` gives the app a published app's viewer token. `author` forwards every `/v2` call with the
+ * developer's own token, for tooling that is not meant to be published.
  */
 export type PreviewMode = 'viewer' | 'author'
+
+/**
+ * Where a viewer preview's token comes from. `deepnote`: a real viewer token Deepnote mints for the
+ * project, so Deepnote enforces the viewer scope and the project's sharing and API access settings.
+ * `simulated`: a local token, with the viewer scope applied here from `VIEWER_SCOPE`; needs no project.
+ */
+export type TokenSource = 'deepnote' | 'simulated'
 
 export interface ViewerPreviewOptions {
   /** Directory of the app build, served as the embedded page. */
@@ -24,6 +35,12 @@ export interface ViewerPreviewOptions {
   /** Deepnote API base URL that in-scope calls are forwarded to. */
   apiUrl?: string
   mode?: PreviewMode
+  /**
+   * The project that will host the app. With it, a viewer preview asks Deepnote for a real viewer token
+   * (`POST /v2/projects/{projectId}/static-files/app-token`), which needs the project's app sharing and
+   * API access enabled. Without it, the viewer token is simulated locally.
+   */
+  projectId?: string
   /** Lifetime of the local tokens the shell hands out. Defaults to 15 minutes, like Deepnote. */
   tokenTtlSeconds?: number
   /** Port of the shell page (the URL to open). Defaults to an ephemeral port. */
@@ -45,6 +62,11 @@ export interface PreviewEvent {
   status: number
   outcome: PreviewEventOutcome
   message?: string
+  /**
+   * Deepnote answered a real viewer token differently from what `VIEWER_SCOPE` predicts: the local
+   * definition has drifted from Deepnote's, and simulated previews are wrong for this route.
+   */
+  scopeMismatch?: boolean
 }
 
 export interface ViewerPreviewHandle {
@@ -53,6 +75,8 @@ export interface ViewerPreviewHandle {
   shellOrigin: string
   appOrigin: string
   mode: PreviewMode
+  /** `null` in author mode, where calls use the developer's token. */
+  tokenSource: TokenSource | null
   events(): PreviewEvent[]
   /** Expire every token handed out so far; the app's next call gets a 401. */
   expireTokens(): void
@@ -75,16 +99,26 @@ type ViewerHandler = (context: {
   path: string
 }) => Promise<void>
 
+interface IssuedToken {
+  expiresAtSeconds: number
+  /** The real viewer token behind a local one, when Deepnote minted it. */
+  upstream?: { token: string; origin: string }
+}
+
 /**
  * Serve an app the way Deepnote embeds it, so viewer-token behaviour shows up before publishing.
  *
  * Two loopback origins, as when hosted: a shell page that embeds the app cross-origin and answers its
- * token handshake, and the app itself. The token is local and opaque. The shell origin also serves
- * `/v2`: calls inside the viewer scope are forwarded to Deepnote with the developer's token and reshaped
- * to the viewer response; everything else gets the 403 Deepnote returns to a viewer token.
+ * token handshake, and the app itself. The app gets a local, opaque token and sends its API calls to
+ * the shell origin's `/v2`, which logs them and can expire or revoke the token on demand.
  *
- * What it cannot reproduce is Deepnote's per-viewer ACL: calls run as the developer, so a viewer with
- * narrower project access, or a project with API access disabled, is not simulated.
+ * With a `projectId`, the local token stands for a real viewer token Deepnote mints for the developer,
+ * and calls pass through unchanged: Deepnote enforces the scope. Without one, calls inside
+ * `VIEWER_SCOPE` are forwarded with the developer's token and reshaped to the viewer response, and
+ * everything else gets the 403 Deepnote returns to a viewer token.
+ *
+ * Either way calls run as the developer, so a viewer with narrower project access than theirs is not
+ * reproduced.
  */
 export async function serveViewerPreview(options: ViewerPreviewOptions): Promise<ViewerPreviewHandle> {
   const rootDir = resolve(options.dir)
@@ -98,8 +132,11 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
   if (!Number.isFinite(tokenTtlSeconds) || tokenTtlSeconds <= 0) {
     throw new Error('tokenTtlSeconds must be a positive number')
   }
+  const tokenSource: TokenSource | null = mode === 'author' ? null : options.projectId ? 'deepnote' : 'simulated'
 
-  const tokens = new Map<string, number>()
+  const tokens = new Map<string, IssuedToken>()
+  let lastMintError: string | null = null
+  let lastMintFailure: { at: number; message: string } | null = null
   const sessionRunIds = new Set<string>()
   const events: PreviewEvent[] = []
   let revoked = false
@@ -135,17 +172,83 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
     if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS)
   }
 
-  function mint() {
+  type MintResult =
+    | { ok: true; credential: { token: string; apiOrigin: string; expiresAtSeconds: number } }
+    | { ok: false; message: string }
+
+  async function mint(): Promise<MintResult> {
+    let expiresAtSeconds = Math.floor(now() / 1000) + tokenTtlSeconds
+    let upstream: IssuedToken['upstream']
+    if (tokenSource === 'deepnote') {
+      if (lastMintFailure && now() - lastMintFailure.at < MINT_FAILURE_REUSE_MS) {
+        return { ok: false, message: lastMintFailure.message }
+      }
+      const minted = await mintDeepnoteToken()
+      if (!minted.ok) {
+        lastMintError = minted.message
+        lastMintFailure = { at: now(), message: minted.message }
+        return minted
+      }
+      lastMintFailure = null
+      upstream = { token: minted.token, origin: minted.origin }
+      // --token-ttl can only shorten the real token's life, never extend it.
+      expiresAtSeconds = Math.min(expiresAtSeconds, minted.expiresAtSeconds)
+    }
+    lastMintError = null
     const token = randomBytes(24).toString('base64url')
-    const expiresAtSeconds = Math.floor(now() / 1000) + tokenTtlSeconds
-    tokens.set(token, expiresAtSeconds)
-    return { token, apiOrigin: shellOrigin, expiresAtSeconds }
+    tokens.set(token, { expiresAtSeconds, upstream })
+    return { ok: true, credential: { token, apiOrigin: shellOrigin, expiresAtSeconds } }
   }
 
-  function isAuthorized(req: IncomingMessage): boolean {
+  /** Ask Deepnote for the viewer token the hosted shell would get, on the developer's behalf. */
+  async function mintDeepnoteToken(): Promise<
+    { ok: true; token: string; origin: string; expiresAtSeconds: number } | { ok: false; message: string }
+  > {
+    const projectId = options.projectId ?? ''
+    const path = `/v2/projects/${encodeURIComponent(projectId)}/static-files/app-token`
+    let response: Response
+    try {
+      response = await fetchImpl(`${apiUrl}${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${options.token}` },
+      })
+    } catch (error) {
+      const message = `Could not reach ${apiUrl} to mint a viewer token: ${errorMessage(error)}`
+      record({ method: 'POST', path, status: 502, outcome: 'failed', message })
+      return { ok: false, message }
+    }
+    const text = await response.text()
+    const body = parseJson(text) as { token?: unknown; apiOrigin?: unknown; expiresAtSeconds?: unknown } | undefined
+    if (!response.ok) {
+      const message =
+        response.status === 404
+          ? `Deepnote would not mint a viewer token for project ${projectId}. The project needs app sharing and ` +
+            `API access enabled (\`deepnote static-site access --project-id ${projectId} --sharing enabled ` +
+            '--api-access enabled`), and your token must be allowed to view it. Viewers of the published app ' +
+            'would get no token either.'
+          : `Deepnote would not mint a viewer token (${response.status}): ${readMessage(body) ?? text}`
+      record({ method: 'POST', path, status: response.status, outcome: 'denied', message })
+      return { ok: false, message }
+    }
+    let origin: string
+    try {
+      origin = new URL(String(body?.apiOrigin)).origin
+    } catch {
+      origin = ''
+    }
+    if (typeof body?.token !== 'string' || !origin || typeof body.expiresAtSeconds !== 'number') {
+      const message = 'Deepnote answered the viewer token request with an unexpected body'
+      record({ method: 'POST', path, status: response.status, outcome: 'failed', message })
+      return { ok: false, message }
+    }
+    record({ method: 'POST', path, status: response.status, outcome: 'allowed', message: 'Viewer token minted' })
+    return { ok: true, token: body.token, origin, expiresAtSeconds: body.expiresAtSeconds }
+  }
+
+  function authorize(req: IncomingMessage): IssuedToken | null {
     const match = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')
-    const expiresAtSeconds = match ? tokens.get(match[1]) : undefined
-    return expiresAtSeconds !== undefined && expiresAtSeconds > now() / 1000
+    const issued = match ? tokens.get(match[1]) : undefined
+    return issued && issued.expiresAtSeconds > now() / 1000 ? issued : null
   }
 
   async function handleShell(req: IncomingMessage, res: ServerResponse): Promise<void> {
@@ -159,12 +262,20 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
 
     if (req.method === 'GET' && pathname === '/') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' })
-      res.end(renderPreviewShell({ appOrigin, mode, tokenTtlSeconds }))
+      res.end(renderPreviewShell({ appOrigin, mode, tokenSource, tokenTtlSeconds }))
       return
     }
 
     if (req.method === 'GET' && pathname === '/__preview/state') {
-      sendJson(res, 200, { mode, revoked, tokenTtlSeconds, appOrigin, events: events.slice(-50) })
+      sendJson(res, 200, {
+        mode,
+        tokenSource,
+        revoked,
+        lastMintError,
+        tokenTtlSeconds,
+        appOrigin,
+        events: events.slice(-50),
+      })
       return
     }
 
@@ -177,13 +288,19 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
         return
       }
       switch (pathname) {
-        case '/__preview/token':
+        case '/__preview/token': {
           if (revoked) {
             sendJson(res, 403, { error: 'API access is revoked in this preview' })
+            return
+          }
+          const minted = await mint()
+          if (minted.ok) {
+            sendJson(res, 200, minted.credential)
           } else {
-            sendJson(res, 200, mint())
+            sendJson(res, 403, { error: minted.message })
           }
           return
+        }
         case '/__preview/expire':
           handle.expireTokens()
           sendJson(res, 200, { ok: true })
@@ -219,9 +336,15 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
       return
     }
 
-    if (!isAuthorized(req)) {
+    const issued = authorize(req)
+    if (!issued) {
       record({ method, path: pathname, status: 401, outcome: 'unauthorized', message: 'Missing or expired token' })
       sendJson(res, 401, { message: 'Unauthorized' })
+      return
+    }
+
+    if (issued.upstream) {
+      await passThrough(req, res, method, pathname, search, issued.upstream)
       return
     }
 
@@ -244,31 +367,68 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
     await viewerHandlers[match.name]({ req, res, params: match.params, path: pathname })
   }
 
-  /** Forward with the developer's token, answering 502 when Deepnote can't be reached. */
-  async function forward(res: ServerResponse, method: string, path: string, body?: string) {
+  /**
+   * A real viewer token: Deepnote decides. The call goes through as the app made it, and the answer
+   * comes back unchanged. Comparing that answer with `VIEWER_SCOPE` is how drift in the local
+   * definition shows up.
+   */
+  async function passThrough(
+    req: IncomingMessage,
+    res: ServerResponse,
+    method: string,
+    pathname: string,
+    search: string,
+    credential: { token: string; origin: string }
+  ) {
+    const body = method === 'GET' || method === 'HEAD' ? undefined : await readRequestBody(req, res)
+    if (body === null) return
+    const upstream = await forward(res, method, `${pathname}${search}`, body, credential)
+    if (!upstream) return
+    const deniedByScope = upstream.status === 403 && readMessage(upstream.body) === VIEWER_SCOPE_DENIED_MESSAGE
+    const inScope = matchViewerRoute(method, pathname) !== null
+    const ok = upstream.status >= 200 && upstream.status < 300
+    const scopeMismatch = (deniedByScope && inScope) || (ok && !inScope)
+    record({
+      method,
+      path: pathname,
+      status: upstream.status,
+      outcome: ok ? 'allowed' : deniedByScope ? 'denied' : upstream.status === 401 ? 'unauthorized' : 'failed',
+      message: scopeMismatch
+        ? `Deepnote ${ok ? 'allowed' : 'refused'} this for a viewer token, but VIEWER_SCOPE in @deepnote/app-client ` +
+          `says it ${ok ? 'should not' : 'should'}. The local definition is out of date; simulated previews are wrong here.`
+        : ok
+          ? undefined
+          : readMessage(upstream.body),
+      ...(scopeMismatch ? { scopeMismatch } : {}),
+    })
+    sendRaw(res, upstream)
+  }
+
+  /** Forward a call, with the developer's token unless given another; 502 when Deepnote can't be reached. */
+  async function forward(
+    res: ServerResponse,
+    method: string,
+    path: string,
+    body?: string,
+    credential: { token: string; origin: string } = { token: options.token, origin: apiUrl }
+  ) {
     let response: Response
     try {
-      response = await fetchImpl(`${apiUrl}${path}`, {
+      response = await fetchImpl(`${credential.origin}${path}`, {
         method,
         headers: {
-          Authorization: `Bearer ${options.token}`,
+          Authorization: `Bearer ${credential.token}`,
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         },
         body,
       })
     } catch (error) {
       record({ method, path, status: 502, outcome: 'failed', message: errorMessage(error) })
-      sendJson(res, 502, { message: `Could not reach ${apiUrl}: ${errorMessage(error)}` })
+      sendJson(res, 502, { message: `Could not reach ${credential.origin}: ${errorMessage(error)}` })
       return null
     }
     const text = await response.text()
-    let parsed: unknown
-    try {
-      parsed = text ? JSON.parse(text) : undefined
-    } catch {
-      parsed = undefined
-    }
-    return { status: response.status, body: parsed, text } satisfies Upstream
+    return { status: response.status, body: parseJson(text), text } satisfies Upstream
   }
 
   /** Reject a viewer call the way Deepnote does, and log it. */
@@ -413,9 +573,10 @@ export async function serveViewerPreview(options: ViewerPreviewOptions): Promise
     shellOrigin,
     appOrigin,
     mode,
+    tokenSource,
     events: () => [...events],
     expireTokens() {
-      for (const token of tokens.keys()) tokens.set(token, 0)
+      for (const issued of tokens.values()) issued.expiresAtSeconds = 0
     },
     revoke() {
       revoked = true
@@ -453,6 +614,14 @@ function sendRaw(res: ServerResponse, upstream: Upstream) {
 
 function asArray(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value) ? (value as Array<Record<string, unknown>>) : []
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return text ? JSON.parse(text) : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function readMessage(body: unknown): string | undefined {

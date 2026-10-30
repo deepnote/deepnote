@@ -8,7 +8,9 @@ short-lived, viewer-scoped token over `postMessage`. That token can make four ca
 answers 403. This client:
 
 - performs the token handshake, with the shell origin pinned in both directions, and sends the token
-  only to the API origin returned with it
+  only to the API origin returned with it. The shell origin is `https://deepnote.com` unless you pass
+  `shellOrigin` (for another deployment); a `?shellOrigin=` in the page URL is honoured only for a
+  loopback origin, so another site embedding the app cannot supply its own token
 - refreshes the token before its 15-minute expiry, and once more on a 401
 - exposes exactly the calls a viewer token can make, so an out-of-scope call can't be written by accident
 - turns the viewer-scope 403 into an `AppScopeError` that says what happened
@@ -28,7 +30,7 @@ next to your page and load it with a `<script>` tag; it defines `window.Deepnote
 ```ts
 import { createAppClient, isRunSuccessful } from "@deepnote/app-client";
 
-const client = createAppClient(); // shell origin: ?shellOrigin=, else https://deepnote.com
+const client = createAppClient(); // shell origin: https://deepnote.com, or the local preview's
 
 const notebook = await client.getNotebook(notebookId); // inputs and block metadata, no source
 const started = await client.startRun(notebookId, { region: "EU" }); // always detached
@@ -53,13 +55,18 @@ runs your page starts.
 
 ## Developing locally
 
-Run the app with `deepnote publish <dir> --preview`. It embeds the build the way Deepnote does, so
-this client gets a local viewer token and the same 403s it will get once published. See
+Run the app with `deepnote publish <dir> --preview --project-id <uuid>`. It embeds the build the way
+Deepnote does and gives this client a real viewer token for the project, so it gets the same answers
+it will get once published. Without `--project-id`, the viewer token is simulated. See
 [Preview an app as a viewer](../../docs/deepnote-cli-publish.md#preview-an-app-as-a-viewer).
 
 ## The viewer scope
 
 `VIEWER_SCOPE` lists the routes a viewer token may call. It mirrors Deepnote's hosted app viewer
-router, and it drives this client, the `deepnote publish --preview` mock API, and the warning
+router, and it drives this client, the simulated `deepnote publish --preview` token, and the warning
 `deepnote publish` prints for API paths in a build that viewers cannot call. `matchViewerRoute` and
 `findOutOfScopeApiPaths` are exported for tools that need the same check.
+
+Two things keep it honest. A preview with a real token flags any call Deepnote answers differently
+from `VIEWER_SCOPE`. And `checkHostedViewerScope` compares it with Deepnote's published API document;
+`scripts/check-hosted-scope.mjs` runs that weekly in CI (`.github/workflows/viewer-scope-drift.yml`).

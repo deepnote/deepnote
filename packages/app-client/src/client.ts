@@ -51,7 +51,11 @@ export interface AppHost {
 }
 
 export interface AppClientOptions {
-  /** Origin of the embedding shell. Defaults to `?shellOrigin=`, then `https://deepnote.com`. */
+  /**
+   * Origin of the embedding shell: the only origin a token is requested from or accepted from. Set it
+   * when the app is embedded somewhere other than `https://deepnote.com`, such as a single-tenant
+   * deployment. Defaults to `https://deepnote.com`, or to a loopback `?shellOrigin=` (local preview).
+   */
   shellOrigin?: string
   /** How long to wait for the shell to answer the handshake. Defaults to 8 seconds. */
   handshakeTimeoutMs?: number
@@ -158,7 +162,7 @@ export interface AppClient {
 export function createAppClient(options: AppClientOptions = {}): AppClient {
   const host = options.host ?? browserHost()
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis)
-  const shellOrigin = options.shellOrigin ?? new URLSearchParams(host.search).get('shellOrigin') ?? DEFAULT_SHELL_ORIGIN
+  const shellOrigin = options.shellOrigin ?? previewShellOrigin(host.search) ?? DEFAULT_SHELL_ORIGIN
   const handshakeTimeoutMs = options.handshakeTimeoutMs ?? 8000
   const refreshBeforeExpirySeconds = options.refreshBeforeExpirySeconds ?? 60
 
@@ -319,6 +323,24 @@ export function createAppClient(options: AppClientOptions = {}): AppClient {
 /** Whether a terminal run status means the run succeeded. */
 export function isRunSuccessful(run: Pick<ViewerRun, 'status'>): boolean {
   return run.status === 'success'
+}
+
+const LOOPBACK_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]'])
+
+/**
+ * A `?shellOrigin=` is trusted only when it is a loopback origin, which is what local preview passes.
+ * Anyone can put a query string on a published app's URL and embed it, so a remote origin from the URL
+ * would let any site hand the app a token and receive its API calls.
+ */
+function previewShellOrigin(search: string): string | null {
+  const value = new URLSearchParams(search).get('shellOrigin')
+  if (!value) return null
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' && LOOPBACK_HOSTNAMES.has(url.hostname) ? url.origin : null
+  } catch {
+    return null
+  }
 }
 
 function readTokenResponse(data: unknown): AppCredential | null {

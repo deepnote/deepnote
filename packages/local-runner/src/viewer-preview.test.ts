@@ -304,4 +304,158 @@ describe('serveViewerPreview', () => {
     await expect(serveViewerPreview({ dir, token: '' })).rejects.toThrow('token')
     await expect(serveViewerPreview({ dir, token: 't', tokenTtlSeconds: 0 })).rejects.toThrow('tokenTtlSeconds')
   })
+
+  describe('with a project id (real viewer token)', () => {
+    const MINT_URL = `${API}/v2/projects/proj-1/static-files/app-token`
+    const NOW = 1_000_000_000
+
+    function deepnote(routes: Record<string, (init?: RequestInit) => Response>) {
+      upstream.mockImplementation(async (url, init) => {
+        if (url === MINT_URL) {
+          return json(200, {
+            token: 'real-viewer-token',
+            apiOrigin: 'https://api.example.test',
+            expiresAtSeconds: NOW / 1000 + 900,
+          })
+        }
+        const route = routes[`${init?.method ?? 'GET'} ${String(url)}`]
+        return route ? route(init) : json(403, { message: VIEWER_SCOPE_DENIED_MESSAGE })
+      })
+    }
+
+    it('mints a real viewer token with the personal token and hands the app a local alias', async () => {
+      deepnote({})
+      const handle = await start({ projectId: 'proj-1', now: () => NOW })
+
+      const response = await fetch(`${handle.shellOrigin}/__preview/token`, {
+        method: 'POST',
+        headers: { Origin: handle.shellOrigin },
+      })
+      const credential = (await response.json()) as { token: string; apiOrigin: string; expiresAtSeconds: number }
+
+      expect(handle.tokenSource).toBe('deepnote')
+      expect(upstream).toHaveBeenCalledWith(MINT_URL, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer personal-token' },
+      })
+      expect(credential.token).not.toBe('real-viewer-token')
+      expect(credential).toMatchObject({ apiOrigin: handle.shellOrigin, expiresAtSeconds: NOW / 1000 + 900 })
+      expect(await (await fetch(handle.url)).text()).toContain('real viewer token from Deepnote')
+    })
+
+    it('passes calls through with the viewer token, leaving every decision to Deepnote', async () => {
+      deepnote({
+        [`GET ${API}/v2/notebooks/nb-1`]: () =>
+          json(200, { notebook: { id: 'nb-1', blocks: [{ id: 'b', type: 'code' }] } }),
+      })
+      const handle = await start({ projectId: 'proj-1', now: () => NOW })
+      const token = await mint(handle)
+
+      const read = await api(handle, token, '/v2/notebooks/nb-1')
+      const history = await api(handle, token, '/v2/notebooks/nb-1/runs?pageSize=5')
+
+      expect(await read.json()).toEqual({ notebook: { id: 'nb-1', blocks: [{ id: 'b', type: 'code' }] } })
+      expect(history.status).toBe(403)
+      const forwarded = upstream.mock.calls.filter(([url]) => url !== MINT_URL)
+      expect(forwarded.map(([url, init]) => [url, (init?.headers as Record<string, string>).Authorization])).toEqual([
+        [`${API}/v2/notebooks/nb-1`, 'Bearer real-viewer-token'],
+        [`${API}/v2/notebooks/nb-1/runs?pageSize=5`, 'Bearer real-viewer-token'],
+      ])
+      expect(handle.events().slice(-2)).toEqual([
+        expect.objectContaining({ path: '/v2/notebooks/nb-1', outcome: 'allowed' }),
+        expect.objectContaining({ path: '/v2/notebooks/nb-1/runs', status: 403, outcome: 'denied' }),
+      ])
+      expect(handle.events().some(event => event.scopeMismatch)).toBe(false)
+    })
+
+    it('flags Deepnote disagreeing with VIEWER_SCOPE', async () => {
+      deepnote({
+        [`GET ${API}/v2/projects`]: () => json(200, { projects: [] }),
+        [`GET ${API}/v2/runs/r-1`]: () => json(403, { message: VIEWER_SCOPE_DENIED_MESSAGE }),
+      })
+      const handle = await start({ projectId: 'proj-1', now: () => NOW })
+      const token = await mint(handle)
+
+      await api(handle, token, '/v2/projects')
+      await api(handle, token, '/v2/runs/r-1')
+
+      expect(handle.events().slice(-2)).toEqual([
+        expect.objectContaining({
+          path: '/v2/projects',
+          scopeMismatch: true,
+          message: expect.stringContaining('allowed'),
+        }),
+        expect.objectContaining({
+          path: '/v2/runs/r-1',
+          scopeMismatch: true,
+          message: expect.stringContaining('refused'),
+        }),
+      ])
+    })
+
+    it('stays silent like Deepnote when the project has no API access, and says why', async () => {
+      upstream.mockResolvedValue(json(404, { message: 'Not found' }))
+      const handle = await start({ projectId: 'proj-1', now: () => NOW })
+
+      const response = await fetch(`${handle.shellOrigin}/__preview/token`, {
+        method: 'POST',
+        headers: { Origin: handle.shellOrigin },
+      })
+      const state = (await (await fetch(`${handle.shellOrigin}/__preview/state`)).json()) as { lastMintError: string }
+
+      expect(response.status).toBe(403)
+      expect(state.lastMintError).toContain('--sharing enabled --api-access enabled')
+      expect(handle.events()).toEqual([
+        expect.objectContaining({ path: '/v2/projects/proj-1/static-files/app-token', status: 404, outcome: 'denied' }),
+      ])
+    })
+
+    it('reuses a refused mint for a few seconds instead of asking Deepnote on every handshake retry', async () => {
+      upstream.mockResolvedValue(json(404, { message: 'Not found' }))
+      let now = NOW
+      const handle = await start({ projectId: 'proj-1', now: () => now })
+      const ask = () =>
+        fetch(`${handle.shellOrigin}/__preview/token`, { method: 'POST', headers: { Origin: handle.shellOrigin } })
+
+      await ask()
+      await ask()
+      await ask()
+      expect(upstream).toHaveBeenCalledTimes(1)
+
+      now += 6000
+      await ask()
+      expect(upstream).toHaveBeenCalledTimes(2)
+    })
+
+    it('shortens the real token with --token-ttl and expires it locally on demand', async () => {
+      deepnote({ [`GET ${API}/v2/runs/r-1`]: () => json(200, { run: { runId: 'r-1' } }) })
+      const handle = await start({ projectId: 'proj-1', tokenTtlSeconds: 30, now: () => NOW })
+
+      const credential = (await (
+        await fetch(`${handle.shellOrigin}/__preview/token`, {
+          method: 'POST',
+          headers: { Origin: handle.shellOrigin },
+        })
+      ).json()) as { token: string; expiresAtSeconds: number }
+      expect(credential.expiresAtSeconds).toBe(NOW / 1000 + 30)
+
+      handle.expireTokens()
+      const expired = await api(handle, credential.token, '/v2/runs/r-1')
+
+      expect(expired.status).toBe(401)
+      expect(upstream.mock.calls.some(([url]) => url === `${API}/v2/runs/r-1`)).toBe(false)
+    })
+
+    it('uses the personal token in author mode even with a project id', async () => {
+      upstream.mockResolvedValue(json(200, { runs: [] }))
+      const handle = await start({ projectId: 'proj-1', mode: 'author', now: () => NOW })
+      const token = await mint(handle)
+
+      await api(handle, token, '/v2/notebooks/nb-1/runs')
+
+      expect(handle.tokenSource).toBeNull()
+      expect(upstream).toHaveBeenCalledTimes(1)
+      expect((upstream.mock.calls[0][1]?.headers as Record<string, string>).Authorization).toBe('Bearer personal-token')
+    })
+  })
 })

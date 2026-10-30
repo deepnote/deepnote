@@ -202,7 +202,8 @@ server at all.
 
 `serveStatic` runs with your token, so it can't tell you whether an app will work for the people you
 publish it to. `serveViewerPreview` embeds a build the way Deepnote does: a shell page on one loopback
-origin hosts the app on another and answers its token handshake with a short-lived local token.
+origin hosts the app on another and answers its token handshake with a short-lived local token. The
+app sends its API calls to the shell origin's `/v2`, which logs them.
 
 ```ts
 import { serveViewerPreview } from "@deepnote/local-runner";
@@ -210,20 +211,25 @@ import { serveViewerPreview } from "@deepnote/local-runner";
 const preview = await serveViewerPreview({
   dir: "./dist",
   token: process.env.DEEPNOTE_TOKEN!,
+  projectId: "…", // optional: use a real viewer token for this project
   tokenTtlSeconds: 30, // optional: exercise token refresh quickly
 });
 console.log(preview.url); // open this; append ?notebookId=… for the app
 ```
 
-The shell origin also serves `/v2`. Calls inside the viewer scope (`VIEWER_SCOPE` from
-`@deepnote/app-client`) are forwarded to Deepnote with your token and reshaped to the viewer's
-response: no block source, no raw snapshot, and only runs this preview started can be polled.
-Everything else answers 403 with the hosted message. Your token never reaches the browser. The page
-logs each call and can expire or revoke the token; the handle exposes the same as `events()`,
-`expireTokens()`, `revoke()`, and `restore()`. `mode: 'author'` forwards every call unchanged.
+With `projectId`, the local token stands for a real viewer token Deepnote mints for you
+(`POST /v2/projects/{projectId}/static-files/app-token`, which needs the project's app sharing and API
+access enabled). Calls pass through unchanged and Deepnote decides them. When Deepnote's answer
+disagrees with `VIEWER_SCOPE`, the event is marked `scopeMismatch`.
 
-Calls run as you, so a viewer with narrower project access, or a project with API access disabled,
-is not simulated. `deepnote publish <dir> --preview` is this function behind the CLI.
+Without `projectId`, calls inside `VIEWER_SCOPE` (from `@deepnote/app-client`) are forwarded with your
+token and reshaped to the viewer's response: no block source, no raw snapshot, and only runs this
+preview started can be polled. Everything else answers 403 with the hosted message.
+
+Your personal token never reaches the browser. The page can expire or revoke the token; the handle
+exposes the same as `events()`, `expireTokens()`, `revoke()`, and `restore()`. `mode: 'author'`
+forwards every call with your token. Tokens always belong to you, so a viewer with narrower project
+access is not reproduced. `deepnote publish <dir> --preview` is this function behind the CLI.
 
 ### Read a snapshot — no Python, no kernel
 

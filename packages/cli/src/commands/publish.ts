@@ -250,17 +250,42 @@ async function runPreview(program: Command, dir: string, token: string, options:
   }
 
   const mode = options.asAuthor ? 'author' : 'viewer'
-  const preview = await serveViewerPreview({ dir, token, apiUrl: options.url, mode, tokenTtlSeconds, port })
+  let preview: Awaited<ReturnType<typeof serveViewerPreview>>
+  try {
+    preview = await serveViewerPreview({
+      dir,
+      token,
+      apiUrl: options.url,
+      mode,
+      projectId: options.projectId,
+      tokenTtlSeconds,
+      port,
+    })
+  } catch (error) {
+    // `program.parse()` does not await this action, so a rejection would surface as a stack trace.
+    const reason = error instanceof Error ? error.message : String(error)
+    program.error(`Could not start the preview: ${reason}`, { exitCode: ExitCode.Error })
+    return
+  }
   log(`${c.bold(mode === 'viewer' ? 'Viewer preview' : 'Author preview')} of ${c.cyan(dir)}`)
   log(`\n  ${c.underline(preview.url)}\n`)
-  if (mode === 'viewer') {
+  if (preview.tokenSource === 'deepnote') {
     log(
       c.dim(
-        'The app gets a local viewer token: only the calls a published app can make reach Deepnote, with your token.\n' +
-          'Everything else answers 403, as it will for viewers. Calls are logged at the bottom of the page.\n' +
-          'Not simulated: viewers with less project access than you, or project API access being disabled.'
+        `The app gets a real viewer token for project ${options.projectId}, minted by Deepnote for you, and\n` +
+          'Deepnote decides every call, as it will for viewers. Calls are logged at the bottom of the page.\n' +
+          'Calls run as you, so a viewer with less project access than you is not reproduced.'
       )
     )
+  } else if (preview.tokenSource === 'simulated') {
+    log(
+      c.dim(
+        'The app gets a simulated viewer token: only the calls a published app can make reach Deepnote, with\n' +
+          'your token, and everything else answers 403. Calls are logged at the bottom of the page.\n' +
+          "Not covered: the project's sharing and API access settings, and viewers with less access than you."
+      )
+    )
+    log(c.dim(`Pass --project-id to use a real viewer token from Deepnote instead.`))
   } else {
     log(
       c.yellow('Every API call runs with your personal token. Viewers of the published app will not have this access.')

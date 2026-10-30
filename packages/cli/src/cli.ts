@@ -596,7 +596,10 @@ ${c.bold('Exit Codes:')}
     .command('publish')
     .description('Publish a local app directory to a Deepnote project')
     .argument('<dir>', 'Directory containing the app files to publish')
-    .option('--project-id <uuid>', 'Deepnote project ID to publish to (required unless --preview)')
+    .option(
+      '--project-id <uuid>',
+      'Deepnote project ID to publish to; with --preview, the project whose viewer token to use'
+    )
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .option('--path <prefix>', `Target directory under ${PROJECT_STATIC_ROOT}`, PROJECT_STATIC_ROOT)
@@ -636,9 +639,11 @@ ${c.bold('App viewer API access:')}
   Every other endpoint answers 403.
 
   Build against that surface with ${c.dim('@deepnote/app-client')}, which only exposes those calls,
-  and check the app with ${c.dim('--preview')}: it embeds the app as Deepnote does, hands it a local
-  viewer token, and answers out-of-scope calls with the same 403. Publishing warns about API
-  paths in the build that viewers cannot call.
+  and check the app with ${c.dim('--preview')}: it embeds the app as Deepnote does and hands it a
+  viewer token. With ${c.dim('--project-id')}, that is a real viewer token Deepnote mints for the project
+  (app sharing and API access must be enabled), so Deepnote enforces the scope. Without it, the
+  token is simulated and out-of-scope calls get the same 403 locally. Publishing warns about
+  API paths in the build that viewers cannot call.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}
@@ -674,7 +679,10 @@ ${c.bold('Examples:')}
   ${c.dim('# CI deploy: never touch a sync workspace')}
   $ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
-  ${c.dim('# Try the app locally as a viewer before publishing')}
+  ${c.dim('# Try the app locally with a real viewer token for the project')}
+  $ deepnote publish ./dist --preview --project-id <uuid>
+
+  ${c.dim('# Try it before the project is set up, with a simulated viewer token')}
   $ deepnote publish ./dist --preview
 
   ${c.dim('# Exercise token refresh: expire the viewer token every 30 seconds')}

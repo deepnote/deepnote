@@ -97,10 +97,11 @@ Do not offer notebook enumeration, run history, or access to another viewer's ru
 return 403; surface that error rather than swallowing it. To show recent runs, keep the IDs of runs
 the page started.
 
-Check the app with `deepnote publish <dir> --preview` before publishing. It embeds the app with a
-local viewer token, answers out-of-scope calls with the hosted 403, and can expire or revoke the
-token to exercise refresh and the no-access state. It runs calls as you, so still verify a viewer
-with narrower project access, and the project's API access setting, in the hosted app.
+Check the app with `deepnote publish <dir> --preview --project-id <uuid>` before publishing. It
+embeds the app with a real viewer token Deepnote mints for you, so Deepnote enforces the scope and
+the project's sharing and API access settings, and it can expire or revoke the token to exercise
+refresh and the no-access state. Without `--project-id` the scope is simulated locally. The token is
+yours, so still verify a viewer with narrower project access in the hosted app.
 
 ## Run a local server
 

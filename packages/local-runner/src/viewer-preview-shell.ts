@@ -1,9 +1,10 @@
 import { TOKEN_REQUEST_MESSAGE, TOKEN_RESPONSE_MESSAGE } from '@deepnote/app-client'
-import type { PreviewMode } from './viewer-preview'
+import type { PreviewMode, TokenSource } from './viewer-preview'
 
 interface ShellConfig {
   appOrigin: string
   mode: PreviewMode
+  tokenSource: TokenSource | null
   tokenTtlSeconds: number
 }
 
@@ -20,9 +21,11 @@ export function renderPreviewShell(config: ShellConfig): string {
   }).replace(/</g, '\\u003c')
   const modeLabel = config.mode === 'viewer' ? 'Viewer preview' : 'Author preview'
   const modeHint =
-    config.mode === 'viewer'
-      ? 'API calls are limited to what a published app’s viewers can do.'
-      : 'Every API call runs with your personal token. Viewers of the published app will not have this access.'
+    config.tokenSource === 'deepnote'
+      ? 'The app has a real viewer token from Deepnote, which decides what it may do.'
+      : config.tokenSource === 'simulated'
+        ? 'Viewer token simulated locally from @deepnote/app-client’s scope. Pass --project-id for a real one.'
+        : 'Every API call runs with your personal token. Viewers of the published app will not have this access.'
 
   return `<!doctype html>
 <html lang="en">
@@ -35,7 +38,7 @@ export function renderPreviewShell(config: ShellConfig): string {
   @media (prefers-color-scheme: dark) { :root { --line: #2b2838; --ink: #ece9f7; --dim: #9a97ad; --bg: #121019; --accent: #a78bfa; --warn: #f0a050; --bad: #ff6b86; } }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; font: 13px/1.4 system-ui, sans-serif; color: var(--ink); background: var(--bg); }
-  body { display: grid; grid-template-rows: auto 1fr auto; }
+  body { display: flex; flex-direction: column; }
   header { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .mode { font-weight: 650; padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
   .mode.author { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
@@ -44,14 +47,17 @@ export function renderPreviewShell(config: ShellConfig): string {
   button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; }
   button:hover { border-color: var(--accent); }
   #token { color: var(--dim); font-variant-numeric: tabular-nums; }
-  iframe { width: 100%; height: 100%; border: 0; background: #fff; }
-  footer { border-top: 1px solid var(--line); max-height: 30vh; overflow: auto; }
+  iframe { flex: 1; min-height: 0; width: 100%; border: 0; background: #fff; }
+  footer { flex: none; border-top: 1px solid var(--line); max-height: 30vh; overflow: auto; }
   footer summary { padding: 6px 14px; cursor: pointer; color: var(--dim); }
   table { width: 100%; border-collapse: collapse; font: 12px ui-monospace, monospace; }
   td { padding: 3px 14px; border-top: 1px solid var(--line); white-space: nowrap; }
   td.msg { white-space: normal; color: var(--dim); }
   tr.denied td, tr.unauthorized td { color: var(--bad); }
   tr.failed td { color: var(--warn); }
+  tr.mismatch td { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  #mint-error { color: var(--bad); padding: 6px 14px; border-bottom: 1px solid var(--line); }
+  #mint-error[hidden] { display: none; }
 </style>
 </head>
 <body>
@@ -63,6 +69,7 @@ export function renderPreviewShell(config: ShellConfig): string {
   <button id="expire" type="button" title="Expire every token issued so far; the app's next call gets a 401">Expire token</button>
   <button id="revoke" type="button" title="Stop answering the token handshake, like Deepnote with API access disabled">Revoke access</button>
 </header>
+<div id="mint-error" hidden></div>
 <iframe id="app" title="App"></iframe>
 <footer>
   <details id="log-panel">
@@ -88,12 +95,14 @@ export function renderPreviewShell(config: ShellConfig): string {
   window.addEventListener('message', (event) => {
     if (event.source !== frame.contentWindow || event.origin !== CONFIG.appOrigin) return
     if (event.data?.type !== CONFIG.requestType) return
+    // Revoked: stay silent without asking, which is what Deepnote does when the project's API access is off.
+    if (revoked) return
     // The app asks every few hundred milliseconds until answered; one mint serves the burst.
     pending ??= fetch('/__preview/token', { method: 'POST' })
       .then((response) => (response.ok ? response.json() : null))
       .finally(() => { pending = null })
     pending.then((credential) => {
-      // Revoked: stay silent, which is what Deepnote does when the project's API access is off.
+      // Refused: stay silent, as Deepnote does.
       if (!credential) return
       expiresAtSeconds = credential.expiresAtSeconds
       frame.contentWindow.postMessage({ type: CONFIG.responseType, ...credential }, CONFIG.appOrigin)
@@ -117,6 +126,9 @@ export function renderPreviewShell(config: ShellConfig): string {
     if (!state) return
     revoked = state.revoked
     revokeButton.textContent = revoked ? 'Restore access' : 'Revoke access'
+    const mintError = document.getElementById('mint-error')
+    mintError.hidden = !state.lastMintError
+    mintError.textContent = state.lastMintError ?? ''
     const rows = state.events.slice().reverse()
     const denied = rows.filter((event) => event.outcome === 'denied' || event.outcome === 'unauthorized').length
     document.getElementById('log-summary').textContent =
@@ -125,7 +137,7 @@ export function renderPreviewShell(config: ShellConfig): string {
     const body = document.getElementById('log')
     body.replaceChildren(...rows.map((event) => {
       const row = document.createElement('tr')
-      row.className = event.outcome
+      row.className = event.outcome + (event.scopeMismatch ? ' mismatch' : '')
       for (const text of [event.at.slice(11, 19), event.method, event.path, String(event.status), event.outcome, event.message ?? '']) {
         const cell = document.createElement('td')
         cell.textContent = text

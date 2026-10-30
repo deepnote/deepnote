@@ -25,13 +25,16 @@ await copyFile(
   join(here, 'app-client.js')
 )
 
+// With PROJECT_ID, Deepnote mints a real viewer token for that project (its app sharing and API access
+// must be enabled). Without it, the viewer token is simulated locally.
 const preview = await serveViewerPreview({
   dir: here,
   token,
+  projectId: process.env.PROJECT_ID,
   apiUrl: process.env.DEEPNOTE_API_URL,
   tokenTtlSeconds: process.env.TOKEN_TTL ? Number(process.env.TOKEN_TTL) : undefined,
 })
 const notebookId = process.env.NOTEBOOK_ID
 console.log(
-  `\n  Deepnote app (viewer preview) → ${preview.url}${notebookId ? `?notebookId=${encodeURIComponent(notebookId)}` : '?notebookId=<your-notebook-id>'}\n`
+  `\n  Deepnote app (viewer preview, ${preview.tokenSource} token) → ${preview.url}${notebookId ? `?notebookId=${encodeURIComponent(notebookId)}` : '?notebookId=<your-notebook-id>'}\n`
 )

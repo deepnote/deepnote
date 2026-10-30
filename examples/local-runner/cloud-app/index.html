@@ -195,23 +195,24 @@
     <script src="./app-client.js"></script>
     <script type="module">
       // ── App config ─────────────────────────────────────────────────────────────
-      // Query-param overrides: ?notebookId=…  ?shellOrigin=…
+      // Query-param override: ?notebookId=…
       const params = new URLSearchParams(location.search)
       const APP_CONFIG = {
         // Set the notebook to run here before publishing, or pass ?notebookId=… while previewing.
         notebookId: params.get('notebookId') ?? null,
         notebookName: 'Dashboard',
-        // Origin of the Deepnote shell that embeds this app and answers the token handshake. It is
-        // pinned rather than wildcarded so no other embedder can hand this page a bearer token.
-        // `deepnote publish --preview` passes its own through ?shellOrigin=.
-        shellOrigin: params.get('shellOrigin') ?? 'https://deepnote.com',
+        // Origin of the Deepnote page that embeds this app and answers the token handshake. Leave it null
+        // for deepnote.com; set it for another deployment. Never take it from the URL: anyone can embed
+        // the app with any query string. (`deepnote publish --preview` passes a loopback origin, which
+        // the client accepts on its own.)
+        shellOrigin: null,
         inputs: [],
       }
 
       // One code path, the viewer's: the client only ever uses the shell's short-lived token and only
       // exposes the calls that token may make. It works the same inside Deepnote and under
       // `deepnote publish <dir> --preview`, and refuses to run anywhere else.
-      const client = DeepnoteApp.createAppClient({ shellOrigin: APP_CONFIG.shellOrigin })
+      const client = DeepnoteApp.createAppClient({ shellOrigin: APP_CONFIG.shellOrigin ?? undefined })
 
       // ── DOM helpers ────────────────────────────────────────────────────────────
       const $ = (s) => document.querySelector(s)
