@@ -42,6 +42,7 @@
     "watch": "tsdown --watch"
   },
   "dependencies": {
+    "@deepnote/app-client": "workspace:*",
     "@deepnote/blocks": "workspace:*",
     "@deepnote/cloud": "workspace:*",
     "@deepnote/cloud-sync": "workspace:*",

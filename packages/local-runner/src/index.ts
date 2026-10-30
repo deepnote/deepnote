@@ -48,3 +48,11 @@ export type {
   SyncResult,
 } from './sync-notebook-content'
 export { planMoves, planNotebookSync, syncNotebookContent } from './sync-notebook-content'
+export type {
+  PreviewEvent,
+  PreviewEventOutcome,
+  PreviewMode,
+  ViewerPreviewHandle,
+  ViewerPreviewOptions,
+} from './viewer-preview'
+export { serveViewerPreview } from './viewer-preview'

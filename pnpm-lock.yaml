@@ -99,6 +99,12 @@ importers:
         specifier: 4.1.12
         version: 4.1.12(@opentelemetry/api@1.9.1)(@types/node@22.20.1)(@vitest/coverage-v8@4.1.12)(vite@8.3.4(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
 
+  packages/app-client:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/blocks:
     dependencies:
       ts-dedent:
@@ -113,6 +119,9 @@ importers:
 
   packages/cli:
     dependencies:
+      '@deepnote/app-client':
+        specifier: workspace:*
+        version: link:../app-client
       '@deepnote/blocks':
         specifier: workspace:*
         version: link:../blocks
@@ -260,6 +269,9 @@ importers:
 
   packages/local-runner:
     dependencies:
+      '@deepnote/app-client':
+        specifier: workspace:*
+        version: link:../app-client
       '@deepnote/blocks':
         specifier: workspace:*
         version: link:../blocks

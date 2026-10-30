@@ -12,6 +12,7 @@ A partial overview — see below for the full package list and root config files
 ```text
 deepnote/
 ├── packages/                  # Core TypeScript packages
+│   ├── app-client/            # @deepnote/app-client - Browser client for published apps (viewer token, viewer API)
 │   ├── blocks/                # @deepnote/blocks - Block types, schemas, and Python code generation
 │   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
 │   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API

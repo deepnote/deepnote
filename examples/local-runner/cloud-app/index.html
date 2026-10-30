@@ -188,27 +188,31 @@
     </div>
 
     <!--
-      The snapshot reader bundles a YAML parser and the Deepnote block schema so run snapshots
-      can be parsed client-side. Loaded from the built package; `serve.mjs` wires the path for
-      local development. For publishing, copy the file into this directory.
+      The Deepnote app client: the token handshake with the embedding shell, and the API calls a
+      published app's viewers may make. Copy it next to this file from
+      packages/app-client/dist/app-client.iife.js (`serve.mjs` does this for you).
     -->
-    <script src="./snapshot-reader.js"></script>
+    <script src="./app-client.js"></script>
     <script type="module">
       // ── App config ─────────────────────────────────────────────────────────────
-      // `baseUrl` is the fallback API origin. When embedded, the trusted Deepnote shell replaces it
-      // with the API origin that minted the app's short-lived token.
-      //
-      // Query-param overrides: ?notebookId=…  ?shellOrigin=…
+      // Query-param override: ?notebookId=…
+      const params = new URLSearchParams(location.search)
       const APP_CONFIG = {
-        notebookId: null,
+        // Set the notebook to run here before publishing, or pass ?notebookId=… while previewing.
+        notebookId: params.get('notebookId') ?? null,
         notebookName: 'Dashboard',
-        baseUrl: 'https://api.deepnote.com',
-        // Origin of the Deepnote shell that embeds this app and answers the token handshake. It is
-        // pinned rather than wildcarded so no other embedder can hand this page a bearer token.
-        // Change it (or pass ?shellOrigin=) if the app is embedded somewhere else.
-        shellOrigin: 'https://deepnote.com',
+        // Origin of the Deepnote page that embeds this app and answers the token handshake. Leave it null
+        // for deepnote.com; set it for another deployment. Never take it from the URL: anyone can embed
+        // the app with any query string. (`deepnote publish --preview` passes a loopback origin, which
+        // the client accepts on its own.)
+        shellOrigin: null,
         inputs: [],
       }
+
+      // One code path, the viewer's: the client only ever uses the shell's short-lived token and only
+      // exposes the calls that token may make. It works the same inside Deepnote and under
+      // `deepnote publish <dir> --preview`, and refuses to run anywhere else.
+      const client = DeepnoteApp.createAppClient({ shellOrigin: APP_CONFIG.shellOrigin ?? undefined })
 
       // ── DOM helpers ────────────────────────────────────────────────────────────
       const $ = (s) => document.querySelector(s)
@@ -224,331 +228,62 @@
         ['pastYear', 'Past year'],
       ]
 
-      // ── Environment detection ──────────────────────────────────────────────────
-      // Embedded is the whole condition: the shell answers the handshake for any page it embeds on
-      // the project's static origin. Matching on a `deepnoteworkspace.com` substring instead missed
-      // staging (`deepnoteworkspace-staging.com`), single-tenant output domains and `outputs.localhost`.
-      const isEmbedded = window !== window.parent
-      const params = new URLSearchParams(location.search)
-
-      // Non-sensitive query params override baked-in config.
-      if (params.get('notebookId')) APP_CONFIG.notebookId = params.get('notebookId')
-      if (params.get('shellOrigin')) APP_CONFIG.shellOrigin = params.get('shellOrigin')
-
-      let apiToken = null
-      let apiTokenExpiresAtSeconds = null
-      let lastRuns = null
+      // Runs started from this page. Viewers can poll their own runs but not list a notebook's history.
+      const sessionRuns = []
       let shownRunId = null
       let displayGen = 0
 
-      function isLocal() {
-        try { return new URL(APP_CONFIG.baseUrl).hostname === 'localhost' || new URL(APP_CONFIG.baseUrl).hostname === '127.0.0.1' } catch { return false }
-      }
-
-      // ── Token acquisition ──────────────────────────────────────────────────────
-      function requestDeepnoteToken() {
-        return new Promise((resolve) => {
-          let finish = null
-          function onMessage(e) {
-            // A bearer token is only believable from the frame we asked, on the origin we expect.
-            // Without both checks any frame able to post to this window could inject one.
-            if (e.source !== window.parent) return
-            if (e.origin !== APP_CONFIG.shellOrigin) return
-            if (e.data?.type !== 'deepnote-static-files-api-token-response') return
-            // The token and API origin are one trusted credential bundle. Never send a shell-issued
-            // bearer token anywhere except the origin supplied in the same authenticated response.
-            if (!e.data.token || !e.data.apiOrigin || !Number.isFinite(e.data.expiresAtSeconds)) return
-            let apiOrigin
-            try {
-              apiOrigin = new URL(e.data.apiOrigin).origin
-            } catch {
-              return
-            }
-            finish({ token: e.data.token, apiOrigin, expiresAtSeconds: e.data.expiresAtSeconds })
-          }
-          window.addEventListener('message', onMessage)
-
-          // Ask repeatedly. The shell registers its listener in an effect after mount, so a page
-          // that loads first would otherwise post into the void and neither side would retry.
-          const ask = () =>
-            window.parent.postMessage({ type: 'deepnote-static-files-api-token-request' }, APP_CONFIG.shellOrigin)
-          const retry = setInterval(ask, 400)
-          finish = (value) => {
-            clearInterval(retry)
-            window.removeEventListener('message', onMessage)
-            resolve(value)
-          }
-          ask()
-          setTimeout(() => finish(null), 8000)
-        })
-      }
-
-      // ── API helpers ────────────────────────────────────────────────────────────
-      function apiHeaders() {
-        const h = { 'Content-Type': 'application/json' }
-        if (apiToken) h.Authorization = `Bearer ${apiToken}`
-        return h
-      }
-
-      function installApiCredential(credential) {
-        if (!credential) return false
-        apiToken = credential.token
-        apiTokenExpiresAtSeconds = credential.expiresAtSeconds
-        APP_CONFIG.baseUrl = credential.apiOrigin
-        return true
-      }
-
-      async function refreshApiToken() {
-        return installApiCredential(await requestDeepnoteToken())
-      }
-
-      async function apiFetch(path, options = {}) {
-        const nowSeconds = Date.now() / 1000
-        if (
-          isEmbedded &&
-          apiTokenExpiresAtSeconds !== null &&
-          apiTokenExpiresAtSeconds - nowSeconds <= 60
-        ) {
-          await refreshApiToken()
-        }
-
-        const request = () =>
-          fetch(`${APP_CONFIG.baseUrl}${path}`, {
-            ...options,
-            headers: { ...apiHeaders(), ...(options.headers ?? {}) },
-          })
-
-        let response = await request()
-        if (isEmbedded && response.status === 401 && (await refreshApiToken())) {
-          response = await request()
-        }
-        return response
-      }
-
-      async function triggerRun(notebookId, inputs) {
-        const res = await apiFetch('/v2/runs', {
-          method: 'POST',
-          body: JSON.stringify({ notebookId, inputs }),
-        })
-        if (!res.ok) {
-          const body = await res.text().catch(() => '')
-          throw new Error(extractApiMessage(body, `HTTP ${res.status} ${res.statusText}`))
-        }
-        const json = await res.json()
-        const run = json.run ?? json
-        return { runId: run.runId ?? run.id, status: run.status }
-      }
-
-      async function pollRun(runId) {
-        const terminal = new Set(['success', 'error', 'internal_error', 'stopped'])
-        const maxPolls = 300
-        let interval = 2000
-
-        for (let i = 0; i < maxPolls; i++) {
-          await sleep(interval)
-          const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-          if (!res.ok) {
-            const body = await res.text().catch(() => '')
-            throw new Error(extractApiMessage(body, `HTTP ${res.status}`))
-          }
-          const json = await res.json()
-          const run = json.run ?? json
-
-          setStatus(`Running… (${run.status})`)
-
-          if (terminal.has(run.status)) {
-            let result = runResult(run)
-
-            // A run reaches a terminal status before its snapshot is attached, so the first
-            // terminal response usually carries no outputs — reporting "0 blocks" for a run whose
-            // output appears moments later. `@deepnote/cloud` has `waitForRunSnapshot` for exactly
-            // this; the browser needs the same wait.
-            for (let waited = 0; result.snapshotContent === null && result.snapshotBlocks === null && waited < 15; waited++) {
-              setStatus('Run finished — waiting for outputs…')
-              await sleep(1000)
-              const again = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-              if (!again.ok) break
-              const againJson = await again.json()
-              result = runResult(againJson.run ?? againJson)
-            }
-
-            return result
-          }
-          interval = Math.min(interval * 1.2, 10000)
-        }
-        throw new Error('Timed out waiting for run to complete')
-      }
-
-      async function fetchRun(runId) {
-        const res = await apiFetch(`/v2/runs/${encodeURIComponent(runId)}?snapshotDelivery=inline`)
-        if (!res.ok) {
-          const body = await res.text().catch(() => '')
-          throw new Error(extractApiMessage(body, `HTTP ${res.status}`))
-        }
-        const json = await res.json()
-        return runResult(json.run ?? json)
-      }
-
-      function runResult(run) {
-        return {
-          runId: run.runId ?? run.id,
-          status: run.status,
-          success: run.status === 'success',
-          error: describeError(run),
-          snapshotContent: (run.snapshot ?? {}).snapshotContent ?? run.snapshotContent ?? null,
-          // Static app tokens never get the raw snapshot (it is a full project export); the API
-          // sends the executed blocks with their outputs as `snapshotBlocks` instead.
-          snapshotBlocks: run.snapshotBlocks ?? null,
-        }
-      }
-
-      async function listRuns(notebookId) {
-        try {
-          const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(notebookId)}/runs`)
-          if (!res.ok) return { runs: [] }
-          const json = await res.json()
-          return { runs: json.runs ?? [] }
-        } catch {
-          return { runs: [] }
-        }
-      }
-
-      function describeError(run) {
-        if (run.error == null) return undefined
-        if (typeof run.error === 'string') return run.error
-        if (typeof run.error === 'object' && run.error.message) return run.error.message
-        return JSON.stringify(run.error)
-      }
-
-      function extractApiMessage(body, fallback) {
-        try {
-          const json = JSON.parse(body)
-          return json.message || json.error || json.detail || fallback
-        } catch {
-          return fallback
-        }
-      }
-
-      function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
-
-      // ── Snapshot → outputs ─────────────────────────────────────────────────────
-      function outputsOfRun(result) {
-        if (result.snapshotBlocks) {
-          return result.snapshotBlocks
-            .filter((b) => b.outputs.length > 0)
-            .map((b) => ({ blockId: b.id, outputs: b.outputs }))
-        }
-        return parseOutputsFromSnapshot(result.snapshotContent)
-      }
-
-      function parseOutputsFromSnapshot(snapshotContent) {
-        if (!snapshotContent || typeof DeepnoteSnapshot === 'undefined') return []
-        try {
-          const view = DeepnoteSnapshot.parseSnapshot(snapshotContent)
-          const outputs = []
-          for (const nb of view.notebooks) {
-            for (const block of nb.blocks) {
-              if (block.outputs.length > 0) {
-                outputs.push({ blockId: block.id, outputs: block.outputs })
-              }
-            }
-          }
-          return outputs
-        } catch {
-          return []
-        }
-      }
-
-      // ── Input discovery ────────────────────────────────────────────────────────
-      // The notebook response exposes the complete, normalized input definitions needed to render
-      // controls. Static-app tokens can call this endpoint without receiving notebook source.
-      async function fetchNotebookInputs(notebookId) {
-        const res = await apiFetch(`/v2/notebooks/${encodeURIComponent(notebookId)}`)
-        if (!res.ok) {
-          const body = await res.text().catch(() => '')
-          throw new Error(extractApiMessage(body, `HTTP ${res.status} ${res.statusText}`))
-        }
-        const notebook = (await res.json()).notebook ?? {}
-        const inputs = (notebook.inputs ?? []).map((i) => ({
-          blockId: i.blockId,
-          variableName: i.name,
-          label: i.label,
-          type: i.type,
-          value: i.value,
-          min: i.min,
-          max: i.max,
-          step: i.step,
-          options: i.options,
-          multiple: i.multiple,
-        }))
-
-        return { name: notebook.name, inputs }
-      }
-
       // ── Initialize ─────────────────────────────────────────────────────────────
       async function init() {
-        // Embedded, the shell's token is the only credential used: short-lived, scoped to this
-        // project and this viewer, and revoked with their access. Personal tokens are never
-        // accepted in the URL.
-        if (isEmbedded) {
-          await refreshApiToken()
-        }
-
-        // Badge shows where runs go
-        const host = (() => {
-          try { return new URL(APP_CONFIG.baseUrl).host } catch { return APP_CONFIG.baseUrl }
-        })()
-        if (isLocal()) {
-          $('#env-label').textContent = `Local · ${host}`
-        } else if (isEmbedded) {
-          $('#env-label').textContent = apiToken ? 'Deepnote' : 'No token'
-        } else {
-          $('#env-label').textContent = apiToken ? host : 'No token'
-        }
-
-        // Render configured inputs immediately; when none are configured, discover them from the
-        // notebook endpoint below.
         $('#nb-name').textContent = APP_CONFIG.notebookName
         $('#r-title').textContent = APP_CONFIG.notebookName
         renderInputs(APP_CONFIG.inputs)
+        $('#run-btn').onclick = () => doRun()
 
-        if (APP_CONFIG.inputs.length === 0 && APP_CONFIG.notebookId && (apiToken || isLocal())) {
+        if (!APP_CONFIG.notebookId) {
+          $('#env-label').textContent = 'Not configured'
+          setStatus('No notebook id — set APP_CONFIG.notebookId or pass ?notebookId=…', 'err')
+          return
+        }
+
+        let credential
+        try {
+          credential = await client.connect()
+        } catch (e) {
+          $('#env-label').textContent = 'No token'
+          setStatus(cap(e.message), 'err')
+          return
+        }
+        const host = new URL(credential.apiOrigin).hostname
+        $('#env-label').textContent = host === '127.0.0.1' || host === 'localhost' ? 'Local preview' : 'Deepnote'
+
+        if (APP_CONFIG.inputs.length === 0) {
           try {
-            const discovered = await fetchNotebookInputs(APP_CONFIG.notebookId)
-            if (discovered.name) {
-              APP_CONFIG.notebookName = discovered.name
-              $('#nb-name').textContent = discovered.name
-              $('#r-title').textContent = discovered.name
+            const notebook = await client.getNotebook(APP_CONFIG.notebookId)
+            if (notebook.name) {
+              APP_CONFIG.notebookName = notebook.name
+              $('#nb-name').textContent = notebook.name
+              $('#r-title').textContent = notebook.name
             }
-            APP_CONFIG.inputs = discovered.inputs
-            renderInputs(discovered.inputs)
+            APP_CONFIG.inputs = (notebook.inputs ?? []).map((i) => ({
+              blockId: i.blockId,
+              variableName: i.name,
+              label: i.label,
+              type: i.type,
+              value: i.value,
+              min: i.min,
+              max: i.max,
+              step: i.step,
+              options: i.options,
+              multiple: i.multiple,
+            }))
+            renderInputs(APP_CONFIG.inputs)
           } catch (e) {
             setStatus(`Could not load inputs — ${cap(e.message)}`, 'err')
           }
         }
 
-        // Enable run button if we have what we need
-        const ready = APP_CONFIG.notebookId && (apiToken || isLocal())
-        const btn = $('#run-btn')
-        if (ready) {
-          btn.disabled = false
-        } else if (!APP_CONFIG.notebookId) {
-          setStatus('No notebook id — set APP_CONFIG.notebookId or pass ?notebookId=…', 'err')
-        } else if (!apiToken && !isLocal()) {
-          setStatus(
-            isEmbedded
-              ? 'No API token — the Deepnote shell did not answer the token handshake. The project' +
-                  ' needs API access enabled for static apps, which is a separate setting from' +
-                  ' static file sharing.'
-              : 'No API token — open the published app from Deepnote or configure a local API server',
-            'err'
-          )
-        }
-
-        btn.onclick = () => doRun()
-
-        // Load run history
-        if (ready) loadRuns()
+        $('#run-btn').disabled = false
       }
 
       // ── Input rendering ────────────────────────────────────────────────────────
@@ -650,58 +385,64 @@
         setStatus('Starting run…')
 
         try {
-          // The shell's token is short-lived, so refresh it before running. A refresh that goes
-          // unanswered must not throw away the token already in hand.
-          if (isEmbedded) {
-            await refreshApiToken()
-            if (!apiToken) throw new Error('Could not acquire an API token from the Deepnote shell')
-          }
-
-          const started = await triggerRun(APP_CONFIG.notebookId, state)
+          const started = await client.startRun(APP_CONFIG.notebookId, state)
+          const entry = { runId: started.runId, status: started.status, createdAt: started.createdAt, completedAt: null }
+          sessionRuns.unshift(entry)
+          renderRuns()
           setStatus(`Running… (${started.status})`)
 
-          const result = await pollRun(started.runId)
+          const run = await client.waitForRun(started.runId, {
+            onStatus: (current) => {
+              entry.status = current.status
+              renderRuns()
+              setStatus(DeepnoteApp.isRunSuccessful(current) ? 'Run finished — waiting for outputs…' : `Running… (${current.status})`)
+            },
+          })
+          entry.status = run.status
+          entry.completedAt = run.completedAt
+          renderRuns()
           if (gen !== displayGen) return
 
-          const outputs = outputsOfRun(result)
-          render({ outputs: outputs.map(b => ({ blockId: b.blockId, outputs: b.outputs })) })
-          shownRunId = null
+          const outputs = outputsOfRun(run)
+          render({ outputs })
+          shownRunId = run.runId
+          renderRuns()
 
-          if (!result.success) {
-            setStatus(cap(result.error || `The run failed (${result.status})`), 'err')
+          if (!DeepnoteApp.isRunSuccessful(run)) {
+            setStatus(cap(describeError(run) || `The run failed (${run.status})`), 'err')
           } else {
-            const where = isLocal() ? 'locally' : 'in cloud'
-            setStatus(`Ran ${outputs.length} block${outputs.length === 1 ? '' : 's'} ${where}`, 'ok')
+            setStatus(`Ran ${outputs.length} block${outputs.length === 1 ? '' : 's'}`, 'ok')
           }
         } catch (e) {
           if (gen === displayGen) setStatus(cap(e.message), 'err')
         } finally {
           $('#run-btn').disabled = false
           $('#spin').className = ''
-          loadRuns()
         }
       }
 
-      // ── Run history ────────────────────────────────────────────────────────────
-      async function loadRuns() {
-        // Static-app tokens can read only their own run by id, not enumerate notebook run history.
-        if (isEmbedded) return
-        if (!apiToken && !isLocal()) return
-        if (!APP_CONFIG.notebookId) return
-        const data = await listRuns(APP_CONFIG.notebookId)
-        renderRuns(data)
+      function outputsOfRun(run) {
+        return (run.snapshotBlocks ?? [])
+          .filter((b) => b.outputs.length > 0)
+          .map((b) => ({ blockId: b.id, outputs: b.outputs }))
       }
 
-      function renderRuns(data) {
-        lastRuns = data
-        const { runs } = data
+      function describeError(run) {
+        if (run.error == null) return undefined
+        if (typeof run.error === 'string') return run.error
+        if (typeof run.error === 'object' && run.error.message) return run.error.message
+        return JSON.stringify(run.error)
+      }
+
+      // ── Session runs ───────────────────────────────────────────────────────────
+      function renderRuns() {
         const panel = $('#runs-panel')
-        if (!runs?.length) { panel.hidden = true; return }
+        if (!sessionRuns.length) { panel.hidden = true; return }
         panel.hidden = false
 
         const list = $('#runs-list')
         list.innerHTML = ''
-        for (const run of runs.slice(0, 8)) {
+        for (const run of sessionRuns.slice(0, 8)) {
           const row = el('button', `run${run.runId === shownRunId ? ' on' : ''}`)
           row.type = 'button'
           const dot = el('span', `dot ${dotClass(run.status)}`)
@@ -714,25 +455,20 @@
           li.append(row)
           list.append(li)
         }
-
-        if (displayGen === 0) {
-          const latest = runs.find(r => r.status === 'success')
-          if (latest) showRun(latest.runId)
-        }
       }
 
       async function showRun(runId) {
         const gen = ++displayGen
         try {
-          const result = await fetchRun(runId)
+          const run = await client.getRun(runId)
           if (gen !== displayGen) return
           shownRunId = runId
-          const outputs = outputsOfRun(result)
-          render({ outputs: outputs.map(b => ({ blockId: b.blockId, outputs: b.outputs })) })
-          if (lastRuns) renderRuns(lastRuns)
-          const when = ago(lastRuns?.runs?.find(r => r.runId === runId)?.createdAt)
-          if (!result.success) {
-            setStatus(`That run ${label(result.status).toLowerCase()} ${when}${result.error ? ': ' + result.error : ''}`, 'err')
+          render({ outputs: outputsOfRun(run) })
+          renderRuns()
+          const when = ago(run.createdAt)
+          if (!DeepnoteApp.isRunSuccessful(run)) {
+            const error = describeError(run)
+            setStatus(`That run ${label(run.status).toLowerCase()} ${when}${error ? ': ' + error : ''}`, 'err')
           } else {
             setStatus(`Showing a run from ${when}`, 'ok')
           }

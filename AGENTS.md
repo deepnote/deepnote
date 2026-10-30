@@ -6,6 +6,7 @@ This document provides guidelines for AI coding agents working on the Deepnote m
 
 This is a TypeScript monorepo for Deepnote's open-source packages, managed with pnpm workspaces. The repository contains:
 
+- **packages/app-client** - Browser client for published Deepnote apps: the shell token handshake and the viewer-scoped API
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
 - **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
@@ -28,6 +29,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | CLI commands and output                                        | `packages/cli/`                                       |
 | MCP tools and resources                                        | `packages/mcp/`                                       |
 | Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
+| Published app API access and the viewer token scope            | `packages/app-client/`                                |
 | Syncing and publishing local folders with Deepnote Cloud       | `packages/cloud-sync/`                                |
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
@@ -239,6 +241,7 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 - **Local `@deepnote/mcp`** (tool names, parameters, behavior) — update `packages/mcp/README.md` and any local-MCP skill reference that describes it. Do not record local MCP behavior in the CLI references: the local MCP server is its own surface, not a mirror of the CLI
 - **Hosted MCP** (`https://deepnote.com/mcp`) — update `docs/deepnote-mcp.md`, and coordinate the separate codex-plugin consumer, which is not maintained in this repository
 - **App types, publishing ownership, runtime choices, or token boundaries** — update `skills/deepnote/references/apps.md`
+- **The hosted app viewer router** (`app-viewer-router.ts` in Deepnote's public API) — update `VIEWER_SCOPE` in `packages/app-client/src/viewer-scope.ts`, which drives the app client, the simulated `deepnote publish --preview` token, and the publish-time scan (the weekly `viewer-scope-drift` workflow compares it with the published API document), and the viewer API lists in `apps.md`, `docs/deepnote-cli-publish.md`, and the `deepnote publish --help` text
 
 Update more than one reference only when the underlying behavior actually crosses those surfaces.
 

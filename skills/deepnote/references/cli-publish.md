@@ -46,9 +46,36 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
 
-Omitting `--api-access` preserves its current setting. Before enabling it, implement and verify
-[viewer API access](apps.md#add-viewer-api-access), including token refresh. A personal token in a
-local preview has broader permissions than a hosted viewer token.
+Omitting `--api-access` preserves its current setting. Before enabling it, implement
+[viewer API access](apps.md#add-viewer-api-access) and check it with `--preview`.
+
+Publish checks the build before it reads the token or calls Deepnote, and stops (exit 2) when the
+build calls the local development server's routes, calls the Deepnote API without the token
+handshake, or calls API paths a viewer token cannot use. Before uploading, it also stops (exit 1) when
+the app calls the API but the project's API access is off and `--api-access enabled` is not given.
+Fix the app rather than reaching for `--no-app-checks`; that flag is for a check that misread the
+build.
+
+### Preview as a viewer
+
+```bash
+# Serve the build locally, embedded as Deepnote embeds it, with a real viewer token for the project
+deepnote publish ./dist --preview --project-id <uuid>
+
+# Before the project has sharing and API access enabled: a simulated viewer token
+deepnote publish ./dist --preview
+
+# Expire the viewer token every 30 seconds to exercise refresh
+deepnote publish ./dist --preview --project-id <uuid> --token-ttl 30
+```
+
+`--preview` publishes nothing. Prefer `--project-id`: Deepnote mints the same viewer token a viewer
+gets and enforces its scope, and a project without app sharing and API access yields no token, as it
+would for viewers. Without it, the scope is simulated locally. Pass the app's query parameters, such
+as `?notebookId=…`, on the printed URL. The page logs API calls and can expire or revoke the token.
+The token is yours, so a viewer with narrower project access is not reproduced; check that in the
+hosted app. `--as-author` forwards every call with your token; do not use it to verify a published
+app.
 
 ### Work with a sync workspace
 
@@ -105,18 +132,23 @@ publish again and use the returned URL, which may change.
 
 `deepnote publish <dir>`:
 
-| Option                           | Use                                                             |
-| -------------------------------- | --------------------------------------------------------------- |
-| `--project-id <uuid>`            | Required target project                                         |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                 |
-| `--api-access enabled\|disabled` | Change viewer API access; omitted preserves it                  |
-| `--prune`                        | Delete remote files absent from the local build                 |
-| `--sync-root <dir>`              | Use this sync workspace; default searches upward from the build |
-| `--no-sync-root`                 | Skip sync workspace discovery and updates                       |
-| `--force`                        | Overwrite changes not yet pulled into the sync workspace        |
-| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                         |
-| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`              |
-| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr        |
+| Option                           | Use                                                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `--project-id <uuid>`            | Target project, required to publish; with `--preview`, use its real viewer token (omit for a simulated one) |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                                                             |
+| `--api-access enabled\|disabled` | Change viewer API access; omitted preserves it                                                              |
+| `--prune`                        | Delete remote files absent from the local build                                                             |
+| `--sync-root <dir>`              | Use this sync workspace; default searches upward from the build                                             |
+| `--no-sync-root`                 | Skip sync workspace discovery and updates                                                                   |
+| `--no-app-checks`                | Skip the checks for calls that will fail in Deepnote                                                        |
+| `--force`                        | Overwrite changes not yet pulled into the sync workspace                                                    |
+| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                                                                     |
+| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`                                                          |
+| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr                                                    |
+| `--preview`                      | Serve the build locally as a viewer; publishes nothing                                                      |
+| `--token-ttl <seconds>`          | With `--preview`, local viewer token lifetime (default 900)                                                 |
+| `--port <port>`                  | With `--preview`, port of the preview page                                                                  |
+| `--as-author`                    | With `--preview`, forward every call with your token                                                        |
 
 `deepnote streamlit publish <entrypoint>`:
 
