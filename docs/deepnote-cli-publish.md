@@ -137,6 +137,10 @@ When publishing from a synced workspace, publish also updates its `.files/` mirr
 `.deepnote-sync.json`. Use `--sync-root <dir>` to select a workspace, or `--no-sync-root` to skip
 workspace updates, for example in CI.
 
+Keep the app's source and its build directory outside the project's `.files/_deepnote_static/`.
+Publish replaces files there with the build, and with `--prune` deletes files the build lacks, so
+it refuses a directory at, below or containing that folder with exit code `2`.
+
 If a file to be replaced or pruned changed remotely since the workspace's recorded baseline,
 publish stops before writing. Pull and reconcile the changes with `deepnote sync --all-files`,
 or use `--force` to overwrite them. This check requires a recorded server `updatedAt`; files
@@ -158,8 +162,9 @@ Use `--api-access enabled|disabled` to change viewer API access. At least one se
 
 ### Recover from a failed publish
 
-Invalid local paths, conflicting destination paths, `.env` files, or files over 100 MiB in the build
-directory stop the command before uploads, with exit code `2`. Each local file is read before its
+Invalid local paths, conflicting destination paths, `.env` files, files over 100 MiB in the build
+directory, or a build directory that overlaps the project's `.files/_deepnote_static` stop the command before
+uploads, with exit code `2`. Each local file is read before its
 remote copy is deleted and replaced.
 
 If an upload fails, successful uploads remain in place, sharing is not changed, and remaining stale
@@ -230,11 +235,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                                                                                                  | `deepnote streamlit publish`                   |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                                                                                                                                  | App running, or created/found with `--no-wait` |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                                                                                     | A request failed or startup timed out          |
+| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, unusable sync workspace, or directory overlapping the project's `.files/_deepnote_static` | Invalid arguments or missing token             |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.

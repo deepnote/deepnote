@@ -593,6 +593,9 @@ When publishing from a synced workspace, the command updates its `.files/` mirro
 baseline, publish stops: pull and reconcile the changes, or use `--force` to overwrite them.
 Use `--sync-root` to select a workspace or `--no-sync-root` for a CI deployment.
 
+Keep the app source and its build directory outside the project's `.files/_deepnote_static/`; a directory at,
+below or containing it is refused with exit code `2`.
+
 `publish --prune` deletes **remote** files absent from the build. `sync --prune` deletes **local**
 files absent from Deepnote.
 

@@ -637,6 +637,10 @@ ${c.bold('Working with deepnote sync:')}
   directory sits inside a synced workspace, publish updates that workspace's mirror and
   manifest too, so sync sees the deploy as already in step instead of as drift.
 
+  Keep the app source and the build directory outside the project's
+  ${c.dim('.files/_deepnote_static/')}: publish replaces files there, and with ${c.dim('--prune')}
+  deletes those the build lacks, so a directory at, below or containing it is refused.
+
   If files below ${c.dim('--path')} changed in Deepnote since the workspace last recorded them
   (an ${c.dim('--all-files')} sync or an earlier publish), publish stops rather than destroying
   content the mirror does not hold — pull first, or pass ${c.dim('--force')}.
