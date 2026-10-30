@@ -126,7 +126,8 @@ For cloud scheduling and run history routes, consult the
 [run app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/run-app).
 
 Publishing this build as an app does not deploy the local server. Replace local API calls
-with the viewer API flow before publishing it to Deepnote.
+with the viewer API flow before publishing it to Deepnote; `deepnote publish` warns about any it
+still finds.
 
 ## Choose the available tool
 

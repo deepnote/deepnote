@@ -49,8 +49,10 @@ deepnote publish ./dist --project-id <uuid> --no-sync-root
 Omitting `--api-access` preserves its current setting. Before enabling it, implement
 [viewer API access](apps.md#add-viewer-api-access) and check it with `--preview`.
 
-Publishing warns about Deepnote API paths in the build that a viewer token cannot call. Treat the
-warning as a bug in the app, not noise.
+Publishing warns when the build calls the local development server's routes, calls the Deepnote API
+without the token handshake, calls API paths a viewer token cannot use, or calls the API while the
+project's API access stays disabled. Each means the published app will fail. Treat the warnings as
+bugs in the app, not noise; they never block the publish.
 
 ### Preview as a viewer
 

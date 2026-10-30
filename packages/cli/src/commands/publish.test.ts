@@ -805,26 +805,91 @@ describe('deepnote publish', () => {
     expect(mockedUpload).not.toHaveBeenCalled()
   })
 
-  it('warns about API calls viewers cannot make, and still publishes', async () => {
-    await fs.writeFile(
-      join(tempDir, 'index.html'),
-      "<script>fetch('/v2/notebooks/' + id + '/runs'); fetch('/v2/runs')</script>"
-    )
-    await fs.mkdir(join(tempDir, 'js'))
-    // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
-    await fs.writeFile(join(tempDir, 'js', 'app.js'), 'fetch(`${base}/v2/notebooks/${id}/runs`)')
-    const warned: string[] = []
-    vi.spyOn(console, 'error').mockImplementation(message => warned.push(String(message)))
+  describe('warnings about a build that will not work once published', () => {
+    const HANDSHAKE = "postMessage({ type: 'deepnote-static-files-api-token-request' })"
 
-    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+    function captureWarnings(): string[] {
+      const warned: string[] = []
+      vi.spyOn(console, 'error').mockImplementation(message => warned.push(String(message)))
+      return warned
+    }
 
-    const output = warned.join('\n')
-    expect(output).toContain('not available to viewers of a published app')
-    // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
-    expect(output).toContain('js/app.js: /v2/notebooks/${id}/runs')
-    expect(output).not.toContain('index.html')
-    expect(output).toContain('--preview')
-    expect(mockedUpload).toHaveBeenCalled()
+    it('warns about API calls viewers cannot make, and still publishes', async () => {
+      await fs.writeFile(
+        join(tempDir, 'index.html'),
+        `<script>${HANDSHAKE}; fetch('/v2/notebooks/' + id + '/runs'); fetch('/v2/runs')</script>`
+      )
+      await fs.mkdir(join(tempDir, 'js'))
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
+      await fs.writeFile(join(tempDir, 'js', 'app.js'), 'fetch(`${base}/v2/notebooks/${id}/runs`)')
+      const warned = captureWarnings()
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--api-access', 'enabled')
+
+      const output = warned.join('\n')
+      expect(output).toContain('not available to viewers of a published app')
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
+      expect(output).toContain('js/app.js: /v2/notebooks/${id}/runs')
+      expect(output).not.toContain('index.html: ')
+      expect(output).toContain(`deepnote publish ${tempDir} --preview --project-id p1`)
+      expect(mockedUpload).toHaveBeenCalled()
+    })
+
+    it('warns that local development server routes do not exist once published', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/api/info'); fetch('/api/run')</script>")
+      const warned = captureWarnings()
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+      const output = warned.join('\n')
+      expect(output).toContain('local development server (`serveStatic`), which is not published')
+      expect(output).toContain('index.html: /api/info')
+      expect(output).toContain('index.html: /api/run')
+      expect(mockedUpload).toHaveBeenCalled()
+    })
+
+    it('warns when the app calls the API without ever asking Deepnote for a token', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/v2/runs', { method: 'POST' })</script>")
+      const warned = captureWarnings()
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--api-access', 'enabled')
+
+      expect(warned.join('\n')).toContain('never asks Deepnote for a viewer token')
+    })
+
+    it('warns after publishing when the app calls the API but the project has API access disabled', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
+      const warned = captureWarnings()
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+      const output = warned.join('\n')
+      expect(output).toContain('API access is disabled for this project')
+      expect(output).toContain('deepnote static-site access --project-id p1 --api-access enabled')
+    })
+
+    it('stays quiet for an app that does it right', async () => {
+      mockedUpdateProject.mockResolvedValue({
+        sharingEnabled: true,
+        apiAccessEnabled: true,
+        url: 'https://static-p1.example.com/',
+      })
+      await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
+      const warned = captureWarnings()
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--api-access', 'enabled')
+
+      expect(warned).toEqual([])
+    })
+
+    it('stays quiet for an app that does not use the API, even with API access disabled', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), '<h1>static</h1>')
+      const warned = captureWarnings()
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+      expect(warned).toEqual([])
+    })
   })
 
   describe('--preview', () => {

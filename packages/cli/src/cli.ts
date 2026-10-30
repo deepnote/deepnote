@@ -642,8 +642,11 @@ ${c.bold('App viewer API access:')}
   and check the app with ${c.dim('--preview')}: it embeds the app as Deepnote does and hands it a
   viewer token. With ${c.dim('--project-id')}, that is a real viewer token Deepnote mints for the project
   (app sharing and API access must be enabled), so Deepnote enforces the scope. Without it, the
-  token is simulated and out-of-scope calls get the same 403 locally. Publishing warns about
-  API paths in the build that viewers cannot call.
+  token is simulated and out-of-scope calls get the same 403 locally.
+
+  Publishing warns about a build that will fail in Deepnote: calls to the local development
+  server's routes, API calls without the token handshake, API paths viewers cannot call, and
+  API calls in a project whose API access is disabled.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}

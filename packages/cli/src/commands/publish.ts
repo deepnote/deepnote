@@ -20,7 +20,7 @@ import { debug, getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { type CliFlag, cliFlagFor } from '../utils/option-hint'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
-import { scanForOutOfScopeApiCalls } from '../utils/viewer-scope-scan'
+import { type AppBuildScan, scanAppBuild } from '../utils/viewer-scope-scan'
 
 interface PublishOptions {
   projectId?: string
@@ -95,7 +95,8 @@ export function createPublishAction(program: Command) {
     }
     const projectId = options.projectId
 
-    await warnAboutOutOfScopeApiCalls(dir)
+    const scan = await scanAppBuild(dir).catch(() => null)
+    if (scan) warnBeforePublish(scan, dir, projectId)
 
     let targetPath = options.path
     const renderEvent = (event: PublishAppEvent) => {
@@ -203,29 +204,62 @@ export function createPublishAction(program: Command) {
       }
     }
 
+    if (scan && result.errors.length === 0) warnAfterPublish(scan, result, projectId)
+
     if (result.errors.length > 0) {
       process.exitCode = ExitCode.Error
     }
   }
 }
 
-/** Warn about API calls in the build that will 403 for viewers. Best effort: never blocks a publish. */
-async function warnAboutOutOfScopeApiCalls(dir: string): Promise<void> {
-  let calls: Awaited<ReturnType<typeof scanForOutOfScopeApiCalls>>
-  try {
-    calls = await scanForOutOfScopeApiCalls(dir)
-  } catch {
-    return
+/**
+ * Warn about what in the build works locally but not once published. Best effort, from a scan of the
+ * build's literals: it never blocks a publish.
+ */
+function warnBeforePublish(scan: AppBuildScan, dir: string, projectId: string): void {
+  const previewHint = `Check the app as a viewer first with \`deepnote publish ${dir} --preview --project-id ${projectId}\`.`
+  const list = (findings: AppBuildScan['outOfScope']) =>
+    findings.flatMap(({ file, paths }) => paths.map(path => `  ${file}: ${path}`))
+
+  if (scan.localServerCalls.length > 0) {
+    warn(
+      [
+        'These calls go to the local development server (`serveStatic`), which is not published. In Deepnote they will fail:',
+        ...list(scan.localServerCalls),
+        'Call the Deepnote API through @deepnote/app-client instead.',
+      ].join('\n')
+    )
   }
-  if (calls.length === 0) return
-  const lines = calls.flatMap(({ file, paths }) => paths.map(path => `  ${file}: ${path}`))
-  warn(
-    [
-      'These Deepnote API calls are not available to viewers of a published app and will return 403:',
-      ...lines,
-      `Check the app as a viewer first with \`deepnote publish ${dir} --preview\`.`,
-    ].join('\n')
-  )
+  if (scan.apiFiles.length > 0 && !scan.hasTokenHandshake) {
+    warn(
+      [
+        `The app calls the Deepnote API (${scan.apiFiles.join(', ')}) but never asks Deepnote for a viewer token,`,
+        'so once published those calls have no credential. Use @deepnote/app-client, which does the handshake.',
+      ].join('\n')
+    )
+  }
+  if (scan.outOfScope.length > 0) {
+    warn(
+      [
+        'These Deepnote API calls are not available to viewers of a published app and will return 403:',
+        ...list(scan.outOfScope),
+        previewHint,
+      ].join('\n')
+    )
+  }
+}
+
+/** Warnings that depend on the project's settings, which are only final once the publish is done. */
+function warnAfterPublish(scan: AppBuildScan, result: PublishAppResult, projectId: string): void {
+  if (scan.apiFiles.length > 0 && !result.apiAccessEnabled) {
+    warn(
+      [
+        'The app calls the Deepnote API, but API access is disabled for this project, so viewers get no token',
+        'and every call fails. Enable it with',
+        `  deepnote static-site access --project-id ${projectId} --api-access enabled`,
+      ].join('\n')
+    )
+  }
 }
 
 async function runPreview(program: Command, dir: string, token: string, options: PublishOptions): Promise<void> {

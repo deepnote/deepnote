@@ -119,8 +119,18 @@ uses it.
 API access requires app sharing and does not grant additional viewers project access. Omitting
 `--api-access` preserves the current setting; use `--api-access disabled` to revoke it.
 
-When you publish, the CLI warns about Deepnote API paths in the build that a viewer token cannot
-call.
+When you publish, the CLI scans the build and warns about anything that works locally but will fail
+in Deepnote:
+
+- calls to the local development server's routes (`/api/run`, `/api/info`, and so on), which are not
+  published;
+- Deepnote API calls with no token handshake, which will have no credential;
+- Deepnote API paths a viewer token cannot call, which will answer 403;
+- Deepnote API calls in a project whose API access is still disabled after the publish, which will get
+  no token.
+
+The scan reads the build's string literals, so it can miss calls built at runtime. The warnings never
+block a publish.
 
 ### Preview an app as a viewer
 
