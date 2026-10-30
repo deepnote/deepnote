@@ -198,6 +198,33 @@ The server binds to `127.0.0.1` and provides no WebSocket, watch, or rendering. 
 — or, to _view_ an existing snapshot rather than run one, read it directly (below); that needs no
 server at all.
 
+### Preview a published app as a viewer
+
+`serveStatic` runs with your token, so it can't tell you whether an app will work for the people you
+publish it to. `serveViewerPreview` embeds a build the way Deepnote does: a shell page on one loopback
+origin hosts the app on another and answers its token handshake with a short-lived local token.
+
+```ts
+import { serveViewerPreview } from "@deepnote/local-runner";
+
+const preview = await serveViewerPreview({
+  dir: "./dist",
+  token: process.env.DEEPNOTE_TOKEN!,
+  tokenTtlSeconds: 30, // optional: exercise token refresh quickly
+});
+console.log(preview.url); // open this; append ?notebookId=… for the app
+```
+
+The shell origin also serves `/v2`. Calls inside the viewer scope (`VIEWER_SCOPE` from
+`@deepnote/app-client`) are forwarded to Deepnote with your token and reshaped to the viewer's
+response: no block source, no raw snapshot, and only runs this preview started can be polled.
+Everything else answers 403 with the hosted message. Your token never reaches the browser. The page
+logs each call and can expire or revoke the token; the handle exposes the same as `events()`,
+`expireTokens()`, `revoke()`, and `restore()`. `mode: 'author'` forwards every call unchanged.
+
+Calls run as you, so a viewer with narrower project access, or a project with API access disabled,
+is not simulated. `deepnote publish <dir> --preview` is this function behind the CLI.
+
 ### Read a snapshot — no Python, no kernel
 
 A snapshot is a `.deepnote` file with the outputs stored inline, so reading one is parsing, not

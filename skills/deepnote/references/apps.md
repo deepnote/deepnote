@@ -75,10 +75,13 @@ directory's `index.html`. Other paths serve exact filenames, so link to `about.h
 
 ### Add viewer API access
 
-Enable API access only when the app needs notebook inputs or runs. Use the token handshake in
-[cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app): request a token from the Deepnote shell over `postMessage`, pin
-the shell origin when sending and receiving messages, and send API requests to the returned API
-origin. Keep personal development tokens out of the published build.
+Enable API access only when the app needs notebook inputs or runs. Call the API through
+[`@deepnote/app-client`](https://github.com/deepnote/deepnote/tree/main/packages/app-client), as the
+[cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
+does. It requests the token from the Deepnote shell over `postMessage` with pinned origins, sends it
+only to the returned API origin, refreshes it, and exposes only the calls a viewer token can make.
+Do not hand-roll the handshake or add a personal-token path for local development. Keep personal
+tokens out of the published build.
 
 An app's viewer token can access notebooks in the hosting project and other projects in the
 same workspace where the viewer has direct access; starting runs in other projects also requires
@@ -86,15 +89,18 @@ execute permission. Supply notebook IDs explicitly; the token cannot list notebo
 around its supported operations:
 
 - Read notebook inputs and block metadata, without source content.
+- Read the viewer's latest app data for a notebook.
 - Start a detached run and poll that viewer's own run by ID.
 - Render the returned `snapshotBlocks`; raw snapshot YAML and download URLs are unavailable.
 
-Do not offer notebook enumeration, run history, or access to another viewer's runs in the embedded
-app. Other endpoints return 403. If a local preview has these features, hide them when `isEmbedded`
-is true and surface unexpected API errors.
+Do not offer notebook enumeration, run history, or access to another viewer's runs. Other endpoints
+return 403; surface that error rather than swallowing it. To show recent runs, keep the IDs of runs
+the page started.
 
-Refresh the token through the handshake before its 15-minute expiry and retry authentication on a 401. Verify the hosted flow: a successful local preview with a personal token does not test viewer
-permissions or token refresh.
+Check the app with `deepnote publish <dir> --preview` before publishing. It embeds the app with a
+local viewer token, answers out-of-scope calls with the hosted 403, and can expire or revoke the
+token to exercise refresh and the no-access state. It runs calls as you, so still verify a viewer
+with narrower project access, and the project's API access setting, in the hosted app.
 
 ## Run a local server
 

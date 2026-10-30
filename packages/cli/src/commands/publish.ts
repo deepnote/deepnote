@@ -1,3 +1,5 @@
+import { once } from 'node:events'
+import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   type PublishAppEvent,
@@ -10,6 +12,7 @@ import {
   type SyncRootOption,
 } from '@deepnote/cloud-sync'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import { serveViewerPreview } from '@deepnote/local-runner'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
@@ -17,9 +20,10 @@ import { debug, getChalk, log, error as logError, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { type CliFlag, cliFlagFor } from '../utils/option-hint'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
+import { scanForOutOfScopeApiCalls } from '../utils/viewer-scope-scan'
 
 interface PublishOptions {
-  projectId: string
+  projectId?: string
   token?: string
   url: string
   path: string
@@ -28,7 +32,23 @@ interface PublishOptions {
   quiet: boolean
   syncRoot: SyncRootOption
   force: boolean
+  preview?: boolean
+  asAuthor?: boolean
+  tokenTtl?: string
+  port?: string
 }
+
+/** Flags that only mean something for one of the two modes, with the mode they belong to. */
+const PUBLISH_ONLY_FLAGS = [
+  ['apiAccess', '--api-access'],
+  ['prune', '--prune'],
+  ['force', '--force'],
+] as const
+const PREVIEW_ONLY_FLAGS = [
+  ['asAuthor', '--as-author'],
+  ['tokenTtl', '--token-ttl'],
+  ['port', '--port'],
+] as const
 
 const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<PublishErrorHint<C>['option']>) => string } = {
   'sync-root-unusable': flag => ` Pass ${flag} to publish without updating the workspace.`,
@@ -54,6 +74,28 @@ export function createPublishAction(program: Command) {
       program.error(c.red(new MissingTokenError().message), { exitCode: ExitCode.InvalidUsage })
       return
     }
+
+    if (options.preview) {
+      const conflicting = PUBLISH_ONLY_FLAGS.find(([key]) => options[key] !== undefined && options[key] !== false)
+      if (conflicting) {
+        program.error(`${conflicting[1]} cannot be combined with --preview`, { exitCode: ExitCode.InvalidUsage })
+        return
+      }
+      await runPreview(program, dir, token, options)
+      return
+    }
+    const previewOnly = PREVIEW_ONLY_FLAGS.find(([key]) => options[key] !== undefined && options[key] !== false)
+    if (previewOnly) {
+      program.error(`${previewOnly[1]} requires --preview`, { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+    if (!options.projectId) {
+      program.error("error: required option '--project-id <uuid>' not specified", { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+    const projectId = options.projectId
+
+    await warnAboutOutOfScopeApiCalls(dir)
 
     let targetPath = options.path
     const renderEvent = (event: PublishAppEvent) => {
@@ -106,7 +148,7 @@ export function createPublishAction(program: Command) {
     try {
       result = await publishApp({
         dir,
-        projectId: options.projectId,
+        projectId,
         baseUrl: options.url,
         token,
         targetPath: options.path,
@@ -165,4 +207,78 @@ export function createPublishAction(program: Command) {
       process.exitCode = ExitCode.Error
     }
   }
+}
+
+/** Warn about API calls in the build that will 403 for viewers. Best effort: never blocks a publish. */
+async function warnAboutOutOfScopeApiCalls(dir: string): Promise<void> {
+  let calls: Awaited<ReturnType<typeof scanForOutOfScopeApiCalls>>
+  try {
+    calls = await scanForOutOfScopeApiCalls(dir)
+  } catch {
+    return
+  }
+  if (calls.length === 0) return
+  const lines = calls.flatMap(({ file, paths }) => paths.map(path => `  ${file}: ${path}`))
+  warn(
+    [
+      'These Deepnote API calls are not available to viewers of a published app and will return 403:',
+      ...lines,
+      `Check the app as a viewer first with \`deepnote publish ${dir} --preview\`.`,
+    ].join('\n')
+  )
+}
+
+async function runPreview(program: Command, dir: string, token: string, options: PublishOptions): Promise<void> {
+  const c = getChalk()
+  const tokenTtlSeconds = parsePositiveInteger(options.tokenTtl)
+  const port = parsePositiveInteger(options.port)
+  if (tokenTtlSeconds === null) {
+    program.error('--token-ttl must be a positive number of seconds', { exitCode: ExitCode.InvalidUsage })
+    return
+  }
+  if (port === null || (port !== undefined && port > 65_535)) {
+    program.error('--port must be a port number', { exitCode: ExitCode.InvalidUsage })
+    return
+  }
+  const isDirectory = await stat(dir).then(
+    entry => entry.isDirectory(),
+    () => false
+  )
+  if (!isDirectory) {
+    program.error(`Directory not found: ${dir}`, { exitCode: ExitCode.InvalidUsage })
+    return
+  }
+
+  const mode = options.asAuthor ? 'author' : 'viewer'
+  const preview = await serveViewerPreview({ dir, token, apiUrl: options.url, mode, tokenTtlSeconds, port })
+  log(`${c.bold(mode === 'viewer' ? 'Viewer preview' : 'Author preview')} of ${c.cyan(dir)}`)
+  log(`\n  ${c.underline(preview.url)}\n`)
+  if (mode === 'viewer') {
+    log(
+      c.dim(
+        'The app gets a local viewer token: only the calls a published app can make reach Deepnote, with your token.\n' +
+          'Everything else answers 403, as it will for viewers. Calls are logged at the bottom of the page.\n' +
+          'Not simulated: viewers with less project access than you, or project API access being disabled.'
+      )
+    )
+  } else {
+    log(
+      c.yellow('Every API call runs with your personal token. Viewers of the published app will not have this access.')
+    )
+  }
+  log(c.dim('\nAppend ?notebookId=… (or any query) to the URL to pass it to the app. Press Ctrl+C to stop.'))
+
+  // Serve until interrupted; whichever signal arrives first cancels the wait for the other.
+  const stopped = new AbortController()
+  await Promise.race([
+    once(process, 'SIGINT', { signal: stopped.signal }),
+    once(process, 'SIGTERM', { signal: stopped.signal }),
+  ]).finally(() => stopped.abort())
+  await preview.close()
+}
+
+/** `undefined` when absent, `null` when present but not a positive integer. */
+function parsePositiveInteger(value: string | undefined): number | undefined | null {
+  if (value === undefined) return undefined
+  return /^[1-9]\d*$/.test(value) ? Number(value) : null
 }

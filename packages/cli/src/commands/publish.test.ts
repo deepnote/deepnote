@@ -14,7 +14,13 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   }
 })
 
+vi.mock('@deepnote/local-runner', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/local-runner')>()
+  return { ...actual, serveViewerPreview: vi.fn() }
+})
+
 import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
+import { serveViewerPreview } from '@deepnote/local-runner'
 import { createProgram } from '../cli'
 import { getChalk } from '../output'
 import { embeddedApiAccessNote } from '../utils/static-site-api-access'
@@ -23,6 +29,7 @@ const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
 const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
 const mockedUpload = vi.mocked(uploadProjectFile)
+const mockedPreview = vi.mocked(serveViewerPreview)
 
 let tempDir: string
 
@@ -796,5 +803,115 @@ describe('deepnote publish', () => {
     expect(exitSpy).toHaveBeenCalledWith(2)
     expect(stderr.join('')).toContain('"config/.env.production"')
     expect(mockedUpload).not.toHaveBeenCalled()
+  })
+
+  it('warns about API calls viewers cannot make, and still publishes', async () => {
+    await fs.writeFile(
+      join(tempDir, 'index.html'),
+      "<script>fetch('/v2/notebooks/' + id + '/runs'); fetch('/v2/runs')</script>"
+    )
+    await fs.mkdir(join(tempDir, 'js'))
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
+    await fs.writeFile(join(tempDir, 'js', 'app.js'), 'fetch(`${base}/v2/notebooks/${id}/runs`)')
+    const warned: string[] = []
+    vi.spyOn(console, 'error').mockImplementation(message => warned.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+    const output = warned.join('\n')
+    expect(output).toContain('not available to viewers of a published app')
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
+    expect(output).toContain('js/app.js: /v2/notebooks/${id}/runs')
+    expect(output).not.toContain('index.html')
+    expect(output).toContain('--preview')
+    expect(mockedUpload).toHaveBeenCalled()
+  })
+
+  describe('--preview', () => {
+    function waitForPreview() {
+      return vi.waitFor(() => expect(mockedPreview).toHaveBeenCalled())
+    }
+
+    beforeEach(() => {
+      mockedPreview.mockReset().mockResolvedValue({
+        url: 'http://127.0.0.1:4000/',
+        shellOrigin: 'http://127.0.0.1:4000',
+        appOrigin: 'http://127.0.0.1:4001',
+        mode: 'viewer',
+        events: () => [],
+        expireTokens: vi.fn(),
+        revoke: vi.fn(),
+        restore: vi.fn(),
+        close: vi.fn().mockResolvedValue(undefined),
+      })
+      vi.spyOn(console, 'log').mockImplementation(() => undefined)
+    })
+
+    it('serves the app as a viewer without a project id and stops on Ctrl+C', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+
+      const running = run(tempDir, '--preview', '--token', 'tok', '--token-ttl', '30', '--port', '4000')
+      await waitForPreview()
+      process.emit('SIGINT')
+      await running
+
+      expect(mockedPreview).toHaveBeenCalledWith({
+        dir: tempDir,
+        token: 'tok',
+        apiUrl: 'https://api.deepnote.com',
+        mode: 'viewer',
+        tokenTtlSeconds: 30,
+        port: 4000,
+      })
+      const handle = await mockedPreview.mock.results[0].value
+      expect(handle.close).toHaveBeenCalled()
+      expect(mockedGetProject).not.toHaveBeenCalled()
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+
+    it('uses author mode with --as-author', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+
+      const running = run(tempDir, '--preview', '--as-author', '--token', 'tok')
+      await waitForPreview()
+      process.emit('SIGINT')
+      await running
+
+      expect(mockedPreview).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'author', tokenTtlSeconds: undefined })
+      )
+    })
+
+    it.each([
+      [['--preview', '--prune'], '--prune cannot be combined with --preview'],
+      [['--preview', '--api-access', 'enabled'], '--api-access cannot be combined with --preview'],
+      [['--project-id', 'p1', '--as-author'], '--as-author requires --preview'],
+      [['--project-id', 'p1', '--token-ttl', '30'], '--token-ttl requires --preview'],
+      [['--preview', '--token-ttl', '0'], '--token-ttl must be a positive number of seconds'],
+      [['--preview', '--port', '70000'], '--port must be a port number'],
+    ])('rejects %j with exit code 2', async (flags, message) => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+      const stderr = captureStderr()
+
+      await expect(run(tempDir, '--token', 'tok', ...flags)).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain(message)
+      expect(mockedPreview).not.toHaveBeenCalled()
+    })
+
+    it('exits with code 2 when the directory does not exist', async () => {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run(join(tempDir, 'missing'), '--preview', '--token', 'tok')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedPreview).not.toHaveBeenCalled()
+    })
   })
 })
