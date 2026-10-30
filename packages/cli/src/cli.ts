@@ -613,6 +613,7 @@ ${c.bold('Exit Codes:')}
     .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
     .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
     .option('--force', 'Publish even when files changed in Deepnote since the sync workspace last synced')
+    .option('--no-app-checks', 'Publish even if the build checks find calls that will fail in Deepnote')
     .option(
       '--preview',
       'Serve the app locally as Deepnote embeds it, with a viewer-scoped token, instead of publishing'
@@ -644,9 +645,11 @@ ${c.bold('App viewer API access:')}
   (app sharing and API access must be enabled), so Deepnote enforces the scope. Without it, the
   token is simulated and out-of-scope calls get the same 403 locally.
 
-  Publishing warns about a build that will fail in Deepnote: calls to the local development
-  server's routes, API calls without the token handshake, API paths viewers cannot call, and
-  API calls in a project whose API access is disabled.
+  Before reading the token or calling Deepnote, publish checks the build and stops (exit 2) on
+  calls that will fail in Deepnote: the local development server's routes, API calls without the
+  token handshake, and API paths viewers cannot call. Before uploading, it also stops (exit 1)
+  if the app calls the API but the project's API access is off and ${c.dim('--api-access enabled')} is
+  not given. ${c.dim('--no-app-checks')} skips these checks.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}
@@ -693,9 +696,10 @@ ${c.bold('Examples:')}
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Files uploaded and app sharing enabled
-  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
+  ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes, or
+     the app calls the API but the project's API access is off
   ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root,
-     flags that need or exclude --preview)
+     flags that need or exclude --preview), or the build checks found calls that will fail
 `
     })
     .action(createPublishAction(program))

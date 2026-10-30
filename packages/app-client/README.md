@@ -63,8 +63,8 @@ it will get once published. Without `--project-id`, the viewer token is simulate
 ## The viewer scope
 
 `VIEWER_SCOPE` lists the routes a viewer token may call. It mirrors Deepnote's hosted app viewer
-router, and it drives this client, the simulated `deepnote publish --preview` token, and the warning
-`deepnote publish` prints for API paths in a build that viewers cannot call. `matchViewerRoute` and
+router, and it drives this client, the simulated `deepnote publish --preview` token, and the check
+that stops `deepnote publish` on API paths in a build that viewers cannot call. `matchViewerRoute` and
 `findOutOfScopeApiPaths` are exported for tools that need the same check.
 
 Two things keep it honest. A preview with a real token flags any call Deepnote answers differently

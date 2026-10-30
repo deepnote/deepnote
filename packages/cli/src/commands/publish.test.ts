@@ -805,90 +805,152 @@ describe('deepnote publish', () => {
     expect(mockedUpload).not.toHaveBeenCalled()
   })
 
-  describe('warnings about a build that will not work once published', () => {
+  describe('checks on a build that will not work once published', () => {
     const HANDSHAKE = "postMessage({ type: 'deepnote-static-files-api-token-request' })"
+    let previousToken: string | undefined
 
-    function captureWarnings(): string[] {
-      const warned: string[] = []
-      vi.spyOn(console, 'error').mockImplementation(message => warned.push(String(message)))
-      return warned
+    beforeEach(() => {
+      // The build checks must not need a token: none is available unless a test passes one.
+      previousToken = process.env.DEEPNOTE_TOKEN
+      process.env.DEEPNOTE_TOKEN = ''
+    })
+
+    afterEach(() => {
+      if (previousToken === undefined) delete process.env.DEEPNOTE_TOKEN
+      else process.env.DEEPNOTE_TOKEN = previousToken
+    })
+
+    async function expectRefused(args: string[], exitCode: number): Promise<string> {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+      const stderr = captureStderr()
+      await expect(run(...args)).rejects.toThrow('exit')
+      expect(exitSpy).toHaveBeenCalledWith(exitCode)
+      expect(mockedUpload).not.toHaveBeenCalled()
+      return stderr.join('')
     }
 
-    it('warns about API calls viewers cannot make, and still publishes', async () => {
-      await fs.writeFile(
-        join(tempDir, 'index.html'),
-        `<script>${HANDSHAKE}; fetch('/v2/notebooks/' + id + '/runs'); fetch('/v2/runs')</script>`
-      )
+    it('stops on local development server routes before reading a token or calling Deepnote', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/api/info'); fetch('/api/run')</script>")
+
+      const output = await expectRefused([tempDir, '--project-id', 'p1'], 2)
+
+      expect(output).toContain('local development server (`serveStatic`), which is not published')
+      expect(output).toContain('index.html: /api/info')
+      expect(output).toContain('--no-app-checks')
+      expect(output).not.toContain('DEEPNOTE_TOKEN')
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('stops on API calls without the token handshake', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/v2/runs', { method: 'POST' })</script>")
+
+      const output = await expectRefused([tempDir, '--project-id', 'p1'], 2)
+
+      expect(output).toContain('never asks Deepnote for a viewer token')
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('stops on API calls viewers cannot make, listing each', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
       await fs.mkdir(join(tempDir, 'js'))
       // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
       await fs.writeFile(join(tempDir, 'js', 'app.js'), 'fetch(`${base}/v2/notebooks/${id}/runs`)')
-      const warned = captureWarnings()
 
-      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--api-access', 'enabled')
+      const output = await expectRefused([tempDir, '--project-id', 'p1'], 2)
 
-      const output = warned.join('\n')
       expect(output).toContain('not available to viewers of a published app')
       // biome-ignore lint/suspicious/noTemplateCurlyInString: the literal `${…}` is what the scan reads
       expect(output).toContain('js/app.js: /v2/notebooks/${id}/runs')
-      expect(output).not.toContain('index.html: ')
       expect(output).toContain(`deepnote publish ${tempDir} --preview --project-id p1`)
-      expect(mockedUpload).toHaveBeenCalled()
+      expect(mockedGetProject).not.toHaveBeenCalled()
     })
 
-    it('warns that local development server routes do not exist once published', async () => {
-      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/api/info'); fetch('/api/run')</script>")
-      const warned = captureWarnings()
+    it('reports every problem at once', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/api/run'); fetch('/v2/projects')</script>")
 
-      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+      const output = await expectRefused([tempDir, '--project-id', 'p1'], 2)
 
-      const output = warned.join('\n')
-      expect(output).toContain('local development server (`serveStatic`), which is not published')
-      expect(output).toContain('index.html: /api/info')
-      expect(output).toContain('index.html: /api/run')
-      expect(mockedUpload).toHaveBeenCalled()
+      expect(output).toContain('local development server')
+      expect(output).toContain('never asks Deepnote for a viewer token')
+      expect(output).toContain('index.html: /v2/projects')
     })
 
-    it('warns when the app calls the API without ever asking Deepnote for a token', async () => {
-      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/v2/runs', { method: 'POST' })</script>")
-      const warned = captureWarnings()
-
-      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--api-access', 'enabled')
-
-      expect(warned.join('\n')).toContain('never asks Deepnote for a viewer token')
-    })
-
-    it('warns after publishing when the app calls the API but the project has API access disabled', async () => {
+    it('stops before uploading when the app calls the API and the project has API access off', async () => {
       await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
-      const warned = captureWarnings()
-
-      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
-
-      const output = warned.join('\n')
-      expect(output).toContain('API access is disabled for this project')
-      expect(output).toContain('deepnote static-site access --project-id p1 --api-access enabled')
-    })
-
-    it('stays quiet for an app that does it right', async () => {
-      mockedUpdateProject.mockResolvedValue({
-        sharingEnabled: true,
-        apiAccessEnabled: true,
-        url: 'https://static-p1.example.com/',
+      mockedGetProject.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [],
+        staticFiles: { sharingEnabled: true, apiAccessEnabled: false, url: 'https://static-p1.example.com/' },
       })
+
+      const output = await expectRefused([tempDir, '--project-id', 'p1', '--token', 'tok'], 1)
+
+      expect(output).toContain('API access is disabled for project p1')
+      expect(output).toContain('--api-access enabled')
+      expect(mockedUpdateProject).not.toHaveBeenCalled()
+    })
+
+    it('stops when --api-access disabled contradicts an app that calls the API', async () => {
       await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
-      const warned = captureWarnings()
+
+      const output = await expectRefused(
+        [tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', 'disabled'],
+        1
+      )
+
+      expect(output).toContain('--api-access disabled would leave its viewers without a token')
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('publishes an app that calls the API when the same publish enables API access', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
 
       await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--api-access', 'enabled')
 
-      expect(warned).toEqual([])
+      expect(process.exitCode).toBeUndefined()
+      expect(mockedUpload).toHaveBeenCalled()
     })
 
-    it('stays quiet for an app that does not use the API, even with API access disabled', async () => {
-      await fs.writeFile(join(tempDir, 'index.html'), '<h1>static</h1>')
-      const warned = captureWarnings()
+    it('publishes an app that calls the API into a project whose API access is already on', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), `<script>${HANDSHAKE}; fetch('/v2/runs')</script>`)
+      mockedGetProject.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [],
+        staticFiles: { sharingEnabled: true, apiAccessEnabled: true, url: 'https://static-p1.example.com/' },
+      })
 
       await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
-      expect(warned).toEqual([])
+      expect(mockedUpload).toHaveBeenCalled()
+    })
+
+    it('publishes a static site that does not use the API, even with API access off', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), '<h1>static</h1>')
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
+
+      expect(mockedUpload).toHaveBeenCalled()
+    })
+
+    it('publishes anyway with --no-app-checks, without the extra project check', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), "<script>fetch('/api/run'); fetch('/v2/projects')</script>")
+
+      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q', '--no-app-checks')
+
+      expect(mockedUpload).toHaveBeenCalled()
+      expect(mockedGetProject).toHaveBeenCalledTimes(1)
+    })
+
+    it('still needs a token once the build passes its checks', async () => {
+      await fs.writeFile(join(tempDir, 'index.html'), '<h1>static</h1>')
+
+      const output = await expectRefused([tempDir, '--project-id', 'p1'], 2)
+
+      expect(output).toContain('DEEPNOTE_TOKEN')
     })
   })
 

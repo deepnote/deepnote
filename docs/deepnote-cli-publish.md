@@ -119,18 +119,19 @@ uses it.
 API access requires app sharing and does not grant additional viewers project access. Omitting
 `--api-access` preserves the current setting; use `--api-access disabled` to revoke it.
 
-When you publish, the CLI scans the build and warns about anything that works locally but will fail
-in Deepnote:
+Before it reads your token or contacts Deepnote, `deepnote publish` checks the build and stops with
+exit code `2` if it finds calls that will fail in Deepnote:
 
 - calls to the local development server's routes (`/api/run`, `/api/info`, and so on), which are not
   published;
 - Deepnote API calls with no token handshake, which will have no credential;
-- Deepnote API paths a viewer token cannot call, which will answer 403;
-- Deepnote API calls in a project whose API access is still disabled after the publish, which will get
-  no token.
+- Deepnote API paths a viewer token cannot call, which will answer 403.
 
-The scan reads the build's string literals, so it can miss calls built at runtime. The warnings never
-block a publish.
+If the app calls the Deepnote API, publish also stops with exit code `1` before uploading when the
+project's API access is off and `--api-access enabled` is not given, since viewers would get no token.
+
+The checks read the build's string literals: they can miss calls assembled at runtime, and they can
+mistake text for a call. Pass `--no-app-checks` to publish anyway.
 
 ### Preview an app as a viewer
 
@@ -257,6 +258,7 @@ to check its status again.
 | `--prune`                        | Delete remote files absent from the build                                                    | `false`                                |
 | `--sync-root <dir>`              | Sync workspace to update                                                                     | search upward from the build directory |
 | `--no-sync-root`                 | Skip sync workspace discovery and updates                                                    | `false`                                |
+| `--no-app-checks`                | Publish even if the build checks find calls that will fail                                   | checks run                             |
 | `--force`                        | Overwrite changes not pulled into the workspace                                              | `false`                                |
 | `--token <token>`                | API token                                                                                    | `DEEPNOTE_TOKEN`                       |
 | `--url <url>`                    | API origin                                                                                   | `https://api.deepnote.com`             |
@@ -278,11 +280,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                                                                                                | `deepnote streamlit publish`                   |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                                                                                                                                | App running, or created/found with `--no-wait` |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes; or an app that calls the API in a project with API access off                                    | A request failed or startup timed out          |
+| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace, calls that will fail in Deepnote (unless `--no-app-checks`) | Invalid arguments or missing token             |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.

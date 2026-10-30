@@ -1,6 +1,7 @@
 import { once } from 'node:events'
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { getProjectDetail } from '@deepnote/cloud'
 import {
   type PublishAppEvent,
   type PublishAppResult,
@@ -32,6 +33,8 @@ interface PublishOptions {
   quiet: boolean
   syncRoot: SyncRootOption
   force: boolean
+  /** `false` with --no-app-checks. */
+  appChecks: boolean
   preview?: boolean
   asAuthor?: boolean
   tokenTtl?: string
@@ -67,15 +70,20 @@ export function createPublishAction(program: Command) {
     const c = getChalk()
     // Load .env from the current directory before reading the token — mirrors `sync` and `run --cloud`.
     dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
-    const token = resolveToken(options.token)
-    if (!token) {
-      // `program.parse()` does not await this action, so a rejection here would surface as an
-      // unhandled rejection rather than the documented exit code.
-      program.error(c.red(new MissingTokenError().message), { exitCode: ExitCode.InvalidUsage })
-      return
+    const requireToken = (): string | null => {
+      const resolved = resolveToken(options.token)
+      if (!resolved) {
+        // `program.parse()` does not await this action, so a rejection here would surface as an
+        // unhandled rejection rather than the documented exit code.
+        program.error(c.red(new MissingTokenError().message), { exitCode: ExitCode.InvalidUsage })
+        return null
+      }
+      return resolved
     }
 
     if (options.preview) {
+      const token = requireToken()
+      if (!token) return
       const conflicting = PUBLISH_ONLY_FLAGS.find(([key]) => options[key] !== undefined && options[key] !== false)
       if (conflicting) {
         program.error(`${conflicting[1]} cannot be combined with --preview`, { exitCode: ExitCode.InvalidUsage })
@@ -95,8 +103,28 @@ export function createPublishAction(program: Command) {
     }
     const projectId = options.projectId
 
-    const scan = await scanAppBuild(dir).catch(() => null)
-    if (scan) warnBeforePublish(scan, dir, projectId)
+    // The build checks read only local files, so they run before the token is read or Deepnote is called.
+    const scan = options.appChecks ? await scanAppBuild(dir).catch(() => null) : null
+    const buildProblems = scan ? describeBuildProblems(scan, dir, projectId) : []
+    if (buildProblems.length > 0) {
+      program.error([...buildProblems, 'Fix the app, or pass --no-app-checks to publish it anyway.'].join('\n\n'), {
+        exitCode: ExitCode.InvalidUsage,
+      })
+      return
+    }
+
+    const token = requireToken()
+    if (!token) return
+
+    if (scan && scan.apiFiles.length > 0) {
+      const apiAccessProblem = await checkApiAccess(options, token, projectId)
+      if (apiAccessProblem) {
+        program.error(`${apiAccessProblem}\n\nOr pass --no-app-checks to publish it anyway.`, {
+          exitCode: ExitCode.Error,
+        })
+        return
+      }
+    }
 
     let targetPath = options.path
     const renderEvent = (event: PublishAppEvent) => {
@@ -204,8 +232,6 @@ export function createPublishAction(program: Command) {
       }
     }
 
-    if (scan && result.errors.length === 0) warnAfterPublish(scan, result, projectId)
-
     if (result.errors.length > 0) {
       process.exitCode = ExitCode.Error
     }
@@ -213,16 +239,16 @@ export function createPublishAction(program: Command) {
 }
 
 /**
- * Warn about what in the build works locally but not once published. Best effort, from a scan of the
- * build's literals: it never blocks a publish.
+ * What in the build works locally but will fail once published, from a scan of the build's literals.
+ * Each entry is one problem, ready to print.
  */
-function warnBeforePublish(scan: AppBuildScan, dir: string, projectId: string): void {
-  const previewHint = `Check the app as a viewer first with \`deepnote publish ${dir} --preview --project-id ${projectId}\`.`
+function describeBuildProblems(scan: AppBuildScan, dir: string, projectId: string): string[] {
+  const problems: string[] = []
   const list = (findings: AppBuildScan['outOfScope']) =>
     findings.flatMap(({ file, paths }) => paths.map(path => `  ${file}: ${path}`))
 
   if (scan.localServerCalls.length > 0) {
-    warn(
+    problems.push(
       [
         'These calls go to the local development server (`serveStatic`), which is not published. In Deepnote they will fail:',
         ...list(scan.localServerCalls),
@@ -231,7 +257,7 @@ function warnBeforePublish(scan: AppBuildScan, dir: string, projectId: string): 
     )
   }
   if (scan.apiFiles.length > 0 && !scan.hasTokenHandshake) {
-    warn(
+    problems.push(
       [
         `The app calls the Deepnote API (${scan.apiFiles.join(', ')}) but never asks Deepnote for a viewer token,`,
         'so once published those calls have no credential. Use @deepnote/app-client, which does the handshake.',
@@ -239,27 +265,36 @@ function warnBeforePublish(scan: AppBuildScan, dir: string, projectId: string): 
     )
   }
   if (scan.outOfScope.length > 0) {
-    warn(
+    problems.push(
       [
         'These Deepnote API calls are not available to viewers of a published app and will return 403:',
         ...list(scan.outOfScope),
-        previewHint,
+        `Check the app as a viewer with \`deepnote publish ${dir} --preview --project-id ${projectId}\`.`,
       ].join('\n')
     )
   }
+  return problems
 }
 
-/** Warnings that depend on the project's settings, which are only final once the publish is done. */
-function warnAfterPublish(scan: AppBuildScan, result: PublishAppResult, projectId: string): void {
-  if (scan.apiFiles.length > 0 && !result.apiAccessEnabled) {
-    warn(
-      [
-        'The app calls the Deepnote API, but API access is disabled for this project, so viewers get no token',
-        'and every call fails. Enable it with',
-        `  deepnote static-site access --project-id ${projectId} --api-access enabled`,
-      ].join('\n')
-    )
+/**
+ * An app that calls the API needs the project's API access on, or viewers get no token. Checked before
+ * uploading. Returns the problem, or `null` when access will be on or the setting can't be read.
+ */
+async function checkApiAccess(options: PublishOptions, token: string, projectId: string): Promise<string | null> {
+  const enable = `Publish with --api-access enabled, or run \`deepnote static-site access --project-id ${projectId} --api-access enabled\`.`
+  if (options.apiAccess === 'disabled') {
+    return 'The app calls the Deepnote API, but --api-access disabled would leave its viewers without a token.'
   }
+  if (options.apiAccess === 'enabled') return null
+  let enabled: boolean | undefined
+  try {
+    enabled = (await getProjectDetail(options.url, token, projectId)).staticFiles?.apiAccessEnabled
+  } catch {
+    // The publish itself fetches the project next and reports a failure properly.
+    return null
+  }
+  if (enabled !== false) return null
+  return `The app calls the Deepnote API, but API access is disabled for project ${projectId}, so its viewers would get no token.\n${enable}`
 }
 
 async function runPreview(program: Command, dir: string, token: string, options: PublishOptions): Promise<void> {
