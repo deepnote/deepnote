@@ -7,6 +7,7 @@ import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { BUILTIN_INTEGRATIONS, getSqlEnvVarName } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
+import { readToken } from '../federated-auth/token-store'
 import { resetOutputConfig, setOutputConfig } from '../output'
 import { createLintAction, type LintOptions } from './lint'
 import { createSplitWithSiblingInitFixture } from './test-helpers'
@@ -15,6 +16,11 @@ import { createSplitWithSiblingInitFixture } from './test-helpers'
 vi.mock('../utils/python-resolution', () => ({
   resolveAnalysisPython: async () => undefined,
 }))
+
+vi.mock('../federated-auth/token-store', async importOriginal => {
+  const actual = await importOriginal<typeof import('../federated-auth/token-store')>()
+  return { ...actual, readToken: vi.fn(actual.readToken) }
+})
 
 // Test file paths relative to project root (tests are run from root)
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
@@ -602,6 +608,149 @@ describe('lint command', () => {
       for (const builtin of BUILTIN_INTEGRATIONS) {
         expect(parsed.integrations.missing).not.toContain(builtin)
       }
+    })
+  })
+
+  describe('federated BigQuery integrations', () => {
+    const tempDirs: string[] = []
+
+    afterEach(() => {
+      for (const dir of tempDirs.splice(0)) {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    function sqlBlocksFile(blocks: Record<string, string>): DeepnoteFile {
+      return {
+        version: '1.0.0',
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        project: {
+          id: 'proj-federated-lint',
+          name: 'Federated Lint Fixture',
+          notebooks: [
+            {
+              id: 'nb-0',
+              name: 'Notebook',
+              blocks: Object.entries(blocks).map(([blockId, integrationId], index) => ({
+                id: blockId,
+                blockGroup: `group-${index}`,
+                sortingKey: String(index).padStart(5, '0'),
+                type: 'sql',
+                content: 'SELECT 1',
+                metadata: { sql_integration_id: integrationId },
+              })),
+            },
+          ],
+        },
+      }
+    }
+
+    function writeFixture(
+      blocks: Record<string, string>,
+      integrationsYaml: string
+    ): { notebookPath: string; integrationsFilePath: string } {
+      const dir = fs.mkdtempSync(join(os.tmpdir(), 'lint-federated-bq-'))
+      tempDirs.push(dir)
+      const notebookPath = join(dir, 'notebook.deepnote')
+      fs.writeFileSync(notebookPath, serializeDeepnoteFile(sqlBlocksFile(blocks)))
+      const integrationsFilePath = join(dir, 'integrations.yaml')
+      fs.writeFileSync(integrationsFilePath, integrationsYaml)
+      return { notebookPath, integrationsFilePath }
+    }
+
+    const FEDERATED_INTEGRATIONS_YAML = `integrations:
+  - id: federated-bq
+    name: Federated BigQuery
+    type: big-query
+    metadata:
+      authMethod: google-oauth
+      project: my-gcp-project
+      clientId: client-id.apps.googleusercontent.com
+      clientSecret: GOCSPX-secret`
+
+    it('does not report missing-integration for a google-oauth BigQuery integration, with an undeclared (unconfigured) integration as the control', async () => {
+      const action = createLintAction(program)
+      const { notebookPath, integrationsFilePath } = writeFixture(
+        { 'federated-block': 'federated-bq', 'control-block': 'unconfigured-bq' },
+        FEDERATED_INTEGRATIONS_YAML
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(notebookPath, { output: 'json', integrationsFile: integrationsFilePath })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      const missingIds = (parsed.issues as Array<{ code: string; details?: { integrationId?: string } }>)
+        .filter(i => i.code === 'missing-integration')
+        .map(i => i.details?.integrationId)
+
+      expect(missingIds).not.toContain('federated-bq')
+      expect(missingIds).toContain('unconfigured-bq')
+      expect(parsed.integrations.configured).toContain('federated-bq')
+      expect(parsed.integrations.missing).toEqual(['unconfigured-bq'])
+    })
+
+    it('matches the integration id case-insensitively between the SQL block and the integrations file', async () => {
+      const action = createLintAction(program)
+      const { notebookPath, integrationsFilePath } = writeFixture(
+        { 'federated-block': 'FEDERATED-bq' },
+        `integrations:
+  - id: Federated-BQ
+    name: Federated BigQuery
+    type: big-query
+    metadata:
+      authMethod: google-oauth
+      project: my-gcp-project
+      clientId: client-id.apps.googleusercontent.com
+      clientSecret: GOCSPX-secret`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(notebookPath, { output: 'json', integrationsFile: integrationsFilePath })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      expect(parsed.issues.some((i: { code: string }) => i.code === 'missing-integration')).toBe(false)
+    })
+
+    it('still reports missing-integration for a service-account BigQuery integration that generated no SQL env var', async () => {
+      const action = createLintAction(program)
+      const { notebookPath, integrationsFilePath } = writeFixture(
+        { 'service-account-block': 'service-account-bq' },
+        `integrations:
+  - id: service-account-bq
+    name: Service Account BigQuery
+    type: big-query
+    metadata:
+      authMethod: service-account
+      service_account: "this is not valid json"`
+      )
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(notebookPath, { output: 'json', integrationsFile: integrationsFilePath })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      expect(parsed.integrations.missing).toEqual(['service-account-bq'])
+    })
+
+    it('never reads the federated-auth token store — lint reports config shape only, never live authentication status', async () => {
+      const action = createLintAction(program)
+      const { notebookPath, integrationsFilePath } = writeFixture(
+        { 'federated-block': 'federated-bq' },
+        FEDERATED_INTEGRATIONS_YAML
+      )
+      vi.mocked(readToken).mockClear()
+
+      exitSpy.mockRestore()
+      exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
+
+      await action(notebookPath, { output: 'json', integrationsFile: integrationsFilePath })
+
+      expect(readToken).not.toHaveBeenCalled()
     })
   })
 

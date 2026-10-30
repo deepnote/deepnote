@@ -6,6 +6,7 @@ export {
 export {
   BigQueryServiceAccountParseError,
   type EnvVar,
+  getBigQueryOAuthSqlAlchemyInput,
   getEnvironmentVariablesForIntegrations,
   getSqlAlchemyInput,
   getSqlEnvVarName,
