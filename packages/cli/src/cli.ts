@@ -1179,7 +1179,7 @@ ${c.bold('Examples:')}
   ${c.dim('# Authenticate a big-query (Google OAuth) integration')}
   $ deepnote integrations auth <integration-id>
 
-  ${c.dim('# Authenticate against a custom Deepnote domain')}
+  ${c.dim('# Authenticate a local integration against a custom Deepnote domain')}
   $ deepnote integrations auth <integration-id> --domain deepnote.example.com
 `
     })
