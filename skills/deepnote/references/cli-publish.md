@@ -132,23 +132,23 @@ publish again and use the returned URL, which may change.
 
 `deepnote publish <dir>`:
 
-| Option                           | Use                                                               |
-| -------------------------------- | ----------------------------------------------------------------- |
-| `--project-id <uuid>`            | Target project; required unless `--preview`, which uses its token |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                   |
-| `--api-access enabled\|disabled` | Change viewer API access; omitted preserves it                    |
-| `--prune`                        | Delete remote files absent from the local build                   |
-| `--sync-root <dir>`              | Use this sync workspace; default searches upward from the build   |
-| `--no-sync-root`                 | Skip sync workspace discovery and updates                         |
-| `--no-app-checks`                | Skip the checks for calls that will fail in Deepnote              |
-| `--force`                        | Overwrite changes not yet pulled into the sync workspace          |
-| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                           |
-| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`                |
-| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr          |
-| `--preview`                      | Serve the build locally as a viewer; publishes nothing            |
-| `--token-ttl <seconds>`          | With `--preview`, local viewer token lifetime (default 900)       |
-| `--port <port>`                  | With `--preview`, port of the preview page                        |
-| `--as-author`                    | With `--preview`, forward every call with your token              |
+| Option                           | Use                                                                                                         |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `--project-id <uuid>`            | Target project, required to publish; with `--preview`, use its real viewer token (omit for a simulated one) |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                                                             |
+| `--api-access enabled\|disabled` | Change viewer API access; omitted preserves it                                                              |
+| `--prune`                        | Delete remote files absent from the local build                                                             |
+| `--sync-root <dir>`              | Use this sync workspace; default searches upward from the build                                             |
+| `--no-sync-root`                 | Skip sync workspace discovery and updates                                                                   |
+| `--no-app-checks`                | Skip the checks for calls that will fail in Deepnote                                                        |
+| `--force`                        | Overwrite changes not yet pulled into the sync workspace                                                    |
+| `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                                                                     |
+| `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`                                                          |
+| `-q, --quiet`                    | Suppress progress and results; errors still go to stderr                                                    |
+| `--preview`                      | Serve the build locally as a viewer; publishes nothing                                                      |
+| `--token-ttl <seconds>`          | With `--preview`, local viewer token lifetime (default 900)                                                 |
+| `--port <port>`                  | With `--preview`, port of the preview page                                                                  |
+| `--as-author`                    | With `--preview`, forward every call with your token                                                        |
 
 `deepnote streamlit publish <entrypoint>`:
 

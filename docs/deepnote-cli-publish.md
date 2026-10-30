@@ -250,23 +250,23 @@ to check its status again.
 
 `deepnote publish <dir>`:
 
-| Option                           | Description                                                                                  | Default                                |
-| -------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `--project-id <id>`              | Target project; with `--preview`, the project whose viewer token to use (required otherwise) |                                        |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                                              | `_deepnote_static`                     |
-| `--api-access enabled\|disabled` | Change viewer API access                                                                     | unchanged                              |
-| `--prune`                        | Delete remote files absent from the build                                                    | `false`                                |
-| `--sync-root <dir>`              | Sync workspace to update                                                                     | search upward from the build directory |
-| `--no-sync-root`                 | Skip sync workspace discovery and updates                                                    | `false`                                |
-| `--no-app-checks`                | Publish even if the build checks find calls that will fail                                   | checks run                             |
-| `--force`                        | Overwrite changes not pulled into the workspace                                              | `false`                                |
-| `--token <token>`                | API token                                                                                    | `DEEPNOTE_TOKEN`                       |
-| `--url <url>`                    | API origin                                                                                   | `https://api.deepnote.com`             |
-| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr                                       | `false`                                |
-| `--preview`                      | Serve the build locally as a viewer instead of publishing                                    | `false`                                |
-| `--token-ttl <seconds>`          | With `--preview`, lifetime of the local viewer token                                         | `900`                                  |
-| `--port <port>`                  | With `--preview`, port of the preview page                                                   | any free port                          |
-| `--as-author`                    | With `--preview`, allow every call with your token                                           | `false`                                |
+| Option                           | Description                                                                                                 | Default                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `--project-id <id>`              | Target project, required to publish; with `--preview`, use its real viewer token (omit for a simulated one) |                                        |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`                                                             | `_deepnote_static`                     |
+| `--api-access enabled\|disabled` | Change viewer API access                                                                                    | unchanged                              |
+| `--prune`                        | Delete remote files absent from the build                                                                   | `false`                                |
+| `--sync-root <dir>`              | Sync workspace to update                                                                                    | search upward from the build directory |
+| `--no-sync-root`                 | Skip sync workspace discovery and updates                                                                   | `false`                                |
+| `--no-app-checks`                | Publish even if the build checks find calls that will fail                                                  | checks run                             |
+| `--force`                        | Overwrite changes not pulled into the workspace                                                             | `false`                                |
+| `--token <token>`                | API token                                                                                                   | `DEEPNOTE_TOKEN`                       |
+| `--url <url>`                    | API origin                                                                                                  | `https://api.deepnote.com`             |
+| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr                                                      | `false`                                |
+| `--preview`                      | Serve the build locally as a viewer instead of publishing                                                   | `false`                                |
+| `--token-ttl <seconds>`          | With `--preview`, lifetime of the local viewer token                                                        | `900`                                  |
+| `--port <port>`                  | With `--preview`, port of the preview page                                                                  | any free port                          |
+| `--as-author`                    | With `--preview`, allow every call with your token                                                          | `false`                                |
 
 `deepnote streamlit publish <entrypoint>`:
 

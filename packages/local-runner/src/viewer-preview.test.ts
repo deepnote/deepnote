@@ -411,19 +411,24 @@ describe('serveViewerPreview', () => {
     })
 
     it('reuses a refused mint for a few seconds instead of asking Deepnote on every handshake retry', async () => {
-      upstream.mockResolvedValue(json(404, { message: 'Not found' }))
+      // A fresh Response per call: a body can only be read once.
+      upstream.mockImplementation(async () => json(404, { message: 'Not found' }))
       let now = NOW
       const handle = await start({ projectId: 'proj-1', now: () => now })
-      const ask = () =>
-        fetch(`${handle.shellOrigin}/__preview/token`, { method: 'POST', headers: { Origin: handle.shellOrigin } })
+      const ask = async () => {
+        const response = await fetch(`${handle.shellOrigin}/__preview/token`, {
+          method: 'POST',
+          headers: { Origin: handle.shellOrigin },
+        })
+        return { status: response.status, body: (await response.json()) as { error?: string } }
+      }
+      const refused = { status: 403, body: { error: expect.stringContaining('would not mint a viewer token') } }
 
-      await ask()
-      await ask()
-      await ask()
+      expect([await ask(), await ask(), await ask()]).toEqual([refused, refused, refused])
       expect(upstream).toHaveBeenCalledTimes(1)
 
       now += 6000
-      await ask()
+      expect(await ask()).toEqual(refused)
       expect(upstream).toHaveBeenCalledTimes(2)
     })
 
