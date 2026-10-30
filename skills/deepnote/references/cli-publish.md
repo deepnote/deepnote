@@ -56,6 +56,10 @@ Keep the build directory inside the sync workspace, or pass `--sync-root <dir>` 
 Publish updates its `.files/` mirror and `.deepnote-sync.json`, including pruned files. Deploy build
 output through `publish`; use `sync` to pull remote edits and resolve conflicts.
 
+Keep the app source and the build directory outside the project's `.files/_deepnote_static/`. Publish replaces
+files there and `--prune` deletes files the build lacks, so a directory at, below or containing
+that folder is refused with exit code `2`.
+
 If publish reports remote changes, run `deepnote sync --all-files` and reconcile them before
 retrying. Use `--force` only when those remote changes should be overwritten. The conflict check
 covers files about to be replaced or pruned that have a recorded server `updatedAt`; files without
@@ -150,11 +154,11 @@ serves the retained files at the returned URL. Authentication and the API origin
 
 ## Interpret the result
 
-| Exit code | `deepnote publish`                                                                                                            | `deepnote streamlit publish`                   |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`       | Files uploaded and sharing enabled                                                                                            | App running, or created/found with `--no-wait` |
-| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes                                                       | Request failure or startup timeout             |
-| `2`       | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token             |
+| Exit code | `deepnote publish`                                                                                                                                                                           | `deepnote streamlit publish`                   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`       | Files uploaded and sharing enabled                                                                                                                                                           | App running, or created/found with `--no-wait` |
+| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes                                                                                                                      | Request failure or startup timeout             |
+| `2`       | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, unusable sync manifest/workspace, or directory overlapping the project's `.files/_deepnote_static` | Invalid arguments or missing token             |
 
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. Sharing is not changed and remaining stale files are not

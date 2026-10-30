@@ -28,7 +28,8 @@ import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
 export interface PublishAppOptions {
   /**
    * Local build directory; every file below it is uploaded. `.env` and `.env.*` files, and files over the
-   * 100 MiB upload limit, are refused.
+   * 100 MiB upload limit, are refused. A `dir` at, below or containing the tracked project's
+   * `.files/_deepnote_static` is refused unless `syncRoot` is `false`.
    */
   dir: string
   projectId: string
@@ -95,8 +96,8 @@ export interface PublishAppResult {
 
 /**
  * `invalid-input`: a bad `targetPath`, a missing, empty or non-directory `dir`, a `.env` file, a file over
- * the upload limit, colliding paths, or an unusable sync folder. `unreadable-directory`: `dir` or a file in
- * it could not be read.
+ * the upload limit, colliding paths, a `dir` that overlaps the project's app mirror, or an unusable sync
+ * folder. `unreadable-directory`: `dir` or a file in it could not be read.
  * `project-unavailable`: the project could not be loaded.
  */
 export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable'

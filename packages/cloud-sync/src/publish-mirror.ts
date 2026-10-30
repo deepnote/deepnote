@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import type { ProjectFileEntry, UploadedFile } from '@deepnote/cloud'
+import { PROJECT_STATIC_ROOT, type ProjectFileEntry, type UploadedFile } from '@deepnote/cloud'
 import { isErrnoENOENT } from './fs-errors'
 import type { OptionHint } from './option-hint'
 import {
@@ -48,9 +48,9 @@ export const PUBLISH_ERROR_HINTS = {
 export type PublishErrorHint<C extends PublishErrorCode = PublishErrorCode> = (typeof PUBLISH_ERROR_HINTS)[C]
 
 /**
- * An unusable sync folder. `publishApp` rethrows one raised while resolving the folder as `PublishError` with
- * reason `invalid-input` and the same `code`, and reports one raised while updating it in a `mirror-incomplete`
- * event.
+ * An unusable sync folder, or a publish directory that overlaps the project's app mirror. `publishApp` rethrows
+ * one raised while resolving the folder as `PublishError` with reason `invalid-input` and the same `code` (none
+ * for an overlap), and reports one raised while updating it in a `mirror-incomplete` event.
  */
 export class PublishMirrorError extends Error {
   constructor(
@@ -59,6 +59,21 @@ export class PublishMirrorError extends Error {
   ) {
     super(message)
   }
+}
+
+function contains(parent: string, child: string): boolean {
+  const rel = path.relative(parent, child)
+  return rel !== '..' && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel)
+}
+
+/**
+ * Compared case-insensitively because a case variant of the mirror can be the same directory (macOS, Windows).
+ * On a case-sensitive filesystem a distinct case variant is refused as well.
+ */
+function overlaps(mirrorDir: string, publishPath: string): boolean {
+  const mirror = mirrorDir.toLowerCase()
+  const publish = publishPath.toLowerCase()
+  return contains(mirror, publish) || contains(publish, mirror)
 }
 
 async function directoryExists(absolutePath: string): Promise<boolean> {
@@ -133,6 +148,17 @@ async function locateMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirr
   }
 
   const filesDir = projectFilesDir(record.dir)
+  // Real-path the sync root and the publish dir, so a symlink to either cannot hide an overlap. The rest of the
+  // mirror path is joined on, because it may not exist yet and realpath would throw on it.
+  const mirrorDir = path.join(await fs.realpath(rootDir), ...filesDir.split('/'), PROJECT_STATIC_ROOT)
+  if (overlaps(mirrorDir, await fs.realpath(publishDir))) {
+    throw new PublishMirrorError(
+      `Refusing to publish ${publishDir}: it overlaps ${mirrorDir}, the local copy of the project's app folder, ` +
+        'where publishing and working-file sync replace and delete files. ' +
+        `Keep the app source and its build output outside ${mirrorDir}, ` +
+        'and publish the build output directory from there.'
+    )
+  }
   return {
     rootDir,
     filesDir,
