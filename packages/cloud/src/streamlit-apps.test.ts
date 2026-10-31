@@ -86,6 +86,17 @@ describe('listStreamlitApps', () => {
       expect.objectContaining({ method: 'GET', headers: expect.objectContaining({ Authorization: `Bearer ${TOKEN}` }) })
     )
   })
+
+  it('accepts app and project ids that are not RFC 9562 UUIDs', async () => {
+    const app = {
+      ...APP,
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      projectId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ streamlitApps: [app] }))))
+
+    await expect(listStreamlitApps(BASE_URL, TOKEN, app.projectId)).resolves.toEqual([app])
+  })
 })
 
 describe('getStreamlitAppStatus', () => {

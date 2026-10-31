@@ -53,6 +53,17 @@ describe('fetchIntegrations', () => {
     })
   })
 
+  it('should accept an integration without metadata', async () => {
+    const integration = { id: 'int-123', name: 'My Database', type: 'postgresql' }
+
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ integrations: [integration] }),
+    } as Response)
+
+    await expect(fetchIntegrations(mockBaseUrl, mockToken)).resolves.toEqual([integration])
+  })
+
   it('should not double up the path separator when the base URL has a trailing slash', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce({
       ok: true,

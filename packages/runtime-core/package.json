@@ -47,7 +47,7 @@
     "ai": "^7.0.133",
     "tcp-port-used": "^1.0.3",
     "ws": "^8.21.3",
-    "zod": "3.25.76"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/tcp-port-used": "^1.0.4",
