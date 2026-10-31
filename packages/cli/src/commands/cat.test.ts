@@ -11,6 +11,7 @@ import { cleanupTempFile, createTempFile } from './test-helpers'
 const HELLO_WORLD_FILE = join('examples', '1_hello_world.deepnote')
 const BLOCKS_FILE = join('examples', '2_blocks.deepnote')
 const INTEGRATIONS_FILE = join('examples', '3_integrations.deepnote')
+const ALL_BLOCKS_FILE = join('test-fixtures', 'All-Deepnote-blocks.deepnote')
 
 /** Default options for testing */
 const DEFAULT_OPTIONS: CatOptions = {}
@@ -326,6 +327,51 @@ describe('cat command', () => {
 
       const output = getOutput(consoleSpy)
       expect(output).toContain('Variable: input_text')
+    })
+  })
+
+  describe('separator blocks', () => {
+    const SEPARATOR_ID = 'cd03bb312208414d80f7de5191d9ecfc'
+
+    it('shows separator as a horizontal line in text output', async () => {
+      const action = createCatAction(program)
+      const filePath = resolve(process.cwd(), ALL_BLOCKS_FILE)
+
+      await action(filePath, DEFAULT_OPTIONS)
+
+      const lines = getOutput(consoleSpy).split('\n')
+      const headerIndex = lines.indexOf(`separator (${SEPARATOR_ID})`)
+      expect(headerIndex).toBeGreaterThanOrEqual(0)
+      expect(lines.slice(headerIndex - 1, headerIndex + 5)).toEqual([
+        '────────────────────────────────────────────────────────────',
+        `separator (${SEPARATOR_ID})`,
+        '',
+        '  ---',
+        '',
+        '────────────────────────────────────────────────────────────',
+      ])
+    })
+
+    it('keeps empty content in JSON output', async () => {
+      const action = createCatAction(program)
+      const filePath = resolve(process.cwd(), ALL_BLOCKS_FILE)
+
+      await action(filePath, { output: 'json' })
+
+      const parsed = JSON.parse(getOutput(consoleSpy))
+      const separator = parsed.notebooks[0].blocks.find((block: { id: string }) => block.id === SEPARATOR_ID)
+      expect(separator).toMatchObject({ type: 'separator', content: '' })
+    })
+
+    it('shows no separator line in tree mode', async () => {
+      const action = createCatAction(program)
+      const filePath = resolve(process.cwd(), ALL_BLOCKS_FILE)
+
+      await action(filePath, { tree: true })
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain(`separator (${SEPARATOR_ID})`)
+      expect(output.split('\n')).not.toContain('  ---')
     })
   })
 
