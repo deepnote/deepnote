@@ -79,7 +79,7 @@ async function storeMatchingToken(
 
 describe('resolveFederatedSqlEnvVars', () => {
   describe('scope', () => {
-    it('costs no token store read and no network call for an integration outside federatedIds', async () => {
+    it('costs no token store read and no network call for an integration outside sqlIntegrationIds', async () => {
       const integration = bigQueryIntegration({ id: 'out-of-scope' })
 
       const result = await resolveFederatedSqlEnvVars([integration], [], { refresh: true })
@@ -89,7 +89,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(fetchAccessToken).not.toHaveBeenCalled()
     })
 
-    it('matches federatedIds case-insensitively', async () => {
+    it('matches sqlIntegrationIds case-insensitively', async () => {
       const integration = bigQueryIntegration({ id: 'MyBigQuery' })
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['MYBIGQUERY'], { refresh: true })
@@ -101,7 +101,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       )
     })
 
-    it('skips a big-query integration using service-account auth even when listed in federatedIds', async () => {
+    it('skips a big-query integration using service-account auth even when listed in sqlIntegrationIds', async () => {
       const integration: DatabaseIntegrationConfig = {
         id: 'service-account-bq',
         name: 'Service account BQ',

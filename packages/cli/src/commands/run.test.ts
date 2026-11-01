@@ -97,7 +97,7 @@ const mockInjectIntegrationEnvVarsAndCheckCredentials =
     (
       integrations: unknown[],
       workingDirectory: string,
-      federatedIds: string[],
+      sqlIntegrationIds: string[],
       options: { refreshFederatedTokens: boolean }
     ) => Promise<string[]>
   >()

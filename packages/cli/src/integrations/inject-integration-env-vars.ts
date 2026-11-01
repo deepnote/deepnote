@@ -12,7 +12,7 @@ import { debug } from '../output'
 /**
  * Injects integration env vars into process.env and returns their names: the static ones for
  * non-federated `integrations`, and a `SQL_<ID>` with a freshly minted access token for federated
- * BigQuery integrations listed in `federatedIds`. With `refreshFederatedTokens: false` (dry run),
+ * BigQuery integrations listed in `sqlIntegrationIds`. With `refreshFederatedTokens: false` (dry run),
  * their stored credential is only checked.
  *
  * Throws the first federated error, preferring `IntegrationAuthenticationError`.
@@ -20,7 +20,7 @@ import { debug } from '../output'
 export async function injectIntegrationEnvVarsAndCheckCredentials(
   integrations: DatabaseIntegrationConfig[],
   workingDirectory: string,
-  federatedIds: string[],
+  sqlIntegrationIds: string[],
   options: { refreshFederatedTokens: boolean }
 ): Promise<string[]> {
   if (integrations.length === 0) {
@@ -48,7 +48,7 @@ export async function injectIntegrationEnvVarsAndCheckCredentials(
 
   const { envVars: federatedEnvVars, errors: federatedErrors } = await resolveFederatedSqlEnvVars(
     integrations,
-    federatedIds,
+    sqlIntegrationIds,
     { refresh: options.refreshFederatedTokens }
   )
   for (const { name, value } of federatedEnvVars) {

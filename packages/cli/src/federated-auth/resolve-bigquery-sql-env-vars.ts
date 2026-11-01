@@ -28,9 +28,9 @@ function notAuthenticatedError(id: string): IntegrationAuthenticationError {
 }
 
 /**
- * Mints an access token for every federated (Google OAuth) BigQuery integration in `federatedIds`
+ * Mints an access token for every federated (Google OAuth) BigQuery integration in `sqlIntegrationIds`
  * and turns it into the `SQL_<ID>` env var the generated Python code reads. An integration outside
- * `federatedIds` costs no token store read and no network call.
+ * `sqlIntegrationIds` costs no token store read and no network call.
  *
  * With `options.refresh: false` (dry run), stops once a matching stored credential is confirmed: no
  * network call, no write to the token store.
@@ -40,10 +40,10 @@ function notAuthenticatedError(id: string): IntegrationAuthenticationError {
  */
 export async function resolveFederatedSqlEnvVars(
   integrations: DatabaseIntegrationConfig[],
-  federatedIds: string[],
+  sqlIntegrationIds: string[],
   options: { refresh: boolean }
 ): Promise<{ envVars: EnvVar[]; errors: Error[] }> {
-  const wantedIds = new Set(federatedIds.map(id => id.toLowerCase()))
+  const wantedIds = new Set(sqlIntegrationIds.map(id => id.toLowerCase()))
   const envVars: EnvVar[] = []
   const errors: Error[] = []
 
