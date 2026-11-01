@@ -283,8 +283,11 @@ describe('google-oauth', () => {
       expect((second?.receivedAt ?? 0) - (first?.receivedAt ?? 0)).toBeGreaterThanOrEqual(150)
     })
 
-    it('rejects invalid_client with InvalidClientError, attempted exactly once', async () => {
-      const stub = await startSingleStub({ type: 'json', status: 401, body: { error: 'invalid_client' } })
+    it.each([
+      ['invalid_client', 401],
+      ['unauthorized_client', 400],
+    ])('rejects %s with InvalidClientError, attempted exactly once', async (code, status) => {
+      const stub = await startSingleStub({ type: 'json', status, body: { error: code } })
       activeStub = stub
 
       const error: unknown = await fetchAccessToken({
@@ -295,7 +298,7 @@ describe('google-oauth', () => {
       }).catch(caught => caught)
 
       expect(error).toBeInstanceOf(InvalidClientError)
-      expect((error as Error).message).toBe('Google rejected the OAuth client credentials (invalid_client).')
+      expect((error as Error).message).toBe(`Google rejected the OAuth client credentials (${code}).`)
       expect(stub.attemptCount).toBe(1)
     })
 

@@ -30,7 +30,7 @@ export class InvalidGrantError extends Error {
   }
 }
 
-/** OAuth client id/secret were rejected — re-authenticating will not help. */
+/** Google rejected the OAuth client (`invalid_client` or `unauthorized_client`) — re-authenticating will not help. */
 export class InvalidClientError extends Error {
   constructor(message: string) {
     super(message)
@@ -134,7 +134,7 @@ async function requestToken(
     if (code === 'invalid_grant') {
       throw new InvalidGrantError(`Google rejected the request (${detail}).`)
     }
-    if (code === 'invalid_client') {
+    if (code === 'invalid_client' || code === 'unauthorized_client') {
       throw new InvalidClientError(`Google rejected the OAuth client credentials (${detail}).`)
     }
     throw new TokenHttpError(response.status, `Google token endpoint rejected the request (${detail}).`)
