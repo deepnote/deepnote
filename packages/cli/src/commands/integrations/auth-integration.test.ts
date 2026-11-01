@@ -62,41 +62,35 @@ function bigQueryOAuthEntry(params: {
     clientId = 'test-client-id',
     clientSecretRef = 'env:CLIENTSECRET',
   } = params
-  return [
-    `  - id: ${id}`,
-    `    type: big-query`,
-    `    name: ${name}`,
-    `    metadata:`,
-    `      authMethod: google-oauth`,
-    `      project: ${project}`,
-    `      clientId: ${clientId}`,
-    `      clientSecret: ${clientSecretRef}`,
-  ].join('\n')
+  return `  - id: ${id}
+    type: big-query
+    name: ${name}
+    metadata:
+      authMethod: google-oauth
+      project: ${project}
+      clientId: ${clientId}
+      clientSecret: ${clientSecretRef}`
 }
 
 function bigQueryServiceAccountEntry(id: string): string {
-  return [
-    `  - id: ${id}`,
-    `    type: big-query`,
-    `    name: Legacy BigQuery`,
-    `    metadata:`,
-    `      authMethod: service-account`,
-    `      service_account: env:SERVICE_ACCOUNT_JSON`,
-  ].join('\n')
+  return `  - id: ${id}
+    type: big-query
+    name: Legacy BigQuery
+    metadata:
+      authMethod: service-account
+      service_account: env:SERVICE_ACCOUNT_JSON`
 }
 
 function pgsqlEntry(id: string): string {
-  return [
-    `  - id: ${id}`,
-    `    name: Some Postgres`,
-    `    type: pgsql`,
-    `    metadata:`,
-    `      host: prod.example.com`,
-    `      port: "5432"`,
-    `      database: production`,
-    `      user: admin`,
-    `      password: env:PG_PASSWORD`,
-  ].join('\n')
+  return `  - id: ${id}
+    name: Some Postgres
+    type: pgsql
+    metadata:
+      host: prod.example.com
+      port: "5432"
+      database: production
+      user: admin
+      password: env:PG_PASSWORD`
 }
 
 let tempDir: string
@@ -186,9 +180,9 @@ beforeEach(async () => {
     vi.fn(async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]): Promise<Response> => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
       if (url.startsWith(GOOGLE_TOKEN_URL)) {
-        const headers = (init?.headers ?? {}) as Record<string, string>
+        const headers = new Headers(init?.headers)
         googleRequests.push({
-          authHeader: headers.Authorization ?? '',
+          authHeader: headers.get('Authorization') ?? '',
           body: new URLSearchParams(String(init?.body ?? '')),
         })
         const next = googleTokenQueue.shift() ?? {
@@ -487,12 +481,12 @@ describe('auth-integration', () => {
         },
         federated_auth_method: 'google-oauth',
         ...overrides,
-      } as ApiIntegration
+      }
     }
 
     it('says why a workspace integration is unusable rather than reporting it as not found', async () => {
       mockFetchIntegrations.mockResolvedValueOnce([
-        apiBigQueryIntegration({ metadata: { authMethod: 'google-oauth' } } as Partial<ApiIntegration>),
+        apiBigQueryIntegration({ metadata: { authMethod: 'google-oauth' } }),
       ])
 
       const failure = createIntegrationsAuthAction(program)('api-only-bq', baseOptions({ token: TOKEN }))
