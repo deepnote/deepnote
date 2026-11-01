@@ -1730,6 +1730,24 @@ describe('run command', () => {
         expect(mockInjectIntegrationEnvVarsAndCheckCredentials.mock.calls[0][2]).toEqual([])
       })
 
+      it('gates the integration of an upstream SQL block that --block pulls in', async () => {
+        mockGetBlockDependencies.mockResolvedValue([])
+        setupSuccessfulRun()
+        mockParseIntegrationsFile.mockResolvedValue({ integrations: [federatedBigQueryIntegration()], issues: [] })
+        const blocks = parseDeepnoteFixture(INTEGRATIONS_FILE).project.notebooks[0]?.blocks ?? []
+        mockGetUpstreamBlocks.mockResolvedValue({
+          status: 'success',
+          blocksToExecuteWithDeps: blocks.filter(block =>
+            [INTEGRATIONS_FILE_SQL_BLOCK_ID, INTEGRATIONS_FILE_CODE_BLOCK_ID].includes(block.id)
+          ),
+          newlyComputedBlocksContentDeps: [],
+        })
+
+        await action(INTEGRATIONS_FILE, { block: INTEGRATIONS_FILE_CODE_BLOCK_ID })
+
+        expect(mockInjectIntegrationEnvVarsAndCheckCredentials.mock.calls[0][2]).toEqual([REQUIRED_INTEGRATION_ID])
+      })
+
       it('does not report a federated BigQuery integration as missing in --context output', async () => {
         mockGetBlockDependencies.mockResolvedValue([])
         setupSuccessfulRun()
