@@ -139,7 +139,7 @@ workspace updates, for example in CI.
 
 Keep the app's source and its build directory outside the project's `.files/_deepnote_static/`.
 Publish replaces files there with the build, and with `--prune` deletes files the build lacks, so
-it refuses a directory at, below or containing that folder with exit code `2`.
+when it updates the workspace it refuses a directory at, below or containing that folder with exit code `2`.
 
 If a file to be replaced or pruned changed remotely since the workspace's recorded baseline,
 publish stops before writing. Pull and reconcile the changes with `deepnote sync --all-files`,

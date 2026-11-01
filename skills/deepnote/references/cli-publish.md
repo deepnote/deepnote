@@ -58,7 +58,7 @@ output through `publish`; use `sync` to pull remote edits and resolve conflicts.
 
 Keep the app source and the build directory outside the project's `.files/_deepnote_static/`. Publish replaces
 files there and `--prune` deletes files the build lacks, so a directory at, below or containing
-that folder is refused with exit code `2`.
+that folder is refused with exit code `2` when publish updates the workspace.
 
 If publish reports remote changes, run `deepnote sync --all-files` and reconcile them before
 retrying. Use `--force` only when those remote changes should be overwritten. The conflict check
