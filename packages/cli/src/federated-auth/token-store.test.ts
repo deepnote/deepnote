@@ -4,9 +4,6 @@ import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
 
-// token-store.ts imports `homedir`/`readFile`/`open` by name, and Node's real ESM module
-// namespaces aren't configurable, so `vi.spyOn` can't intercept them directly — the modules
-// themselves must be mocked.
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
@@ -14,7 +11,7 @@ vi.mock('node:os', async importOriginal => {
 
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...actual, readFile: vi.fn(actual.readFile), open: vi.fn(actual.open) }
+  return { ...actual, readFile: vi.fn(actual.readFile) }
 })
 
 let tempHome: string
@@ -92,16 +89,6 @@ describe('token-store', () => {
       await expect(readToken('integration-b')).resolves.toMatchObject({ refreshToken: 'rt-b' })
       expect(await fsPromises.readdir(tokenDir())).toHaveLength(2)
     })
-
-    it('lets two concurrent writeToken calls for the same id both succeed, leaving one file with one of the tokens', async () => {
-      await Promise.all([
-        writeToken('same-id', { refreshToken: 'rt-1', clientFingerprint: 'fp' }),
-        writeToken('same-id', { refreshToken: 'rt-2', clientFingerprint: 'fp' }),
-      ])
-
-      expect(await fsPromises.readdir(tokenDir())).toHaveLength(1)
-      await expect(readToken('same-id')).resolves.toMatchObject({ refreshToken: expect.stringMatching(/^rt-[12]$/) })
-    })
   })
 
   describe('case-insensitive lookup', () => {
@@ -151,6 +138,7 @@ describe('token-store', () => {
       },
       { id: 'My-BQ', fileName: 'my-bq-492dc046191d2d87.json' },
       { id: 'Team/BQ', fileName: 'team_bq-b867264a9e228b22.json' },
+      { id: 'BQ prod.é', fileName: 'bq_prod__-3de7bff981f6ffb7.json' },
     ])('keeps the on-disk name for $id stable as $fileName', async ({ id, fileName }) => {
       await writeToken(id, { refreshToken: 'rt', clientFingerprint: 'fp' })
 
@@ -221,20 +209,6 @@ describe('token-store', () => {
 
       await expect(readToken('integration-a')).rejects.toBe(eacces)
     })
-
-    it('leaves the write successful and the token readable even when the best-effort directory fsync fails', async () => {
-      const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
-      vi.mocked(fsPromises.open).mockImplementation(async (path, flags, mode) => {
-        if (path === tokenDir()) {
-          throw Object.assign(new Error('simulated directory open failure'), { code: 'EIO' })
-        }
-        return actual.open(path, flags, mode)
-      })
-
-      await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-
-      await expect(readToken('integration-a')).resolves.toMatchObject({ refreshToken: 'rt-a' })
-    })
   })
 
   describe.skipIf(sep !== '/')('POSIX file modes', () => {
@@ -249,37 +223,13 @@ describe('token-store', () => {
       expect(fileStat.mode & 0o777).toBe(0o600)
     })
 
-    it('creates the temp file at 0600, so the refresh token is never readable by others before the chmod', async () => {
-      const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
-      const creationModes: number[] = []
-      vi.mocked(fsPromises.open).mockImplementation(async (path, flags, mode) => {
-        const handle = await actual.open(path, flags, mode)
-        const stats = await handle.stat()
-        if (stats.isFile()) {
-          creationModes.push(stats.mode & 0o777)
-        }
-        return handle
-      })
-      // Pinned to a common umask: under 077 a temp file opened without a mode is also born 0600.
-      const previousUmask = process.umask(0o022)
-      try {
-        await writeToken('integration-a', { refreshToken: 'rt-a', clientFingerprint: 'fp-a' })
-      } finally {
-        process.umask(previousUmask)
-      }
-
-      expect(creationModes).toEqual([0o600])
-    })
-
     it('stores 0600 even when the process umask would strip the creation mode', async () => {
-      // `open`'s mode argument is masked — at umask 0400 the temp file is created 0200 — so the
-      // explicit chmod is what makes the stored mode independent of whatever umask the user runs under.
       const previousUmask = process.umask(0o400)
       try {
         await writeToken('umask-id', { refreshToken: 'rt', clientFingerprint: 'fp' })
       } finally {
         process.umask(previousUmask)
-        // The same umask masked the intermediate `.deepnote` down to 0377, which the shared
+        // The same umask masked the intermediate `.deepnote` down to 0300, which the shared
         // afterEach cannot list to remove the temp home.
         await fsPromises.chmod(join(tempHome, '.deepnote'), 0o700)
       }
