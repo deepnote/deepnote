@@ -1,4 +1,8 @@
-import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
+import {
+  type DatabaseIntegrationConfig,
+  getEnvironmentVariablesForIntegrations,
+  isFederatedAuthMethod,
+} from '@deepnote/database-integrations'
 import {
   IntegrationAuthenticationError,
   resolveFederatedSqlEnvVars,
@@ -6,17 +10,12 @@ import {
 import { debug } from '../output'
 
 /**
- * Generate environment variables for the given integrations — synchronously for everything the
- * generator handles, and via a Google OAuth token mint for federated BigQuery — and inject them
- * into process.env. Returns the list of injected env var names (useful for testing/debugging).
+ * Injects integration env vars into process.env and returns their names: the static ones for
+ * non-federated `integrations`, and a `SQL_<ID>` with a freshly minted access token for federated
+ * BigQuery integrations listed in `federatedIds`. With `refreshFederatedTokens: false` (dry run),
+ * their stored credential is only checked.
  *
- * `federatedIds` scopes the federated resolution to the integrations the blocks that will actually
- * execute reference; `refreshFederatedTokens: false` (dry run) checks that a matching credential is
- * stored without contacting Google or writing to the token store.
- *
- * Whatever resolves is injected before this throws: the first `IntegrationAuthenticationError` if
- * any federated integration produced one, otherwise the first remaining federated error. Errors from
- * the synchronous generator are only debug-logged.
+ * Throws the first federated error, preferring `IntegrationAuthenticationError`.
  */
 export async function injectIntegrationEnvVarsAndCheckCredentials(
   integrations: DatabaseIntegrationConfig[],
@@ -28,9 +27,14 @@ export async function injectIntegrationEnvVarsAndCheckCredentials(
     return []
   }
 
-  const { envVars, errors } = getEnvironmentVariablesForIntegrations(integrations, {
-    projectRootDirectory: workingDirectory,
-  })
+  // The generator exports every metadata field, and federated metadata holds the OAuth client secret.
+  const { envVars, errors } = getEnvironmentVariablesForIntegrations(
+    integrations.filter(
+      ({ metadata }) =>
+        !('authMethod' in metadata && metadata.authMethod != null && isFederatedAuthMethod(metadata.authMethod))
+    ),
+    { projectRootDirectory: workingDirectory }
+  )
 
   // Log any errors from env var generation
   for (const error of errors) {

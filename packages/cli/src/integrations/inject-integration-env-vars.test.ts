@@ -1,7 +1,13 @@
 import * as fsPromises from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { BigQueryAuthMethods, type DatabaseIntegrationConfig, getSqlEnvVarName } from '@deepnote/database-integrations'
+import {
+  BigQueryAuthMethods,
+  type DatabaseIntegrationConfig,
+  getSqlEnvVarName,
+  SnowflakeAuthMethods,
+  TrinoAuthMethods,
+} from '@deepnote/database-integrations'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:os', async importOriginal => {
@@ -84,6 +90,51 @@ describe('injectIntegrationEnvVarsAndCheckCredentials', () => {
     expect(injected).toContain(envVarName)
     expect(process.env[envVarName]).toBeDefined()
     expect(fetchAccessToken).not.toHaveBeenCalled()
+  })
+
+  it('still exports the SQL env var of a non-federated integration that sets an authMethod', async () => {
+    const snowflake: DatabaseIntegrationConfig = {
+      id: 'password-snowflake',
+      name: 'Snowflake password-snowflake',
+      type: 'snowflake',
+      metadata: { authMethod: SnowflakeAuthMethods.Password, accountName: 'acct', username: 'u', password: 'p' },
+    }
+
+    const injected = await injectIntegrationEnvVarsAndCheckCredentials([snowflake], WORKING_DIRECTORY, [], {
+      refreshFederatedTokens: true,
+    })
+
+    expect(injected).toContain(getSqlEnvVarName('password-snowflake'))
+  })
+
+  it("never puts a federated integration's OAuth client secret into the environment", async () => {
+    const bq = bigQueryIntegration('federated-bq')
+    const trinoClientSecret = 'trino-client-secret'
+    const trino: DatabaseIntegrationConfig = {
+      id: 'federated-trino',
+      name: 'Trino federated-trino',
+      type: 'trino',
+      metadata: {
+        authMethod: TrinoAuthMethods.Oauth,
+        host: 'trino.example.com',
+        database: 'db',
+        clientId: 'trino-client-id',
+        clientSecret: trinoClientSecret,
+        authUrl: 'https://auth.example.com/authorize',
+        tokenUrl: 'https://auth.example.com/token',
+      },
+    }
+    await storeMatchingToken('federated-bq')
+    vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
+
+    await injectIntegrationEnvVarsAndCheckCredentials([bq, trino], WORKING_DIRECTORY, ['federated-bq'], {
+      refreshFederatedTokens: true,
+    })
+
+    const leaked = Object.values(process.env).filter(
+      value => value?.includes(CLIENT_SECRET) || value?.includes(trinoClientSecret)
+    )
+    expect(leaked).toEqual([])
   })
 
   it('does not throw for an error from the synchronous generator (debug-log-only)', async () => {
