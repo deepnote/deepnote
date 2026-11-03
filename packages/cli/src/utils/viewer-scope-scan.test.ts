@@ -46,11 +46,37 @@ describe('scanAppBuild', () => {
     expect(scan.apiFiles).toEqual([])
   })
 
-  it('recognizes the token handshake, as bundled by @deepnote/app-client', async () => {
-    await fs.writeFile(join(dir, 'app-client.js'), "postMessage({ type: 'deepnote-static-files-api-token-request' })")
+  it('recognizes a hand-rolled token handshake', async () => {
+    await fs.writeFile(join(dir, 'handshake.js'), "postMessage({ type: 'deepnote-static-files-api-token-request' })")
     await fs.writeFile(join(dir, 'app.js'), "fetch('/v2/runs')")
 
     expect((await scanAppBuild(dir)).hasTokenHandshake).toBe(true)
+  })
+
+  it('counts the hosted app client as both an API call and a credential path', async () => {
+    await fs.writeFile(
+      join(dir, 'index.html'),
+      '<script src="https://deepnote.com/static/app-client/v1.js"></script>' +
+        '<script>Deepnote.connect().notebook(id)</script>'
+    )
+
+    const scan = await scanAppBuild(dir)
+
+    expect(scan).toEqual({
+      outOfScope: [],
+      localServerCalls: [],
+      apiFiles: ['index.html'],
+      hasTokenHandshake: true,
+    })
+  })
+
+  it('reports an app that calls the API through the client without loading it', async () => {
+    await fs.writeFile(join(dir, 'app.js'), 'Deepnote.connect().notebook(id)')
+
+    const scan = await scanAppBuild(dir)
+
+    expect(scan.apiFiles).toEqual(['app.js'])
+    expect(scan.hasTokenHandshake).toBe(false)
   })
 
   it('skips node_modules, non-script files, public API docs, and in-scope calls', async () => {

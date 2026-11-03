@@ -6,13 +6,7 @@ export default defineConfig([
     format: ['esm', 'cjs'],
     fixedExtension: false,
     dts: true,
-    external: [
-      '@deepnote/app-client',
-      '@deepnote/blocks',
-      '@deepnote/cloud',
-      '@deepnote/convert',
-      '@deepnote/runtime-core',
-    ],
+    external: ['@deepnote/blocks', '@deepnote/cloud', '@deepnote/convert', '@deepnote/runtime-core'],
   },
   {
     // The snapshot reader ships as one self-contained file that a static page can <script> in, so

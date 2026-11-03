@@ -3,11 +3,10 @@
  *
  * Mirrors `appViewerRouter` in Deepnote's public API (`apps/webapp/server/public-api/v2/app-viewer-router.ts`,
  * last aligned with #21098, which added `app-data`). Every other authenticated `/v2` route answers a viewer
- * token with 403 {@link VIEWER_SCOPE_DENIED_MESSAGE}.
+ * token with 403.
  *
- * This one list drives the app client's methods, the local `deepnote publish --preview` mock API, and the
- * publish-time scan, so those three cannot disagree with each other. A change to the hosted router must
- * land here too.
+ * The publish-time scan and the hosted-scope drift check both read this list, so a change to the hosted
+ * router must land here too.
  */
 export const VIEWER_SCOPE = [
   { name: 'getNotebook', method: 'GET', path: '/v2/notebooks/:notebookId' },
@@ -22,34 +21,22 @@ export interface ViewerRoute {
   path: string
 }
 
-export type ViewerRouteName = (typeof VIEWER_SCOPE)[number]['name']
+/**
+ * The app client Deepnote serves to published apps. It performs the token handshake and calls the API,
+ * so a build that loads it has a credential path even though it contains no `/v2` literals of its own.
+ */
+export const APP_CLIENT_SCRIPT_PATH = '/static/app-client/v1.js'
 
-/** The hosted router's answer to any authenticated `/v2` route outside {@link VIEWER_SCOPE}. */
-export const VIEWER_SCOPE_DENIED_MESSAGE = 'This endpoint is not available to app viewer tokens'
+/** The message a page posts to the embedding Deepnote shell to ask for a viewer token. */
+export const TOKEN_REQUEST_MESSAGE = 'deepnote-static-files-api-token-request'
 
 /** `/v2` paths served without authentication, so a viewer token reaching them is not a scope question. */
 const PUBLIC_PATHS = ['/v2/openapi.json', '/v2/docs']
 
-export interface ViewerRouteMatch {
-  name: ViewerRouteName
-  params: Record<string, string>
-}
-
-/** Resolves a request to its viewer route, or `null` when a viewer token would get a 403. */
-export function matchViewerRoute(method: string, pathname: string): ViewerRouteMatch | null {
-  const segments = splitPath(pathname)
-  for (const route of VIEWER_SCOPE) {
-    if (route.method !== method.toUpperCase()) continue
-    const params = matchSegments(splitPath(route.path), segments)
-    if (params) return { name: route.name, params }
-  }
-  return null
-}
-
 /**
  * Finds `/v2/...` path literals in app source that a viewer token cannot call.
  *
- * A heuristic for the publish-time warning, not a guarantee: it sees string and template literals
+ * A heuristic for the publish-time check, not a guarantee: it sees string and template literals
  * (`${...}` counts as one path segment), not paths assembled by concatenation. A literal ending in
  * `/` is treated as a prefix and only reported when no viewer route starts with it. Block comments
  * are skipped, since bundles that are not minified keep their documentation.
@@ -99,24 +86,4 @@ function segmentsMatch(routeSegments: string[], actual: string[]): boolean {
   return actual.every(
     (segment, i) => segment === WILDCARD || routeSegments[i].startsWith(':') || routeSegments[i] === segment
   )
-}
-
-function matchSegments(routeSegments: string[], actual: string[]): Record<string, string> | null {
-  if (routeSegments.length !== actual.length) return null
-  const params: Record<string, string> = {}
-  for (let i = 0; i < routeSegments.length; i++) {
-    const routeSegment = routeSegments[i]
-    if (routeSegment.startsWith(':')) {
-      let value: string
-      try {
-        value = decodeURIComponent(actual[i])
-      } catch {
-        return null
-      }
-      params[routeSegment.slice(1)] = value
-    } else if (routeSegment !== actual[i]) {
-      return null
-    }
-  }
-  return params
 }

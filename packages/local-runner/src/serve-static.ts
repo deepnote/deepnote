@@ -101,7 +101,7 @@ export interface ServeStaticHandle {
 const MAX_BODY_BYTES = 5_000_000
 
 /** Signals a request body that exceeded {@link MAX_BODY_BYTES}, so the caller can answer `413`. */
-export class PayloadTooLargeError extends Error {}
+class PayloadTooLargeError extends Error {}
 
 const CONTENT_TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -332,7 +332,7 @@ function rejectCrossOriginRequest(req: IncomingMessage, res: ServerResponse): bo
 }
 
 /** True only for `http://<loopback>:<the port this socket is bound to>`. */
-export function isOwnOrigin(origin: string, localPort: number | undefined): boolean {
+function isOwnOrigin(origin: string, localPort: number | undefined): boolean {
   let parsed: URL
   try {
     parsed = new URL(origin)
@@ -424,7 +424,7 @@ async function readJsonBody(
   }
 }
 
-export async function serveFile(pathname: string, rootDir: string, res: ServerResponse): Promise<void> {
+async function serveFile(pathname: string, rootDir: string, res: ServerResponse): Promise<void> {
   let decoded: string
   try {
     decoded = decodeURIComponent(pathname === '/' ? '/index.html' : pathname)
@@ -467,12 +467,12 @@ export async function serveFile(pathname: string, rootDir: string, res: ServerRe
   res.end(bytes)
 }
 
-export function sendJson(res: ServerResponse, status: number, body: unknown): void {
+function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' })
   res.end(JSON.stringify(body))
 }
 
-export function readBody(req: IncomingMessage): Promise<string> {
+function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolvePromise, reject) => {
     const chunks: Buffer[] = []
     let size = 0

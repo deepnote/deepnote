@@ -12,7 +12,6 @@ function spec(overrides: { description?: string; drop?: string } = {}) {
     '/notebooks/{notebookId}/app-data': { get: {} },
     '/runs': { post: {} },
     '/runs/{runId}': { get: {} },
-    '/projects/{projectId}/static-files/app-token': { post: {} },
   }
   if (overrides.drop) delete paths[overrides.drop]
   return { info: { description: overrides.description ?? DESCRIPTION }, paths }
@@ -23,12 +22,9 @@ describe('checkHostedViewerScope', () => {
     expect(checkHostedViewerScope(spec())).toEqual({ errors: [], warnings: [] })
   })
 
-  it('errors when a viewer route or the mint endpoint is gone', () => {
+  it('errors when a viewer route is gone', () => {
     expect(checkHostedViewerScope(spec({ drop: '/notebooks/{notebookId}/app-data' })).errors).toEqual([
-      'GET /v2/notebooks/{notebookId}/app-data is missing from Deepnote’s API'.replace('’', "'"),
-    ])
-    expect(checkHostedViewerScope(spec({ drop: '/projects/{projectId}/static-files/app-token' })).errors).toEqual([
-      "POST /v2/projects/{projectId}/static-files/app-token is missing from Deepnote's API",
+      "GET /v2/notebooks/{notebookId}/app-data is missing from Deepnote's API",
     ])
   })
 

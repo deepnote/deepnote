@@ -1,6 +1,11 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { extname, join, relative, sep } from 'node:path'
-import { findOutOfScopeApiPaths, stripBlockComments, TOKEN_REQUEST_MESSAGE } from '@deepnote/app-client'
+import {
+  APP_CLIENT_SCRIPT_PATH,
+  findOutOfScopeApiPaths,
+  stripBlockComments,
+  TOKEN_REQUEST_MESSAGE,
+} from './viewer-scope'
 
 const SCANNED_EXTENSIONS = new Set(['.html', '.htm', '.js', '.mjs', '.cjs'])
 /** Big files are almost always vendored libraries, not the app's own API calls. */
@@ -14,6 +19,8 @@ const LOCAL_SERVER_ROUTE =
   /\/api\/(?:info|run|schedule-cloud|cloud-runs(?:\/(?:\$\{[^}]*\}|[A-Za-z0-9_.%-]+))?)(?![\w-])/g
 /** A Deepnote API call, other than the public, unauthenticated document routes. */
 const DEEPNOTE_API_CALL = /\/v2\/(?!openapi\.json|docs\b)[A-Za-z]/
+/** `Deepnote.connect()`, the entry point of the app client Deepnote serves. */
+const APP_CLIENT_USE = /\bDeepnote\s*\.\s*connect\s*\(/
 
 export interface FileFindings {
   /** File path relative to the scanned directory, with `/` separators. */
@@ -26,15 +33,18 @@ export interface AppBuildScan {
   outOfScope: FileFindings[]
   /** Calls to the local `serveStatic` routes, which do not exist once published. */
   localServerCalls: FileFindings[]
-  /** Files that call the Deepnote API at all. */
+  /** Files that reach the Deepnote API, directly or through the app client. */
   apiFiles: string[]
-  /** Whether any file asks the embedding Deepnote page for a viewer token (as `@deepnote/app-client` does). */
+  /**
+   * Whether the app can obtain a viewer token: it loads the app client Deepnote serves, or performs
+   * the `postMessage` handshake itself.
+   */
   hasTokenHandshake: boolean
 }
 
 /**
- * Scan an app build for things that work locally but not once published. A heuristic for warnings:
- * it reads string and template literals, not code paths, so it can miss calls and cannot prove any.
+ * Scan an app build for things that work locally but not once published. A heuristic: it reads string
+ * and template literals, not code paths, so it can miss calls and cannot prove any.
  */
 export async function scanAppBuild(dir: string): Promise<AppBuildScan> {
   const scan: AppBuildScan = { outOfScope: [], localServerCalls: [], apiFiles: [], hasTokenHandshake: false }
@@ -53,8 +63,11 @@ export async function scanAppBuild(dir: string): Promise<AppBuildScan> {
     if (outOfScope.length > 0) scan.outOfScope.push({ file, paths: outOfScope })
     const localServer = [...new Set(Array.from(source.matchAll(LOCAL_SERVER_ROUTE), match => match[0]))]
     if (localServer.length > 0) scan.localServerCalls.push({ file, paths: localServer })
-    if (DEEPNOTE_API_CALL.test(source)) scan.apiFiles.push(file)
-    if (raw.includes(TOKEN_REQUEST_MESSAGE)) scan.hasTokenHandshake = true
+    // An app on the hosted client has no `/v2` literals of its own: the calls happen inside the script
+    // Deepnote serves, so loading it or calling `Deepnote.connect()` is what shows the app uses the API.
+    const loadsAppClient = source.includes(APP_CLIENT_SCRIPT_PATH)
+    if (DEEPNOTE_API_CALL.test(source) || loadsAppClient || APP_CLIENT_USE.test(source)) scan.apiFiles.push(file)
+    if (loadsAppClient || raw.includes(TOKEN_REQUEST_MESSAGE)) scan.hasTokenHandshake = true
   }
   const byFile = (a: FileFindings, b: FileFindings) => a.file.localeCompare(b.file)
   scan.outOfScope.sort(byFile)

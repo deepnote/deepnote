@@ -75,13 +75,14 @@ directory's `index.html`. Other paths serve exact filenames, so link to `about.h
 
 ### Add viewer API access
 
-Enable API access only when the app needs notebook inputs or runs. Call the API through
-[`@deepnote/app-client`](https://github.com/deepnote/deepnote/tree/main/packages/app-client), as the
+Enable API access only when the app needs notebook inputs or runs. Call the API through the app
+client Deepnote serves at `https://deepnote.com/static/app-client/v1.js`, as the
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
-does. It requests the token from the Deepnote shell over `postMessage` with pinned origins, sends it
-only to the returned API origin, refreshes it, and exposes only the calls a viewer token can make.
-Do not hand-roll the handshake or add a personal-token path for local development. Keep personal
-tokens out of the published build.
+does. Load it before any other script in the page's `<head>` and connect with `Deepnote.connect()`.
+It requests the token from the Deepnote page over `postMessage`, sends it only to the returned API
+origin, refreshes it, and exposes only the calls a viewer token can make. Do not hand-roll the
+handshake or add a personal-token path for local development. Keep personal tokens out of the
+published build.
 
 An app's viewer token can access notebooks in the hosting project and other projects in the
 same workspace where the viewer has direct access; starting runs in other projects also requires
@@ -97,11 +98,9 @@ Do not offer notebook enumeration, run history, or access to another viewer's ru
 return 403; surface that error rather than swallowing it. To show recent runs, keep the IDs of runs
 the page started.
 
-Check the app with `deepnote publish <dir> --preview --project-id <uuid>` before publishing. It
-embeds the app with a real viewer token Deepnote mints for you, so Deepnote enforces the scope and
-the project's sharing and API access settings, and it can expire or revoke the token to exercise
-refresh and the no-access state. Without `--project-id` the scope is simulated locally. The token is
-yours, so still verify a viewer with narrower project access in the hosted app.
+The app only gets a token inside Deepnote, so a page opened on its own cannot exercise the API.
+`deepnote publish` checks the build for calls that will fail once published, but the viewer path
+itself has to be verified in the published app.
 
 ## Run a local server
 

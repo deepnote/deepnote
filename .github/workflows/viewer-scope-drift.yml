@@ -1,6 +1,6 @@
 name: Viewer scope drift
 
-# VIEWER_SCOPE in @deepnote/app-client mirrors Deepnote's hosted app viewer router. This compares it with
+# VIEWER_SCOPE in @deepnote/cli mirrors Deepnote's hosted app viewer router. This compares it with
 # the published API document weekly, and whenever the scope definition changes.
 on:
   schedule:
@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'packages/app-client/src/viewer-scope.ts'
-      - 'packages/app-client/src/hosted-scope-check.ts'
-      - 'packages/app-client/scripts/check-hosted-scope.mjs'
+      - 'packages/cli/src/utils/viewer-scope.ts'
+      - 'packages/cli/src/utils/hosted-scope-check.ts'
+      - 'packages/cli/scripts/check-hosted-scope.ts'
 
 permissions:
   contents: read
@@ -40,8 +40,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build @deepnote/app-client
-        run: pnpm --filter @deepnote/app-client build
-
       - name: Compare with the published API document
-        run: node packages/app-client/scripts/check-hosted-scope.mjs
+        run: pnpm --filter @deepnote/cli exec tsx scripts/check-hosted-scope.ts

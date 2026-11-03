@@ -1,7 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { findOutOfScopeApiPaths, matchViewerRoute, VIEWER_SCOPE } from './viewer-scope'
+import { findOutOfScopeApiPaths, VIEWER_SCOPE } from './viewer-scope'
 
 describe('VIEWER_SCOPE', () => {
   it('lists the four routes the hosted app viewer router serves', () => {
@@ -11,33 +9,6 @@ describe('VIEWER_SCOPE', () => {
       'POST /v2/runs',
       'GET /v2/runs/:runId',
     ])
-  })
-})
-
-describe('matchViewerRoute', () => {
-  it('matches each viewer route and extracts decoded params', () => {
-    expect(matchViewerRoute('GET', '/v2/notebooks/nb%201')).toEqual({
-      name: 'getNotebook',
-      params: { notebookId: 'nb 1' },
-    })
-    expect(matchViewerRoute('GET', '/v2/notebooks/nb-1/app-data')).toEqual({
-      name: 'getNotebookAppData',
-      params: { notebookId: 'nb-1' },
-    })
-    expect(matchViewerRoute('post', '/v2/runs')).toEqual({ name: 'startRun', params: {} })
-    expect(matchViewerRoute('GET', '/v2/runs/run-1')).toEqual({ name: 'getRun', params: { runId: 'run-1' } })
-  })
-
-  it('rejects routes outside the scope, including the right path with the wrong method', () => {
-    expect(matchViewerRoute('GET', '/v2/notebooks/nb-1/runs')).toBeNull()
-    expect(matchViewerRoute('GET', '/v2/runs')).toBeNull()
-    expect(matchViewerRoute('DELETE', '/v2/notebooks/nb-1')).toBeNull()
-    expect(matchViewerRoute('GET', '/v2/projects')).toBeNull()
-    expect(matchViewerRoute('GET', '/v2/notebooks/')).toBeNull()
-  })
-
-  it('rejects malformed percent-encoding instead of throwing', () => {
-    expect(matchViewerRoute('GET', '/v2/runs/%E0%A4%A')).toBeNull()
   })
 })
 
@@ -86,14 +57,5 @@ describe('findOutOfScopeApiPaths', () => {
     `
     expect(findOutOfScopeApiPaths(source)).toEqual([])
     expect(findOutOfScopeApiPaths("/* a */ fetch('/v2/projects') /* b */")).toEqual(['/v2/projects'])
-  })
-
-  it("does not flag the client's own source, which apps bundle", () => {
-    const sourceDir = __dirname
-    const files = readdirSync(sourceDir).filter(name => name.endsWith('.ts') && !name.endsWith('.test.ts'))
-    expect(files.length).toBeGreaterThan(2)
-    for (const name of files) {
-      expect([name, findOutOfScopeApiPaths(readFileSync(join(sourceDir, name), 'utf-8'))]).toEqual([name, []])
-    }
   })
 })

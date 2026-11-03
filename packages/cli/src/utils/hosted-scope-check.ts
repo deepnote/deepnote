@@ -1,10 +1,7 @@
 import { VIEWER_SCOPE } from './viewer-scope'
 
-/** The endpoint `deepnote publish --preview --project-id` mints real viewer tokens from. */
-export const APP_TOKEN_MINT_ROUTE = { method: 'POST', path: '/projects/{projectId}/static-files/app-token' } as const
-
 export interface HostedScopeReport {
-  /** `VIEWER_SCOPE` or the preview relies on something Deepnote's API no longer has. */
+  /** `VIEWER_SCOPE` relies on something Deepnote's API no longer has. */
   errors: string[]
   /** Deepnote documents the viewer token's routes differently from `VIEWER_SCOPE`; worth a look. */
   warnings: string[]
@@ -14,8 +11,8 @@ export interface HostedScopeReport {
  * Compare `VIEWER_SCOPE` with Deepnote's published OpenAPI document (`GET /v2/openapi.json`).
  *
  * The document cannot say which routes the viewer router allows, so this checks what it can: every
- * viewer route and the token mint endpoint still exist, and the routes the document's description
- * lists for app viewer tokens match `VIEWER_SCOPE`. Real-token previews catch the rest at runtime.
+ * viewer route still exists, and the routes the document's description lists for app viewer tokens
+ * match `VIEWER_SCOPE`.
  */
 export function checkHostedViewerScope(openApi: unknown): HostedScopeReport {
   const errors: string[] = []
@@ -27,7 +24,7 @@ export function checkHostedViewerScope(openApi: unknown): HostedScopeReport {
   }
 
   const scope = VIEWER_SCOPE.map(route => ({ method: route.method, path: toOpenApiPath(route.path) }))
-  for (const route of [...scope, APP_TOKEN_MINT_ROUTE]) {
+  for (const route of scope) {
     if (!paths[route.path]?.[route.method.toLowerCase()]) {
       errors.push(`${route.method} /v2${route.path} is missing from Deepnote's API`)
     }
