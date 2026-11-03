@@ -41,6 +41,38 @@ describe('AstAnalyzer', () => {
       ])
     })
 
+    it('should mark only code blocks as able to change the variables they use', async () => {
+      const mockBlocks = [
+        { id: '1', type: 'code', content: 'df = 1', blockGroup: 'a', sortingKey: 'a' },
+        { id: '2', type: 'sql', content: 'SELECT * FROM df', blockGroup: 'a', sortingKey: 'b' },
+        {
+          id: '3',
+          type: 'visualization',
+          content: '',
+          metadata: { deepnote_variable_name: 'df' },
+          blockGroup: 'a',
+          sortingKey: 'c',
+        },
+        {
+          id: '4',
+          type: 'big-number',
+          content: '',
+          metadata: { deepnote_big_number_value: 'df' },
+          blockGroup: 'a',
+          sortingKey: 'd',
+        },
+      ] as DeepnoteBlock[]
+
+      const result = await getBlockDependencies(mockBlocks)
+
+      expect(result.map(block => [block.id, block.canMutateUsedVariables])).toEqual([
+        ['1', true],
+        ['2', false],
+        ['3', false],
+        ['4', false],
+      ])
+    })
+
     it('should handle syntax errors in code blocks', async () => {
       const mockBlocks = [
         { id: '1', type: 'code', content: 'a = ', blockGroup: 'a', sortingKey: 'a' },

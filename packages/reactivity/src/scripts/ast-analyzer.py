@@ -321,6 +321,7 @@ def analyze_blocks(blocks):
     analysis = []
 
     for block in blocks:
+        analysis_length = len(analysis)
         try:
             content = block.get("content", "")
             loc = count_lines_of_code(content)
@@ -401,6 +402,22 @@ def analyze_blocks(blocks):
 
                 used_variables = list(set(used_variables))
                 used_variables.sort()
+
+                analysis.append(
+                    {
+                        "id": block["id"],
+                        "definedVariables": [],
+                        "usedVariables": used_variables,
+                        "importedModules": [],
+                        "linesOfCode": loc,
+                    }
+                )
+            elif block["type"] == "visualization":
+                used_variables = []
+                if "metadata" in block and block["metadata"]:
+                    variable_name = block["metadata"].get("deepnote_variable_name")
+                    if variable_name:
+                        used_variables = [sanitize_python_variable_name(variable_name)]
 
                 analysis.append(
                     {
@@ -500,6 +517,10 @@ def analyze_blocks(blocks):
                     },
                 }
             )
+
+        # Only Python code can change a variable it reads (e.g. `df["a"] = 1`). Other blocks only read it.
+        if len(analysis) > analysis_length:
+            analysis[-1]["canMutateUsedVariables"] = block.get("type") in (None, "code")
 
     return analysis
 

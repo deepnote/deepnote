@@ -125,6 +125,69 @@ describe('buildDagFromBlocks', () => {
     ])
   })
 
+  it('should skip a closer using block that cannot change the variable', () => {
+    const blocks = [
+      {
+        id: '1',
+        definedVariables: ['a'],
+        usedVariables: [],
+        order: 1,
+      },
+      {
+        id: '2',
+        definedVariables: [],
+        usedVariables: ['a'],
+        canMutateUsedVariables: false,
+        order: 2,
+      },
+      {
+        id: '3',
+        definedVariables: ['c'],
+        usedVariables: ['a'],
+        order: 3,
+      },
+    ]
+
+    const dag = buildDagFromBlocks(blocks)
+
+    expect(dag.edges).toEqual([
+      { from: '1', to: '2', inputVariables: ['a'] },
+      { from: '1', to: '3', inputVariables: ['a'] },
+    ])
+    expect(dag.nodes.find(node => node.id === '2')?.outputVariables).toEqual([])
+  })
+
+  it('should treat a using block with an unknown canMutateUsedVariables as able to change the variable', () => {
+    const blocks = [
+      {
+        id: '1',
+        definedVariables: [],
+        usedVariables: ['a'],
+        canMutateUsedVariables: true,
+        order: 1,
+      },
+      {
+        id: '2',
+        definedVariables: [],
+        usedVariables: ['a'],
+        order: 2,
+      },
+      {
+        id: '3',
+        definedVariables: [],
+        usedVariables: ['a'],
+        order: 3,
+      },
+    ]
+
+    const dag = buildDagFromBlocks(blocks)
+
+    expect(dag.edges).toEqual([
+      { from: '1', to: '2', inputVariables: ['a'] },
+      { from: '2', to: '3', inputVariables: ['a'] },
+    ])
+  })
+
   it('should handle imported modules and create modulesEdges', () => {
     const blocks = [
       {

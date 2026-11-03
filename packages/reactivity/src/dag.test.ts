@@ -424,6 +424,43 @@ describe('DAG', () => {
       })
     })
 
+    it('should return DAG for Visualization block', async () => {
+      const blocks = createBlocks([
+        {
+          id: '1',
+          type: 'code',
+          content: 'my_df = 1',
+        },
+        {
+          id: '2',
+          type: 'visualization',
+          content: '',
+          metadata: {
+            deepnote_variable_name: 'my df',
+            deepnote_visualization_spec: {},
+          },
+        },
+        {
+          id: '3',
+          type: 'visualization',
+          content: '',
+          metadata: {},
+        },
+      ])
+
+      const { dag } = await getDagForBlocks(blocks)
+
+      expect(dag).toEqual({
+        modulesEdges: [],
+        edges: [expect.objectContaining({ from: '1', inputVariables: ['my_df'], to: '2' })],
+        nodes: [
+          expect.objectContaining({ id: '1', inputVariables: [], outputVariables: ['my_df'] }),
+          expect.objectContaining({ id: '2', inputVariables: ['my_df'], outputVariables: [] }),
+          expect.objectContaining({ id: '3', inputVariables: [], outputVariables: [] }),
+        ],
+      })
+    })
+
     it('should return DAG for Button block', async () => {
       const blocks = createBlocks([
         {
@@ -726,7 +763,8 @@ describe('DAG', () => {
         edges: [
           expect.objectContaining({ from: '1', inputVariables: ['users'], to: '2' }),
           expect.objectContaining({ from: '2', inputVariables: ['df_1'], to: '3' }),
-          expect.objectContaining({ from: '2', inputVariables: ['users'], to: '3' }),
+          // Block 2 only reads `users`, so block 3 takes it from block 1, which defines it.
+          expect.objectContaining({ from: '1', inputVariables: ['users'], to: '3' }),
         ],
         nodes: [
           expect.objectContaining({
@@ -745,7 +783,7 @@ describe('DAG', () => {
           expect.objectContaining({
             id: '2',
             inputVariables: ['users'],
-            outputVariables: ['df_1', 'users'],
+            outputVariables: ['df_1'],
             importedModules: [],
             usedImportedModules: [],
           }),
@@ -1427,6 +1465,47 @@ describe('DAG', () => {
       expect(downstreamBlocksDesc.blocksToExecuteWithDeps).toHaveLength(3)
       const expectedIds = ['1', '2', '4']
       expect(downstreamBlocksDesc.blocksToExecuteWithDeps.every(block => expectedIds.includes(block.id))).toBeTruthy()
+    })
+
+    it('should re-run a Visualization block that reads a variable changed by the executed block', async () => {
+      const blocks = createBlocks([
+        { id: '1', type: 'code', content: 'df = 1' },
+        { id: '2', type: 'visualization', content: '', metadata: { deepnote_variable_name: 'df' } },
+      ])
+
+      const downstreamBlocksDesc = await getDownstreamBlocks(blocks, blocks.slice(0, 1))
+
+      assert(downstreamBlocksDesc.status !== 'fatal', 'Should not be fatal')
+      expect(downstreamBlocksDesc.blocksToExecuteWithDeps.map(block => block.id)).toEqual(['1', '2'])
+    })
+
+    it.each([
+      ['visualization', { deepnote_variable_name: 'df' }],
+      ['big-number', { deepnote_big_number_value: 'df' }],
+    ])('should not re-run later readers of a variable when a %s block is executed', async (type, metadata) => {
+      const blocks = createBlocks([
+        { id: '1', type: 'code', content: 'df = 1' },
+        { id: '2', type, content: '', metadata },
+        { id: '3', type: 'code', content: 'print(df)' },
+      ])
+
+      const downstreamBlocksDesc = await getDownstreamBlocks(blocks, blocks.slice(1, 2))
+
+      assert(downstreamBlocksDesc.status !== 'fatal', 'Should not be fatal')
+      expect(downstreamBlocksDesc.blocksToExecuteWithDeps.map(block => block.id)).toEqual(['2'])
+    })
+
+    it('should still re-run later readers when a code block that may change the variable is executed', async () => {
+      const blocks = createBlocks([
+        { id: '1', type: 'code', content: 'df = [1]' },
+        { id: '2', type: 'code', content: 'df.append(2)' },
+        { id: '3', type: 'visualization', content: '', metadata: { deepnote_variable_name: 'df' } },
+      ])
+
+      const downstreamBlocksDesc = await getDownstreamBlocks(blocks, blocks.slice(1, 2))
+
+      assert(downstreamBlocksDesc.status !== 'fatal', 'Should not be fatal')
+      expect(downstreamBlocksDesc.blocksToExecuteWithDeps.map(block => block.id)).toEqual(['2', '3'])
     })
 
     it('should compute content dependencies for blocks', async () => {
