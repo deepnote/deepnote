@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { basename, join, posix, relative, sep } from 'node:path'
+import { basename, dirname, join, posix, relative, sep } from 'node:path'
 import {
   deleteProjectFile,
   getProjectDetail,
@@ -10,6 +10,7 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
+import { isErrnoENOENT } from './fs-errors'
 import {
   findDivergedPublishPaths,
   PUBLISH_ERROR_HINTS,
@@ -24,6 +25,7 @@ import {
   savePublishMirror,
 } from './publish-mirror'
 import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
+import { isSafeRelativeFilePath } from './sync-paths'
 
 export interface PublishAppOptions {
   /**
@@ -484,4 +486,87 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     appUrl,
     apiAccessEnabled,
   }
+}
+
+export interface UploadWorkingFileOptions {
+  /** Local file to upload. */
+  file: string
+  /** Canonical project path to store it at, e.g. from `normalizeStreamlitEntrypoint`. */
+  path: string
+  projectId: string
+  baseUrl: string
+  token: string
+  /** Overwrite the file even if it changed in Deepnote since the sync mirror last recorded it. */
+  force?: boolean
+}
+
+export interface UploadWorkingFileResult {
+  /** Set when the upload succeeded but the sync mirror could not be updated. */
+  mirrorError?: string
+}
+
+/**
+ * Replaces one project file in place with a local file, which keeps anything registered against the path,
+ * such as a Streamlit app. When a sync folder at or above `file` tracks the project, the upload is recorded
+ * in it and the bytes are written to the project's `.files` copy there.
+ *
+ * @throws {PublishError} `invalid-input`: an unsafe `path`, a missing, unreadable or non-regular `file`, a file
+ * over the upload limit, or an unusable sync folder.
+ * @throws {PublishDivergedError} unless `options.force`, before the upload.
+ * @throws {ApiError} the project could not be loaded or the upload failed.
+ * @throws {Error} Deepnote stored the file at another path; that copy is removed.
+ */
+export async function uploadWorkingFile(options: UploadWorkingFileOptions): Promise<UploadWorkingFileResult> {
+  const { file, path, projectId, baseUrl, token } = options
+  if (!isSafeRelativeFilePath(path) || path !== path.trim()) {
+    throw new PublishError('invalid-input', `Not a valid project file path: "${path}"`)
+  }
+  const stat = await fs.stat(file).catch(error => {
+    throw new PublishError(
+      'invalid-input',
+      isErrnoENOENT(error) ? `File not found: ${file}` : `Could not read ${file}: ${errorMessage(error)}`
+    )
+  })
+  if (!stat.isFile()) {
+    throw new PublishError('invalid-input', `Not a file: ${file}`)
+  }
+  if (stat.size > MAX_BUFFERED_PROJECT_FILE_BYTES) {
+    throw new PublishError('invalid-input', `File "${path}" exceeds the ${UPLOAD_LIMIT} upload limit.`)
+  }
+  const bytes = await fs.readFile(file)
+
+  let mirror: PublishMirror | undefined
+  try {
+    mirror = await resolvePublishMirror({ syncRoot: undefined, publishDir: dirname(file), projectId })
+  } catch (error) {
+    if (error instanceof PublishMirrorError) {
+      throw new PublishError('invalid-input', error.message)
+    }
+    throw error
+  }
+
+  if (mirror && !options.force) {
+    const { files } = await getProjectDetail(baseUrl, token, projectId)
+    const diverged = findDivergedPublishPaths(mirror, files, [path])
+    if (diverged.length > 0) {
+      throw new PublishDivergedError(mirror.rootDir, diverged)
+    }
+  }
+
+  const stored = await uploadProjectFile(baseUrl, token, projectId, path, bytes, { overwrite: true })
+  if (stored.path !== path) {
+    await deleteProjectFile(baseUrl, token, projectId, stored.path).catch(() => undefined)
+    throw new Error(`Deepnote stored the file at "${stored.path}" instead of "${path}"`)
+  }
+
+  // The upload already succeeded, so a mirror failure is reported, not thrown.
+  if (mirror) {
+    try {
+      await recordPublishedFile(mirror, path, bytes, stored, file)
+      await savePublishMirror(mirror)
+    } catch (error) {
+      return { mirrorError: errorMessage(error) }
+    }
+  }
+  return {}
 }

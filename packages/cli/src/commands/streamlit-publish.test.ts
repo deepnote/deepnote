@@ -8,12 +8,23 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   return {
     ...actual,
     createStreamlitApp: vi.fn(),
+    deleteProjectFile: vi.fn(),
+    getProjectDetail: vi.fn(),
     listStreamlitApps: vi.fn(),
+    uploadProjectFile: vi.fn(),
     waitForStreamlitApp: vi.fn(),
   }
 })
 
-import { createStreamlitApp, listStreamlitApps, StreamlitAppTimeoutError, waitForStreamlitApp } from '@deepnote/cloud'
+import {
+  createStreamlitApp,
+  deleteProjectFile,
+  getProjectDetail,
+  listStreamlitApps,
+  StreamlitAppTimeoutError,
+  uploadProjectFile,
+  waitForStreamlitApp,
+} from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
 import { createProgram } from '../cli'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
@@ -27,13 +38,23 @@ const STREAMLIT_APP = {
 }
 
 const mockedCreateStreamlitApp = vi.mocked(createStreamlitApp)
+const mockedDeleteProjectFile = vi.mocked(deleteProjectFile)
+const mockedGetProjectDetail = vi.mocked(getProjectDetail)
 const mockedListStreamlitApps = vi.mocked(listStreamlitApps)
+const mockedUploadProjectFile = vi.mocked(uploadProjectFile)
 const mockedWaitForStreamlitApp = vi.mocked(waitForStreamlitApp)
 
 beforeEach(() => {
   process.exitCode = undefined
   mockedCreateStreamlitApp.mockReset().mockResolvedValue(STREAMLIT_APP)
+  mockedDeleteProjectFile.mockReset().mockResolvedValue(false)
+  mockedGetProjectDetail.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
   mockedListStreamlitApps.mockReset().mockResolvedValue([])
+  mockedUploadProjectFile.mockReset().mockImplementation(async (_base, _token, _projectId, path, bytes) => ({
+    path,
+    size: bytes.length,
+    updatedAt: '2026-02-01T00:00:00.000Z',
+  }))
   mockedWaitForStreamlitApp.mockReset().mockResolvedValue(undefined)
   vi.spyOn(console, 'log').mockImplementation(() => undefined)
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -216,7 +237,7 @@ describe('deepnote streamlit publish', () => {
     await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok')
 
     expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('Entrypoint file not found. The file must already exist')
-    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('`deepnote sync --all-files` alongside a notebook push')
+    expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('or run this command again with --upload')
     expect(process.exitCode).toBe(1)
   })
 
@@ -254,6 +275,190 @@ describe('deepnote streamlit publish', () => {
       expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
     }
   )
+
+  describe('--upload', () => {
+    const SCRIPT = 'print("v2")\n'
+    let tempDir: string
+    let previousCwd: string
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'streamlit-upload-test-'))
+      previousCwd = process.cwd()
+      await fs.mkdir(join(tempDir, 'apps'))
+      await fs.writeFile(join(tempDir, 'apps', 'dashboard.py'), SCRIPT)
+      process.chdir(tempDir)
+    })
+
+    afterEach(async () => {
+      process.chdir(previousCwd)
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    async function trackProject(): Promise<void> {
+      await fs.mkdir(join(tempDir, 'Alpha'))
+      await fs.writeFile(
+        join(tempDir, '.deepnote-sync.json'),
+        JSON.stringify({
+          version: 1,
+          projects: {
+            p1: {
+              dir: 'Alpha',
+              notebooks: ['main.deepnote'],
+              contentHash: '0'.repeat(64),
+              files: { 'apps/dashboard.py': { size: 3, updatedAt: '2026-01-01T00:00:00.000Z' } },
+            },
+          },
+        })
+      )
+    }
+
+    function changeFileInDeepnote(): void {
+      mockedGetProjectDetail.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [{ path: 'apps/dashboard.py', size: 3, updatedAt: '2026-01-05T00:00:00.000Z' }],
+      })
+    }
+
+    it('replaces the project file in place, then creates the app', async () => {
+      const logged = captureLogs()
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait', '--upload')
+
+      expect(mockedUploadProjectFile).toHaveBeenCalledExactlyOnceWith(
+        'https://api.deepnote.com',
+        'tok',
+        'p1',
+        'apps/dashboard.py',
+        Buffer.from(SCRIPT),
+        { overwrite: true }
+      )
+      expect(mockedDeleteProjectFile).not.toHaveBeenCalled()
+      expect(logged.join('\n')).toContain('Uploaded apps/dashboard.py')
+      expect(mockedUploadProjectFile.mock.invocationCallOrder[0]).toBeLessThan(
+        mockedCreateStreamlitApp.mock.invocationCallOrder[0]
+      )
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('reads a /-prefixed entrypoint from the current directory, not the filesystem root', async () => {
+      captureLogs()
+
+      await run('/apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait', '--upload')
+
+      expect(mockedUploadProjectFile).toHaveBeenCalledExactlyOnceWith(
+        'https://api.deepnote.com',
+        'tok',
+        'p1',
+        'apps/dashboard.py',
+        Buffer.from(SCRIPT),
+        expect.anything()
+      )
+    })
+
+    it('reports an app that already serves the file without saying nothing changed', async () => {
+      const logged = captureLogs()
+      mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
+      mockedListStreamlitApps.mockResolvedValue([STREAMLIT_APP])
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait', '--upload')
+
+      const output = logged.join('\n')
+      expect(output).toContain(`apps/dashboard.py is already served by app ${STREAMLIT_APP.id}`)
+      expect(output).not.toContain('nothing was changed')
+    })
+
+    it('exits 2 and does not create the app when the local file is missing', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+      await run('apps/missing.py', '--project-id', 'p1', '--token', 'tok', '--upload')
+
+      expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('File not found')
+      expect(process.exitCode).toBe(2)
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    })
+
+    it('exits 1 and does not create the app when the upload fails', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      mockedUploadProjectFile.mockRejectedValue(new ApiError(500, 'Failed to upload "apps/dashboard.py": boom'))
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--upload')
+
+      expect(errorSpy.mock.calls.at(-1)?.[0]).toContain(
+        'Could not upload apps/dashboard.py: Failed to upload "apps/dashboard.py": boom'
+      )
+      expect(process.exitCode).toBe(1)
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    })
+
+    it('exits 1 with sync hints and no app when the file changed in Deepnote since the last sync', async () => {
+      await trackProject()
+      changeFileInDeepnote()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--upload')
+
+      const message = String(errorSpy.mock.calls.at(-1)?.[0])
+      expect(message).toContain('1 file changed in Deepnote since')
+      expect(message).toContain('deepnote sync --all-files')
+      expect(message).toContain('--force')
+      expect(process.exitCode).toBe(1)
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    })
+
+    it('overwrites a file that changed in Deepnote with --force', async () => {
+      await trackProject()
+      changeFileInDeepnote()
+      captureLogs()
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait', '--upload', '--force')
+
+      expect(mockedUploadProjectFile).toHaveBeenCalledOnce()
+      expect(mockedCreateStreamlitApp).toHaveBeenCalledOnce()
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('warns when the sync folder could not be updated, and still creates the app', async () => {
+      await trackProject()
+      const outside = join(tempDir, 'outside')
+      await fs.mkdir(outside)
+      await fs.symlink(outside, join(tempDir, 'Alpha', '.files'))
+      captureLogs()
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait', '--upload')
+
+      expect(errorSpy.mock.calls.map(call => String(call[0]))).toContainEqual(
+        expect.stringMatching(/Uploaded, but could not update the sync folder: .*symbolic-link ancestor/)
+      )
+      expect(mockedCreateStreamlitApp).toHaveBeenCalledOnce()
+      expect(process.exitCode).toBeUndefined()
+    })
+  })
+
+  it('says nothing was changed when it finds an existing app without --upload', async () => {
+    const logged = captureLogs()
+    mockedCreateStreamlitApp.mockRejectedValue(new ApiError(409, 'A Streamlit app already exists for this file'))
+    mockedListStreamlitApps.mockResolvedValue([STREAMLIT_APP])
+
+    await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait')
+
+    expect(logged.join('\n')).toContain(
+      `apps/dashboard.py is already served by app ${STREAMLIT_APP.id}; nothing was changed`
+    )
+  })
+
+  it('exits 2 for --force without --upload, before any request', async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+
+    await expect(run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--force')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+  })
 
   describe('token from .env', () => {
     let tempDir: string

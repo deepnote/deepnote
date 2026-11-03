@@ -8,6 +8,9 @@ export {
   PublishError,
   type PublishErrorReason,
   publishApp,
+  type UploadWorkingFileOptions,
+  type UploadWorkingFileResult,
+  uploadWorkingFile,
 } from './publish-app'
 export { type PublishErrorCode, type PublishErrorHint, PublishMirrorError, type SyncRootOption } from './publish-mirror'
 export {

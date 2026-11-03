@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { normalizeStreamlitEntrypoint } from '@deepnote/cloud-sync'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
@@ -12,10 +12,17 @@ export interface StreamlitPublishOptions {
   token?: string
   url: string
   wait: boolean
+  upload?: boolean
+  force?: boolean
 }
 
 export function createStreamlitPublishAction(program: Command) {
   return async (entrypoint: string, options: StreamlitPublishOptions) => {
+    if (options.force && !options.upload) {
+      program.error('--force requires --upload', { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
     // Load .env from the current directory before reading the token — mirrors `publish` and `static-site access`.
     dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
     const token = resolveToken(options.token)
@@ -34,6 +41,7 @@ export function createStreamlitPublishAction(program: Command) {
       url: options.url,
       projectId: options.projectId,
       wait: options.wait,
+      upload: options.upload ? { file: resolve(process.cwd(), normalized), force: options.force } : undefined,
     })
   }
 }
