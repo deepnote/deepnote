@@ -1480,12 +1480,14 @@ describe('DAG', () => {
     })
 
     it.each([
-      ['visualization', { deepnote_variable_name: 'df' }],
-      ['big-number', { deepnote_big_number_value: 'df' }],
-    ])('should not re-run later readers of a variable when a %s block is executed', async (type, metadata) => {
+      ['visualization', '', { deepnote_variable_name: 'df' }],
+      ['pivot-table', '', { deepnote_variable_name: 'df' }],
+      ['big-number', '', { deepnote_big_number_value: 'df' }],
+      ['sql', 'SELECT * FROM t WHERE id = {{ df }}', { deepnote_variable_name: 'result' }],
+    ])('should not re-run later readers of a variable when a %s block is executed', async (type, content, metadata) => {
       const blocks = createBlocks([
         { id: '1', type: 'code', content: 'df = 1' },
-        { id: '2', type, content: '', metadata },
+        { id: '2', type, content, metadata },
         { id: '3', type: 'code', content: 'print(df)' },
       ])
 
@@ -1629,6 +1631,23 @@ describe('DAG', () => {
       expect(upstreamBlocksDesc.blocksToExecuteWithDeps).toHaveLength(3)
       const expectedIds = ['1', '2', '4']
       expect(upstreamBlocksDesc.blocksToExecuteWithDeps.every(block => expectedIds.includes(block.id))).toBeTruthy()
+    })
+
+    it('should pull in the blocks that define and change the DataFrame of a Visualization block, but not other readers', async () => {
+      const blocks = createBlocks([
+        { id: '1', type: 'code', content: 'df = [1]' },
+        { id: '2', type: 'code', content: 'df.append(2)' },
+        { id: '3', type: 'visualization', content: '', metadata: { deepnote_variable_name: 'df' } },
+        { id: '4', type: 'code', content: 'print(df)' },
+      ])
+
+      const chartUpstream = await getUpstreamBlocks(blocks, blocks.slice(2, 3))
+      const printUpstream = await getUpstreamBlocks(blocks, blocks.slice(3, 4))
+
+      assert(chartUpstream.status !== 'fatal', 'Should not be fatal')
+      assert(printUpstream.status !== 'fatal', 'Should not be fatal')
+      expect(chartUpstream.blocksToExecuteWithDeps.map(block => block.id)).toEqual(['1', '2', '3'])
+      expect(printUpstream.blocksToExecuteWithDeps.map(block => block.id)).toEqual(['1', '2', '4'])
     })
 
     it('should return missing-deps status if code block could not be parsed', async () => {
