@@ -139,6 +139,97 @@ The first time a viewer opens an app that uses an OAuth integration they have no
 
 If you need lower-level control, `get_federated_auth_token(integration_id)` returns the raw `{integrationType, accessToken, connectionParams}` payload, and `prompt_federated_auth(integration_id)` renders the authentication prompt without opening a connection.
 
+## Running a notebook from your app
+
+A Streamlit app can use a notebook as its backend. The notebook keeps the SQL, credentials and heavy
+work; the app turns the notebook's [input blocks](/docs/input-blocks) into a form, runs the notebook
+with the viewer's values and shows what it returns. Every viewer runs it with their own permissions,
+so an app never reaches data its viewer could not.
+
+Compared with exporting a CSV on a schedule, viewers get fresh results for exactly the values they
+picked, and you keep one notebook as the source of truth instead of a notebook plus a copy of its
+logic in the app.
+
+```python
+import streamlit as st
+from deepnote_toolkit.notebooks import DeepnoteDocument, RunnerError
+from deepnote_toolkit.streamlit import StreamlitCloudRunner, render_inputs
+
+notebook_id = "your-notebook-id"
+document = DeepnoteDocument.load("report.deepnote", notebook_id=notebook_id)
+runner = StreamlitCloudRunner(notebook_id)
+
+values = render_inputs(document.inputs, st.sidebar)
+
+if st.button("Run"):
+    try:
+        result = runner.run(values)
+        if not result.success:
+            st.error(result.error or "The run failed.")
+        elif result.snapshot_status == "pending":
+            st.info("The run finished, but its outputs are not available yet.")
+        elif (table := result.first_dataframe()) is not None:
+            st.dataframe(table.records(include_index=False))
+        else:
+            st.write(result.text())
+    except RunnerError as error:
+        st.error(str(error))
+```
+
+To set it up:
+
+1. Export the notebook as a `.deepnote` file and add it to the project's files next to the app
+   script. The app reads the input definitions from it.
+2. In the Streamlit app's settings, under **API access**, turn on **Allow API access for all
+   Streamlit apps in this project**. Only editors can change it.
+3. Share the app with the people who should use it. Viewers must be signed in and have access to the
+   project.
+
+These helpers ship in `deepnote-toolkit` 2.9.0 and later.
+
+### What the helpers do
+
+- **`render_inputs`** draws a Streamlit widget for each input block — text, select, slider,
+  checkbox, date and date range — with the notebook's saved values as defaults, and returns the values
+  to run with. An input the viewer leaves empty runs with the notebook's saved value. File inputs
+  appear as a text path; the helper does not upload files.
+- **`StreamlitCloudRunner.run`** starts a detached run in Deepnote as the current viewer, waits for it
+  (up to `timeout`, 600 seconds by default) and returns its outputs. It never falls back to your own
+  token: if the viewer's credentials are not available, the call fails. Call it from the Streamlit
+  script itself, not from a worker thread.
+- **Results** give you `result.text()` for text output and `result.first_dataframe()` for the first
+  table. Tables arrive as a preview page, so check `row_count` and `is_truncated` before treating one
+  as complete.
+- **Storage** is read-only by default: the notebook can read the project's files but not change them.
+  Pass `storage_mode="read_write"` when it needs to write.
+- **Drift check.** `runner.info().matches_inputs(document.inputs)` tells you whether the deployed
+  notebook's inputs still match the `.deepnote` file the app was built from.
+
+### Developing locally
+
+Run the same app on your machine against Deepnote by opting into your own API key:
+
+```python
+import os
+
+runner = StreamlitCloudRunner(notebook_id, local=True, token=os.environ["DEEPNOTE_TOKEN"])
+```
+
+When the app runs in Deepnote, `local=True` and the token are ignored and the viewer's credentials
+are used. `DeepnoteDocument.load("report.snapshot.deepnote")` loads saved outputs from a
+[run snapshot](/docs/run-snapshots), so you can build the layout without running anything.
+
+### Other API calls as the viewer
+
+`deepnote_toolkit.streamlit.current_user_api_credentials()` returns the viewer's short-lived token and
+the API origin it is valid for. Viewer tokens are limited to the run loop: reading a notebook's
+inputs, starting detached runs, reading the viewer's own runs and their
+[app data](/docs/deepnote-api-runs). Outside Streamlit, use
+`DeepnoteCloudRunner` from `deepnote_toolkit.notebooks` with an API key.
+
+To build the same kind of app as a website instead of in Python, see
+[Viewer API access](/docs/deepnote-cli-publish#viewer-api-access).
+
 ## Customizing app environment
 
 Your Streamlit app shares its environment with your project. If you need to add specific Python libraries you can do so by:
