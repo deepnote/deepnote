@@ -96,9 +96,11 @@ It waits for that app too; `unavailable` can be a temporary state during a resta
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
 recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
-overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the local file with
-the Deepnote copy, or pass `--force`. `<workspace>` is the folder that holds `.deepnote-sync.json`,
-as named in the error, not the `.files` folder you upload from.
+overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
+project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
+holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. Sync
+does not change a file uploaded from another folder: merge the Deepnote changes into it before you
+upload again.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
 `--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and

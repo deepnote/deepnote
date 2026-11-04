@@ -86,7 +86,7 @@ async function uploadEntrypoint(
   } catch (error) {
     if (error instanceof PublishDivergedError) {
       fail(
-        `${error.message}. Run \`deepnote sync ${error.syncRoot} --all-files\` to bring the Deepnote copy down (this replaces your local file), or use --force to overwrite it.`
+        `${error.message}. Run \`deepnote sync ${error.syncRoot} --all-files\` to bring the Deepnote copy down (this replaces the copy in the project's .files folder), or use --force to overwrite it.`
       )
     } else if (error instanceof PublishError && error.reason === 'invalid-input') {
       fail(error.message, ExitCode.InvalidUsage)
