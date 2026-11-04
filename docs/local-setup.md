@@ -84,13 +84,14 @@ Results are displayed as interactive tables that you can explore and export.
 
 Open the Command Palette and type `Deepnote` to see all available commands:
 
-- `Deepnote: Refresh explorer` - Refresh the project explorer
-- `Deepnote: Open notebook` - Open a specific notebook
-- `Deepnote: Open file` - Open the raw .deepnote file
-- `Deepnote: Reveal in explorer` - Show active notebook in explorer
-- `Deepnote: Manage integrations` - Configure database connections
-- `Deepnote: New project` - Create a new Deepnote project
-- `Deepnote: Import notebook` - Import existing notebooks
+- `Deepnote: New Project` / `Deepnote: New Notebook` - Create a project or a notebook
+- `Deepnote: Import Notebook` - Import `.deepnote` files and Jupyter `.ipynb` notebooks
+- `Deepnote: Select Interpreter for Notebook` - Choose the Python interpreter a notebook runs on
+- `Deepnote: Manage Integrations` - Configure database connections
+- `Deepnote: Add SQL Block`, `Add Chart Block`, `Add Agent Block`, `Add Input Block` and more - Add a block to the notebook
+- `Deepnote: Open in Deepnote` - Upload the notebook to Deepnote Cloud and open it there
+- `Deepnote: Enable Snapshots` / `Disable Snapshots` - Choose whether outputs go to separate snapshot files
+- `Deepnote: Reveal in Explorer` - Show the active notebook in the Deepnote explorer
 
 ### Learn more
 
@@ -247,7 +248,7 @@ Want to be notified when Local Singleplayer launches?
 | **Deepnote UI**             | ❌                            | ❌                            | ❌               | ✅                   |
 | **Offline mode**            | ✅                            | ✅                            | ✅               | ✅                   |
 | **Custom integrations**     | ⚠️ Limited                    | ⚠️ Limited                    | ✅               | ✅                   |
-| **AI features**             | ❌                            | ⚠️ Agent block via `--prompt` | ❌               | ✅                   |
+| **AI features**             | ⚠️ Agent blocks (OpenAI)      | ⚠️ Agent blocks, any provider | ❌               | ✅                   |
 
 \*Coming soon
 
