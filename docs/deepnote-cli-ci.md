@@ -57,11 +57,11 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.14"
+          python-version: ">=3.10 <3.15" # newest Python deepnote-toolkit supports
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: lts/*
 
       - name: Install deepnote-toolkit and the notebook's dependencies
         run: |
@@ -154,7 +154,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: lts/*
 
       - name: Run in Deepnote Cloud
         env:
