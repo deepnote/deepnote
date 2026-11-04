@@ -190,8 +190,9 @@ deepnote streamlit publish apps/dashboard.py --project-id <project-id> --upload
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
 recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
-overwritten: run `deepnote sync --all-files` first, which replaces your local file with the Deepnote
-copy, or pass `--force`.
+overwritten: run `deepnote sync <workspace> --all-files` first, which replaces your local file with
+the Deepnote copy, or pass `--force`. `<workspace>` is the folder that holds `.deepnote-sync.json`,
+as named in the error, not the `.files` folder you upload from.
 
 <Callout status="warning">
 Creating a Streamlit app restarts the project machine and interrupts anyone working in the project.

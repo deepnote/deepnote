@@ -378,6 +378,20 @@ describe('deepnote streamlit publish', () => {
       expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
     })
 
+    it('exits 1 and does not create the app when the local file cannot be read', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+      vi.spyOn(fs, 'readFile').mockRejectedValueOnce(
+        Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+      )
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--upload')
+
+      expect(errorSpy.mock.calls.at(-1)?.[0]).toContain('Could not upload apps/dashboard.py: EACCES: permission denied')
+      expect(process.exitCode).toBe(1)
+      expect(mockedUploadProjectFile).not.toHaveBeenCalled()
+      expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    })
+
     it('exits 1 and does not create the app when the upload fails', async () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
       mockedUploadProjectFile.mockRejectedValue(new ApiError(500, 'Failed to upload "apps/dashboard.py": boom'))
@@ -400,10 +414,27 @@ describe('deepnote streamlit publish', () => {
 
       const message = String(errorSpy.mock.calls.at(-1)?.[0])
       expect(message).toContain('1 file changed in Deepnote since')
-      expect(message).toContain('deepnote sync --all-files')
+      expect(message).toContain(`deepnote sync ${await fs.realpath(tempDir)} --all-files`)
       expect(message).toContain('--force')
       expect(process.exitCode).toBe(1)
       expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
+    })
+
+    it('names the sync workspace in the sync hint when run from the project .files folder', async () => {
+      await trackProject()
+      changeFileInDeepnote()
+      const filesDir = join(tempDir, 'Alpha', '.files')
+      await fs.mkdir(join(filesDir, 'apps'), { recursive: true })
+      await fs.writeFile(join(filesDir, 'apps', 'dashboard.py'), SCRIPT)
+      process.chdir(filesDir)
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+      await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--upload')
+
+      expect(String(errorSpy.mock.calls.at(-1)?.[0])).toContain(
+        `Run \`deepnote sync ${await fs.realpath(tempDir)} --all-files\``
+      )
+      expect(mockedUploadProjectFile).not.toHaveBeenCalled()
     })
 
     it('overwrites a file that changed in Deepnote with --force', async () => {

@@ -96,8 +96,9 @@ It waits for that app too; `unavailable` can be a temporary state during a resta
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
 recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
-overwritten: run `deepnote sync --all-files` first, which replaces the local file with the Deepnote
-copy, or pass `--force`.
+overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the local file with
+the Deepnote copy, or pass `--force`. `<workspace>` is the folder that holds `.deepnote-sync.json`,
+as named in the error, not the `.files` folder you upload from.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
 `--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and
@@ -107,8 +108,8 @@ may change.
 ### Handle failures
 
 - **Entrypoint not found:** upload the file in Deepnote, or run the command again with `--upload`.
-- **File changed in Deepnote (exit code 1):** run `deepnote sync --all-files`, or pass `--force` to
-  overwrite the Deepnote copy.
+- **File changed in Deepnote (exit code 1):** run `deepnote sync <workspace> --all-files` with the
+  workspace folder the error names, or pass `--force` to overwrite the Deepnote copy.
 - **Startup timeout:** the app still exists. Inspect it in Deepnote, start the project machine if it
   is stopped, and rerun publish to check its status again.
 - **Other request failures:** resolve the reported access, project, or network error before retrying.

@@ -510,11 +510,12 @@ export interface UploadWorkingFileResult {
  * such as a Streamlit app. When a sync folder at or above `file` tracks the project, the upload is recorded
  * in it and the bytes are written to the project's `.files` copy there.
  *
- * @throws {PublishError} `invalid-input`: an unsafe `path`, a missing, unreadable or non-regular `file`, a file
- * over the upload limit, or an unusable sync folder.
+ * @throws {PublishError} `invalid-input`: an unsafe `path`, a `file` that is missing, cannot be inspected or is
+ * not a regular file, a file over the upload limit, or an unusable sync folder.
  * @throws {PublishDivergedError} unless `options.force`, before the upload.
  * @throws {ApiError} the project could not be loaded or the upload failed.
- * @throws {Error} Deepnote stored the file at another path; that copy is removed.
+ * @throws {Error} `file` could not be read (permission denied, I/O failure), or Deepnote stored the file at
+ * another path; that copy is removed.
  */
 export async function uploadWorkingFile(options: UploadWorkingFileOptions): Promise<UploadWorkingFileResult> {
   const { file, path, projectId, baseUrl, token } = options

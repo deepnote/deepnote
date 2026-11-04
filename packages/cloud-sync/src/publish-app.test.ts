@@ -956,6 +956,17 @@ describe('uploadWorkingFile', () => {
     })
   })
 
+  it('lets a failure to read the file through as the underlying error, before any request', async () => {
+    const file = await writeScript(join(tempDir, 'src'))
+    const readError = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+    vi.spyOn(fs, 'readFile').mockRejectedValueOnce(readError)
+
+    const error = await rejection(upload({ file }))
+
+    expect(error).toBe(readError)
+    expectNoRequests()
+  })
+
   it('deletes a copy stored at another path and fails without recording it in the sync folder', async () => {
     const { root } = await writeWorkspace()
     const manifestPath = join(root, '.deepnote-sync.json')
