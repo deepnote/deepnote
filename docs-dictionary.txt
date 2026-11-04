@@ -328,3 +328,4 @@ vCpus
 elif
 difftool
 textconv
+Tsvg
