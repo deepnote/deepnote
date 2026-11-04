@@ -21,8 +21,9 @@ There are two ways to do it, and they suit different jobs:
 
 ## Prerequisites
 
-- **The Deepnote CLI.** `npx @deepnote/cli` runs it without a global install. In CI, pin a version
-  (`npx @deepnote/cli@0.10.0`) so a new release cannot change a pipeline's behavior under you. The CLI
+- **The Deepnote CLI.** `npx @deepnote/cli` runs it without a global install. It fetches the latest
+  release on every run; to stop a new release from changing a pipeline's behavior under you, pin
+  one with `npx @deepnote/cli@<version>`. The CLI
   is also on PyPI as `deepnote-cli` if the runner has Python but no Node.js.
 - **For runs on the runner:** a Python interpreter with
   [deepnote-toolkit](https://pypi.org/project/deepnote-toolkit/) installed
@@ -52,15 +53,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Install deepnote-toolkit and the notebook's dependencies
         run: |
@@ -68,17 +69,17 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Lint
-        run: npx @deepnote/cli@0.10.0 lint analysis.deepnote
+        run: npx @deepnote/cli lint analysis.deepnote
 
       - name: Run
         run: |
-          npx @deepnote/cli@0.10.0 run analysis.deepnote \
+          npx @deepnote/cli run analysis.deepnote \
             --startup-timeout 60 --block-timeout 300 \
             -o json > run-result.json
 
       - name: Keep the result
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: run-result
           path: run-result.json
@@ -149,17 +150,17 @@ jobs:
     timeout-minutes: 30
     environment: deepnote # holds the DEEPNOTE_TOKEN secret; see Security below
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
 
       - name: Run in Deepnote Cloud
         env:
           DEEPNOTE_TOKEN: ${{ secrets.DEEPNOTE_TOKEN }}
         run: |
-          npx @deepnote/cli@0.10.0 run report.deepnote --cloud \
+          npx @deepnote/cli run report.deepnote --cloud \
             --storage-mode readonly --timeout 1200 \
             --out report.snapshot.deepnote -o json
 ```
