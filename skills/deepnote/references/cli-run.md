@@ -189,3 +189,5 @@ and custom endpoints.
 Cloud ignores local provider keys and endpoints; see [Cloud model support](blocks-agent.md#sharing-notebooks-with-cloud).
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.
+
+**CI:** install `deepnote-toolkit[server]` on the runner (the CLI does not install it), set `--startup-timeout` and `--block-timeout`, and use `-o json`. Give `DEEPNOTE_TOKEN` to `--cloud` steps only on trusted events (protected-branch push, schedule, manual dispatch), never to jobs that run pull-request code. Full guide: https://deepnote.com/docs/deepnote-cli-ci
