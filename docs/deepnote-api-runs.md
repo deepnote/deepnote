@@ -1,0 +1,192 @@
+---
+title: Running notebooks with the Deepnote API
+description: Run a Deepnote notebook from your own code with input values, wait for it to finish, read its outputs as JSON, and manage schedules through the API
+noIndex: false
+noContent: false
+---
+
+A notebook is a function your other systems can call. Pass it input values, let it run on the
+project's machine with the project's integrations, and read back the tables, charts and text it
+produced. Use this to put a notebook behind a product feature, refresh a report when a pipeline
+finishes, or post this week's numbers to Slack.
+
+All examples use `$DEEPNOTE_TOKEN`; see [Authentication](/docs/deepnote-api#authentication).
+
+## 1. Find the notebook and its inputs
+
+`GET /v2/notebooks/{notebookId}` returns the notebook's blocks and, when it has
+[input blocks](/docs/input-blocks), the inputs you can set:
+
+```bash
+curl -s "https://api.deepnote.com/v2/notebooks/$NOTEBOOK_ID" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN" | jq '.notebook.inputs'
+```
+
+```json
+[
+  {
+    "name": "region",
+    "type": "input-select",
+    "value": "EU",
+    "options": ["EU", "US"]
+  },
+  { "name": "since", "type": "input-date", "value": "2026-01-01" }
+]
+```
+
+Each input has a `name`, its `type` and its current `value`, plus `options`, `min`, `max` or `step`
+where the input type has them.
+
+## 2. Start a run
+
+```bash
+curl -s -X POST https://api.deepnote.com/v2/runs \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notebookId": "'"$NOTEBOOK_ID"'",
+    "inputs": { "region": "US", "since": "2026-10-01" }
+  }'
+```
+
+```json
+{
+  "runId": "4f6c…",
+  "status": "pending",
+  "createdAt": "2026-11-04T09:00:00.000Z"
+}
+```
+
+Input values are strings, booleans (checkboxes) or arrays of strings (multi-selects), keyed by
+input `name`. They apply to this run only and do not change the values saved in the notebook.
+
+By default the run is **detached**: Deepnote runs a copy of the notebook on its own machine, so it
+does not disturb anyone working in the editor and does not change the outputs they see. A detached
+run also accepts:
+
+- `machineType` — run on different hardware than the project uses, for example a GPU for one heavy
+  job. Valid ids come from `GET /v2/machine-types`.
+- `detachedRunStorageMode: "readonly"` — make the project's persistent storage read-only for the
+  run. The run can still create temporary files.
+
+Set `"detached": false` to run in the project's live editor session instead. A live run reuses the
+kernel's state and updates the outputs everyone sees, and it can run selected blocks with
+`blockIds` — add `"runDependentBlocks": true` to also re-run the blocks that depend on them.
+
+## 3. Wait for the result and read the outputs
+
+Poll `GET /v2/runs/{runId}` until `status` is one of `success`, `error`, `internal_error` or
+`stopped`. Ask for `snapshotDelivery=blocks` to get every executed block's outputs as JSON:
+
+```bash
+curl -s "https://api.deepnote.com/v2/runs/$RUN_ID?snapshotDelivery=blocks" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN"
+```
+
+The response's `run.snapshotBlocks` lists each block with its `id`, `type` and Jupyter-style
+`outputs`. Outputs are stored a moment after the run finishes, so wait until `snapshotStatus` is
+`available` as well. Very large outputs are shortened to `outputHead` and `outputTail` unless you add
+`fullOutputs=true`.
+
+There are two other ways to receive the result:
+
+| `snapshotDelivery`      | You get                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------- |
+| `downloadUrl` (default) | `snapshotDownloadUrl`, a short-lived link to the full `.snapshot.deepnote` file |
+| `inline`                | `snapshotContent`, the same file as a string in the response                    |
+| `blocks`                | `snapshotBlocks`, the executed blocks with their outputs and no source          |
+
+A snapshot is a regular [`.deepnote` file](/docs/deepnote-format) with outputs, so you can open it
+in the editor, keep it as a record, or read it with the
+[Deepnote CLI](/docs/deepnote-cli) (`deepnote cat`, `deepnote inspect`).
+
+### End to end in Python
+
+```python
+import os
+import time
+
+import requests
+
+API = "https://api.deepnote.com/v2"
+HEADERS = {"Authorization": f"Bearer {os.environ['DEEPNOTE_TOKEN']}"}
+DONE = {"success", "error", "internal_error", "stopped"}
+
+
+def run_notebook(notebook_id: str, inputs: dict) -> list[dict]:
+    run = requests.post(
+        f"{API}/runs", headers=HEADERS, json={"notebookId": notebook_id, "inputs": inputs}
+    ).json()
+
+    while True:
+        response = requests.get(
+            f"{API}/runs/{run['runId']}",
+            headers=HEADERS,
+            params={"snapshotDelivery": "blocks"},
+        )
+        if response.status_code == 429:
+            time.sleep(int(response.headers["Retry-After"]))
+            continue
+        result = response.json()["run"]
+        if result["status"] in DONE and result["snapshotStatus"] != "pending":
+            break
+        time.sleep(5)
+
+    if result["status"] != "success":
+        raise RuntimeError(result.get("error") or result["status"])
+    return result["snapshotBlocks"] or []
+
+
+blocks = run_notebook(os.environ["NOTEBOOK_ID"], {"region": "US"})
+for block in blocks:
+    for output in block["outputs"]:
+        print(block["type"], output.get("output_type"))
+```
+
+## Return structured data from a notebook
+
+When the caller is code rather than a person, have the notebook return exactly the data it needs.
+Display a JSON object in a block as an `application/json` output:
+
+```python
+from IPython.display import display
+
+display({"application/json": {"revenue": float(total), "orders": int(order_count)}}, raw=True)
+```
+
+`GET /v2/notebooks/{notebookId}/app-data` then returns that object as `appData` from your newest
+successful detached run of the notebook, together with `agentBlockSummary` when the notebook has an
+[agent block](/docs/deepnote-agent) that writes a summary. It reads the first `application/json`
+output, so keep one such block per notebook. This is the same mechanism
+[data apps](/docs/data-app-projects) use to get their data.
+
+## Run history
+
+`GET /v2/notebooks/{notebookId}/runs` lists past runs of a notebook — started from the editor, a
+schedule or the API — newest first, with their status and timestamps. Pass any `runId` to
+`GET /v2/runs/{runId}` to read that run's outputs while its snapshot is kept; `snapshotExpiresAt`
+says how long that is. See [Run snapshots](/docs/run-snapshots).
+
+## Schedules
+
+Keep schedules in code alongside everything else:
+
+```bash
+# Every weekday at 07:00 New York time
+curl -s -X POST "https://api.deepnote.com/v2/notebooks/$NOTEBOOK_ID/schedule" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "cron": "0 7 * * 1-5", "timezone": "America/New_York" }'
+```
+
+The same path takes `GET` to read the schedule — including `nextRunAt` and whether it is paused — and
+`DELETE` to remove it. Each notebook has at most one schedule, and posting again replaces it. See
+[Scheduling](/docs/scheduling) for what a scheduled run does, and
+[`deepnote schedule`](/docs/deepnote-cli) for the same from the terminal.
+
+## Related
+
+- [Deepnote API](/docs/deepnote-api) and the [API reference](/docs/api-reference)
+- [Interactive sessions](/docs/deepnote-api-sessions) — keep state between runs
+- [Running notebooks in CI](/docs/deepnote-cli-ci) — `deepnote run --cloud` does all of the above
+  in one command

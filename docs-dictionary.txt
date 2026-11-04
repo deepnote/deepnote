@@ -323,3 +323,5 @@ quarto
 reticulate
 dedent
 dedenting
+urlencode
+vCpus
