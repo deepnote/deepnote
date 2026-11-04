@@ -114,6 +114,74 @@ Tokens expire after 15 minutes; request a replacement before expiry and on a 401
 The [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
 demonstrates the handshake and refresh.
 
+A minimal version of the handshake and a run:
+
+```js
+const SHELL_ORIGIN = "https://deepnote.com";
+
+function requestToken() {
+  return new Promise((resolve, reject) => {
+    const onMessage = (event) => {
+      // Accept a token only from the Deepnote shell that embeds this page.
+      if (event.source !== window.parent || event.origin !== SHELL_ORIGIN)
+        return;
+      if (event.data?.type !== "deepnote-static-files-api-token-response")
+        return;
+      clearInterval(retry);
+      window.removeEventListener("message", onMessage);
+      const { token, apiOrigin, expiresAtSeconds } = event.data;
+      resolve({
+        token,
+        apiOrigin: new URL(apiOrigin).origin,
+        expiresAtSeconds,
+      });
+    };
+    window.addEventListener("message", onMessage);
+    // The shell may not be listening yet when the page loads, so ask until it answers.
+    const ask = () =>
+      window.parent.postMessage(
+        { type: "deepnote-static-files-api-token-request" },
+        SHELL_ORIGIN,
+      );
+    const retry = setInterval(ask, 400);
+    ask();
+    setTimeout(() => {
+      clearInterval(retry);
+      reject(new Error("No token from Deepnote"));
+    }, 8000);
+  });
+}
+
+async function runNotebook(notebookId, inputs) {
+  const { token, apiOrigin } = await requestToken();
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+
+  const { runId } = await fetch(`${apiOrigin}/v2/runs`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ notebookId, inputs }),
+  }).then((response) => response.json());
+
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const { run } = await fetch(`${apiOrigin}/v2/runs/${runId}`, {
+      headers,
+    }).then((response) => response.json());
+    if (run.status === "success" && run.snapshotStatus !== "pending")
+      return run.snapshotBlocks;
+    if (["error", "internal_error", "stopped"].includes(run.status))
+      throw new Error(run.error ?? run.status);
+  }
+}
+```
+
+`GET /v2/notebooks/{notebookId}` returns the notebook's `inputs`, so the page can build its form from
+the notebook rather than hard-coding it. For a long session, request a new token before
+`expiresAtSeconds` and whenever a call returns `401`.
+
 API access requires app sharing and does not grant additional viewers project access. Omitting
 `--api-access` preserves the current setting; use `--api-access disabled` to revoke it. Test the
 hosted app with a viewer token, since a personal token in a local preview has broader permissions.
