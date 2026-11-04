@@ -17,13 +17,16 @@ A powerful extension for [VS Code](https://code.visualstudio.com/), [Cursor](htt
 
 The Deepnote extension provides:
 
-- **Native `.deepnote` file support** - Open and edit Deepnote notebooks
-- **Block execution** - Run code, SQL, and other executable blocks
+- **Native `.deepnote` file support** - Open and edit Deepnote notebooks, organized by project in the Deepnote explorer
+- **Block execution** - Run code, SQL, chart, big number, input and button blocks
+- **Agent blocks** - Let an AI agent write and run code in the notebook from a prompt
+- **Database integrations** - Query Snowflake, BigQuery, Postgres and more from SQL blocks, configured in the editor or in a `.deepnote.env.yaml` file shared with the [Deepnote CLI](/docs/deepnote-cli)
 - **Rich outputs** - Display DataFrames, plots, and visualizations
-- **IntelliSense** - Code completion and suggestions
-- **Git integration** - Version control for notebooks
-- **Local execution** - Use your own Python environment
-- **One-click deploy** - Push notebooks to Deepnote.com to build and share data apps with cloud CPU/GPU machines
+- **IntelliSense** - Code completion for Python, and table and column names in SQL
+- **Git-friendly files** - Outputs are kept in separate snapshot files, so `.deepnote` files diff cleanly
+- **Local execution** - Use your own Python interpreter, with init notebooks and `requirements.txt` installed for you
+- **Ready for coding agents** - Cursor, GitHub Copilot, Windsurf and Antigravity learn the Deepnote format automatically
+- **One-click deploy** - Open a notebook in Deepnote Cloud to share it, schedule it or run it on cloud CPU/GPU machines
 
 ## Installation
 
@@ -63,6 +66,18 @@ antigravity --install-extension deepnote.vscode-deepnote  # Antigravity
 
 ## Features
 
+### Projects and notebooks
+
+The **Deepnote** view in the activity bar lists the `.deepnote` files in your workspace, grouped by
+project. From it you can create a project or a notebook, add a notebook to a project, and rename,
+duplicate or delete notebooks. **Import Notebook** brings in `.deepnote` files and Jupyter `.ipynb`
+notebooks, converting the latter to Deepnote format.
+
+Each notebook is its own `.deepnote` file, and notebooks of the same project sit next to each other
+as sibling files. Opening an older file that holds several notebooks offers to split it into one file
+per notebook. The status bar shows which project and notebook is active; click it to copy their
+details.
+
 ### Block execution
 
 Deepnote supports a wide variety of blocks including:
@@ -81,6 +96,23 @@ You can run a single block by clicking the play button or pressing Shift + Enter
 | Action   | Windows/Linux | macOS          |
 | -------- | ------------- | -------------- |
 | Run cell | Shift + Enter | Shift + Return |
+
+### Agent blocks
+
+An agent block holds a prompt instead of code. Add one with **Add Agent Block** (the robot button in
+the notebook toolbar), describe what you want — _"chart monthly revenue by region and explain the
+trend"_ — and run it. The agent reads the notebook so far, adds and runs code and Markdown cells below
+the block, and checks their results until it is done.
+
+- The cells it adds are marked **Ephemeral** and are not saved to the `.deepnote` file. Running the
+  block again replaces them; **Clear ephemeral blocks** on the block removes them.
+- Choose the model from the agent block's status bar.
+- The extension asks for an OpenAI API key the first time and keeps it in the editor's secret
+  storage. Change it with **Deepnote: Set OpenAI API Key** or **Deepnote: Clear OpenAI API Key**.
+- A notebook can have one agent block.
+
+To run agent blocks with other providers or local models, use the CLI; see
+[Running agent blocks locally](/docs/deepnote-cli-agent-blocks).
 
 ### Rich output display
 
@@ -111,6 +143,18 @@ Integrations allow you to connect to data sources and other tools. To manage int
 - [MindsDB](/docs/mindsdb)
 
 Your credentials are stored encrypted. We also support enforcing SSL connections and SSH tunnels for secure access.
+
+#### Integrations from a file
+
+Besides the encrypted storage behind **Manage integrations**, the extension reads integrations from a
+`.deepnote.env.yaml` file in the notebook's folder or the workspace root. Its `env:` references
+resolve against a `.env` file and your environment, so credentials stay out of the YAML. This is the
+same file the [Deepnote CLI](/docs/deepnote-cli) uses: `deepnote integrations pull` downloads your
+workspace's integrations into it, and a notebook then runs the same way in the editor, in the terminal
+and in CI.
+
+When the file or a stored integration changes, the extension updates the running kernel without a
+restart. Turn file loading off with the `deepnote.integrations.envFile.enabled` setting.
 
 #### Using integrations
 
@@ -216,6 +260,41 @@ ORDER BY
     total_revenue DESC
 ```
 
+### Outputs and snapshots
+
+Outputs are saved to separate snapshot files in a `snapshots` folder next to the notebook, not into
+the `.deepnote` file itself. The notebook file stays small and readable, so it diffs and merges
+cleanly in Git, and you can choose whether to commit the outputs. When you reopen a notebook, its
+latest outputs are loaded from the snapshot. **Deepnote: Disable Snapshots** (or the
+`deepnote.snapshots.enabled` setting) stores outputs in the `.deepnote` file instead. See
+[Working with notebooks in Git](/docs/deepnote-cli-git).
+
+### Variables
+
+The **Deepnote Variables** panel in the Deepnote view lists the variables in the notebook's running
+kernel, so you can check what a block defined without printing it.
+
+### AI coding agents
+
+When the extension starts a notebook, it installs Deepnote's agent skills into the workspace for the
+editor's assistant — Cursor, Windsurf, Antigravity, or GitHub Copilot in VS Code. The skills teach
+the assistant the `.deepnote` format and the Deepnote CLI, so it can write notebooks and check its
+work with `deepnote lint` and `deepnote run`. The CLI comes bundled with the extension; nothing is
+installed into your Python environment.
+
+In VS Code, GitHub Copilot's agent mode also gets tools to prepare a notebook's kernel, list and
+install packages in it, and restart it.
+
+To give an assistant access to your Deepnote Cloud workspace as well, connect the
+[Deepnote MCP server](/docs/deepnote-mcp).
+
+### Open in Deepnote
+
+**Open in Deepnote** in the notebook toolbar, or in the context menu of a `.deepnote` file, uploads
+the file to Deepnote Cloud and opens it in your browser. Use it to share a notebook with your team,
+collaborate on it in real time, [schedule](/docs/scheduling) it, publish it as an app, or run it on
+bigger CPU and GPU machines.
+
 ### Exporting to different formats
 
 You can export individual notebooks to the Jupyter notebook format. To export a notebook:
@@ -245,9 +324,32 @@ This opens the file in VS Code's standard text editor with YAML syntax highlight
 
 On macOS, access the extension settings through Code → Preferences → Settings. On Windows or Linux, use File → Preferences → Settings. You can also press Ctrl/Cmd + `,`. Then search for "Deepnote".
 
+| Setting                                 | Default        | What it does                                                                                                            |
+| --------------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `deepnote.snapshots.enabled`            | `true`         | Save outputs to [snapshot files](#outputs-and-snapshots) in a `snapshots` folder instead of the `.deepnote` file        |
+| `deepnote.integrations.envFile.enabled` | `true`         | Also load integrations from `.deepnote.env.yaml` and `.env` (see [Integrations from a file](#integrations-from-a-file)) |
+| `deepnote.domain`                       | `deepnote.com` | The Deepnote domain used by **Open in Deepnote**; change it for a single-tenant Deepnote                                |
+| `deepnote.themeMatplotlibPlots`         | `false`        | Theme matplotlib plots to match the editor theme                                                                        |
+| `deepnote.telemetry.enabled`            | `true`         | Send anonymous usage telemetry                                                                                          |
+
 ### Python environment
 
-You can create and manage Python environments using the "Environments" panel. When creating an environment, you choose which Python interpreter to use and specify which packages need to be installed. The extension creates a virtual environment that can be reused across notebooks and projects. You can also point the extension at an existing virtual environment instead of creating a new one.
+Each notebook runs on a Python interpreter you choose: a virtual environment, conda environment or
+system Python. Pick one with the kernel picker in the notebook toolbar or **Deepnote: Select
+Interpreter for Notebook**; the choice is remembered for that notebook.
+
+The kernel needs the [`deepnote-toolkit`](https://pypi.org/project/deepnote-toolkit/) package. If
+the selected interpreter does not have it, or has an outdated version, the extension asks before
+installing it, and you can pick a different interpreter instead. The kernel starts the first time you
+run a block.
+
+#### Init notebooks and requirements
+
+If a project has an **Init** notebook, the extension runs it in the kernel before your first block,
+and again after every kernel restart — the same as in Deepnote Cloud. Deepnote's standard Init notebook
+installs `requirements.txt` from the project folder when it exists; the extension runs it as
+cross-platform Python, so dependencies are in place before any other code runs on Windows, macOS or
+Linux. See [Installing dependencies](/docs/installing-dependencies).
 
 The Deepnote extension brings powerful notebook capabilities to your local development environment, combining the flexibility of Deepnote notebooks with the robust editing features of VS Code, Cursor, Windsurf, and Antigravity. Whether you're executing code or viewing rich outputs, the extension provides a seamless experience that enhances your data science workflow.
 
