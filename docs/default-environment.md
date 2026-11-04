@@ -23,3 +23,42 @@ Our engineering team regularly updates the default environments to ensure all sy
 | R with data science libraries      | [deepnote/ir-with-libs:x](https://hub.docker.com/r/deepnote/ir-with-libs)   | This environment comes with popular R data science libraries pre-installed.                                                                                                                                                                               |
 
 Need something more specific? You can create [custom environments](https://deepnote.com/docs/custom-environment) tailored to your project's needs. Build your own environment with exactly the dependencies you require, then share it across your entire workspace for consistent development.
+
+## Use the same environment outside Deepnote
+
+The Python images are public on Docker Hub, so you can run notebooks locally or in CI on exactly the
+libraries they get in Deepnote — useful for checking that a notebook still works before it is
+scheduled, or for reproducing a result on your own machine.
+
+In the `-datascience` images the libraries live in a virtual environment at `/root/venv`. Activate
+it, add [`deepnote-toolkit`](https://pypi.org/project/deepnote-toolkit/) and the
+[Deepnote CLI](/docs/deepnote-cli), and run the notebook:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work deepnote/python:3.12-datascience bash -c '
+  . /root/venv/bin/activate
+  pip install -q "deepnote-toolkit[server]" deepnote-cli
+  deepnote run analysis.deepnote -o json
+'
+```
+
+In GitHub Actions, run the job in the image:
+
+```yaml
+jobs:
+  notebooks:
+    runs-on: ubuntu-latest
+    container: deepnote/python:3.12-datascience
+    steps:
+      - uses: actions/checkout@v7
+      - name: Run the notebook on Deepnote's data science libraries
+        run: |
+          . /root/venv/bin/activate
+          pip install -q "deepnote-toolkit[server]" deepnote-cli
+          deepnote run analysis.deepnote --startup-timeout 60 --block-timeout 300 -o json
+```
+
+Use the absolute `/root/venv` path: container jobs change the home directory, so `~/venv` does not
+point to it. The `-datascience` images are large (around 4 GB), so the first pull takes a few
+minutes. See [Running notebooks in CI](/docs/deepnote-cli-ci) for exit codes, inputs and running in
+Deepnote Cloud instead.
