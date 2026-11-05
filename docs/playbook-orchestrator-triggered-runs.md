@@ -53,7 +53,12 @@ def run_notebook(notebook_id: str, inputs: dict | None = None, timeout_s: int = 
 
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
-        run = requests.get(f"{API}/runs/{run_id}", headers=HEADERS, timeout=30).json()["run"]
+        response = requests.get(f"{API}/runs/{run_id}", headers=HEADERS, timeout=30)
+        if response.status_code == 429:
+            time.sleep(int(response.headers.get("Retry-After", 15)))
+            continue
+        response.raise_for_status()
+        run = response.json()["run"]
         if run["status"] == "success":
             return run
         if run["status"] in ("error", "internal_error", "stopped"):
@@ -100,7 +105,7 @@ Scheduled runs can also notify Slack channels or email recipients on success, on
 
 ## Limits
 
-API requests are rate limited per minute. Starting a run counts as an execution: 40 per minute on Team and 120 on Enterprise. Polling counts as a read: 600 per minute on Team and 2,000 on Enterprise. Polling every 15 seconds keeps a pipeline far below both.
+API requests are rate limited per minute for each API key. Starting a run counts as an execution: 40 per minute on Team and 120 on Enterprise. Polling counts as a read: 600 per minute on Team and 2,000 on Enterprise. Polling every 15 seconds keeps a pipeline far below both. During a Team trial the limits are much lower, 2 runs and 30 reads per minute, so start runs one at a time there. The helper waits and retries when a poll is rate limited.
 
 ## Plan requirements
 

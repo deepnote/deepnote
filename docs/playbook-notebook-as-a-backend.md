@@ -75,7 +75,7 @@ Only the person whose key created a session can use it. Running arbitrary code i
 
 ### Warming up for a busy period
 
-The machines API controls a project's editor machine, which live runs and notebook apps use:
+The machines API controls a project's editor machine, which live runs use, and notebook apps set to **Shared project machine**:
 
 - `POST /v2/projects/{projectId}/machine/start` starts it before a scheduled meeting or a daily peak.
 - `PATCH /v2/projects/{projectId}/machine` changes the machine type or the idle shutdown time.
@@ -90,14 +90,15 @@ The machines API controls a project's editor machine, which live runs and notebo
 
 ## Limits
 
-Requests are rate limited per minute, per workspace plan:
+Requests are rate limited per minute for each API key, at a level set by the workspace's plan:
 
 | Plan       | Read | Write | Runs and other executions |
 | ---------- | ---- | ----- | ------------------------- |
+| Team trial | 30   | 10    | 2                         |
 | Team       | 600  | 200   | 40                        |
 | Enterprise | 2000 | 600   | 120                       |
 
-A response with status 429 means the limit was reached. Wait and retry.
+A response with status 429 means the limit was reached. Wait for the number of seconds in its `Retry-After` header, then retry.
 
 ## Plan requirements
 
