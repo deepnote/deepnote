@@ -181,21 +181,9 @@ async function assertWritableMirrorPath(mirror: PublishMirror, filePath: string)
   await assertNoSymbolicLinkAncestors(mirror.rootDir, `${mirror.filesDir}/${filePath}`)
 }
 
-async function isSameFile(first: string, second: string): Promise<boolean> {
-  try {
-    const [a, b] = await Promise.all([fs.stat(first, { bigint: true }), fs.stat(second, { bigint: true })])
-    return a.dev === b.dev && a.ino === b.ino
-  } catch (error) {
-    if (isErrnoENOENT(error)) {
-      return false
-    }
-    throw error
-  }
-}
-
 /**
- * Writes a published file to the sync mirror and records its cloud metadata. A `sourceFile` that already is
- * the mirror copy is not rewritten, because `content` may be older than a save made while it was uploaded.
+ * Writes a published file to the sync mirror and records its cloud metadata. A `sourceFile` at the mirror
+ * copy's path is not rewritten, because `content` may be older than a save made while it was uploaded.
  */
 export async function recordPublishedFile(
   mirror: PublishMirror,
@@ -206,7 +194,7 @@ export async function recordPublishedFile(
 ): Promise<void> {
   await assertWritableMirrorPath(mirror, filePath)
   const absolute = path.join(mirror.filesDirAbsolute, ...filePath.split('/'))
-  if (sourceFile === undefined || !(await isSameFile(sourceFile, absolute))) {
+  if (sourceFile === undefined || path.resolve(sourceFile) !== absolute) {
     await fs.mkdir(path.dirname(absolute), { recursive: true })
     await fs.writeFile(absolute, content)
   }

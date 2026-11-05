@@ -1001,6 +1001,23 @@ describe('uploadWorkingFile', () => {
     })
   })
 
+  it('keeps an atomic save of the sync folder copy made while uploading', async () => {
+    const { root } = await writeWorkspace()
+    const file = await writeScript(join(root, 'Alpha', '.files'))
+    const beforeSave = await fs.stat(file, { bigint: true })
+    mockedUpload.mockImplementation(async (_base, _token, _projectId, path, content) => {
+      await fs.writeFile(`${file}.swp`, 'print("v3")\n')
+      await fs.rename(`${file}.swp`, file)
+      // An inode check racing the rename can still see the replaced file.
+      vi.spyOn(fs, 'stat').mockResolvedValueOnce(beforeSave)
+      return { path, size: content.length, updatedAt: '2026-02-01T00:00:00.000Z' }
+    })
+
+    await upload({ file })
+
+    expect(await fs.readFile(file, 'utf-8')).toBe('print("v3")\n')
+  })
+
   it('returns a sync folder failure instead of failing the upload', async () => {
     const { root } = await writeWorkspace()
     const outside = join(tempDir, 'outside')
