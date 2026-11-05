@@ -5,9 +5,9 @@ noIndex: false
 noContent: false
 ---
 
-Scheduled runs and API calls in Deepnote run as a person. A schedule runs as its owner, and an API key acts as the person who created it. That keeps permissions honest, because an automation can never do more than its owner could, but it also means they are affected when that person leaves or changes role.
+Scheduled runs and API calls in Deepnote run as a person. A schedule runs as its owner, and an API key acts as the person who created it. An automation can therefore never do more than its owner could, but it's affected when that person leaves or changes role.
 
-This playbook explains exactly what happens, and gives a checklist for handing over someone's work before and after they go.
+This playbook explains what happens, and gives a checklist for handing over someone's work before and after they go.
 
 ## What happens automatically
 

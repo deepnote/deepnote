@@ -33,7 +33,7 @@ Before inviting more people, control how they get in.
 - **Single sign-on (Enterprise).** Deepnote supports SAML and OIDC, including Okta, Azure AD, Google and OneLogin. Support sets it up with you. See [SSO and directory sync](/docs/sso).
 - **Enforce the sign-in provider.** Admins can require everyone in the workspace to sign in with the company's provider, so personal accounts can't join. People invited to a single project still appear as guests.
 - **Directory sync (Enterprise).** With SCIM, membership follows your identity provider:
-  - People in the `Deepnote Viewer`, `Deepnote Editors` and `Deepnote Admins` groups get the matching role. Support can map your existing groups instead.
+  - People in the `Deepnote Viewers`, `Deepnote Editors`, `Deepnote Admins` and `Deepnote Restricted Users` groups get the matching role. Support can map your existing groups instead.
   - Other groups you sync become Deepnote [user groups](/docs/team-permissions#user-groups) that you can share projects with. Their membership is managed in the identity provider and can't be edited in Deepnote.
   - People removed or deactivated in the directory are removed from the workspace.
 - **Domain invites.** Without directory sync, turn on domain invites so that anyone with a company email address can join as a Viewer. Admins then promote people who need to edit.
@@ -64,7 +64,7 @@ Decide what people see by default before the number of projects grows.
 
 - **Usage insights** show who views and runs each notebook and app, so you can retire what nobody uses. See [usage insights](/docs/app-and-notebook-analytics).
 - **The audit log (Enterprise)** records actions in the workspace, including membership changes. Admins export it as a CSV from **Settings & members** → **Security**. See [audit log](/docs/audit-log).
-- **Database-side auditing.** Every SQL query Deepnote sends carries a comment with the workspace, project and notebook, and whether a person, a schedule or the API ran it, so your database admins can audit Deepnote traffic in their own tools.
+- **Database-side auditing.** Every SQL query Deepnote sends carries a comment with the workspace, project and notebook, a link to the project, the email of the person who ran it, and whether a person, a schedule or the API ran it, so your database admins can audit Deepnote traffic in their own tools.
 
 ## Plan requirements
 

@@ -17,8 +17,8 @@ So the data a person can reach is everything the credentials of the integrations
 
 ## Narrow the credentials
 
-- **One integration per level of sensitivity.** Create separate integrations with separate database users, for example "Warehouse – analytics" with access to reporting schemas and "Warehouse – finance" with access to finance tables. Connect the sensitive one only to the projects that need it.
-- **Read-only database users.** Give integrations used for analysis a database user that can't write, unless a project really needs to load data.
+- **One integration per level of sensitivity.** Create separate integrations with separate database users, for example "Warehouse analytics" with access to reporting schemas and "Warehouse finance" with access to finance tables. Connect the sensitive one only to the projects that need it.
+- **Read-only database users.** Give integrations used for analysis a database user that can't write, unless a project needs to load data.
 - **Per-user OAuth (Enterprise).** With [Snowflake OAuth](/docs/snowflake-oauth), [Snowflake with Okta](/docs/snowflake-with-okta), [Snowflake with Azure AD](/docs/snowflake-with-azure-ad) or [BigQuery with Google OAuth](/docs/bigquery-oauth), there are no shared credentials. Each person signs in with their own account and queries with their own warehouse permissions, including when they use an app. Your warehouse's role model then applies in Deepnote unchanged.
 - **Secrets in environment variables.** Store API keys for other services in an [environment variables integration](/docs/environment-variables). Values are stored encrypted. Code in any project the integration is connected to can read them, so connect it only where needed.
 
@@ -46,7 +46,7 @@ Restricted users have no access to workspace projects unless a project is shared
 
 ## Narrow what AI can see
 
-Deepnote's AI acts as the person using it. Deepnote Agent, the Slack agent and the Deepnote MCP server can only reach projects and data that person can reach. Two settings in **Settings & members** → **AI** narrow it further:
+Deepnote's AI acts as the person using it. Deepnote Agent, the Slack agent and the Deepnote MCP server can only reach projects and data that person can reach. Settings in **Settings & members** → **AI** narrow it further:
 
 - **Provide access to block outputs.** When it's off, Agent doesn't read outputs, including row-level query results. The Slack agent needs it on.
 - **MCP access.** Under **MCP connector**, turn off **MCP access** to stop external clients such as Claude, Codex or Cursor from reaching the workspace through the [Deepnote MCP server](/docs/deepnote-mcp). Turn on **Enforce OAuth** to require those clients to sign in with OAuth and block access with API keys. Neither setting affects Deepnote Agent inside Deepnote.
@@ -68,7 +68,7 @@ See [securing connections](/docs/securing-connections).
 ## Review and audit
 
 - **Before rotating or restricting an integration**, check where it's used. The integration usage endpoints of the [Deepnote API](/docs/api-reference) list the projects, notebooks and blocks that use an integration.
-- **In your database**, every query from Deepnote carries a comment with the workspace, project and notebook, and whether a person, a schedule or the API ran it. Use it to review Deepnote traffic in your warehouse's query history.
+- **In your database**, every query from Deepnote carries a comment with the workspace, project and notebook, a link to the project, the email of the person who ran it, and whether a person, a schedule or the API ran it. Use it to review Deepnote traffic in your warehouse's query history.
 - **In Deepnote (Enterprise)**, export the [audit log](/docs/audit-log) from **Settings & members** → **Security**.
 
 ## Plan requirements
