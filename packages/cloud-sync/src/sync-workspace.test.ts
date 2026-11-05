@@ -4,6 +4,7 @@ import path from 'node:path'
 import { MAX_BUFFERED_PROJECT_FILE_BYTES } from '@deepnote/cloud'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { uploadWorkingFile } from './publish-app'
 import type * as syncManifest from './sync-manifest'
 import { assertNoSymbolicLinkAncestors, loadSyncManifest, saveSyncManifest } from './sync-manifest'
 import {
@@ -838,6 +839,33 @@ describe('syncWorkspace', () => {
 
     expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed', filesUploaded: 1 })])
     expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv'])
+  })
+
+  it('keeps a local edit made after uploadWorkingFile when it syncs again without a notebook change', async () => {
+    const dashboard: CloudFile = {
+      path: 'apps/dashboard.py',
+      size: 3,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      content: 'old',
+    }
+    const cloud = installCloud([
+      { id: 'p1', name: 'Alpha', notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'), files: [dashboard] },
+    ])
+    await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true })
+    cloud.downloadedPaths.length = 0
+    const local = path.join(tempDir, 'Alpha', '.files', 'apps', 'dashboard.py')
+    await fs.writeFile(local, 'print()', 'utf-8')
+
+    await uploadWorkingFile({ ...baseOptions, file: local, path: 'apps/dashboard.py', projectId: 'p1' })
+
+    // What the fake's upload handler answered: the cloud entry now differs from the synced one.
+    Object.assign(dashboard, { size: 7, updatedAt: '2026-01-09T00:00:00.000Z', content: 'print()' })
+    await fs.writeFile(local, 'print(2)', 'utf-8')
+    const result = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true })
+
+    expect(result.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesDownloaded: 0 })])
+    expect(cloud.downloadedPaths).toEqual([])
+    expect(await fs.readFile(local, 'utf-8')).toBe('print(2)')
   })
 
   describe('working files changed in Deepnote since the last sync', () => {

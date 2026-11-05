@@ -1,6 +1,6 @@
 ---
 title: Publishing apps and Streamlit apps with the Deepnote CLI
-description: Publish HTML, CSS, and JavaScript as an app with deepnote publish, or a Python entrypoint already in the project as a Streamlit app with deepnote streamlit publish
+description: Publish HTML, CSS, and JavaScript as an app with deepnote publish, or a Python entrypoint in the project as a Streamlit app with deepnote streamlit publish, optionally uploading it first
 noIndex: false
 noContent: false
 ---
@@ -15,7 +15,7 @@ Choose the command that matches your source:
 | App type      | Source                                                 | Command                                                                  |
 | ------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
 | App           | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                      |
-| Streamlit app | A Python entrypoint already in the project's Files     | `deepnote streamlit publish apps/dashboard.py --project-id <project-id>` |
+| Streamlit app | A Python entrypoint in the project's Files             | `deepnote streamlit publish apps/dashboard.py --project-id <project-id>` |
 
 Apps can be interactive and run notebooks through the Deepnote API. To publish notebook blocks
 through the Deepnote editor instead, see [Data apps](/docs/data-apps).
@@ -169,15 +169,32 @@ is briefly unavailable.
 
 ## Streamlit apps
 
-Upload the entrypoint and its dependencies to the project's Files in Deepnote before publishing.
-If a notebook push is already pending in a sync workspace, `deepnote sync --all-files` can include
-the working files. For a `.py`-only edit, upload in Deepnote; sync does not push that edit alone.
+Without `--upload`, the entrypoint and its dependencies must already be in the project's Files.
+Upload them in Deepnote, or push them with `deepnote sync --all-files` alongside a notebook push.
+Sync does not push a `.py`-only edit alone.
 
 Pass the project-relative path:
 
 ```bash
 deepnote streamlit publish apps/dashboard.py --project-id <project-id>
 ```
+
+Add `--upload` to upload the entrypoint from the current directory first. It replaces the project
+file in place, which keeps the file's app:
+
+```bash
+deepnote streamlit publish apps/dashboard.py --project-id <project-id> --upload
+```
+
+`--upload` reads the entrypoint relative to the current directory (in a sync workspace, the
+project's `.files` folder) and uploads only that file; its dependencies must already be in the
+project's Files. When a sync workspace at or above that file tracks the project, the upload is
+recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
+overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
+project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
+holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. Sync
+does not change a file uploaded from another folder: merge the Deepnote changes into it before you
+upload again.
 
 <Callout status="warning">
 Creating a Streamlit app restarts the project machine and interrupts anyone working in the project.
@@ -189,7 +206,8 @@ for that app too: `unavailable` can be a temporary state during a restart.
 Use `--no-wait` to return after creation or lookup without checking readiness.
 
 Deleting the entrypoint can remove its app registration, but some apps created in the UI retain it.
-Sync replaces changed files by deleting and uploading them. After syncing an edited entrypoint,
+`--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and
+uploading them. After syncing an edited entrypoint,
 publish again and use the returned URL; it may change. Creating a replacement app restarts the machine.
 
 If the app calls the public API, the project owner must enable Streamlit app API access and the
@@ -197,7 +215,8 @@ viewer must be signed in with direct project access. Streamlit viewer API access
 hosting project. If it runs a notebook, deploy that notebook before publishing and keep its block
 IDs aligned with the local `.deepnote` file.
 
-A missing-entrypoint error means the file must be uploaded first. After a startup timeout, the app
+A missing-entrypoint error means the file must be uploaded first: upload it in Deepnote, or run
+the command again with `--upload`. After a startup timeout, the app
 still exists; inspect it in Deepnote, start the project machine if it is stopped, and rerun publish
 to check its status again.
 
@@ -223,6 +242,8 @@ to check its status again.
 | Option              | Description                                            | Default                    |
 | ------------------- | ------------------------------------------------------ | -------------------------- |
 | `--project-id <id>` | Target project (required)                              |                            |
+| `--upload`          | Upload the entrypoint from the current directory first | `false`                    |
+| `--force`           | With `--upload`, overwrite a file changed in Deepnote  | `false`                    |
 | `--no-wait`         | Return without checking readiness                      | `false`                    |
 | `--token <token>`   | API token                                              | `DEEPNOTE_TOKEN`           |
 | `--url <url>`       | API origin                                             | `https://api.deepnote.com` |
@@ -230,11 +251,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                                                                                                       |
+| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait`                                                                                     |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request or upload failed, a file changed in Deepnote, or startup timed out                                                       |
+| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token, `--force` without `--upload`, a missing or over-100 MiB local file, or unusable sync workspace |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.

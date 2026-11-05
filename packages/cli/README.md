@@ -634,9 +634,9 @@ select a non-default API origin.
 
 ### `streamlit publish <entrypoint>`
 
-Serve a Python file already in the project's Files as a **Streamlit app**, a Python UI that runs on
-the project's hardware. The entrypoint is a project-relative path; the command registers it and does
-not upload it.
+Serve a Python file in the project's Files as a **Streamlit app**, a Python UI that runs on the
+project's hardware. The entrypoint is a project-relative path; the command registers it. With
+`--upload`, it first uploads the file from the current directory.
 
 ```bash
 deepnote streamlit publish apps/dashboard.py --project-id <uuid>
@@ -647,13 +647,23 @@ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
 | Option                | Description                               | Default                    |
 | --------------------- | ----------------------------------------- | -------------------------- |
 | `--project-id <uuid>` | Project to publish to (required)          |                            |
+| `--upload`            | Upload the entrypoint first               | `false`                    |
+| `--force`             | With `--upload`, overwrite a changed file | `false`                    |
 | `--no-wait`           | Exit without waiting for the app to start | `false`                    |
 | `--token <token>`     | Deepnote API token                        | `DEEPNOTE_TOKEN`           |
 | `--url <url>`         | Deepnote API base URL                     | `https://api.deepnote.com` |
 
-Upload the entrypoint and its dependencies into the project's Files in Deepnote before publishing.
-If a notebook push is already pending in a sync workspace, `deepnote sync --all-files` can include
-the working files. For a `.py`-only edit, upload in Deepnote; sync does not push that edit alone.
+Without `--upload`, the entrypoint and its dependencies must already be in the project's Files:
+upload them in Deepnote, or push them with `deepnote sync --all-files` alongside a notebook push.
+Sync does not push a `.py`-only edit alone.
+
+`--upload` reads `<entrypoint>` relative to the current directory (in a sync workspace, the
+project's `.files` folder) and uploads only that file; its dependencies must already be in the
+project's Files. When a sync workspace at or above that file tracks the project, the upload is
+recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
+overwritten: run `deepnote sync <workspace> --all-files` first, or pass `--force`. `<workspace>` is
+the folder that holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you
+upload from.
 
 Creating a Streamlit app restarts the project machine and interrupts active work. The command
 prints the app URL and waits up to 10 minutes for it to start. An existing Streamlit app keeps its
@@ -664,8 +674,9 @@ API calls from a hosted Streamlit app work only when the project owner has enabl
 API access, and only for signed-in viewers with direct access to the project.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
-Sync replaces changed files by deleting and uploading them, so publish again after syncing an edited
-entrypoint and use the returned URL, which may change. See the
+`--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and
+uploading them, so publish again after syncing an edited entrypoint and use the returned URL, which
+may change. See the
 [publishing guide](../../docs/deepnote-cli-publish.md) for access requirements and failure handling.
 
 **Examples:**
@@ -673,6 +684,9 @@ entrypoint and use the returned URL, which may change. See the
 ```bash
 # Serve a file already in the project as a Streamlit app and wait for it to start
 deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+
+# Upload the edited file from the current directory first, then serve it
+deepnote streamlit publish apps/dashboard.py --project-id <uuid> --upload
 
 # Publish without waiting for the app to start
 deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait

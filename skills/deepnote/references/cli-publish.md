@@ -4,8 +4,9 @@ Two commands publish to an existing Deepnote project. Choose the command from th
 
 - **App:** a local directory of HTML, CSS, JavaScript, and assets, uploaded for Deepnote to host:
   `deepnote publish <dir> --project-id <uuid>`.
-- **Streamlit app:** a project-relative `.py` entrypoint already in the project's Files:
-  `deepnote streamlit publish <entrypoint> --project-id <uuid>`.
+- **Streamlit app:** a project-relative `.py` entrypoint in the project's Files, optionally uploaded
+  from the current directory first:
+  `deepnote streamlit publish <entrypoint> --project-id <uuid> [--upload]`.
 
 If the workflow is undecided, start with [Build and publish apps and Streamlit apps](apps.md).
 
@@ -70,15 +71,17 @@ files absent from Deepnote.
 
 ## Publish a Streamlit app
 
-1. Upload the entrypoint and its local dependencies to the project's Files in Deepnote. If a
-   notebook push is already pending in a sync workspace, use `deepnote sync --all-files` to include
-   the working files. For a `.py`-only edit, upload in Deepnote; sync does not push that edit alone.
+1. Put the entrypoint's local dependencies in the project's Files: upload them in Deepnote, or push
+   them with `deepnote sync --all-files` alongside a notebook push. Sync does not push a `.py`-only
+   edit alone. Upload the entrypoint itself in Deepnote, or with `--upload` in step 3.
 2. If the app runs a notebook, deploy it with the matching block IDs before publishing. See
    [Prepare a Streamlit app](apps.md#prepare-a-streamlit-app).
-3. Publish using the project-relative path:
+3. Publish using the project-relative path. Add `--upload` to upload the entrypoint from the
+   current directory first:
 
    ```bash
    deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+   deepnote streamlit publish apps/dashboard.py --project-id <uuid> --upload
    ```
 
 4. Open the printed URL and check the UI and any notebook runs as the intended viewer. API calls
@@ -89,14 +92,26 @@ for `running`; use `--no-wait` to return after creation or lookup without checki
 Re-publishing an existing entrypoint reports its app ID and URL without restarting the machine.
 It waits for that app too; `unavailable` can be a temporary state during a restart.
 
+`--upload` reads the entrypoint relative to the current directory (in a sync workspace, the
+project's `.files` folder) and uploads only that file; its dependencies must already be in the
+project's Files. When a sync workspace at or above that file tracks the project, the upload is
+recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
+overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
+project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
+holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. Sync
+does not change a file uploaded from another folder: merge the Deepnote changes into it before you
+upload again.
+
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
-Sync replaces changed files by deleting and uploading them. After syncing an edited entrypoint,
-publish again and use the returned URL, which may change.
+`--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and
+uploading them. After syncing an edited entrypoint, publish again and use the returned URL, which
+may change.
 
 ### Handle failures
 
-- **Entrypoint not found:** upload the file to the target project's Files, then retry. This command
-  does not upload local files.
+- **Entrypoint not found:** upload the file in Deepnote, or run the command again with `--upload`.
+- **File changed in Deepnote (exit code 1):** run `deepnote sync <workspace> --all-files` with the
+  workspace folder the error names, or pass `--force` to overwrite the Deepnote copy.
 - **Startup timeout:** the app still exists. Inspect it in Deepnote, start the project machine if it
   is stopped, and rerun publish to check its status again.
 - **Other request failures:** resolve the reported access, project, or network error before retrying.
@@ -123,12 +138,15 @@ publish again and use the returned URL, which may change.
 | Option                | Use                                                      |
 | --------------------- | -------------------------------------------------------- |
 | `--project-id <uuid>` | Required target project                                  |
+| `--upload`            | Upload the entrypoint from the current directory first   |
+| `--force`             | With `--upload`, overwrite a file changed in Deepnote    |
 | `--no-wait`           | Return without checking readiness                        |
 | `--token <token>`     | API token; defaults to `DEEPNOTE_TOKEN`                  |
 | `--url <url>`         | API origin; defaults to `https://api.deepnote.com`       |
 | `-q, --quiet`         | Suppress progress and results; errors still go to stderr |
 
-Streamlit publishing does not update app settings or a sync workspace.
+Streamlit publishing does not update app settings. With `--upload`, it updates the sync workspace that
+tracks the project.
 
 ## Change app access
 
@@ -150,11 +168,11 @@ serves the retained files at the returned URL. Authentication and the API origin
 
 ## Interpret the result
 
-| Exit code | `deepnote publish`                                                                                                            | `deepnote streamlit publish`                   |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`       | Files uploaded and sharing enabled                                                                                            | App running, or created/found with `--no-wait` |
-| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes                                                       | Request failure or startup timeout             |
-| `2`       | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token             |
+| Exit code | `deepnote publish`                                                                                                            | `deepnote streamlit publish`                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `0`       | Files uploaded and sharing enabled                                                                                            | App running, or created/found with `--no-wait`                                                                                   |
+| `1`       | Request, upload, prune, or settings failure; or unsynced remote changes                                                       | Request or upload failure, file changed in Deepnote, or startup timeout                                                          |
+| `2`       | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token, `--force` without `--upload`, missing or over-100 MiB local file, or unusable sync workspace |
 
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. Sharing is not changed and remaining stale files are not

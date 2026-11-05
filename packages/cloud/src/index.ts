@@ -109,6 +109,7 @@ export {
   type ProjectStaticFilesUpdate,
   type SyncProject,
   type UploadedFile,
+  type UploadProjectFileOptions,
   updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'
