@@ -20,6 +20,7 @@ import {
   type DatabaseIntegrationConfig,
   DEFAULT_API_URL,
   DEFAULT_ENV_FILE,
+  isBuiltinIntegration,
 } from '@deepnote/database-integrations'
 import { getBlockDependencies, getUpstreamBlocks } from '@deepnote/reactivity'
 import {
@@ -42,9 +43,10 @@ import { markedTerminal } from 'marked-terminal'
 marked.use(markedTerminal())
 
 import { ExitCode, NotFoundInProjectError } from '../exit-codes'
+import { IntegrationAuthenticationError } from '../federated-auth/resolve-bigquery-sql-env-vars'
 import { collectRequiredIntegrationIds } from '../integrations/collect-integrations'
 import { fetchAndMergeApiIntegrations } from '../integrations/fetch-and-merge-integrations'
-import { injectIntegrationEnvVars } from '../integrations/inject-integration-env-vars'
+import { injectIntegrationEnvVarsAndCheckCredentials } from '../integrations/inject-integration-env-vars'
 import { getDefaultIntegrationsFilePath, parseIntegrationsFile } from '../integrations/parse-integrations'
 import {
   debug,
@@ -58,7 +60,13 @@ import {
   outputToon,
 } from '../output'
 import { renderOutput } from '../output-renderer'
-import { analyzeProject, buildBlockMap, diagnoseBlockFailure, type ProjectStats } from '../utils/analysis'
+import {
+  analyzeProject,
+  buildBlockMap,
+  collectFederatedBigQueryIntegrationIds,
+  diagnoseBlockFailure,
+  type ProjectStats,
+} from '../utils/analysis'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { getBlockLabel } from '../utils/block-label'
 import { FileResolutionError } from '../utils/file-resolver'
@@ -258,6 +266,7 @@ interface ProjectSetup {
   isMachineOutput: boolean
   convertedFile: LoadedRunnableFile
   allIntegrations: DatabaseIntegrationConfig[]
+  blockIds: string[] | undefined
 }
 
 interface RunExecutionState {
@@ -412,12 +421,15 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     isMachineOutput,
   })
 
+  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const executingSqlIntegrationIds = collectExecutingSqlIntegrationIds(file, { ...options, blockIds })
+
+  await injectIntegrationEnvVarsAndCheckCredentials(allIntegrations, workingDirectory, executingSqlIntegrationIds, {
+    refreshFederatedTokens: !options.dryRun,
+  })
+
   // Validate that all requirements are met (inputs, integrations) - exit code 2 if not
   await validateRequirements(file, inputs, pythonEnv, allIntegrations, options.notebook)
-
-  // Inject integration environment variables into process.env
-  // This allows SQL blocks to access database connections
-  injectIntegrationEnvVars(allIntegrations, workingDirectory)
 
   return {
     absolutePath,
@@ -429,6 +441,7 @@ async function setupProject(path: string | undefined, options: RunOptions): Prom
     isMachineOutput,
     convertedFile,
     allIntegrations,
+    blockIds,
   }
 }
 
@@ -442,7 +455,7 @@ function collectExecutableBlocks(
 ): DryRunBlockInfo[] {
   const notebooks = getNotebooksForExecutionScope(file, options)
   const idsToValidate = options.blockIds ?? (options.block ? [options.block] : [])
-  const blockIdFilter = options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
+  const blockIdFilter = executionBlockIdFilter(options)
 
   // Collect all executable blocks
   const executableBlocks: DryRunBlockInfo[] = []
@@ -473,6 +486,10 @@ function collectExecutableBlocks(
   }
 
   return executableBlocks
+}
+
+function executionBlockIdFilter(options: { block?: string; blockIds?: string[] }): Set<string> | null {
+  return options.blockIds ? new Set(options.blockIds) : options.block ? new Set([options.block]) : null
 }
 
 function selectScopeNotebooks(
@@ -549,6 +566,38 @@ async function resolveUpstreamExecutionBlockIds(
   return blockIds
 }
 
+function collectExecutingSqlIntegrationIds(
+  file: DeepnoteFile,
+  options: { notebook?: string; block?: string; blockIds: string[] | undefined }
+): string[] {
+  // Credential collection must not be what fails a run over an unknown `--notebook`. Under
+  // `--block` the throw already happens earlier, in resolveUpstreamExecutionBlockIds; without it the
+  // error belongs to the execution path, as it always has. Either way a filter matching no notebook
+  // executes no blocks and so needs no credentials, so collecting none cannot under-scope the gate.
+  let notebooks: DeepnoteFile['project']['notebooks']
+  try {
+    notebooks = getNotebooksForExecutionScope(file, options)
+  } catch (error) {
+    if (error instanceof NotFoundInProjectError) {
+      return []
+    }
+    throw error
+  }
+  const blockIdFilter = executionBlockIdFilter(options)
+
+  const ids = new Set<string>()
+  for (const notebook of notebooks) {
+    for (const block of notebook.blocks) {
+      if (block.type !== 'sql' || (blockIdFilter && !blockIdFilter.has(block.id))) continue
+      const integrationId = block.metadata.sql_integration_id
+      if (integrationId && !isBuiltinIntegration(integrationId)) {
+        ids.add(integrationId)
+      }
+    }
+  }
+  return Array.from(ids)
+}
+
 export function createRunAction(program: Command): (path: string | undefined, options: RunOptions) => Promise<void> {
   return async (path, options) => {
     try {
@@ -613,6 +662,7 @@ export function createRunAction(program: Command): (path: string | undefined, op
         error instanceof InvalidInputError ||
         error instanceof MissingInputError ||
         error instanceof MissingIntegrationError ||
+        error instanceof IntegrationAuthenticationError ||
         error instanceof InitNotebookResolutionError ||
         error instanceof NotFoundInProjectError ||
         error instanceof CloudRunUsageError ||
@@ -698,8 +748,7 @@ async function listInputs(path: string, options: RunOptions): Promise<void> {
  * Also validates that all requirements (inputs, integrations) are met.
  */
 async function dryRunDeepnoteProject(path: string, options: RunOptions): Promise<void> {
-  const { absolutePath, file, isMachineOutput, pythonEnv } = await setupProject(path, options)
-  const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
+  const { absolutePath, file, isMachineOutput, blockIds } = await setupProject(path, options)
   const executableBlocks = collectExecutableBlocks(file, { ...options, blockIds })
 
   const notebookCount = options.notebook ? 1 : file.project.notebooks.length
@@ -856,6 +905,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
     convertedFile,
     file,
     allIntegrations,
+    blockIds,
   } = await setupProject(path, options)
 
   debug(`Inputs: ${JSON.stringify(inputs)}`)
@@ -873,7 +923,6 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
 
     // Track execution timing for snapshot
     const executionStartedAt = new Date().toISOString()
-    const blockIds = await resolveUpstreamExecutionBlockIds(file, options, pythonEnv)
 
     // Use runProject instead of runFile since we may have converted the file in memory
     const summary = await engine.runProject(file, {
@@ -903,6 +952,7 @@ async function runDeepnoteProject(path: string | undefined, options: RunOptions)
         pythonEnv,
         options,
         summary,
+        allIntegrations,
         blockResults: state.blockResults,
         hint: state.runtimeHint,
       })
@@ -1274,6 +1324,7 @@ async function buildMachineRunResult({
   pythonEnv,
   options,
   summary,
+  allIntegrations,
   blockResults,
   hint,
 }: {
@@ -1282,6 +1333,7 @@ async function buildMachineRunResult({
   pythonEnv: string
   options: RunOptions
   summary: ExecutionSummary
+  allIntegrations: DatabaseIntegrationConfig[]
   blockResults: BlockResult[]
   hint?: string
 }): Promise<RunResult> {
@@ -1307,6 +1359,7 @@ async function buildMachineRunResult({
     const { stats, lint, dag } = await analyzeProject(file, {
       notebook: options.notebook,
       pythonInterpreter: pythonEnv,
+      federatedIntegrationIds: collectFederatedBigQueryIntegrationIds(allIntegrations),
     })
     const blockMap = buildBlockMap(file, { notebook: options.notebook })
 
