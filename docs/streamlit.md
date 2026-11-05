@@ -143,8 +143,13 @@ If you need lower-level control, `get_federated_auth_token(integration_id)` retu
 
 A Streamlit app can use a notebook as its backend. The notebook keeps the SQL, credentials and heavy
 work; the app turns the notebook's [input blocks](/docs/input-blocks) into a form, runs the notebook
-with the viewer's values and shows what it returns. Every viewer runs it with their own permissions,
-so an app never reaches data its viewer could not.
+with the viewer's values and shows what it returns. Each run is started as the current viewer, so it
+is subject to their Deepnote permissions: they need access to the project and permission to execute
+it. Inside the run, queries use whatever credentials the integration holds — for a shared
+integration that is the stored connection, so the app can return data the viewer has no direct
+access to in the source system. Use an
+[OAuth integration](#per-viewer-authentication-with-oauth-integrations) when queries must run as the
+viewer in the database too.
 
 Compared with exporting a CSV on a schedule, viewers get fresh results for exactly the values they
 picked, and you keep one notebook as the source of truth instead of a notebook plus a copy of its
