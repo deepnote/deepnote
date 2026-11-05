@@ -5,7 +5,12 @@
  */
 
 import { type DeepnoteBlock, type DeepnoteFile, INPUT_BLOCK_TYPES } from '@deepnote/blocks'
-import { getSqlEnvVarName, isBuiltinIntegration } from '@deepnote/database-integrations'
+import {
+  BigQueryAuthMethods,
+  type DatabaseIntegrationConfig,
+  getSqlEnvVarName,
+  isBuiltinIntegration,
+} from '@deepnote/database-integrations'
 import { type BlockDependencyDag, getDagForBlocks } from '@deepnote/reactivity'
 import { NotFoundInProjectError } from '../exit-codes'
 import { getBlockLabel } from './block-label'
@@ -84,6 +89,8 @@ export interface AnalysisOptions {
   notebook?: string
   /** Python interpreter path for DAG analysis */
   pythonInterpreter?: string
+  /** Ids of integrations treated as configured without a `SQL_<ID>` env var, matched case-insensitively. */
+  federatedIntegrationIds?: Set<string>
 }
 
 export interface AnalysisResult {
@@ -95,6 +102,17 @@ export interface AnalysisResult {
 // ============================================================================
 // Main Analysis Functions
 // ============================================================================
+
+/** Ids of federated (Google OAuth) BigQuery integrations, for `federatedIntegrationIds`. */
+export function collectFederatedBigQueryIntegrationIds(integrations: DatabaseIntegrationConfig[]): Set<string> {
+  const ids = new Set<string>()
+  for (const integration of integrations) {
+    if (integration.type === 'big-query' && integration.metadata.authMethod === BigQueryAuthMethods.GoogleOauth) {
+      ids.add(integration.id)
+    }
+  }
+  return ids
+}
 
 /**
  * Perform comprehensive analysis on a DeepnoteFile.
@@ -218,7 +236,11 @@ export async function checkForIssues(
   }
 
   // Check for missing integrations (doesn't require DAG)
-  const { issues: integrationIssues, summary: integrationSummary } = checkMissingIntegrations(allBlocks, blockMap)
+  const { issues: integrationIssues, summary: integrationSummary } = checkMissingIntegrations(
+    allBlocks,
+    blockMap,
+    options.federatedIntegrationIds
+  )
   issues.push(...integrationIssues)
 
   // Check for missing inputs (doesn't require DAG)
@@ -506,11 +528,16 @@ interface IntegrationCheckResult {
 /**
  * Check for SQL blocks using integrations that aren't configured.
  */
-function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string, BlockInfo>): IntegrationCheckResult {
+function checkMissingIntegrations(
+  blocks: DeepnoteBlock[],
+  blockMap: Map<string, BlockInfo>,
+  federatedIntegrationIds?: Set<string>
+): IntegrationCheckResult {
   const issues: LintIssue[] = []
   const configuredIntegrations = new Set<string>()
   const missingIntegrations = new Set<string>()
   const integrationUsage = new Map<string, { blockId: string; info: BlockInfo }[]>()
+  const federatedIds = new Set(Array.from(federatedIntegrationIds ?? [], id => id.toLowerCase()))
 
   for (const block of blocks) {
     if (block.type !== 'sql') continue
@@ -527,7 +554,7 @@ function checkMissingIntegrations(blocks: DeepnoteBlock[], blockMap: Map<string,
     if (!info) continue
 
     const envVarName = getSqlEnvVarName(integrationId)
-    const isConfigured = !!process.env[envVarName]
+    const isConfigured = !!process.env[envVarName] || federatedIds.has(integrationId.toLowerCase())
 
     if (isConfigured) {
       configuredIntegrations.add(integrationId)
