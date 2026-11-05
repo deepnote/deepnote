@@ -26,9 +26,11 @@ Need something more specific? You can create [custom environments](https://deepn
 
 ## Use the same environment outside Deepnote
 
-The Python images are public on Docker Hub, so you can run notebooks locally or in CI on exactly the
+The Python images are public on Docker Hub, so you can run notebooks locally or in CI on the same
 libraries they get in Deepnote — useful for checking that a notebook still works before it is
-scheduled, or for reproducing a result on your own machine.
+scheduled, or for reproducing a result on your own machine. Installing `deepnote-toolkit[server]`
+into the image can upgrade a few of its packages (for example Pillow), so compare `pip freeze`
+before and after if a notebook depends on an exact version.
 
 In the `-datascience` images the libraries live in a virtual environment at `/root/venv`. Activate
 it, add [`deepnote-toolkit`](https://pypi.org/project/deepnote-toolkit/) and the
@@ -59,6 +61,6 @@ jobs:
 ```
 
 Use the absolute `/root/venv` path: container jobs change the home directory, so `~/venv` does not
-point to it. The `-datascience` images are large (around 4 GB), so the first pull takes a few
-minutes. See [Running notebooks in CI](/docs/deepnote-cli-ci) for exit codes, inputs and running in
+point to it. The `-datascience` images are large (a 4 GB download, about 14 GB on disk), so the
+first pull takes a few minutes. See [Running notebooks in CI](/docs/deepnote-cli-ci) for exit codes, inputs and running in
 Deepnote Cloud instead.
