@@ -9,6 +9,7 @@ This is a TypeScript monorepo for Deepnote's open-source packages, managed with 
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
 - **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
+- **packages/cloud-sync** - Node-only workflows between a local folder and Deepnote Cloud (sync manifest, sync engine, app publishing)
 - **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
 - **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
@@ -27,6 +28,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | CLI commands and output                                        | `packages/cli/`                                       |
 | MCP tools and resources                                        | `packages/mcp/`                                       |
 | Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
+| Syncing and publishing local folders with Deepnote Cloud       | `packages/cloud-sync/`                                |
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
 | Database integration definitions                               | `packages/database-integrations/`                     |
@@ -200,6 +202,7 @@ Always run these checks before considering work complete:
 - Source code: `packages/*/src/`
 - Tests: Co-located with source as `*.test.ts`
 - Test fixtures: `test-fixtures/` (shared across all packages)
+- Cross-package test helpers: `test-helpers/` at the repository root (imported by relative path, not published)
 - Types: Define inline or in separate `types.ts` files
 - Build output: `packages/*/dist/` (gitignored)
 

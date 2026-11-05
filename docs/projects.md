@@ -1,6 +1,6 @@
 ---
 title: Projects
-description: You have a very specific task that requires a coding environment, notebooks, and data. That's where projects come in — a collaborative container for everything you need to complete your analysis.
+description: Projects provide a collaborative container for the coding environment, notebooks, and data you need for an analysis.
 noIndex: false
 noContent: false
 ---
@@ -10,7 +10,7 @@ noContent: false
 Projects do a lot, from shared data sources across multiple notebooks to native version control. Here are some highlights:
 
 - Projects contain notebooks and therefore can be used to organize related work (e.g., EDA notebook, ML notebook)
-- Projects define your environment — including the Python version, required libraries, and the machine specifications (i.e., RAM, number of cores).
+- Projects define your environment, including the Python version, required libraries, and machine specifications (i.e. RAM and number of cores).
 - Projects have their own file system and provide access to database integrations.
 
 ### Creating a project
@@ -19,16 +19,16 @@ From the left panel in your Workspace, you can click the **"+"** symbol next to 
 
 Don't forget that you can arrange your projects into folders here, too. Just drag and drop them to suit how you like to organize your work.
 
-![Create_Project.jpg](../assets/docs/VScQrWGQxSKL5wCylTxH.jpg)
+![Projects and folders in workspace navigation](../assets/docs/projects/project-creation.webp)
 <br></br><br></br>
 
 Let's move to the newly created Project panel now. Notice that the left panel has changed and you are focused on the context of your Project.
 
 ### Learning the most important bits
 
-The Project sidebar on the left contains sections for your notebooks, integrations, files, the environment, and more. Let's learn about each of these in detail.
+The left sidebar contains your notebooks. Click **Settings** in the top-right corner to open integrations, files, and machine settings in the right sidebar.
 
-![Important Bits.jpg](../assets/docs/h9lkwiibTeSNaquQx2If.jpg)
+![Project sidebar sections](../assets/docs/projects/project-sidebar.webp)
 <br></br><br></br>
 
 #### Notebooks
@@ -51,25 +51,25 @@ Got a `requirements.txt` file? We create one for you when you `pip` install a pa
 
 #### Environment
 
-Time to get serious. You probably want to know how to configure your environment. Let's dive into what you can do in the **Environment** section.
+Open **Settings** and find the **Machine** section at the bottom of the right sidebar.
 
-First, click on the ⚙️ icon. You should now see your environment configuration options (shown below). Follow me.
+Click the Python environment selector to open **Environment selection**, where you can choose a built-in environment or set up a custom Docker image.
 
-![Environment.jpg](../assets/docs/PSMiDJAtRlFgQrhOIsVA.jpg)
+![Environment selection](../assets/docs/projects/environment-selection.webp)
 
-**Machine:** If you need a "beefier" machine, this is where you can choose one. If you're on a Team or Enterprise plan, you get unlimited hours on a 16GB, 4vCPU machine. To learn more about machines in Deepnote, click [here](https://deepnote.com/docs/machine-hours).
+**Machine:** Click the machine selector to compare CPU, memory, and pricing options. Learn more about [machines in Deepnote](https://deepnote.com/docs/machine-hours).
 
-**Built-in environments:** From the dropdown menu (under **Environment**) you can choose between any of the built-in Python environments. They come [pre-installed with the most popular libraries](https://deepnote.com/docs/pre-installed-packages) so you can begin working immediately. The default environment is Python 3.11.
+**Built-in environments:** Choose a Python environment in **Environment selection**. The data science environments include [preinstalled libraries](https://deepnote.com/docs/pre-installed-packages). The default is **Python 3.13 for data science**.
 
 <Callout status="info">
 
-🔥 If the built-in environments don't meet your needs, no problem. You may **define a local Dockerfile** or bring your own image from any registry (e.g., ECR, Docker Hub, etc.). To learn more about custom environments, [hop over here](https://deepnote.com/docs/custom-environments).
+If the built-in environments don't meet your needs, no problem. You may **define a local Dockerfile** or bring your own image from any registry (e.g., ECR, Docker Hub, etc.). To learn more about custom environments, [hop over here](https://deepnote.com/docs/custom-environments).
 
 </Callout>
 
 **Initialization notebook:** There are times when you want to run some "starter" code before your notebook is used. You can place such code in a notebook called 'Init'. Read more about setting up custom [project initialization](https://deepnote.com/docs/project-initialization).
 
-**Incoming connections:** Toggle this switch if you need to [spin up a web server from Deepnote](https://deepnote.com/docs/incoming-connections). Yes, this is perfect for hosting the Airflow console, Streamlit apps, TensorBoard, and much more.
+**Incoming connections:** Open **More options** beside the machine controls to find **Incoming connections**. Enable it when you need to [run a web server in Deepnote](https://deepnote.com/docs/incoming-connections), such as Streamlit or TensorBoard.
 
 #### Terminals
 

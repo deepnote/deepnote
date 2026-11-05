@@ -29,7 +29,7 @@ _While we do our best to reply promptly, we do also love our sleep. We will like
 
 ### Joint Slack channel
 
-If you are on an Enterprise plan, look for Deepnote among your channels – there's a good chance it's already there!
+If you are on an Enterprise plan, look for Deepnote among your channels. It may already be there.
 
 ### Email
 

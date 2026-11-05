@@ -1,12 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import type {
-  DeepnoteBlock,
-  DeepnoteFile,
-  ExecutableBlock,
-  InputBlock,
-  InputBlockValueOverride,
-} from '@deepnote/blocks'
+import type { DeepnoteBlock, DeepnoteFile, InputBlock, InputBlockValueOverride } from '@deepnote/blocks'
 import {
   createPythonCode,
   decodeUtf8NoBom,
@@ -37,28 +31,6 @@ import {
 } from './runtime-errors'
 import { type ServerInfo, startServer, stopServer } from './server-starter'
 import type { BlockExecutionResult, ExecutionSummary, RuntimeConfig } from './types'
-
-// Re-export for backwards compatibility - these are now defined in @deepnote/blocks
-export const executableBlockTypes: ExecutableBlock['type'][] = [
-  'agent',
-  'code',
-  'sql',
-  'notebook-function',
-  'visualization',
-  'pivot-table',
-  'button',
-  'big-number',
-  'input-text',
-  'input-textarea',
-  'input-checkbox',
-  'input-select',
-  'input-slider',
-  'input-date',
-  'input-date-range',
-  'input-file',
-]
-
-export const executableBlockTypeSet: ReadonlySet<string> = new Set(executableBlockTypes)
 
 function createErrorOutput(error: Error): IOutput {
   return {
@@ -338,14 +310,6 @@ export class ExecutionEngine {
             throw new Error(`Agent block "${block.id}" not found in notebook`)
           }
 
-          const apiKey = process.env.OPENAI_API_KEY
-          if (!apiKey) {
-            throw new Error(
-              'OPENAI_API_KEY environment variable is required for agent blocks.\n' +
-                'Set it to your OpenAI API key, or set OPENAI_BASE_URL for compatible providers.'
-            )
-          }
-
           const notebookContext = serializeNotebookContext(file, notebookIndex, collectedOutputs)
 
           let agentDeadline: number | undefined
@@ -437,7 +401,6 @@ export class ExecutionEngine {
           }
 
           const agentContext: AgentBlockContext = {
-            openAiToken: apiKey,
             mcpServers: projectMcpServers,
             notebookContext,
             addAndExecuteCodeBlock,

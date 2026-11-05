@@ -1,9 +1,11 @@
 import type { AgentBlock } from '@deepnote/blocks'
-import { convertArrayToReadableStream, MockLanguageModelV3 } from 'ai/test'
+import { tool } from 'ai'
+import { convertArrayToReadableStream, MockLanguageModelV4 } from 'ai/test'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
 const { modelRef, createMCPClientMock } = vi.hoisted(() => ({
-  modelRef: { current: null as InstanceType<typeof import('ai/test').MockLanguageModelV3> | null },
+  modelRef: { current: null as InstanceType<typeof import('ai/test').MockLanguageModelV4> | null },
   createMCPClientMock: vi.fn(),
 }))
 
@@ -13,7 +15,7 @@ vi.mock('@ai-sdk/openai', () => {
     return modelRef.current
   }
   return {
-    createOpenAI: () => Object.assign((_id: string) => getModel(), { chat: (_id: string) => getModel() }),
+    createOpenAI: () => (_id: string) => getModel(),
   }
 })
 vi.mock('@ai-sdk/mcp', () => ({ createMCPClient: createMCPClientMock }))
@@ -21,7 +23,7 @@ vi.mock('@ai-sdk/mcp/mcp-stdio', () => ({ Experimental_StdioMCPTransport: class 
 
 import { type AgentBlockContext, executeAgentBlock } from './agent-handler'
 
-type DoStreamResult = Awaited<ReturnType<MockLanguageModelV3['doStream']>>
+type DoStreamResult = Awaited<ReturnType<MockLanguageModelV4['doStream']>>
 type StreamPart = DoStreamResult['stream'] extends ReadableStream<infer P> ? P : never
 
 const USAGE = {
@@ -49,9 +51,9 @@ const finish = (unified: 'stop' | 'tool-calls'): StreamPart => ({
 })
 
 /** Replays one canned stream per step. A thunk step is evaluated when that step is reached. */
-function stepModel(...steps: Array<StreamPart[] | (() => StreamPart[])>): MockLanguageModelV3 {
+function stepModel(...steps: Array<StreamPart[] | (() => StreamPart[])>): MockLanguageModelV4 {
   let call = 0
-  return new MockLanguageModelV3({
+  return new MockLanguageModelV4({
     doStream: async (): Promise<DoStreamResult> => {
       const step = steps[call]
       call += 1
@@ -83,8 +85,6 @@ const makeContext = (overrides: Partial<AgentBlockContext> = {}): AgentBlockCont
 })
 
 beforeEach(() => {
-  // Pins the Responses API path regardless of the developer's environment.
-  vi.stubEnv('OPENAI_BASE_URL', undefined)
   modelRef.current = null
   createMCPClientMock.mockReset()
   createMCPClientMock.mockImplementation(() => {
@@ -96,23 +96,92 @@ afterEach(() => {
   vi.unstubAllEnvs()
 })
 
-describe('executeAgentBlock abort', () => {
-  it('runs tools and returns the final text', async () => {
+describe('executeAgentBlock credentials', () => {
+  it('does not send the deprecated OpenAI token to another provider', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', undefined)
+    const block: AgentBlock = { ...AGENT_BLOCK, metadata: { deepnote_agent_model: 'claude-opus-5-5' } }
+
+    await expect(executeAgentBlock(block, makeContext({ openAiToken: 'openai-key' }))).rejects.toThrow(
+      /ANTHROPIC_API_KEY/
+    )
+  })
+})
+
+describe('executeAgentBlock streaming', () => {
+  it('forwards reasoning, tool calls, tool outputs, and final text in order', async () => {
+    const onAgentEvent = vi.fn()
+    modelRef.current = stepModel(
+      [
+        { type: 'reasoning-start', id: 'r' },
+        { type: 'reasoning-delta', id: 'r', delta: 'Checking the data' },
+        { type: 'reasoning-end', id: 'r' },
+        toolCall('add_code_block', { code: 'print(1)' }),
+        finish('tool-calls'),
+      ],
+      [...text('All done'), finish('stop')]
+    )
+
+    const result = await executeAgentBlock(AGENT_BLOCK, makeContext({ onAgentEvent }))
+
+    expect(result).toEqual({ finalOutput: 'All done' })
+    expect(onAgentEvent.mock.calls.map(([event]) => event)).toEqual([
+      { type: 'reasoning_delta', text: 'Checking the data' },
+      { type: 'tool_called', toolName: 'add_code_block' },
+      { type: 'tool_output', toolName: 'add_code_block', output: 'code ok' },
+      { type: 'text_delta', text: 'All done' },
+    ])
+  })
+
+  it('rejects with the provider error instead of a generic no-output error', async () => {
+    modelRef.current = stepModel([{ type: 'error', error: new Error('404 page not found') }])
+
+    await expect(executeAgentBlock(AGENT_BLOCK, makeContext())).rejects.toThrow('404 page not found')
+  })
+
+  it('stops after ten steps even if the model keeps requesting tools', async () => {
     const codeSpy = vi.fn(async () => 'code ok')
     modelRef.current = stepModel(
-      [toolCall('add_code_block', { code: 'print(1)' }), finish('tool-calls')],
-      [...text('All done'), finish('stop')]
+      ...Array.from({ length: 10 }, () => [toolCall('add_code_block', { code: 'print(1)' }), finish('tool-calls')])
+    )
+
+    await executeAgentBlock(AGENT_BLOCK, makeContext({ addAndExecuteCodeBlock: codeSpy }))
+
+    expect(modelRef.current.doStreamCalls).toHaveLength(10)
+    expect(codeSpy).toHaveBeenCalledTimes(10)
+  })
+
+  it('executes discovered MCP tools and closes the client after a successful run', async () => {
+    const lookup = vi.fn(async ({ query }: { query: string }) => ({ answer: query }))
+    const close = vi.fn(async () => {})
+    createMCPClientMock.mockResolvedValue({
+      tools: async () => ({
+        lookup: tool({ inputSchema: z.object({ query: z.string() }), execute: lookup }),
+      }),
+      close,
+    })
+    const onAgentEvent = vi.fn()
+    modelRef.current = stepModel(
+      [toolCall('lookup', { query: 'sales' }), finish('tool-calls')],
+      [...text('Found sales'), finish('stop')]
     )
 
     const result = await executeAgentBlock(
       AGENT_BLOCK,
-      makeContext({ signal: new AbortController().signal, addAndExecuteCodeBlock: codeSpy })
+      makeContext({ mcpServers: [{ name: 'search', command: 'unused', args: [] }], onAgentEvent })
     )
 
-    expect(result).toEqual({ finalOutput: 'All done' })
-    expect(codeSpy).toHaveBeenCalledWith({ code: 'print(1)' })
+    expect(result).toEqual({ finalOutput: 'Found sales' })
+    expect(lookup).toHaveBeenCalledWith({ query: 'sales' }, expect.anything())
+    expect(onAgentEvent).toHaveBeenCalledWith({
+      type: 'tool_output',
+      toolName: 'lookup',
+      output: '{"answer":"sales"}',
+    })
+    expect(close).toHaveBeenCalledTimes(1)
   })
+})
 
+describe('executeAgentBlock abort', () => {
   it('throws before spawning MCP clients or calling the model when pre-aborted', async () => {
     const reason = new Error('cancelled before start')
     const controller = new AbortController()

@@ -274,6 +274,94 @@ describe('snapshot tools handlers', () => {
     })
   })
 
+  describe('blocks-with-outputs counts', () => {
+    it('counts only blocks with a non-empty outputs array in split, load and merge', async () => {
+      const countedPath = path.join(tempDir, 'counted.deepnote')
+      const notebookId = '66666666-6666-6666-6666-666666666666'
+      const file: DeepnoteFile = {
+        version: '1.0.0',
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        environment: {},
+        project: {
+          id: 'cccccccc-dddd-eeee-ffff-000000000000',
+          name: 'MCP Counted',
+          notebooks: [
+            {
+              id: notebookId,
+              name: 'Main',
+              blocks: [
+                {
+                  id: 'blk-with-outputs-1',
+                  type: 'code',
+                  blockGroup: 'g1',
+                  sortingKey: 'a0',
+                  content: 'print("one")',
+                  outputs: [
+                    { output_type: 'stream', name: 'stdout', text: ['one\n'] },
+                    { output_type: 'stream', name: 'stdout', text: ['uno\n'] },
+                  ],
+                  metadata: {},
+                },
+                {
+                  id: 'blk-with-outputs-2',
+                  type: 'code',
+                  blockGroup: 'g2',
+                  sortingKey: 'a1',
+                  content: 'print("two")',
+                  outputs: [{ output_type: 'stream', name: 'stdout', text: ['two\n'] }],
+                  metadata: {},
+                },
+                {
+                  id: 'blk-empty-outputs',
+                  type: 'code',
+                  blockGroup: 'g3',
+                  sortingKey: 'a2',
+                  content: 'x = 1',
+                  outputs: [],
+                  metadata: {},
+                },
+                {
+                  id: 'blk-markdown',
+                  type: 'markdown',
+                  blockGroup: 'g4',
+                  sortingKey: 'a3',
+                  content: '# Title',
+                  metadata: {},
+                },
+              ],
+            },
+          ],
+        },
+      }
+      await fs.writeFile(countedPath, serializeDeepnoteFile(file), 'utf-8')
+      const snapshotDir = path.join(tempDir, 'snapshots-counted')
+
+      const splitResult = extractResult(
+        await handleSnapshotTool('deepnote_snapshot_split', { path: countedPath, snapshotDir })
+      )
+      expect(splitResult.outputsExtracted).toBe(2)
+
+      const loadSnapshotResult = extractResult(
+        await handleSnapshotTool('deepnote_snapshot_load', { path: splitResult.snapshotPath as string })
+      )
+      expect(loadSnapshotResult.blocksWithOutputs).toBe(2)
+
+      const loadLatestResult = extractResult(
+        await handleSnapshotTool('deepnote_snapshot_load', { path: countedPath, snapshotDir })
+      )
+      expect(loadLatestResult.blocksWithOutputs).toBe(2)
+
+      const mergeResult = extractResult(
+        await handleSnapshotTool('deepnote_snapshot_merge', {
+          sourcePath: countedPath,
+          snapshotPath: splitResult.snapshotPath as string,
+          outputPath: path.join(tempDir, 'counted-merged.deepnote'),
+        })
+      )
+      expect(mergeResult.blocksWithOutputs).toBe(2)
+    })
+  })
+
   describe('error handling', () => {
     it('returns error for unknown tool', async () => {
       const response = (await handleSnapshotTool('deepnote_unknown', {})) as {

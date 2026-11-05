@@ -6,23 +6,19 @@ noContent: false
 coverImage: g890zy2wQGiGh2NahdVa
 ---
 
-Deepnote can query your time series data in InfluxDB v2. Follow these docs to create your own notebook to connect to your InfluxDB instance.
+Use Deepnote to query time series data in InfluxDB v2 with Python and Flux.
 
-### 1. Duplicate the InfluxDB template
+### 1. Download and import the InfluxDB example
 
-[Open the template by following this link ->](https://deepnote.com/workspace/Deepnote-Templates-71742312-24f2-4c10-9bf7-786d17280b92/project/Query-InfluxDB-from-Deepnote-46097291-95c8-4a64-a247-541975d8aadc/%2Fnotebook.ipynb)
-
-![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FuBTyirnZvPcOcczBxtFa%2Fduplicate-notebook.png](../assets/docs/VoHNl6juQ5qUFurTn0DR.webp)
-
-Click the "duplicate" button on the top right corner to do this. Once you've got the template in your Deepnote workspace, you can connect it to your InfluxDB instance.
+Download the [InfluxDB example notebook](https://github.com/deepnote/deepnote/blob/main/examples/query-influxdb-from-deepnote.ipynb) and follow the [Jupyter notebook import steps](/docs/importing-and-exporting-jupyter-notebooks) to add it to your project. After importing it, connect the notebook to your InfluxDB instance.
 
 ### 2. Connect to InfluxDB from Deepnote
 
-To connect to SQL from Deepnote, you'll need credentials to connect to a database and the endpoint where that database is located.
+To connect to InfluxDB, you need an API token, your organization name, and your InfluxDB instance URL.
 
 **Create an InfluxDB token**
 
-[Follow these instructions](https://docs.influxdata.com/influxdb/cloud/security/tokens/create-token/) to create a token that has permission to access the bucket you're interested in.
+[Create an InfluxDB token](https://docs.influxdata.com/influxdb/cloud/admin/tokens/create-token/) with read access to the bucket you want to query.
 
 #### Update the token in the notebook
 
@@ -30,15 +26,17 @@ Change the variable `INFLUXDB_TOKEN` to the token you made in the previous step.
 
 #### Update the organization and URL details in the notebook
 
-Change the variable `INFLUXDB_ORG` to the name of your organization, [here is how you can find it](https://docs.influxdata.com/influxdb/v2.2/organizations/view-orgs/).
+Set `INFLUXDB_ORG` to your [organization name](https://docs.influxdata.com/influxdb/v2/admin/organizations/view-orgs/).
 
 Change the variable `INFLUXDB_URL` to the URL where your InfluxDB instance is located.
 
 ### 3. Query InfluxDB from Deepnote
 
-The notebook will set up a `client` object from the InfluxDB Python library. You can create a query client with this object, and query InfluxDB directly to a Pandas DataFrame. In the example below, we query [InfluxDB's built-in sample data](https://docs.influxdata.com/influxdb/v2.2/reference/sample-data/#air-sensor-sample-data).
+The template creates an InfluxDB Python `client`. Use `client.query_api()` to run a Flux query and return a pandas DataFrame. This example queries [InfluxDB's air sensor sample data](https://docs.influxdata.com/influxdb/v2/reference/sample-data/#air-sensor-sample-data).
 
 ```python
+import pandas as pd
+
 query_api = client.query_api()
 
 query = """import "influxdata/influxdb/sample"
@@ -48,18 +46,21 @@ sample.data(set: "airSensor")
   |> range(start: -45m)
   |> aggregateWindow(every: 1m, fn: mean)"""
 
-# influxdb_client gives us Pandas dataframes out-of-the-box
-df = query_api.query_data_frame(query)
+result = query_api.query_data_frame(query)
+if isinstance(result, list):
+    df = pd.concat(result, ignore_index=True) if result else pd.DataFrame()
+else:
+    df = result
 
 df
 ```
 
-Running the code above will have Deepnote query the InfluxDB instance, save the result into a DataFrame, and visualize it in an interactive table like the one below.
+The client returns a DataFrame or, when result tables have different schemas, a list of DataFrames. The code combines that list into one DataFrame for display.
 
 <Embed url="https://embed.deepnote.com/f1bda07e-1467-4298-955b-41b55e97fc75/299ab3c5-886e-4c29-9b86-04bda8b30e8f/0b9e56b351314e729b9cd10168c4e665?height=577" />
 
 ### What's next?
 
-Now that you're querying data, you can share it with your team. You can even turn your charts [into a shareable dashboard](/docs/publish-projects).
+Share your results with your team or [publish your notebook as an app](/docs/creating-apps).
 
-For more information on connecting to InfluxDB from Python, [you can read the influxdb-client-python docs](https://github.com/influxdata/influxdb-client-python).
+For more connection and query options, see the [InfluxDB Python client documentation](https://github.com/influxdata/influxdb-client-python).

@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-We all love a good bar chart or a scatter plot — they're great for deep dives into data. But sometimes, you need to cut to the chase and highlight a single, crucial metric for your stakeholders. That's where our big number chart comes in. It's the simplest way to put your most essential numbers front and center in your apps and dashboards.
+Use a big number block to display one metric in a notebook, app, or dashboard.
 
 ![CleanShot 2024-09-17 at 13.18.26@2x.png](../assets/docs/jrloPDWaTkSYpdCk3lfq.webp)
 
@@ -27,7 +27,7 @@ The big number chart has different formatting options, including:
 
 ## Comparisons
 
-If you want to show progress or change over time, you can also add a comparison to visualize how this number differs from a previous value, making trends instantly noticeable.
+Add a comparison to show how the metric differs from a previous value.
 
 There are a few different ways to do the comparison:
 

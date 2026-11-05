@@ -9,7 +9,7 @@ noContent: false
 Public docker images are available on the Free plan, and private docker images are available on Team and Enterprise plans
 </Callout>
 
-1. Enter your Docker Hub credentials. You can also use your [Personal Access Token](https://docs.docker.com/docker-hub/access-tokens/) instead of your password. Docker Hub does not allow using email address for login -- you will need to use the username.
+1. Enter your Docker Hub credentials. You can also use your [Personal Access Token](https://docs.docker.com/docker-hub/access-tokens/) instead of your password. Docker Hub requires your username rather than your email address for login.
 
 ![spaces%2FtfH69m1V6bYYvquUay8O%2Fuploads%2FPRasVN2hCbXoa2wc17y2%2FScreen%20Shot%202022-03-30%20at%201.02.15%20PM.png](../assets/docs/RfnqWM9YQZ6DtnErGPxX.webp)
 

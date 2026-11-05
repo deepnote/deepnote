@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@deepnote/cloud', async importOriginal => {
@@ -107,5 +110,51 @@ describe('deepnote static-site access', () => {
     await run('--project-id', 'p1', '--token', 'tok', '--sharing', 'enabled')
 
     expect(process.exitCode).toBe(1)
+  })
+
+  describe('token from .env', () => {
+    let tempDir: string
+    let previousCwd: string
+    let previousToken: string | undefined
+
+    beforeEach(async () => {
+      tempDir = await fs.mkdtemp(join(os.tmpdir(), 'static-site-access-test-'))
+      previousCwd = process.cwd()
+      previousToken = process.env.DEEPNOTE_TOKEN
+      delete process.env.DEEPNOTE_TOKEN
+    })
+
+    afterEach(async () => {
+      process.chdir(previousCwd)
+      if (previousToken === undefined) {
+        delete process.env.DEEPNOTE_TOKEN
+      } else {
+        process.env.DEEPNOTE_TOKEN = previousToken
+      }
+      await fs.rm(tempDir, { recursive: true, force: true })
+    })
+
+    it('reads DEEPNOTE_TOKEN from a .env file in the current directory', async () => {
+      await fs.writeFile(join(tempDir, '.env'), 'DEEPNOTE_TOKEN=dotenv-token\n')
+      process.chdir(tempDir)
+
+      await run('--project-id', 'p1', '--sharing', 'enabled')
+
+      expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'dotenv-token', 'p1', {
+        sharingEnabled: true,
+      })
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('exits with code 2 when neither flag, env var nor .env provides a token', async () => {
+      process.chdir(tempDir)
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+
+      await expect(run('--project-id', 'p1', '--sharing', 'enabled')).rejects.toThrow('exit')
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(mockedUpdateProject).not.toHaveBeenCalled()
+    })
   })
 })

@@ -46,12 +46,9 @@ Same button, same endpoint — one setting changes where the work happens:
 RUN_TARGET=local OPENAI_API_KEY=sk-... pnpm example:local-runner
 ```
 
-`serve.mjs` turns that into `serveStatic({ runTarget: 'local' })`. This path needs a Python
-environment with `deepnote-toolkit[server]` — the same prerequisite as `deepnote run` — and an
-OpenAI key for the notebook's **agent block**. Without a key the dashboard still renders in full and
-only the agent block reports the problem: it runs last, and the engine stops at the first failing
-block. `deepnote_agent_model: auto` resolves to `$OPENAI_MODEL` (default `gpt-5`) locally; in the
-cloud Deepnote picks the model.
+Local runs need Python with `deepnote-toolkit[server]`. The agent block also needs `OPENAI_API_KEY`;
+without it, the dashboard renders but the agent block fails. The notebook uses `auto`, which selects
+`OPENAI_MODEL` (or `gpt-6.1-sol`) locally and workspace settings in Cloud.
 
 ## Schedule recurring cloud runs
 
@@ -63,8 +60,8 @@ frontends can still send raw cron.
 
 Scheduling creates the cloud notebook if necessary but does not run it immediately. Recurring runs
 use the input values stored in Deepnote; when scheduling creates the notebook, those are the
-defaults committed in the `.deepnote` file. Deepnote allows one scheduled notebook per project, so
-saving again updates that project schedule.
+defaults committed in the `.deepnote` file. Each notebook has its own schedule, so saving again
+updates this notebook's schedule.
 
 The scheduler remains available while a cloud run is active. The local-runner library coordinates
 the first create-if-missing operation, so custom frontends can safely offer the same concurrency

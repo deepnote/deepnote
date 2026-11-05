@@ -8,7 +8,7 @@ Deepnote is designed to support most data analysis workflows, many of which incl
 
 ### What it means for Deepnote to turn off the hardware for a project
 
-Simplifying a little bit, Deepnote has many machines (computers) running in the cloud (pods in a Kubernetes cluster if you want the real jargon). When you start the hardware in your project, we turn on one of these machines for you and run all your computations there. Once you're done with your computations, we turn off this machine for you just like you would turn off your own laptop at the end of your workday. Unlike with your laptop though, you can view the notebooks and files in your project even while the hardware for your project is turned off – you only need running hardware to execute computations. We automatically start this hardware whenever you start any execution in your project (e.g. when you run a block).
+Deepnote has many machines running in the cloud, or pods in a Kubernetes cluster. When you start the hardware in your project, we turn on one of these machines and run your computations there. Once you're done, we turn off the machine as you would turn off your laptop at the end of your workday. You can still view the notebooks and files in your project while its hardware is off. You need running hardware only to execute computations. We start the hardware when you run a block or start another execution in your project.
 
 After the hardware for your project is turned off, we store the outputs of cells, but the values of variables are removed from the running environment and may be restored if the restore option is available.
 
@@ -32,7 +32,7 @@ Deepnote may turn off machines automatically for the following reasons:
 2. **There were no changes to the code or any execution for at least 15 minutes.** This maximum idle time is [customizable](/docs/long-running-jobs#custom-inactivity-grace-period) for projects in teams with a Team plan or higher.
 
 <Callout status="info">
-📖  **Example:** Bob is running a data analysis that takes 12 hours to complete. He starts the analysis and then closes Deepnote for the night. He comes back in the morning just before the analysis is complete and finds his notebook with all his variables is still live. Bob does some ad-hoc exploration and then goes to lunch with the notebook idle. After he comes back, he can still see all his outputs, but the variables and all other runtime objects are gone as the above conditions were met and the hardware for his project was turned off.
+**Example:** Bob is running a data analysis that takes 12 hours to complete. He starts the analysis and then closes Deepnote for the night. He comes back in the morning just before the analysis is complete and finds his notebook with all his variables is still live. Bob does some ad-hoc exploration and then goes to lunch with the notebook idle. After he comes back, he can still see all his outputs, but the variables and all other runtime objects are gone as the above conditions were met and the hardware for his project was turned off.
 </Callout>
 
 #### Inactivity grace period

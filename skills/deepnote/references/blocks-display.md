@@ -2,6 +2,8 @@
 
 > Common block fields (`id`, `blockGroup`, `type`, `content`, `sortingKey`, `metadata`) are described in [SKILL.md](../SKILL.md).
 
+On the `visualization`, `pivot-table`, `button`, `notebook-function`, `image`, and `separator` arms, [schema.ts](schema.ts) declares `content: ''` as required, but YAML may omit `content`, as the examples do. Parsing sets it to `''` and replaces any other value with `''`.
+
 ## Visualization Block (`visualization`)
 
 Charts and graphs (Vega-Lite based).

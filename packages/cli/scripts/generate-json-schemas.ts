@@ -1,11 +1,19 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { integrationsFileSchema } from '@deepnote/database-integrations'
+import { z } from 'zod'
 
 async function run() {
-  // Dynamic import avoids tsc resolving zod-to-json-schema's deeply nested generics
-  const { zodToJsonSchema } = (await import('zod-to-json-schema')) as { zodToJsonSchema: (schema: unknown) => unknown }
-  const jsonSchema = zodToJsonSchema(integrationsFileSchema)
+  const jsonSchema = z.toJSONSchema(integrationsFileSchema, {
+    target: 'draft-07',
+    io: 'input',
+    // io: 'input' leaves additionalProperties unset on strip objects; close them so YAML editors flag unknown keys.
+    override: ({ zodSchema, jsonSchema }) => {
+      if (zodSchema._zod.def.type === 'object' && jsonSchema.additionalProperties === undefined) {
+        jsonSchema.additionalProperties = false
+      }
+    },
+  })
   await fs.writeFile(path.join('json-schemas', 'integrations-file-schema.json'), JSON.stringify(jsonSchema, null, 2))
 }
 

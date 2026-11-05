@@ -1,5 +1,12 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
-import { findNotebook, findProject, type NotebookSchedule, upsertNotebookSchedule } from '@deepnote/cloud'
+import {
+  deleteNotebookSchedule,
+  findNotebook,
+  findProject,
+  getNotebook,
+  type NotebookSchedule,
+  upsertNotebookSchedule,
+} from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { buildViewUrl, DEFAULT_CLOUD_API_URL, notebookNameFor, requireToken } from './cloud-common'
 import { coordinateCloudNotebook } from './cloud-notebook-coordinator'
@@ -38,6 +45,32 @@ export interface ScheduleInCloudResult {
   viewUrl?: string
 }
 
+export interface UnscheduleInCloudOptions {
+  /** Bearer token for the Deepnote API. Defaults to `process.env.DEEPNOTE_TOKEN`. */
+  token?: string
+  /** API base URL. Defaults to `https://api.deepnote.com`. */
+  baseUrl?: string
+  /** Same as {@link ScheduleInCloudOptions.notebookId}. */
+  notebookId?: string
+  /** Request timeout for each API call. */
+  requestTimeoutMs?: number
+}
+
+export interface UnscheduleInCloudResult {
+  /** The cloud notebook id, or `null` if the notebook is not in Deepnote. */
+  notebookId: string | null
+  /** `false` when there was no schedule to remove. */
+  removed: boolean
+}
+
+interface CloudNotebookLookup {
+  baseUrl: string
+  token: string
+  file: DeepnoteFile
+  notebookId: string | undefined
+  requestOptions: { requestTimeoutMs?: number }
+}
+
 /**
  * Put a local `.deepnote` notebook on a recurring Deepnote Cloud schedule in one call.
  *
@@ -54,7 +87,7 @@ export async function scheduleInCloud(
   const token = requireToken('scheduleInCloud', options.token)
   const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
   const { file } = loadDeepnoteFile(input)
-  const initialNotebookId = options.notebookId ?? resolveNotebookId(file)
+  const initialNotebookId = options.notebookId ?? resolveNotebookId(file, 'scheduleInCloud')
   const body = { cron, ...(options.timezone !== undefined ? { timezone: options.timezone } : {}) }
   const requestOptions = { requestTimeoutMs: options.requestTimeoutMs }
 
@@ -73,7 +106,7 @@ export async function scheduleInCloud(
       throw error
     }
 
-    const localId = localNotebookId(file, options.notebookId)
+    const localId = localNotebookId(file, options.notebookId, 'scheduleInCloud')
     const notebookName = notebookNameFor(file, localId)
     const target = await coordinateCloudNotebook(
       {
@@ -127,6 +160,62 @@ export async function scheduleInCloud(
   }
 }
 
+/** Remove a local notebook's Deepnote Cloud schedule. Never creates anything. */
+export async function unscheduleInCloud(
+  input: DeepnoteInput,
+  options: UnscheduleInCloudOptions = {}
+): Promise<UnscheduleInCloudResult> {
+  const token = requireToken('unscheduleInCloud', options.token)
+  const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
+  const { file } = loadDeepnoteFile(input)
+  const requestOptions = { requestTimeoutMs: options.requestTimeoutMs }
+
+  const notebookId = await findCloudNotebookId({
+    baseUrl,
+    token,
+    file,
+    notebookId: options.notebookId,
+    requestOptions,
+  })
+  if (notebookId === null) {
+    return { notebookId: null, removed: false }
+  }
+  const removed = await deleteNotebookSchedule(baseUrl, token, notebookId, requestOptions)
+  return { notebookId, removed }
+}
+
+/**
+ * Find the file's notebook: by local id, then by project and notebook name, since notebooks created
+ * from the file get new ids. The id is checked with a read because a schedule 404 can mean either
+ * "no notebook" or "no schedule".
+ */
+async function findCloudNotebookId({
+  baseUrl,
+  token,
+  file,
+  notebookId,
+  requestOptions,
+}: CloudNotebookLookup): Promise<string | null> {
+  const initialNotebookId = notebookId ?? resolveNotebookId(file, 'unscheduleInCloud')
+  try {
+    await getNotebook(baseUrl, token, initialNotebookId, requestOptions)
+    return initialNotebookId
+  } catch (error) {
+    if (errorStatusCode(error) !== 404) {
+      throw error
+    }
+  }
+
+  const localId = localNotebookId(file, notebookId, 'unscheduleInCloud')
+  const found = await findNotebook(
+    baseUrl,
+    token,
+    { projectName: file.project.name, notebookName: notebookNameFor(file, localId), unique: true },
+    requestOptions
+  )
+  return found?.notebookId ?? null
+}
+
 /** Read the public status-code contract without depending on a cross-bundle class identity. */
 function errorStatusCode(error: unknown): number | undefined {
   if (typeof error !== 'object' || error === null || !('statusCode' in error)) {
@@ -136,11 +225,11 @@ function errorStatusCode(error: unknown): number | undefined {
   return typeof statusCode === 'number' ? statusCode : undefined
 }
 
-function resolveNotebookId(file: DeepnoteFile): string {
+function resolveNotebookId(file: DeepnoteFile, fnName: string): string {
   const id = resolveSnapshotNotebookId(file)
   if (!id) {
     throw new Error(
-      'scheduleInCloud: could not resolve a notebook from the file because it has multiple notebooks. ' +
+      `${fnName}: could not resolve a notebook from the file because it has multiple notebooks. ` +
         'Pass options.notebookId.'
     )
   }
@@ -154,13 +243,13 @@ function localNotebookIdIfKnown(file: DeepnoteFile, explicitId: string | undefin
   return file.project.notebooks.length === 1 ? file.project.notebooks[0].id : undefined
 }
 
-function localNotebookId(file: DeepnoteFile, explicitId: string | undefined): string {
+function localNotebookId(file: DeepnoteFile, explicitId: string | undefined, fnName: string): string {
   const id = localNotebookIdIfKnown(file, explicitId)
   if (id) {
     return id
   }
   throw new Error(
-    `scheduleInCloud: notebookId "${explicitId}" is not in this file, and the file has ` +
+    `${fnName}: notebookId "${explicitId}" is not in this file, and the file has ` +
       `${file.project.notebooks.length} notebooks, so its missing cloud notebook cannot be matched ` +
       'to local content. Pass a local notebook id from the file.'
   )

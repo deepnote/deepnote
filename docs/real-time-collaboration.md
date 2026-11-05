@@ -16,4 +16,4 @@ In order to prevent inadvertent code changes, two collaborators cannot write int
 
 ### Jump to collaborator
 
-You can navigate to the place in the notebook that your collaborator is editing by clicking on their avatar in the top right corner 🙌.
+You can navigate to the place in the notebook that your collaborator is editing by clicking on their avatar in the top right corner.

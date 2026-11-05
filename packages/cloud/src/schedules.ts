@@ -35,12 +35,7 @@ export interface ScheduleRequestOptions {
   requestTimeoutMs?: number
 }
 
-/**
- * Create or replace the schedule for the project containing `notebookId`.
- *
- * Deepnote supports one scheduled notebook per project. Calling this for another notebook in the
- * same project re-points that schedule to the new notebook.
- */
+/** Create or update the schedule for `notebookId`. Other notebooks' schedules are not affected. */
 export async function upsertNotebookSchedule(
   baseUrl: string,
   token: string,
@@ -98,4 +93,51 @@ export async function upsertNotebookSchedule(
     )
   }
   return parsed.data.schedule
+}
+
+/**
+ * Delete the schedule for `notebookId`. Returns `false` if there was none.
+ *
+ * Deepnote also answers 404 for a notebook it can't find, so `false` doesn't prove the notebook exists.
+ */
+export async function deleteNotebookSchedule(
+  baseUrl: string,
+  token: string,
+  notebookId: string,
+  options: ScheduleRequestOptions = {}
+): Promise<boolean> {
+  if (!notebookId.trim()) {
+    throw new TypeError('deleteNotebookSchedule: notebookId cannot be empty.')
+  }
+
+  const response = await fetch(
+    `${baseUrl.replace(/\/+$/, '')}/v2/notebooks/${encodeURIComponent(notebookId)}/schedule`,
+    {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS),
+    }
+  )
+
+  if (response.status === 404) {
+    return false
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    const fallback = `Failed to remove notebook schedule: HTTP ${response.status} ${response.statusText}`
+    const message = parseApiErrorMessage(text, fallback)
+    if (response.status === 401) {
+      throw new ApiError(401, 'Authentication failed. Please check your API token.')
+    }
+    if (response.status === 403) {
+      throw new ApiError(
+        403,
+        message === fallback
+          ? "Access denied. You may not have permission to change this notebook's schedule."
+          : message
+      )
+    }
+    throw new ApiError(response.status, message)
+  }
+  return true
 }

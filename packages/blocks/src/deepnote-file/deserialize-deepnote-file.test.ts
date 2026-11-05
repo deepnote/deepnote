@@ -266,6 +266,46 @@ describe('deserializeDeepnoteFile', () => {
 
     safeParseSpy.mockRestore()
   })
+
+  describe('block normalization', () => {
+    function deserializeSingleBlock(block: Record<string, unknown>) {
+      parseYaml.mockReturnValue({
+        metadata: { createdAt: '2025-01-01T00:00:00Z' },
+        version: '1',
+        project: {
+          id: 'project-123',
+          name: 'Test Project',
+          notebooks: [
+            {
+              id: 'notebook-1',
+              name: 'Test Notebook',
+              blocks: [{ id: 'block-1', blockGroup: 'group-1', sortingKey: '0', ...block }],
+            },
+          ],
+        },
+      })
+
+      return deserializeDeepnoteFile('yaml-content').project.notebooks[0].blocks[0]
+    }
+
+    it('fills metadata defaults when metadata is absent', () => {
+      expect(deserializeSingleBlock({ type: 'input-text' }).metadata).toHaveProperty(
+        'deepnote_variable_name',
+        'unnamed_variable'
+      )
+    })
+
+    it('fills absent content with an empty string for blocks that do not use content', () => {
+      expect(deserializeSingleBlock({ type: 'image' }).content).toBe('')
+    })
+
+    it('accepts minute-precision execution timestamps', () => {
+      expect(deserializeSingleBlock({ type: 'code', executionStartedAt: '2024-01-01T10:15Z' })).toHaveProperty(
+        'executionStartedAt',
+        '2024-01-01T10:15Z'
+      )
+    })
+  })
 })
 
 describe('contentHash schema validation', () => {

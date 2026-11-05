@@ -76,21 +76,21 @@ SQL blocks offer two distinct output modes: **DataFrame** mode and **Query previ
 Under the hood, Deepnote appends a LIMIT clause to your query preview mode queries.
 </Callout>
 
-Q: When should I use query preview mode instead of DataFrame mode?
+#### When should I use query preview mode instead of DataFrame mode?
 
-A: Use query preview mode when you want to defer from pulling data into memory or when you are building complex SQL queries that you want to test in iterations. Use DataFrame mode when you want to process the full results of a query at once.
+Use query preview mode when you want to defer from pulling data into memory or when you are building complex SQL queries that you want to test in iterations. Use DataFrame mode when you want to process the full results of a query at once.
 
-Q: Can I reference DataFrame variables in SQL blocks?
+#### Can I reference DataFrame variables in SQL blocks?
 
-A: No, you cannot reference DataFrame variables in SQL blocks. You can only reference query preview objects.
+No, you cannot reference DataFrame variables in SQL blocks. You can only reference query preview objects.
 
-Q: Can I use query preview mode with DataFrame SQL blocks?
+#### Can I use query preview mode with DataFrame SQL blocks?
 
-A: Yes! even though you are querying a DataFrame, you may want to retrieve only a subset of the data and reference the query later.
+Yes! even though you are querying a DataFrame, you may want to retrieve only a subset of the data and reference the query later.
 
-Q: Can I use query preview objects in other blocks?
+#### Can I use query preview objects in other blocks?
 
-A: Yes, you can use query previews exactly as you would use a DataFrame. Actually, the `DeepnoteQueryPreview` object that is returned is a subclass of a Pandas DataFrame. This means you can also plot it in a Chart block. However, do keep in mind that the preview only contains first 100 rows.
+Yes, you can use query previews exactly as you would use a DataFrame. Actually, the `DeepnoteQueryPreview` object that is returned is a subclass of a Pandas DataFrame. This means you can also plot it in a Chart block. However, do keep in mind that the preview only contains first 100 rows.
 
 ![SQL using DeepnoteQueryPreview](../assets/docs/WmfGCeTZRyC2eKRG6qdB.webp)
 

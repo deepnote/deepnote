@@ -1,5 +1,8 @@
+import { join } from 'node:path'
 import { type ProjectStaticFilesUpdate, updateProjectStaticFiles } from '@deepnote/cloud'
+import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
+import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
 import { getChalk, log, error as logError } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
@@ -21,7 +24,7 @@ function requestedUpdate(options: StaticSiteAccessOptions): ProjectStaticFilesUp
     return undefined
   }
   if (sharingEnabled === false && apiAccessEnabled === true) {
-    throw new TypeError('API access cannot be enabled while static website sharing is disabled.')
+    throw new TypeError('API access cannot be enabled while app sharing is disabled.')
   }
   if (sharingEnabled === false) {
     return { sharingEnabled: false, ...(apiAccessEnabled === false ? { apiAccessEnabled: false as const } : {}) }
@@ -34,6 +37,8 @@ function requestedUpdate(options: StaticSiteAccessOptions): ProjectStaticFilesUp
 
 export function createStaticSiteAccessAction(program: Command) {
   return async (options: StaticSiteAccessOptions) => {
+    // Load .env from the current directory before reading the token — mirrors `sync` and `publish`.
+    dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
     const token = resolveToken(options.token)
     if (!token) {
       program.error(new MissingTokenError().message, { exitCode: ExitCode.InvalidUsage })
@@ -55,7 +60,7 @@ export function createStaticSiteAccessAction(program: Command) {
     try {
       const settings = await updateProjectStaticFiles(options.url, token, options.projectId, update)
       const c = getChalk()
-      log(`${c.green('✓')} Updated static-site access for project ${c.dim(options.projectId)}`)
+      log(`${c.green('✓')} Updated app access for project ${c.dim(options.projectId)}`)
       log(`${c.dim('Sharing:')} ${settings.sharingEnabled ? 'enabled' : 'disabled'}`)
       log(`${c.dim('API access:')} ${settings.apiAccessEnabled ? 'enabled' : 'disabled'}`)
       if (settings.sharingEnabled) {

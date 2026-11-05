@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { serializeDeepnoteFile } from '@deepnote/blocks'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { codeNotebook } from '../../../../test-helpers/integration-notebook'
 import {
   createToolkitLeakGuard,
   integrationPython,
@@ -40,33 +41,6 @@ function runCli(args: string[], env: Record<string, string> = {}): Promise<CliRu
         void resolvePromise({ code, stdout, stderr, elapsedMs: Date.now() - started })
       }
     )
-  })
-}
-
-function codeNotebook(...codeBlocks: string[]): string {
-  return serializeDeepnoteFile({
-    version: '1.0.0',
-    metadata: { createdAt: '2026-01-01T00:00:00.000Z' },
-    project: {
-      id: 'cli-integration-project',
-      name: 'CLI integration',
-      notebooks: [
-        {
-          id: 'cli-integration-notebook',
-          name: 'Main',
-          blocks: codeBlocks.map((content, index) => ({
-            id: `block-${index + 1}`,
-            blockGroup: `group-${index + 1}`,
-            sortingKey: `a${index}`,
-            type: 'code' as const,
-            content,
-            metadata: {},
-            executionCount: null,
-            outputs: [],
-          })),
-        },
-      ],
-    },
   })
 }
 
@@ -114,7 +88,7 @@ describe('deepnote run against a real deepnote-toolkit server', () => {
 
   it('exits 1 with failureCategory in-block when a block raises', async () => {
     const file = join(workDir, 'raising.deepnote')
-    await writeFile(file, codeNotebook('raise RuntimeError("boom")', 'print("unreachable")'))
+    await writeFile(file, serializeDeepnoteFile(codeNotebook('raise RuntimeError("boom")', 'print("unreachable")')))
 
     const result = await runCli(['run', file, '-o', 'json'], { DEEPNOTE_PYTHON: python })
 
@@ -127,7 +101,7 @@ describe('deepnote run against a real deepnote-toolkit server', () => {
 
   it('interrupts a long block with --block-timeout and reports execution-timeout', async () => {
     const file = join(workDir, 'slow.deepnote')
-    await writeFile(file, codeNotebook('import time\ntime.sleep(60)', 'print("unreachable")'))
+    await writeFile(file, serializeDeepnoteFile(codeNotebook('import time\ntime.sleep(60)', 'print("unreachable")')))
 
     const result = await runCli(['run', file, '--block-timeout', '2', '-o', 'json'], { DEEPNOTE_PYTHON: python })
 
@@ -143,7 +117,7 @@ describe('deepnote run against a real deepnote-toolkit server', () => {
     const bareVenv = join(workDir, 'bare-venv')
     execFileSync(python, ['-m', 'venv', '--without-pip', bareVenv], { stdio: 'ignore', timeout: 120_000 })
     const file = join(workDir, 'hello.deepnote')
-    await writeFile(file, codeNotebook('print("hi")'))
+    await writeFile(file, serializeDeepnoteFile(codeNotebook('print("hi")')))
 
     const result = await runCli(['run', file, '--python', bareVenv, '-o', 'json'])
 

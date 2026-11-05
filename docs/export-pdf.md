@@ -13,7 +13,7 @@ You can export a notebook to PDF directly from the project toolbar in just a few
 
 ![Project context menu with Export as option](../assets/docs/export-pdf/project-context-menu.webp)
 
-3. Hover over **Export as**.
+3. Hover over **Export as ...**.
 4. Choose **PDF with code** or **PDF without code**.
 
 - **PDF with code** includes code cells in the exported PDF.
@@ -24,4 +24,4 @@ You can export a notebook to PDF directly from the project toolbar in just a few
 
   ![Exported PDF without code](../assets/docs/export-pdf/pdf-without-code.webp)
 
-If you have a standalone `.ipynb` file that isn't already in Deepnote, you can convert [ipynb files to PDF](https://deepnote.com/ipynb-to-pdf) directly in your browser — no import step required.
+If you have a standalone `.ipynb` file that isn't in Deepnote, you can convert [ipynb files to PDF](https://deepnote.com/ipynb-to-pdf) in your browser without importing them.

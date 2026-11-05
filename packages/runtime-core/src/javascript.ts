@@ -1,3 +1,5 @@
+import { escapePythonString } from '@deepnote/blocks'
+
 /**
  * Convert a JavaScript value to a Python literal.
  */
@@ -15,18 +17,7 @@ export function toPythonLiteral(value: unknown): string {
     return String(value)
   }
   if (typeof value === 'string') {
-    // Escape for Python string literal
-    const escaped = value
-      .replace(/\\/g, '\\\\')
-      .replace(/'/g, "\\'")
-      .replace(/\n/g, '\\n')
-      .replace(/\r/g, '\\r')
-      .replace(/\t/g, '\\t')
-      .replace(/\0/g, '\\x00')
-      // Escape other control characters (code points < 0x20 except already handled, and DEL 0x7F)
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: intentionally escaping control chars
-      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, char => `\\x${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
-    return `'${escaped}'`
+    return escapePythonString(value)
   }
   if (Array.isArray(value)) {
     const elements = value.map(v => toPythonLiteral(v))

@@ -25,7 +25,7 @@ You have two options when generating your private key - unencrypted or encrypted
 For an unencrypted private key:
 
 ```sh
-openssl genrsa 2048 | openssl pkcs8 -topk8 -v2 des3 -inform PEM -out snowflake_key.p8 --no-crypt
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out snowflake_key.p8 -nocrypt
 ```
 
 If you prefer an encrypted private key:
@@ -55,10 +55,10 @@ This command reads the public key file and copies its content to your clipboard,
 After generating both keys, you'll need to register the public key with Snowflake. Open your public key file, copy its contents, and run this SQL command in Snowflake:
 
 ```sql
-ALTER USER [USERNAME] SET RSA_PUBLIC_KEY='-----BEGIN PRIVATE KEY----- MIIEvg...';
+ALTER USER [USERNAME] SET RSA_PUBLIC_KEY='MIIEvg...';
 ```
 
-Remember to replace `[USERNAME]` with your actual Snowflake username and insert your full public key. The public key should begin with `-----BEGIN PRIVATE KEY-----`.
+Replace `[USERNAME]` with your Snowflake username and use the public key from `snowflake_key.pub`.
 
 ## Setting up Snowflake integration in Deepnote
 
@@ -95,7 +95,7 @@ This authentication method is ideal when:
 
 With your integration configured and connected to your project, you're ready to work with your Snowflake data in Deepnote. You can write and run SQL queries against your Snowflake instance and explore your data structures using the schema browser. The key-pair authentication happens seamlessly in the background after you've provided your credentials.
 
-![Using Snowflake in Deepnote](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
+![Sample attribution query running in Snowflake](../assets/docs/EOyNjvLRkeiRGfmWyGLt.webp)
 
 ## Troubleshooting
 

@@ -18,9 +18,9 @@ Scheduling is available on Team and Enterprise plans.
 
 You can find the integration for Slack inside the Scheduling modal in each notebook.
 
-1. Click the Scheduling button next to the **Run notebook** button at the top of your notebook
-2. Configure the frequency at which you would like the notebook to run
-3. Enable the **Send notification via Slack after run**
+1. Click the calendar icon **Schedule notebook** next to the **Run** button at the top of your notebook
+2. Enable **Schedule notebook** and configure how often the notebook should run
+3. Enable **Notify via Slack after run**
 4. Slack authentication window will pop up, choose the right workspace and allow access for the Deepnote app.
 5. Choose the channels or users you'd like to get notified about success or failure runs
 6. Click **Save schedule**

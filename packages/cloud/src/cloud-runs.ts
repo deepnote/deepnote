@@ -173,9 +173,7 @@ function normalizeRun(json: unknown): NormalizedRun {
 }
 
 /** Validate either API envelope and normalize it in the shared request pipeline. */
-const runResponseSchema: z.ZodType<NormalizedRun, z.ZodTypeDef, unknown> = z
-  .unknown()
-  .transform(json => normalizeRun(json))
+const runResponseSchema: z.ZodType<NormalizedRun, unknown> = z.unknown().transform(json => normalizeRun(json))
 
 /** Extracts a human-readable message from a run's `error` field, which may be a string or object. */
 export function describeRunError(run: NormalizedRun): string | undefined {
@@ -347,7 +345,7 @@ export async function listNotebookRuns(
 }
 
 /** Transient = worth retrying: rate limits, server errors, per-request timeouts, network failures. */
-function isTransientError(err: unknown): boolean {
+export function isTransientError(err: unknown): boolean {
   if (err instanceof ApiError) {
     return err.statusCode === 429 || err.statusCode >= 500
   }

@@ -5,17 +5,17 @@ noIndex: false
 noContent: false
 ---
 
-Deepnote file sync lets you export your cloud project to a `.deepnote` file that stays synchronized with your notebooks. This file lives inside a Git repository — you can share it with teammates or run it locally.
+Deepnote file sync lets you export your cloud project to a `.deepnote` file that stays synchronized with your notebooks. You can store the file in a Git repository, share it with teammates, or run it on your machine.
 
 The `.deepnote` format is open-source and human-readable (YAML), so you can review notebook changes in pull requests just like regular code.
 
 <Callout status="warning">
 **"Deepnote file sync" and the `deepnote sync` CLI command are two different things.**
 
-- **Deepnote file sync** — this page. An in-product feature that links **one** cloud project to
+- **Deepnote file sync (legacy bundled format)** (this page) is an in-product feature that links **one** cloud project to
   **one** `.deepnote` file inside a **connected Git repository**, and keeps the two in step
   automatically. You drive it from the project menu in the Deepnote editor.
-- **[`deepnote sync`](/docs/deepnote-cli-sync)** — a local command-line tool. It mirrors **many**
+- **[`deepnote sync`](/docs/deepnote-cli-sync)** is a local command-line tool. It mirrors **many**
   projects (a whole workspace) into a directory on your machine, **on demand**, and does not involve
   Git at all. You drive it from your terminal and commit anything yourself.
 
@@ -25,10 +25,10 @@ about `.deepnote-sync.json`, `--all-files`, or `--on-conflict`, you want the CLI
 
 ## Why use file sync?
 
-- **Version control notebooks in Git** — store your notebooks alongside your code and track changes over time
-- **Share projects via repositories** — teammates can pull the repo and open the same notebooks locally
-- **Run notebooks locally** — use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to execute notebooks without cloud dependency
-- **Review notebook changes in PRs** — the file format produces meaningful diffs for code review
+- **Version control notebooks in Git:** Store your notebooks alongside your code and track changes over time
+- **Share projects via repositories:** Teammates can pull the repo and open the same notebooks on their machines
+- **Run notebooks on your machine:** Use [Deepnote CLI](https://github.com/deepnote/deepnote/tree/main/packages/cli) to execute notebooks without a cloud dependency
+- **Review notebook changes in PRs:** The file format produces readable diffs for code review
 
 ## Linking a project
 
@@ -72,9 +72,9 @@ Similarly, when you pull from a remote Git repository or switch to a different b
 
 You can also trigger sync manually from the project menu or from the linked file:
 
-- **Sync to file** — Push your current project state to the `.deepnote` file.
+- **Sync to file:** Push your current project state to the `.deepnote` file.
 
-- **Sync from file** — Pull changes from the file into your project. Use this after `git pull` or `git checkout` if you performed it from your machine's terminal or programmatically from the notebook.
+- **Sync from file:** Pull changes from the file into your project. Use this after `git pull` or `git checkout` if you performed it from your machine's terminal or programmatically from the notebook.
 
 ### What gets synced
 
@@ -115,7 +115,7 @@ Adding a Deepnote project file inside your Git repository makes it part of the G
 
 ## Related
 
-- [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync) — the `deepnote sync` command, which mirrors many projects to a local directory on demand. Use it when you want a whole workspace locally, or when the project you want to work on is not linked to a Git repository.
-- [Publishing static sites with the Deepnote CLI](/docs/deepnote-cli-publish) — deploy a built site or app to a project with `deepnote publish`.
-- [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file.
-- [How to set up Deepnote locally](/docs/local-setup) — editors and other local tooling.
+- [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync). The `deepnote sync` command, which mirrors many projects to a local directory on demand. Use it when you want a whole workspace locally, or when the project you want to work on is not linked to a Git repository.
+- [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish). Publish a built app directory with `deepnote publish`, or serve a project file as a Streamlit app with `deepnote streamlit publish`.
+- [Deepnote file format](/docs/deepnote-format). What is inside a `.deepnote` file.
+- [How to set up Deepnote locally](/docs/local-setup). Editors and other local tooling.

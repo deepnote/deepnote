@@ -104,8 +104,8 @@ const result = await scheduleInCloud(
 
 This creates or updates the recurring schedule in Deepnote Cloud without running the notebook
 immediately. If the project is missing, it is created first; pass `createIfMissing: false` to require
-an existing cloud notebook. Deepnote has one schedule per project, so scheduling another notebook
-from the same project re-points that schedule.
+an existing cloud notebook. Each notebook has its own schedule; other notebooks' schedules are not
+affected.
 
 One file shape cannot be created this way: a project that declares an `initNotebookId`. The public
 API can neither set nor read a project's init designation, so a created notebook would run without
@@ -122,6 +122,21 @@ its setup — at whatever hour the cron names, which is the least visible place 
 
 Import such a project into Deepnote once, which keeps the designation, then run or schedule it —
 that path creates nothing and so never refuses.
+
+### Remove a Deepnote Cloud schedule
+
+```ts
+import { unscheduleInCloud } from "@deepnote/local-runner";
+
+const result = await unscheduleInCloud("examples/6_with_inputs.deepnote", {
+  token: process.env.DEEPNOTE_TOKEN,
+});
+// result.removed / result.notebookId
+```
+
+It finds the notebook like `scheduleInCloud`, but never creates anything and won't guess between
+same-named projects. `removed` is `false` when there was no schedule, and `notebookId` is `null`
+when the notebook is not in Deepnote.
 
 ### Serve it to a static page
 

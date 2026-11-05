@@ -1,10 +1,10 @@
 import { createMCPClient, type MCPClient } from '@ai-sdk/mcp'
 import { Experimental_StdioMCPTransport } from '@ai-sdk/mcp/mcp-stdio'
-import { createOpenAI } from '@ai-sdk/openai'
 import type { AgentBlock, DeepnoteBlock, DeepnoteFile, McpServerConfig } from '@deepnote/blocks'
 import { extractOutputsText } from '@deepnote/blocks'
-import { stepCountIs, ToolLoopAgent, tool } from 'ai'
+import { isStepCount, ToolLoopAgent, tool } from 'ai'
 import { z } from 'zod'
+import { parseAgentModel, resolveAgentModel } from './agent-provider'
 
 export type AgentStreamEvent =
   | { type: 'tool_called'; toolName: string }
@@ -13,7 +13,10 @@ export type AgentStreamEvent =
   | { type: 'reasoning_delta'; text: string }
 
 export interface AgentBlockContext {
-  openAiToken: string
+  /** API key for the provider named by the block's `deepnote_agent_model`. Read from env when omitted. */
+  apiKey?: string
+  /** @deprecated Use {@link AgentBlockContext.apiKey}. Only used for OpenAI models. */
+  openAiToken?: string
   mcpServers: McpServerConfig[]
   notebookContext: string
   addAndExecuteCodeBlock: (args: { code: string }) => Promise<string>
@@ -150,22 +153,11 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
   // Before any resource acquisition — a pre-aborted call must not spawn MCP subprocesses
   context.signal?.throwIfAborted()
 
-  const openai = createOpenAI({
-    apiKey: context.openAiToken,
-    baseURL: process.env.OPENAI_BASE_URL,
-  })
-
-  const modelName =
-    block.metadata.deepnote_agent_model !== 'auto'
-      ? block.metadata.deepnote_agent_model
-      : (process.env.OPENAI_MODEL ?? 'gpt-5')
+  const spec = block.metadata.deepnote_agent_model
+  // The deprecated alias only ever held an OpenAI key; never send it to another provider.
+  const legacyKey = parseAgentModel(spec).providerId === 'openai' ? context.openAiToken : undefined
+  const { model, providerOptions } = resolveAgentModel({ spec, apiKey: context.apiKey ?? legacyKey })
   const maxTurns = 10
-
-  // Use the Responses API for direct OpenAI access (supports reasoning
-  // summaries), but fall back to Chat Completions for custom base URLs
-  // since most OpenAI-compatible providers don't implement the Responses API.
-  const baseURL = process.env.OPENAI_BASE_URL
-  const model = baseURL ? openai.chat(modelName) : openai(modelName)
 
   const blockMcpServers = block.metadata.deepnote_mcp_servers ?? []
   const mergedMcpConfig = mergeMcpConfigs(context.mcpServers, blockMcpServers)
@@ -232,13 +224,13 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         add_markdown_block: addMarkdownBlockTool,
         ...mcpTools,
       },
-      stopWhen: stepCountIs(maxTurns),
-      ...(baseURL ? {} : { providerOptions: { openai: { reasoningSummary: 'auto' } } }),
+      stopWhen: isStepCount(maxTurns),
+      providerOptions,
     })
 
     const streamResult = await agent.stream({ prompt: block.content ?? '', abortSignal: context.signal })
 
-    for await (const part of streamResult.fullStream) {
+    for await (const part of streamResult.stream) {
       if (part.type === 'text-delta') {
         await context.onAgentEvent?.({ type: 'text_delta', text: part.text })
       } else if (part.type === 'reasoning-delta') {
@@ -249,6 +241,9 @@ export async function executeAgentBlock(block: AgentBlock, context: AgentBlockCo
         const toolOutput = 'output' in part ? part.output : undefined
         const outputStr = typeof toolOutput === 'string' ? toolOutput : (JSON.stringify(toolOutput) ?? '')
         await context.onAgentEvent?.({ type: 'tool_output', toolName: part.toolName, output: outputStr })
+      } else if (part.type === 'error') {
+        // Otherwise `.text` rejects with a generic "No output generated" and the provider's message is lost.
+        throw part.error
       }
     }
 

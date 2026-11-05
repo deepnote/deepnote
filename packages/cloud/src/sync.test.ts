@@ -512,3 +512,82 @@ describe('downloadProjectFile', () => {
     ).rejects.toMatchObject({ statusCode: 413 })
   })
 })
+
+describe('rate limiting (HTTP 429)', () => {
+  const listed = () => response({ projects: [], pagination: { nextPageToken: null } })
+  const tooManyRequests = (headers: Record<string, string> = {}) =>
+    ({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: new Headers(headers),
+      body: null,
+      text: () => Promise.resolve(JSON.stringify({ message: 'Too many requests, please try again later.' })),
+    }) as unknown as Response
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it.each<{ headers: Record<string, string>; waitMs: number }>([
+    { headers: { 'Retry-After': '7', 'RateLimit-Reset': '30' }, waitMs: 7_000 },
+    { headers: { 'Retry-After': new Date(Date.now() + 120_000).toUTCString() }, waitMs: 60_000 },
+    { headers: { 'RateLimit-Reset': '3' }, waitMs: 3_000 },
+    { headers: {}, waitMs: 1_000 },
+  ])('waits $waitMs ms for $headers, then retries', async ({ headers, waitMs }) => {
+    vi.useFakeTimers()
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(tooManyRequests(headers))
+      .mockResolvedValueOnce(listed())
+
+    const projects = listAllProjects(BASE_URL, TOKEN)
+    await vi.advanceTimersByTimeAsync(waitMs - 1)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+
+    await expect(projects).resolves.toEqual([])
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after 5 retries with the same error as any other failure', async () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(tooManyRequests()))
+
+    const failed = expect(listAllProjects(BASE_URL, TOKEN)).rejects.toEqual(
+      new ApiError(429, 'Too many requests, please try again later.')
+    )
+    // Backoff without headers: 1 + 2 + 4 + 8 + 16 seconds.
+    await vi.advanceTimersByTimeAsync(31_000)
+
+    await failed
+    expect(fetchSpy).toHaveBeenCalledTimes(6)
+  })
+
+  it('does not retry a server error', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(response('boom', { ok: false, status: 500 }))
+
+    await expect(listAllProjects(BASE_URL, TOKEN)).rejects.toBeInstanceOf(ApiError)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-sends the import body after a 429', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(tooManyRequests({ 'Retry-After': '0' }))
+      .mockResolvedValueOnce(
+        response({
+          project: { id: PROJECT_ID, modifiedAt: '2026-01-03T00:00:00.000Z', contentHash: '0'.repeat(64) },
+          notebooks: [],
+        })
+      )
+    const main = projectDocument({ id: '30000000-0000-4000-8000-000000000001', name: 'Main' })
+
+    await importProject(BASE_URL, TOKEN, PROJECT_ID, [{ filename: 'main.deepnote', content: main }])
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    const [first, second] = fetchSpy.mock.calls.map(([, init]) => init?.body as Uint8Array)
+    expect(second).toBe(first)
+    expect(new TextDecoder().decode(unzipSync(second)['main.deepnote'])).toBe(main)
+  })
+})

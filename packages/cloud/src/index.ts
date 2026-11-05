@@ -69,11 +69,24 @@ export {
   type Workspace,
 } from './projects'
 export {
+  deleteNotebookSchedule,
   type NotebookSchedule,
   type ScheduleRequestOptions,
   type UpsertNotebookScheduleBody,
   upsertNotebookSchedule,
 } from './schedules'
+export {
+  type CreateStreamlitAppBody,
+  createStreamlitApp,
+  getStreamlitAppStatus,
+  listStreamlitApps,
+  type StreamlitApp,
+  type StreamlitAppRequestOptions,
+  type StreamlitAppStatus,
+  StreamlitAppTimeoutError,
+  type WaitForStreamlitAppOptions,
+  waitForStreamlitApp,
+} from './streamlit-apps'
 export {
   deleteProjectFile,
   downloadProjectFile,

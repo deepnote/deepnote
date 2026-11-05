@@ -4,28 +4,24 @@ noIndex: false
 noContent: false
 ---
 
-You know how important it is to have the right tools to support your students' learning. That's where Deepnote comes in. Our platform gives you a cloud-based workspace that makes it easy to set up collaborative notebooks and invite students to join.
+Deepnote gives teachers a cloud workspace for collaborative notebooks. You can prepare course materials, invite students, and review their projects in one place.
 
-Students can share their projects with a single click — no more need for messy screenshots or code traces sent through email. This streamlines the teaching process and creates a more collaborative environment for your classroom.
-
-But Deepnote isn't just useful for collaboration — it's also an amazing platform for creating interactive, engaging content for your students. With a wide range of customization options and integrations with popular data science libraries and tools, you can create custom templates and workflows that meet the specific needs of your course.
+Students can share a project with a link instead of sending screenshots or code through email. You can also create templates and workflows for your course with the data science libraries and tools that it uses.
 
 ## Benefits
 
-Some of the key benefits of Deepnote for teachers include:
+### Collaboration
 
-#### Collaboration
+Teachers, instructors, and students can work in the same project. Use comments to give feedback or discuss an assignment.
 
-Deepnote allows teachers to easily collaborate with other instructors and students on projects and assignments. This makes it easy to work together, share ideas and feedback, and ensure everyone is on the same page.
+### Interactive content
 
-#### Interactive content
+Interactive notebooks let students run code, change inputs, and inspect the results. This supports hands-on work in subjects such as data science and machine learning.
 
-Deepnote's interactive notebooks allow teachers to create interactive content that engages students and encourages them to explore and learn on their own. This can be especially useful for subjects like data science and machine learning, where hands-on experience is key.
+### Customization
 
-#### Customization
+Create templates and workflows for your course, connect other tools, and install the libraries your assignments need.
 
-Deepnote offers a wide range of customization options that allow teachers to tailor the platform to their specific needs. This includes the ability to create custom templates and workflows, integrate with other tools and libraries, and customize the look and feel of the platform.
+### Accessibility
 
-#### Accessibility
-
-Deepnote is a cloud-based platform that can be accessed from anywhere with an internet connection. This makes it easy for teachers to deliver content and track student progress, regardless of location.
+Teachers and students can access Deepnote from a browser with an internet connection. Teachers can deliver course material and review student progress without requiring a local setup.

@@ -18,7 +18,7 @@ import { databaseIntegrationConfigSchema } from '../database-integration-config'
  * ```
  */
 export const baseIntegrationsFileSchema = z.object({
-  integrations: z.array(z.record(z.unknown())).optional().default([]),
+  integrations: z.array(z.record(z.string(), z.unknown())).optional().default([]),
 })
 
 export type BaseIntegrationsFile = z.infer<typeof baseIntegrationsFileSchema>

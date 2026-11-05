@@ -7,9 +7,9 @@ noContent: false
 
 ## How to upload data files to Deepnote
 
-You can upload files into the integrated file system by dragging them from your computer into the **FILES** section in the right sidebar. You can also click the **+** button to upload files from your computer or from a URL.
+You can upload files into the integrated file system by dragging them from your computer into the **Files** section in the right sidebar. You can also click the **+** button to upload files from your computer or from a URL.
 
-![upload files.png](../assets/docs/ZG2hzoBoTbyNZImXNz8Q.webp)
+![Upload a file from the Files menu](../assets/docs/ZG2hzoBoTbyNZImXNz8Q.webp)
 
 <br></br>
 
@@ -21,15 +21,11 @@ Note that Deepnote is compatible with core Jupyter functionality. Read our secti
 
 Pro tip: If you drag a CSV file into the notebook (either from your computer or from the file system), an [SQL block](/docs/sql-cells) with a prepopulated query will be created for you.
 
-![sql_csv.png](../assets/docs/OPw0PxhLRXe9FOGO72nq.webp)
-
-<Callout status="info">
-Note that the limit for uploading a file via a web interface is 100MB.
-</Callout>
+![A SQL block created by dragging sample.csv into the notebook](../assets/docs/OPw0PxhLRXe9FOGO72nq.webp)
 
 ## Remote storage
 
-If your files live in a remote service or bucket, you can simply use one of the native [Deepnote integrations](https://deepnote.com/docs/amazon-s3) to access the files. We have integrations with Amazon S3, Google Cloud Storage, Google Drive, Google Sheets, Microsoft OneDrive, Box, Dropbox, and Azure Blob Storage.
+Use a native [Deepnote integration](https://deepnote.com/docs/amazon-s3) to access files in Amazon S3, Google Cloud Storage, or Google Drive.
 
 ## High performance file system
 

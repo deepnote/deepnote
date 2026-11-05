@@ -255,11 +255,6 @@ function getBlockContent(block: DeepnoteBlock): string | undefined {
     return block.content
   }
 
-  // Separator blocks show a horizontal line
-  if (block.type === 'separator') {
-    return '---'
-  }
-
   return undefined
 }
 
