@@ -4,7 +4,7 @@ noIndex: false
 noContent: false
 ---
 
-As your data team grows, a semantic layer becomes a useful abstraction to help you to create a consistent and unified view of your key metrics across the entire organization. It ensures that every analysis your do uses the same definitions when calculating complex metrics (e.g. _How many users do we have? What was our revenue in the last fiscal year?_).
+As your data team grows, a semantic layer becomes a useful abstraction to help you create a consistent and unified view of your key metrics across the entire organization. It ensures that every analysis you do uses the same definitions when calculating complex metrics (e.g. _How many users do we have? What was our revenue in the last fiscal year?_).
 
 **Deepnote is compatible with all major approaches to building a semantic layer.** In this article, we will cover different approaches and how to integrate them with Deepnote.
 
@@ -29,6 +29,6 @@ If you'd like to influence the development of this feature, please vote and comm
 
 ### Looker and LookML
 
-Looker also exposes a [JDBC interface](https://cloud.google.com/looker/docs/sql-interface), allowing you to query LookML models via SQL.Native integration with Looker and LookML is on our product roadmap. To help us prioritize this integration, you can vote and share your use case on this [portal card](https://portal.productboard.com/deepnote/1-deepnote-product-portal/c/162-lookml-integration).
+Looker also exposes a [JDBC interface](https://cloud.google.com/looker/docs/sql-interface), allowing you to query LookML models via SQL. Native integration with Looker and LookML is on our product roadmap. To help us prioritize this integration, you can vote and share your use case on this [portal card](https://portal.productboard.com/deepnote/1-deepnote-product-portal/c/162-lookml-integration).
 
 Get in touch with us at [sales@deepnote.com](mailto:sales@deepnote.com) to learn more about these integrations.
