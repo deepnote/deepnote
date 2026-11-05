@@ -17,7 +17,7 @@ There are two ways to do it, and they suit different jobs:
 | Where the code runs | The CI runner's Python                        | The project's own machine, environment and integrations in Deepnote |
 | Needs an API key    | No                                            | Yes                                                                 |
 | Good for            | "This notebook still runs" checks on every PR | Scheduled reports, refreshing outputs, runs that need your data     |
-| Safe on forked PRs  | Yes — nothing secret is involved              | No — see [Security](#security)                                      |
+| Safe on forked PRs  | Yes, nothing secret is involved               | No, see [Security](#security)                                       |
 
 ## Prerequisites
 
@@ -106,23 +106,23 @@ A few things this relies on:
 
 With `-o json`, the command prints one JSON object to stdout and exits with:
 
-| Code | Meaning                                                         |
-| ---- | --------------------------------------------------------------- |
-| `0`  | Every block ran successfully                                    |
-| `1`  | A block failed, or the runtime could not start                  |
-| `2`  | Invalid usage — a missing file, an unknown input, or a bad flag |
+| Code | Meaning                                                        |
+| ---- | -------------------------------------------------------------- |
+| `0`  | Every block ran successfully                                   |
+| `1`  | A block failed, or the runtime could not start                 |
+| `2`  | Invalid usage: a missing file, an unknown input, or a bad flag |
 
 On failure, `failureCategory` says why, so a pipeline can tell a bug in the notebook from a problem
 with the runner:
 
-| `failureCategory`   | Meaning                                                                                        |
-| ------------------- | ---------------------------------------------------------------------------------------------- |
-| `in-block`          | The block's own code raised                                                                    |
-| `execution-timeout` | A block ran longer than `--block-timeout` and was interrupted                                  |
-| `kernel-died`       | The kernel ended while a block ran — usually out of memory or a native crash                   |
-| `server-exited`     | The deepnote-toolkit server went away mid-run                                                  |
-| `server-launch`     | The server never became ready — most often `deepnote-toolkit` is not installed for that Python |
-| `kernel-launch`     | The server started but the kernel did not become ready within `--startup-timeout`              |
+| `failureCategory`   | Meaning                                                                                       |
+| ------------------- | --------------------------------------------------------------------------------------------- |
+| `in-block`          | The block's own code raised                                                                   |
+| `execution-timeout` | A block ran longer than `--block-timeout` and was interrupted                                 |
+| `kernel-died`       | The kernel ended while a block ran, usually out of memory or a native crash                   |
+| `server-exited`     | The deepnote-toolkit server went away mid-run                                                 |
+| `server-launch`     | The server never became ready; most often `deepnote-toolkit` is not installed for that Python |
+| `kernel-launch`     | The server started but the kernel did not become ready within `--startup-timeout`             |
 
 When the CLI knows the remedy, the result also carries a `hint`, for example the exact
 `pip install` command when the toolkit is missing.
@@ -130,7 +130,7 @@ When the CLI knows the remedy, the result also carries a `hint`, for example the
 ## Run in Deepnote Cloud
 
 `--cloud` asks Deepnote to run the notebook on the project's own machine, waits for it to finish and
-downloads the resulting snapshot — the notebook with its outputs — into a `snapshots/` directory
+downloads the resulting snapshot (the notebook with its outputs) into a `snapshots/` directory
 next to the source file, or to the exact path given with `--out`.
 
 ```yaml
@@ -168,7 +168,7 @@ jobs:
 
 - **Which notebook runs.** The CLI reads the project and notebook ids from the `.deepnote` file. If
   the file has several notebooks, choose one with `--notebook "<name>"`. Without a local file, pass
-  `--notebook-id <uuid>` instead — but `--input` then cannot be used, because typing input values
+  `--notebook-id <uuid>` instead, but `--input` then cannot be used, because typing input values
   needs the notebook's input blocks from the file.
 - **What code runs.** By default Deepnote runs the notebook as it was last saved in Deepnote, not the
   file in your repository. To run what is in the repository, add `--push --yes`: `--push` replaces
@@ -264,7 +264,7 @@ jobs:
   record, so it never silently overwrites an edit.
 - **Commit what sync writes.** After pushing a project, sync rewrites its files with Deepnote's
   export and updates `.deepnote-sync.json`. If the job does not commit both, the next run compares
-  against the old record, sees both sides changed, and skips the project as a conflict — and keeps
+  against the old record, sees both sides changed, and skips the project as a conflict, and keeps
   skipping it. The commit step runs even when sync fails, because projects that did sync still need
   their record kept. A commit pushed with the workflow's `GITHUB_TOKEN` does not start another
   workflow run, so the job does not loop. If branch protection blocks direct pushes to `main`, allow
@@ -284,7 +284,7 @@ The same trigger can deploy apps: run [`deepnote publish`](/docs/deepnote-cli-pu
 
 <Callout status="warning">
 A Deepnote API key gives access to its whole workspace. In CI, anyone who can change the code a job
-runs can read the secrets that job is given — and a cloud run executes notebook code with the
+runs can read the secrets that job is given, and a cloud run executes notebook code with the
 project's integrations and data.
 </Callout>
 
@@ -295,7 +295,7 @@ deployments:
 - **Run them only on trusted events.** Use `push` to a protected branch, `schedule` or
   `workflow_dispatch`. Never give the token to `pull_request_target` or `workflow_run` jobs that check
   out or execute code from a pull request: that hands the key to whoever opened it. GitHub does not
-  pass secrets to `pull_request` runs from forks, so the cloud step fails there instead — run it
+  pass secrets to `pull_request` runs from forks, so the cloud step fails there instead. Run it
   conditionally rather than working around that.
 - **Be deliberate with `--push` and `deepnote sync`.** Both upload the repository's version of
   notebooks into your workspace, and `--push` also runs it. Whoever can merge to the branch that
@@ -333,7 +333,7 @@ secret store on protected branches only.
 
 ## Related
 
-- [Deepnote CLI](/docs/deepnote-cli) — install the CLI and see every command
-- [Deepnote API](/docs/deepnote-api) — the HTTP API that `run --cloud` uses
-- [Scheduling](/docs/scheduling) — run notebooks on a schedule inside Deepnote, without CI
+- [Deepnote CLI](/docs/deepnote-cli): install the CLI and see every command
+- [Deepnote API](/docs/deepnote-api): the HTTP API that `run --cloud` uses
+- [Scheduling](/docs/scheduling): run notebooks on a schedule inside Deepnote, without CI
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync)

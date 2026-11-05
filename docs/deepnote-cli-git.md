@@ -6,8 +6,8 @@ noContent: false
 ---
 
 A `.deepnote` file is plain YAML: one block after another, with its code or text as readable lines
-and no outputs mixed in. That makes notebooks behave like the rest of your code in Git — small diffs,
-real merges, meaningful history — where `.ipynb` files bury a one-line change under base64 images
+and no outputs mixed in. That makes notebooks behave like the rest of your code in Git (small diffs,
+real merges, meaningful history), where `.ipynb` files bury a one-line change under base64 images
 and execution counts.
 
 The [Deepnote CLI](/docs/deepnote-cli) makes the rest of the workflow first-class: diffs that show
@@ -53,12 +53,12 @@ and id, so a change reads as the code that changed:
 +  print("changed")
 ```
 
-The `tail` drops the first line of `deepnote cat`'s output, which names the temporary file Git
-compares.
+The `tail` drops the first two lines of `deepnote cat`'s output: the name of the temporary file Git
+compares, and a blank line.
 
 ### A summary of what changed
 
-For a structural overview — which notebooks and blocks were added, removed or modified — use
+For a structural overview of which notebooks and blocks were added, removed or modified, use
 `deepnote diff` as a difftool:
 
 ```bash
@@ -84,12 +84,12 @@ script.
 
 Two commands catch broken notebooks before they reach the repository:
 
-- `deepnote validate` checks a file against the `.deepnote` schema — the right fields, block types
+- `deepnote validate` checks a file against the `.deepnote` schema: the right fields, block types
   and structure. It exits with `2` for an invalid file.
-- `deepnote lint` analyzes the code. Syntax errors and SQL blocks whose integration is not
-  configured are errors (exit code `1`); unused and redefined variables and input blocks without a
-  value are warnings. It needs a Python 3 interpreter, which it finds the same way
-  [`deepnote run`](/docs/deepnote-cli) does, or takes with `--python`.
+- `deepnote lint` analyzes the code. Syntax errors, undefined variables, circular dependencies and
+  SQL blocks whose integration is not configured are errors (exit code `1`); unused and redefined
+  variables and input blocks without a value are warnings. It needs a Python 3 interpreter, which
+  it finds the same way [`deepnote run`](/docs/deepnote-cli) does, or takes with `--python`.
 
 ```text
   ⚠ unused-variable: Variable "x" is defined but never used
@@ -187,8 +187,8 @@ This needs no secrets, so it is safe on pull requests from forks. To run the not
 
 ## Related
 
-- [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
-- [Converting notebooks](/docs/converting-notebooks) — to and from Jupyter, Quarto, percent and marimo
-- [Deepnote CLI](/docs/deepnote-cli) — every command
-- [Deepnote file sync](/docs/deepnote-file-sync) — let Deepnote keep a project in sync with a Git
+- [Deepnote file format](/docs/deepnote-format): what is inside a `.deepnote` file
+- [Converting notebooks](/docs/converting-notebooks): to and from Jupyter, Quarto, percent and marimo
+- [Deepnote CLI](/docs/deepnote-cli): every command
+- [Deepnote file sync](/docs/deepnote-file-sync): let Deepnote keep a project in sync with a Git
   repository for you

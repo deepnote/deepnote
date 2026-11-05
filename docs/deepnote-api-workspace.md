@@ -14,7 +14,7 @@ All examples use `$DEEPNOTE_TOKEN`; see [Authentication](/docs/deepnote-api#auth
 ## Export and import projects
 
 `GET /v2/projects/{projectId}/export` returns a ZIP with one [`.deepnote` file](/docs/deepnote-format)
-per notebook — readable YAML that diffs well in Git. Outputs and execution metadata are left out.
+per notebook, as readable YAML that diffs well in Git. Outputs and execution metadata are left out.
 
 ```bash
 curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/export" \
@@ -35,8 +35,8 @@ curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import" \
 - **It reconciles, it does not replace.** Notebooks are matched by id. Notebooks missing from the
   archive are left alone unless you add `deleteMissingNotebooks=true`, so you can import a single
   notebook. Imported notebooks lose their outputs, since the archive has none.
-- **It will not overwrite someone else's work.** Pass `baseModifiedAt` — the `metadata.modifiedAt`
-  value from the files you exported — and the import returns `409` if the project changed in the
+- **It will not overwrite someone else's work.** Pass `baseModifiedAt` (the `metadata.modifiedAt`
+  value from the files you exported) and the import returns `409` if the project changed in the
   meantime. `force=true` skips that check.
 - Python requirements are not part of the archive.
 
@@ -50,8 +50,8 @@ What this enables:
 - **Review before it lands.** Import from CI after a pull request is merged, so changes to important
   notebooks go through code review.
 
-To create a project from files instead of updating one, use `POST /v2/projects`, or upload a
-`.deepnote` file with [`deepnote open`](/docs/deepnote-cli).
+`POST /v2/projects` creates an empty project; it does not take files. To create a project from a
+`.deepnote` file, upload it with [`deepnote open`](/docs/deepnote-cli).
 
 ## Integrations
 

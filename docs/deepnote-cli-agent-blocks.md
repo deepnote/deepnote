@@ -5,8 +5,8 @@ noIndex: false
 noContent: false
 ---
 
-An agent block holds a prompt instead of code. When it runs, an AI agent reads the notebook so far —
-its code, outputs and data — writes and runs Python blocks, checks the results, and explains what it
+An agent block holds a prompt instead of code. When it runs, an AI agent reads the notebook so far
+(its code, outputs and data), writes and runs Python blocks, checks the results, and explains what it
 found in Markdown. In Deepnote Cloud the agent uses your workspace's [AI settings](/docs/deepnote-agent).
 On your own machine, the [Deepnote CLI](/docs/deepnote-cli) runs the same agent block with the model
 provider you choose: Anthropic, OpenAI, or any OpenAI-compatible endpoint, including local models.
@@ -20,7 +20,7 @@ block with your prompt at the end:
 OPENAI_API_KEY=sk-... deepnote run sales.deepnote --prompt "Which region grew fastest last quarter, and why?"
 ```
 
-Or start from nothing — the agent gets an empty notebook and builds it:
+Or start from nothing. The agent gets an empty notebook and builds it:
 
 ```bash
 OPENAI_API_KEY=sk-... deepnote run --prompt "Download the latest Python release notes and summarize the new features"
@@ -48,11 +48,11 @@ An agent block's `deepnote_agent_model` field selects the model:
   `openai-compatible:<model>`.
 - `auto`, or no model at all, uses OpenAI's default.
 
-| Provider            | Default model      | API key                  | Choose the model with  | Endpoint override         |
-| ------------------- | ------------------ | ------------------------ | ---------------------- | ------------------------- |
-| `openai`            | `gpt-6.1-sol`      | `OPENAI_API_KEY`         | `OPENAI_MODEL`         | `OPENAI_BASE_URL`         |
-| `anthropic`         | `claude-opus-5-5`  | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      | `ANTHROPIC_BASE_URL`      |
-| `openai-compatible` | none — must be set | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` | `DEEPNOTE_AGENT_BASE_URL` |
+| Provider            | Default model     | API key                  | Choose the model with  | Endpoint override         |
+| ------------------- | ----------------- | ------------------------ | ---------------------- | ------------------------- |
+| `openai`            | `gpt-6.1-sol`     | `OPENAI_API_KEY`         | `OPENAI_MODEL`         | `OPENAI_BASE_URL`         |
+| `anthropic`         | `claude-opus-5-5` | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      | `ANTHROPIC_BASE_URL`      |
+| `openai-compatible` | must be set       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` | `DEEPNOTE_AGENT_BASE_URL` |
 
 A model named in the block takes precedence over the environment variable. The CLI also reads these
 variables from a `.env` file next to the notebook, so keys stay out of your shell history.
@@ -98,7 +98,7 @@ taken from your environment. The agent can also query the databases configured f
 The same `.deepnote` file runs in Deepnote Cloud, where the agent uses your workspace's AI settings
 instead of your local keys. To keep a block's model choice working in both places, use `auto` or a
 model id without a provider prefix that Deepnote supports, such as `claude-opus-5-5`,
-`claude-sonnet-5-5`, `gpt-6-sol` or `gpt-6-luna`. Prefixed or unsupported models fall back to the
+`claude-sonnet-5-5`, `gpt-6.1-sol` or `gpt-6-luna`. Prefixed or unsupported models fall back to the
 workspace settings in Cloud.
 
 ## In VS Code and Cursor
@@ -106,10 +106,12 @@ workspace settings in Cloud.
 The [Deepnote extension](/docs/vscode-extension) runs agent blocks too: use **Add Agent Block**,
 write a prompt and run it. The extension asks for an OpenAI API key the first time and stores it in
 the editor's secret storage; **Deepnote: Set OpenAI API Key** and **Deepnote: Clear OpenAI API Key**
-change it.
+change it. Blocks set to a Claude or `openai-compatible` model read their key, model and endpoint
+from the same environment variables as the CLI, taken from the editor's environment; the extension
+still asks for an OpenAI key first.
 
 ## Related
 
-- [Deepnote Agent](/docs/deepnote-agent) — the agent in Deepnote Cloud
-- [Custom AI models](/docs/ai-custom-models) — use your own models in Deepnote Cloud
+- [Deepnote Agent](/docs/deepnote-agent): the agent in Deepnote Cloud
+- [Custom AI models](/docs/ai-custom-models): use your own models in Deepnote Cloud
 - [Deepnote CLI](/docs/deepnote-cli) and [Deepnote format](/docs/deepnote-format)

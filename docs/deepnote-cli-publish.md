@@ -167,9 +167,12 @@ async function runNotebook(notebookId, inputs) {
 
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    const { run } = await fetch(`${apiOrigin}/v2/runs/${runId}`, {
-      headers,
-    }).then((response) => response.json());
+    const { run } = await fetch(
+      `${apiOrigin}/v2/runs/${runId}?snapshotDelivery=blocks`,
+      {
+        headers,
+      },
+    ).then((response) => response.json());
     if (run.status === "success" && run.snapshotStatus !== "pending")
       return run.snapshotBlocks;
     if (["error", "internal_error", "stopped"].includes(run.status))

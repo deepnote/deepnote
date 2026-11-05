@@ -145,7 +145,7 @@ A Streamlit app can use a notebook as its backend. The notebook keeps the SQL, c
 work; the app turns the notebook's [input blocks](/docs/input-blocks) into a form, runs the notebook
 with the viewer's values and shows what it returns. Each run is started as the current viewer, so it
 is subject to their Deepnote permissions: they need access to the project and permission to execute
-it. Inside the run, queries use whatever credentials the integration holds — for a shared
+it. Inside the run, queries use whatever credentials the integration holds. For a shared
 integration that is the stored connection, so the app can return data the viewer has no direct
 access to in the source system. Use an
 [OAuth integration](#per-viewer-authentication-with-oauth-integrations) when queries must run as the
@@ -194,10 +194,11 @@ These helpers ship in `deepnote-toolkit` 2.9.0 and later.
 
 ### What the helpers do
 
-- **`render_inputs`** draws a Streamlit widget for each input block — text, select, slider,
-  checkbox, date and date range — with the notebook's saved values as defaults, and returns the values
-  to run with. An input the viewer leaves empty runs with the notebook's saved value. File inputs
-  appear as a text path; the helper does not upload files.
+- **`render_inputs`** draws a Streamlit widget for each input block (text, select, slider,
+  checkbox, date and date range) with the notebook's saved values as defaults, and returns the values
+  to run with. A select with nothing chosen, or a date range with only one end picked, is left out,
+  so the run uses the notebook's saved value; a text or date field the viewer clears runs as empty.
+  File inputs appear as a text path; the helper does not upload files.
 - **`StreamlitCloudRunner.run`** starts a detached run in Deepnote as the current viewer, waits for it
   (up to `timeout`, 600 seconds by default) and returns its outputs. It never falls back to your own
   token: if the viewer's credentials are not available, the call fails. Call it from the Streamlit

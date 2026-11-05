@@ -63,11 +63,12 @@ page if it is exposed.
 - **IDs** come from the API itself or from the editor URL. `GET /v2/projects` lists projects
   (filter with `nameContains`), `GET /v2/projects/{projectId}` lists a project's notebooks,
   integrations and files, and a `.deepnote` file records its project and notebook ids.
-- **Pagination:** list endpoints take `pageSize` (up to 100) and `pageToken`, and return
-  `pagination.nextPageToken` until `hasMore` is `false`.
+- **Pagination:** `GET /v2/projects`, `GET /v2/notebooks/{notebookId}/runs` and `GET /v2/audit-logs`
+  take `pageSize` and `pageToken`, and return `pagination.nextPageToken` until `hasMore` is `false`.
+  Other list endpoints are not paginated.
 - **Errors** return `{ "message": "…" }` with a standard status code. `409` means the request
-  conflicts with the current state — the project is suspended, a machine is in the wrong state, or a
-  plan limit is reached — and the message says which.
+  conflicts with the current state, for example the project is suspended, a machine is in the wrong
+  state, or a plan limit is reached; the message says which.
 - **Rate limits** return `429` with a `Retry-After` header giving the seconds to wait.
 
 ## Apps that call the API as their viewer
@@ -80,8 +81,8 @@ runs. See [Viewer API access](/docs/deepnote-cli-publish#viewer-api-access) for 
 
 ## Related
 
-- [API reference](/docs/api-reference) — every endpoint, parameter and response
-- [Deepnote CLI](/docs/deepnote-cli) — the same API from your terminal and CI
+- [API reference](/docs/api-reference): every endpoint, parameter and response
+- [Deepnote CLI](/docs/deepnote-cli): the same API from your terminal and CI
 - [Running notebooks in CI](/docs/deepnote-cli-ci)
-- [Deepnote MCP](/docs/deepnote-mcp) — connect AI agents to your workspace
+- [Deepnote MCP](/docs/deepnote-mcp): connect AI agents to your workspace
 - [Scheduling](/docs/scheduling) and [Run snapshots](/docs/run-snapshots)

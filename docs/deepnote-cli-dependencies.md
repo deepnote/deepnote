@@ -100,7 +100,7 @@ Execution Plan (dry run)
 Total: 3 block(s) would be executed
 ```
 
-Unrelated blocks — slow exports, other analyses — are skipped. In Deepnote Cloud, the
+Unrelated blocks, such as slow exports or other analyses, are skipped. In Deepnote Cloud, the
 [API](/docs/deepnote-api-runs) can do the reverse: run selected blocks and everything that depends
 on them with `runDependentBlocks`.
 
@@ -126,12 +126,12 @@ teaches agents such as Claude Code, Codex and Cursor to use them; see
 ## Limitations
 
 The analysis reads Python and SQL source without running it, so it cannot see dependencies created
-at run time — for example variables set through `globals()`, `exec` or a `%run` of another file.
+at run time, for example variables set through `globals()`, `exec` or a `%run` of another file.
 Names that are used but never defined anywhere in the notebook do not appear as dependencies.
 
 ## Related
 
-- [Deepnote CLI](/docs/deepnote-cli) — every command
-- [Execution modes](/docs/execution-modes) — running dependent blocks in Deepnote
+- [Deepnote CLI](/docs/deepnote-cli): every command
+- [Execution modes](/docs/execution-modes): running dependent blocks in Deepnote
 - [Working with notebooks in Git](/docs/deepnote-cli-git)
 - [Organizing notebooks](/docs/organizing-notebooks)

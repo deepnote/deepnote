@@ -27,7 +27,7 @@ Need something more specific? You can create [custom environments](https://deepn
 ## Use the same environment outside Deepnote
 
 The Python images are public on Docker Hub, so you can run notebooks locally or in CI on the same
-libraries they get in Deepnote — useful for checking that a notebook still works before it is
+libraries they get in Deepnote, which is useful for checking that a notebook still works before it is
 scheduled, or for reproducing a result on your own machine. Installing `deepnote-toolkit[server]`
 into the image can upgrade a few of its packages (for example Pillow), so compare `pip freeze`
 before and after if a notebook depends on an exact version.

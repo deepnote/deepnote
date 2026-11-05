@@ -84,8 +84,8 @@ curl -s -X PATCH "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine" \
 
 - **`idleShutdownSeconds`** (up to 24 hours) applies immediately.
 - **`type`** and **`sandboxEnvironmentId`** apply on the machine's next start. A running machine
-  needs `"restart": true` — without it the request returns `409` and changes nothing — and
-  restarting loses the kernel's variables. If the restarted machine cannot start, the request
+  needs `"restart": true`; without it the request returns `409` and changes nothing. Restarting
+  loses the kernel's variables. If the restarted machine cannot start, the request
   returns `409` but keeps the change.
 - To use bigger hardware for a single job without changing the project, pass `machineType` to a
   [run](/docs/deepnote-api-runs) or [session](/docs/deepnote-api-sessions) instead.

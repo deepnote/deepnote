@@ -100,9 +100,9 @@ You can run a single block by clicking the play button or pressing Shift + Enter
 ### Agent blocks
 
 An agent block holds a prompt instead of code. Add one with **Add Agent Block** (the robot button in
-the notebook toolbar), describe what you want — _"chart monthly revenue by region and explain the
-trend"_ — and run it. The agent reads the notebook so far, adds and runs code and Markdown cells below
-the block, and checks their results until it is done.
+the notebook toolbar), describe what you want, such as _"chart monthly revenue by region and explain
+the trend"_, and run it. The agent reads the notebook so far, adds and runs code and Markdown cells
+below the block, and checks their results until it is done.
 
 - The cells it adds are marked **Ephemeral** and are not saved to the `.deepnote` file. Running the
   block again replaces them; **Clear ephemeral blocks** on the block removes them.
@@ -111,8 +111,9 @@ the block, and checks their results until it is done.
   storage. Change it with **Deepnote: Set OpenAI API Key** or **Deepnote: Clear OpenAI API Key**.
 - A notebook can have one agent block.
 
-To run agent blocks with other providers or local models, use the CLI; see
-[Running agent blocks locally](/docs/deepnote-cli-agent-blocks).
+Blocks set to a Claude or `openai-compatible` model read their key, model and endpoint from the same
+environment variables as the CLI, taken from the editor's environment; the extension still asks for
+an OpenAI key first. See [Running agent blocks locally](/docs/deepnote-cli-agent-blocks).
 
 ### Rich output display
 
@@ -277,7 +278,7 @@ kernel, so you can check what a block defined without printing it.
 ### AI coding agents
 
 When the extension starts a notebook, it installs Deepnote's agent skills into the workspace for the
-editor's assistant — Cursor, Windsurf, Antigravity, or GitHub Copilot in VS Code. The skills teach
+editor's assistant: Cursor, Windsurf, Antigravity, or GitHub Copilot in VS Code. The skills teach
 the assistant the `.deepnote` format and the Deepnote CLI, so it can write notebooks and check its
 work with `deepnote lint` and `deepnote run`. The CLI comes bundled with the extension; nothing is
 installed into your Python environment.
@@ -346,7 +347,7 @@ run a block.
 #### Init notebooks and requirements
 
 If a project has an **Init** notebook, the extension runs it in the kernel before your first block,
-and again after every kernel restart — the same as in Deepnote Cloud. Deepnote's standard Init notebook
+and again after every kernel restart, the same as in Deepnote Cloud. Deepnote's standard Init notebook
 installs `requirements.txt` from the project folder when it exists; the extension runs it as
 cross-platform Python, so dependencies are in place before any other code runs on Windows, macOS or
 Linux. See [Installing dependencies](/docs/installing-dependencies).

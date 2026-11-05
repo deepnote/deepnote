@@ -58,20 +58,22 @@ curl -s -X POST https://api.deepnote.com/v2/runs \
 ```
 
 Input values are strings, booleans (checkboxes) or arrays of strings (multi-selects), keyed by
-input `name`. They apply to this run only and do not change the values saved in the notebook.
+input `name`. They never change the values saved in the notebook. In a detached run they apply to
+that run only; in a live run (`"detached": false`) they stay in the kernel and affect later
+executions until they are overwritten or the kernel restarts.
 
 By default the run is **detached**: Deepnote runs a copy of the notebook on its own machine, so it
 does not disturb anyone working in the editor and does not change the outputs they see. A detached
 run also accepts:
 
-- `machineType` — run on different hardware than the project uses, for example a GPU for one heavy
+- `machineType`: run on different hardware than the project uses, for example a GPU for one heavy
   job. Valid ids come from `GET /v2/machine-types`.
-- `detachedRunStorageMode: "readonly"` — make the project's persistent storage read-only for the
+- `detachedRunStorageMode: "readonly"`: make the project's persistent storage read-only for the
   run. The run can still create temporary files.
 
 Set `"detached": false` to run in the project's live editor session instead. A live run reuses the
 kernel's state and updates the outputs everyone sees, and it can run selected blocks with
-`blockIds` — add `"runDependentBlocks": true` to also re-run the blocks that depend on them.
+`blockIds`. Add `"runDependentBlocks": true` to also re-run the blocks that depend on them.
 
 ## 3. Wait for the result and read the outputs
 
@@ -162,8 +164,8 @@ output, so keep one such block per notebook. This is the same mechanism
 
 ## Run history
 
-`GET /v2/notebooks/{notebookId}/runs` lists past runs of a notebook — started from the editor, a
-schedule or the API — newest first, with their status and timestamps. Pass any `runId` to
+`GET /v2/notebooks/{notebookId}/runs` lists past runs of a notebook (started from the editor, a
+schedule or the API), newest first, with their status and timestamps. Pass any `runId` to
 `GET /v2/runs/{runId}` to read that run's outputs while its snapshot is kept; `snapshotExpiresAt`
 says how long that is. See [Run snapshots](/docs/run-snapshots).
 
@@ -179,7 +181,7 @@ curl -s -X POST "https://api.deepnote.com/v2/notebooks/$NOTEBOOK_ID/schedule" \
   -d '{ "cron": "0 7 * * 1-5", "timezone": "America/New_York" }'
 ```
 
-The same path takes `GET` to read the schedule — including `nextRunAt` and whether it is paused — and
+The same path takes `GET` to read the schedule, including `nextRunAt` and whether it is paused, and
 `DELETE` to remove it. Each notebook has at most one schedule, and posting again replaces it. See
 [Scheduling](/docs/scheduling) for what a scheduled run does, and
 [`deepnote schedule`](/docs/deepnote-cli) for the same from the terminal.
@@ -187,6 +189,6 @@ The same path takes `GET` to read the schedule — including `nextRunAt` and whe
 ## Related
 
 - [Deepnote API](/docs/deepnote-api) and the [API reference](/docs/api-reference)
-- [Interactive sessions](/docs/deepnote-api-sessions) — keep state between runs
-- [Running notebooks in CI](/docs/deepnote-cli-ci) — `deepnote run --cloud` does all of the above
+- [Interactive sessions](/docs/deepnote-api-sessions): keep state between runs
+- [Running notebooks in CI](/docs/deepnote-cli-ci): `deepnote run --cloud` does all of the above
   in one command

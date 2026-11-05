@@ -140,7 +140,7 @@ The examples below assume you have created a workspace API key under **Settings 
 
 The quickest way to set up a coding agent is the [Deepnote plugin](https://github.com/deepnote/agent-plugins).
 It connects the agent to the Deepnote MCP server and also installs skills: instructions that teach the
-agent how to work with Deepnote well — how to read and edit notebooks, run them and debug failed runs,
+agent how to work with Deepnote well: how to read and edit notebooks, run them and debug failed runs,
 inspect integrations, link to what it changed, and build data apps and Streamlit apps.
 
 **Claude Code:**
