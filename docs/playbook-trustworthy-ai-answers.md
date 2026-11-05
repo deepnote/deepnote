@@ -27,8 +27,8 @@ Deepnote gives its AI the same context your analysts use: the metric definitions
 Knowing what context Deepnote's AI uses tells you where to put your effort.
 
 - **The open notebook.** Agent reads every block in the notebook you're working in. If a workspace admin turns on **Provide access to block outputs** in **Settings & members** → **AI**, it also reads outputs, including row-level data.
-- **Your modules.** Every request includes the 20 most recently created [modules](/docs/modules) you have access to, with their input parameters and exported values. Agent is told to treat modules as the workspace's semantic layer. In Edit mode, it can insert a module block and set its inputs to match your question.
-- **Queries your team already runs.** When Agent writes or edits SQL for a database integration, it looks for relevant tables in that integration's schema and adds up to five example queries that already ran successfully on the same integration. It prefers queries from scheduled notebooks, then queries from published apps, then any other executed query. Only projects you can access are used.
+- **Your modules.** Every request includes up to 20 [modules](/docs/modules) you have access to, newest notebooks first, with their input parameters and exported values. Agent is told to treat modules as the workspace's semantic layer. In Edit mode, it can insert a module block and set its inputs to match your question.
+- **Queries your team already runs.** When Agent writes or edits SQL for a database integration, it looks for relevant tables in that integration's schema and adds up to five example queries that have already been run on the same integration. It prefers queries from scheduled notebooks, then queries from published apps, then any other executed query. Only projects you can access are used.
 - **Tables you mention.** Typing `@` in a prompt lets you name a table, which then always goes into the context.
 - **Connected MCP integrations.** In Edit mode, Agent can call tools from MCP integrations connected to the project. Agent is told to look up metrics, schemas and catalogs in those services before writing its own queries.
 - **Your custom instructions.** Each person's [custom instructions](/docs/custom-ai-instructions) are added to their own requests. They're personal and aren't shared with teammates.
@@ -41,12 +41,12 @@ Start with the five to ten numbers people ask about most often: revenue, active 
 
 Two details decide whether Agent finds a module:
 
-- Agent sees the 20 most recently created modules you can access. If your workspace has more, retire outdated ones so the important definitions stay in view.
+- Agent sees the 20 modules you can access whose notebooks were created most recently. Publishing an older notebook as a module doesn't move it up, so if your workspace has more than 20 modules, retire outdated ones to keep the important definitions in view.
 - A module in a private project can only be used from other private projects. Put shared definitions in a project the whole workspace can access.
 
 ### 2. Schedule or publish your canonical queries
 
-When Agent writes SQL, the queries it learns from come first from scheduled notebooks and then from published apps. Your production reporting therefore doubles as training material. Schedule the notebooks whose queries reflect how your team actually joins and filters the data, and keep exploratory or broken queries out of them.
+When Agent writes SQL, the queries it learns from come first from scheduled notebooks and then from published apps. Your scheduled reports become the examples the AI follows. Schedule the notebooks whose queries reflect how your team joins and filters the data, and keep exploratory or broken queries out of them.
 
 ### 3. Connect the tools that already hold definitions
 

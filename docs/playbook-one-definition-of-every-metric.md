@@ -23,7 +23,7 @@ In Deepnote you can build that layer from [modules](/docs/modules), notebooks th
 
 ## How modules behave
 
-A few facts about modules shape the design:
+These module behaviors affect the setup:
 
 - **A module runs in its own project.** When a notebook runs a module block, the module executes on its own project's machine, with that project's environment and integrations, and returns only the values it exports. People using the metric don't need the database integration in their own project.
 - **The caller needs Execute access.** A module runs as the person, or the schedule owner, who triggered it. They need at least Execute access to the module's project.
@@ -64,7 +64,7 @@ Sharing with [user groups](/docs/team-permissions#user-groups) keeps step 2 mana
 - **Ad-hoc analysis:** import the module and set its inputs. The imported variables appear in your notebook like any other.
 - **Apps:** build the dashboard on module imports, so it shows the same numbers as everyone else.
 - **Scheduled reports:** a scheduled notebook that imports a module runs it as the schedule's owner on every run, so the report always uses the current definition.
-- **Deepnote Agent:** Agent sees the 20 most recently created modules you can access and, in Edit mode, can insert a module block with the right inputs. See [Trustworthy AI answers on your data](/docs/playbook-trustworthy-ai-answers).
+- **Deepnote Agent:** Agent sees the 20 modules you can access whose notebooks were created most recently and, in Edit mode, can insert a module block with the right inputs. See [Trustworthy AI answers on your data](/docs/playbook-trustworthy-ai-answers).
 
 ### 5. Check the impact before changing a definition
 
@@ -74,12 +74,12 @@ The module library, under **Modules** in the workspace sidebar, shows each modul
 
 With the setup above:
 
-| Who                                  | Access to the metrics project                         | What they can do                       |
-| ------------------------------------ | ----------------------------------------------------- | -------------------------------------- |
-| Metric owners                        | Edit, shared directly                                 | Change definitions and publish modules |
-| Workspace admins                     | Full access                                           | Everything except deleting the project |
-| Editors and Viewers in the workspace | Execute, from the project's workspace access          | Run and import modules                 |
-| Restricted users and guests          | None, unless the project is shared with them directly | Nothing                                |
+| Who                                  | Access to the metrics project                         | What they can do                           |
+| ------------------------------------ | ----------------------------------------------------- | ------------------------------------------ |
+| Metric owners                        | Edit, shared directly                                 | Change definitions and publish modules     |
+| Workspace admins                     | Full access                                           | Everything, including deleting the project |
+| Editors and Viewers in the workspace | Execute, from the project's workspace access          | Run and import modules                     |
+| Restricted users and guests          | None, unless the project is shared with them directly | Nothing                                    |
 
 Version history is kept for 7 days on Free, 30 days on Team and without limit on Enterprise.
 
