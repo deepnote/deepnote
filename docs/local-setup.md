@@ -42,14 +42,14 @@ Choose your editor and install the extension:
 
 - **[Install from VS Code Marketplace →](https://marketplace.visualstudio.com/items?itemName=Deepnote.vscode-deepnote)**
 - Or use Quick Open: `Cmd+P` / `Ctrl+P` → `ext install Deepnote.vscode-deepnote`
-- Requires VS Code 1.103.0 or higher
+- Requires VS Code 1.95.0 or higher
 
 #### Cursor
 
 - **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
 - Or search for "Deepnote" in Cursor's extension marketplace
 
-**Additional requirement**: Python 3.10 or higher
+**Additional requirement**: Python 3.10 to 3.14
 
 ### Getting started
 
@@ -150,18 +150,17 @@ Consider using the Deepnote Toolkit if you:
 
 **Requirements:**
 
-- Python 3.10+
-- Poetry (for dependency management)
+- Python 3.10 to 3.14
 - Java 11 (for PySpark features)
 
 **Install the toolkit:**
 
 ```bash
 # Install with pip
-pip install deepnote-toolkit
+pip install "deepnote-toolkit[server]"
 
 # Or with Poetry
-poetry add deepnote-toolkit
+poetry add "deepnote-toolkit[server]"
 ```
 
 ### CLI quick start
@@ -184,23 +183,6 @@ deepnote-toolkit config set server.jupyter_port 9000
 
 **Security Warning**: The CLI will warn if Jupyter runs without authentication. This is intended for local development only. Set `DEEPNOTE_JUPYTER_TOKEN` for shared environments.
 
-### Using in Python Code
-
-```python
-from deepnote_toolkit import DeepnoteKernel
-from deepnote_toolkit.sql import execute_sql
-
-# Execute SQL queries
-result = execute_sql(
-    query="SELECT * FROM users LIMIT 10",
-    connection_string="postgresql://localhost/mydb"
-)
-
-# Use Deepnote components
-from deepnote_toolkit.components import DataTable
-DataTable(result)
-```
-
 ### Development setup
 
 For developers who want to contribute or customize the toolkit, see the [Contributing Guide](https://github.com/deepnote/deepnote-toolkit/blob/main/CONTRIBUTING.md) for detailed setup instructions including Docker development.
@@ -219,7 +201,7 @@ The toolkit provides access to advanced Deepnote features:
 
 - [GitHub Repository](https://github.com/deepnote/deepnote-toolkit)
 - [API Documentation](https://github.com/deepnote/deepnote-toolkit/tree/main/docs)
-- [Contributing Guide](https://github.com/deepnote/deepnote-toolkit/blob/main/README.md#development-workflow)
+- [Contributing Guide](https://github.com/deepnote/deepnote-toolkit/blob/main/CONTRIBUTING.md)
 
 ## Local singleplayer (coming soon)
 
@@ -237,18 +219,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code and Cursor extensions | Deepnote CLI                  | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ----------------------------- | ----------------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                            | ✅                            | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                            | ❌                            | ✅               | ✅                   |
-| **Execute code**            | ✅                            | ✅                            | ✅               | ✅                   |
-| **SQL blocks**              | ✅                            | ✅                            | ✅               | ✅                   |
-| **Database integrations**   | ✅                            | ✅                            | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                            | ❌                            | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                            | ❌                            | ❌               | ✅                   |
-| **Offline mode**            | ✅                            | ✅                            | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                    | ⚠️ Limited                    | ✅               | ✅                   |
-| **AI features**             | ⚠️ Agent blocks (OpenAI)      | ⚠️ Agent blocks, any provider | ❌               | ✅                   |
+| Feature                     | VS Code and Cursor extensions                                     | Deepnote CLI                  | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ----------------------------------------------------------------- | ----------------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                                                                | ✅                            | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                                                                | ❌                            | ✅               | ✅                   |
+| **Execute code**            | ✅                                                                | ✅                            | ✅               | ✅                   |
+| **SQL blocks**              | ✅                                                                | ✅                            | ✅               | ✅                   |
+| **Database integrations**   | ✅                                                                | ✅                            | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                                                                | ❌                            | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                                                                | ❌                            | ❌               | ✅                   |
+| **Offline mode**            | ✅                                                                | ✅                            | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                                                        | ⚠️ Limited                    | ✅               | ✅                   |
+| **AI features**             | ⚠️ Agent blocks (OpenAI key prompt; other providers via env vars) | ⚠️ Agent blocks, any provider | ❌               | ✅                   |
 
 \*Coming soon
 
