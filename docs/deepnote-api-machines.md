@@ -13,6 +13,10 @@ running before people need it, upgrade it for a heavy job, and switch it off so 
 Detached [runs](/docs/deepnote-api-runs) and [interactive sessions](/docs/deepnote-api-sessions)
 start machines of their own, so you do not need to start the project machine for them.
 
+In a project that runs privately, the editor and live runs use each person's own machine, and these
+endpoints act on the machine of whoever calls them. Hosted Streamlit apps stay on the project's
+machine.
+
 All examples use `$DEEPNOTE_TOKEN`; see [Authentication](/docs/deepnote-api#authentication).
 
 ## Check a machine
@@ -26,15 +30,19 @@ curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine" \
 {
   "machine": {
     "status": "running",
+    "error": null,
+    "startingPhase": null,
     "type": {
-      "id": "ocean",
-      "name": "…",
+      "id": "fjord",
+      "name": "CPU (Plus)",
+      "type": "deepnote",
       "vCpus": 4,
       "memoryGiB": 16,
-      "gpuCount": 0
+      "gpuCount": 0,
+      "sandboxEnvironmentId": null
     },
-    "idleShutdownSeconds": 900,
-    "error": null
+    "sandboxEnvironmentId": "deepnote",
+    "idleShutdownSeconds": 900
   }
 }
 ```
@@ -50,14 +58,17 @@ curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine/start"
   -H "Authorization: Bearer $DEEPNOTE_TOKEN"
 ```
 
-| Request                                         | Does                                                                                                 |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `POST /v2/projects/{projectId}/machine/start`   | Starts the machine and returns at once; poll until `status` is `running`. Already running is a no-op |
-| `POST /v2/projects/{projectId}/machine/stop`    | Stops the machine. Files are kept; variables in memory are lost for everyone in the project          |
-| `POST /v2/projects/{projectId}/machine/restart` | Replaces the machine with a fresh one. Use it to recover a machine in `error`                        |
+| Request                                         | Does                                                                                                                           |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /v2/projects/{projectId}/machine/start`   | Starts the machine and returns `202` at once; poll until `status` is `running`. Already starting or running is a no-op         |
+| `POST /v2/projects/{projectId}/machine/stop`    | Stops the machine. Files are kept; variables in memory are lost for everyone in the project. Already stopped is a no-op        |
+| `POST /v2/projects/{projectId}/machine/restart` | Stops the machine and starts a fresh one. Use it to recover a machine in `error`; `start` refuses one in `error` or `stopping` |
 
-All three are safe to repeat. A `409` explains what is in the way, for example a machine that is still
-stopping or a plan's machine limit.
+`start` and `stop` are safe to repeat. `restart` is not: every call replaces whatever machine is
+running, so a retried restart replaces the machine the previous one just started, and everyone's
+variables are lost again. If a restart request times out, poll `GET …/machine` instead of retrying
+it. A `409` explains what is in the way, for example a plan's machine limit. A `409` from `restart`
+means the old machine was stopped but the new one could not start yet: wait, then call `start`.
 
 ## Change the hardware or idle shutdown
 
@@ -74,7 +85,8 @@ curl -s -X PATCH "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine" \
 - **`idleShutdownSeconds`** (up to 24 hours) applies immediately.
 - **`type`** and **`sandboxEnvironmentId`** apply on the machine's next start. A running machine
   needs `"restart": true` — without it the request returns `409` and changes nothing — and
-  restarting loses the kernel's variables.
+  restarting loses the kernel's variables. If the restarted machine cannot start, the request
+  returns `409` but keeps the change.
 - To use bigger hardware for a single job without changing the project, pass `machineType` to a
   [run](/docs/deepnote-api-runs) or [session](/docs/deepnote-api-sessions) instead.
 
@@ -88,7 +100,8 @@ curl -s -X PATCH "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine" \
   that do not need to stay warm.
 - **Bigger hardware for crunch time.** Switch a project to a GPU or high-memory type before a
   training sprint, and back afterwards, from the same script.
-- **Self-healing.** A monitor that sees `error` calls `restart` and waits for `running`.
+- **Self-healing.** A monitor that sees `error` calls `restart` once and polls until `running`,
+  rather than retrying the restart; on a `409`, it waits and calls `start`.
 
 ## Related
 
