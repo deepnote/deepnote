@@ -190,4 +190,4 @@ Cloud ignores local provider keys and endpoints; see [Cloud model support](block
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.
 
-**CI:** install `deepnote-toolkit[server]` on the runner (the CLI does not install it), set `--startup-timeout` and `--block-timeout`, and use `-o json`. Give `DEEPNOTE_TOKEN` to `--cloud` steps only on trusted events (protected-branch push, schedule, manual dispatch), never to jobs that run pull-request code. Full guide: https://deepnote.com/docs/deepnote-cli-ci
+**CI:** Runs on the runner need `deepnote-toolkit[server]` installed for the Python the CLI picks (the CLI does not install it); bound them with `--startup-timeout` and `--block-timeout`. `--cloud` runs need only Node and `DEEPNOTE_TOKEN` — no Python or toolkit on the runner — and are bounded by `--timeout` (default 600s); `--startup-timeout` and `--block-timeout` are ignored there. Use `-o json` either way. Give `DEEPNOTE_TOKEN` to `--cloud` steps only on trusted events (protected-branch push, schedule, manual dispatch), never to jobs that run pull-request code. Full guide: https://deepnote.com/docs/deepnote-cli-ci
