@@ -28,7 +28,7 @@ A weekly report often costs someone a morning: run the notebook, check the numbe
 
 ## 2. Publish it as an app
 
-Publish the notebook as an [app](/docs/data-apps), hide the code, and in **App data** select **Show last run results**. Readers then open the app and see the latest edition immediately, without waiting for queries to run.
+Publish the notebook as an [app](/docs/data-apps), hide the code, and in **App data** select **Show last run results**. Readers then open the app and see the latest edition immediately, without waiting for queries to run. **Show last run results** isn't available in a project that runs privately, so keep the report in a project that doesn't.
 
 If readers shouldn't change anything, turn off **Allow app to be run**. Leave it on if they may change the inputs to look at another period or region.
 
@@ -53,7 +53,7 @@ Add a **failure** notification for the report's owner, so a broken edition is no
 
 ## 5. Keep an archive
 
-Every scheduled run creates a [run snapshot](/docs/run-snapshots): an unchangeable record of the notebook and its outputs after that run, with its own link. Past editions stay exactly as they were sent, even after definitions or data change. Find snapshots in the **Runs** sidebar or the project log.
+Every scheduled run creates a [run snapshot](/docs/run-snapshots): an unchangeable record of the notebook and its outputs after that run, with its own link. Past editions stay as they were sent, even after definitions or data change. Find snapshots in the **Runs** sidebar or the project log.
 
 Snapshots are kept for 30 days on Team and 365 days on Enterprise. To keep editions longer, download the snapshot from the run, or have the notebook write each edition's key numbers to a table in your warehouse.
 

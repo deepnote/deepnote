@@ -74,12 +74,12 @@ Keep a schedule **failure** notification as well, sent to the people who maintai
 - **Link to an app, not the notebook.** Publish a notebook [app](/docs/data-apps) that breaks the number down, and put its link in the alert. Add input values to the link, such as `?country=DE&__run=true`, to open the app on the right slice.
 - **Compare like with like.** Compare against the same weekday last week or a trailing average rather than yesterday, to avoid alerting on every weekend.
 - **Run at the right frequency.** Hourly checks are available on Team. Checking more often than hourly needs Enterprise.
-- **Keep the evidence.** Every scheduled run creates a [run snapshot](/docs/run-snapshots), so you can see exactly what the data looked like when an alert fired.
+- **Keep the evidence.** Every scheduled run creates a [run snapshot](/docs/run-snapshots), so you can see what the data looked like when an alert fired.
 
 ## Security
 
 - The webhook URL or bot token is a secret. Keep it in an environment variables integration, which stores it encrypted, rather than in a code block.
-- The scheduled run executes as the schedule's owner. If they leave the workspace, the schedule pauses until someone else saves it and becomes its owner. A paused alert is silent, so assign alert notebooks to a team rather than one person.
+- The scheduled run executes as the schedule's owner. If they leave the workspace, the schedule pauses until someone else saves it and becomes its owner. A paused alert is silent, so send the schedule's failure notifications to a shared channel and agree who takes the schedule over when its owner leaves.
 
 ## Plan requirements
 

@@ -82,7 +82,7 @@ In Deepnote Cloud, [schedule](/docs/scheduling) the notebook:
 2. **Add failure notifications** to the Slack channel that owns the data, or to the people responsible by email.
 3. **Keep auto-pause on.** New schedules pause after 3 consecutive failures, and never before about an hour of failures for frequent schedules. A check that keeps failing then stops using compute until someone looks. You can change the number of failures or turn auto-pause off.
 
-When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see exactly which check failed and what the data looked like at the time, even if someone has run the notebook since.
+When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see which check failed and what the data looked like at the time, even if someone has run the notebook since.
 
 ## 4. Act on failures
 
@@ -98,6 +98,6 @@ When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see 
 
 ## Variations
 
-- **dbt projects:** run the checks notebook after `dbt build` in the same CI job, so model changes are tested against the checks analysts care about, not just dbt's own tests.
+- **dbt projects:** run the checks notebook after `dbt build` in the same CI job, so model changes are tested against the checks analysts care about as well as dbt's own tests.
 - **Freshness checks:** a check that fails when the newest row is older than expected catches stalled pipelines that produce no errors of their own.
 - **Reconciliation:** compare totals between the source system and the warehouse, and fail when they differ by more than an agreed tolerance.
