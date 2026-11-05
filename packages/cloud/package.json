@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/cloud",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Client for the Deepnote Cloud runs API",
   "keywords": [
     "deepnote",

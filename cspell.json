@@ -1,5 +1,5 @@
 {
-  "ignoreRegExpList": ["/\\.\\.\\/assets\\/docs\\/[A-Za-z0-9_.-]+/g"],
+  "ignoreRegExpList": ["/\\.\\.\\/assets\\/docs\\/[A-Za-z0-9_.-]+/g", "/%[0-9A-Fa-f]{2}/g"],
   "ignorePaths": [
     "node_modules/**",
     "pnpm-lock.yaml",
@@ -68,6 +68,8 @@
     "getppid",
     "ggplot",
     "github",
+    "GOCSPX",
+    "googleusercontent",
     "graphviz",
     "groupby",
     "hotreload",
@@ -108,6 +110,7 @@
     "pgrep",
     "pgsql",
     "pids",
+    "PKCE",
     "plannable",
     "pnpm",
     "prefault",
@@ -157,6 +160,7 @@
     "unconfigured",
     "unstub",
     "urlparse",
+    "USERPROFILE",
     "venv",
     "venvs",
     "vscode",
