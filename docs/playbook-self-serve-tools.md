@@ -57,7 +57,7 @@ If the tool takes more than a few seconds to answer and most people want the sta
 1. Schedule the notebook and turn on **Update notebook with run results**.
 2. In **App data**, select **Show last run results**.
 
-The app then opens with the latest scheduled results, and anyone who needs other parameters can still change the inputs and rerun.
+The app then opens with the latest scheduled results, and anyone who needs other parameters can still change the inputs and rerun. **Show last run results** isn't available in a project that runs privately, because there each viewer sees only their own runs.
 
 ### 4. Share links that answer a specific question
 
@@ -85,7 +85,7 @@ Every viewer's runs are independent: one person changing an input doesn't change
 
 ### Give it enough compute
 
-By default, every viewer's run uses the project's machine. That's the fastest to start, and fine for a handful of users. For a tool many people use at the same time, open **App compute** and choose **Dedicated machine per session**. Each viewer session then gets its own machine, which stops after an idle timeout you choose, from 5 to 60 minutes. To control cost, cap the number of concurrent sessions at 5, 10, 25 or 50.
+By default, every viewer's run uses the project's machine. That's the fastest to start, and fine for a handful of users. For a tool many people use at the same time, open **App compute** and choose **Dedicated machine per session**. Each viewer session then gets its own machine, which stops after an idle timeout you choose: 5, 15, 30 or 60 minutes. To control cost, cap the number of concurrent sessions at 5, 10, 25 or 50.
 
 ### Keep each person to their own data
 

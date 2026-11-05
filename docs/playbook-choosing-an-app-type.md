@@ -53,7 +53,7 @@ The [data apps page](/docs/data-apps) covers every setting. These are the ones t
 
 - **App run settings.** **Auto-run dependent blocks**, the recommended setting, reruns only the blocks affected by an input change. The manual options wait for a button press, which suits apps where people set several inputs before running.
 - **App data.** **Run app from scratch** starts with empty outputs. **Show last run results** shows the last notebook run. Combined with a schedule that has **Update notebook with run results** turned on, this gives you a precomputed dashboard that opens instantly.
-- **App compute.** **Shared project machine** runs every viewer on the project's machine and starts fastest. **Dedicated machine per session**, on Team and Enterprise, gives each viewer session its own machine that stops after an idle timeout of 5 to 60 minutes. You can cap concurrent sessions at 5, 10, 25 or 50. Apps that contain an agent block always use dedicated machines.
+- **App compute.** **Shared project machine** runs every viewer on the project's machine and starts fastest. **Dedicated machine per session**, on Team and Enterprise, gives each viewer session its own machine that stops after an idle timeout of 5, 15, 30 or 60 minutes. You can cap concurrent sessions at 5, 10, 25 or 50, or leave them unlimited. Apps that contain an agent block always use dedicated machines. In a project that runs privately, each viewer always gets a dedicated machine and sees only their own results, so **Shared project machine** and **Show last run results** aren't available there.
 - **Allow app to be run.** Turn it off for a read-only report.
 - **Allow comments.** Lets viewers ask questions next to the result.
 
