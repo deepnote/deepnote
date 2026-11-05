@@ -330,3 +330,4 @@ difftool
 textconv
 Tsvg
 gsub
+nullglob

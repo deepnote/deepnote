@@ -23,19 +23,26 @@ curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/export" \
 
 `POST /v2/projects/{projectId}/import` applies such a ZIP back to the project. Before you edit the
 export, note two values from it so the import can refuse to overwrite changes made in the meantime:
-`metadata.modifiedAt`, which is the same in every file, and a content hash of the files:
+`metadata.modifiedAt`, which is the same in every file, and a content hash of the files. An empty
+export has no files to read `modifiedAt` from, so the import then sends only the hash:
 
 ```bash
-unzip -q project.zip -d base
-BASE_MODIFIED_AT=$(awk '/^  modifiedAt:/ { gsub(/["\047]/, "", $2); print $2; exit }' base/*.deepnote)
+mkdir -p base && { unzip -q project.zip -d base || [ $? -eq 1 ]; } # 1: warnings, e.g. an empty ZIP
+shopt -s nullglob # an empty export hashes as an empty set
+docs=(base/*.deepnote)
+BASE_MODIFIED_AT=""
+if ((${#docs[@]})); then
+  BASE_MODIFIED_AT=$(awk '/^  modifiedAt:/ { gsub(/["\047]/, "", $2); print $2; exit }' "${docs[@]}")
+fi
 BASE_CONTENT_HASH=$(cd base && LC_ALL=C && printf '%s' "$(for f in *.deepnote; do
   printf '%s\n%s\n' "$f" "$(shasum -a 256 < "$f" | cut -d' ' -f1)"; done)" | shasum -a 256 | cut -d' ' -f1)
+QUERY="baseContentHash=$BASE_CONTENT_HASH${BASE_MODIFIED_AT:+&baseModifiedAt=$BASE_MODIFIED_AT}"
 ```
 
 Edit the files, zip them again and import:
 
 ```bash
-curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import?baseModifiedAt=$BASE_MODIFIED_AT&baseContentHash=$BASE_CONTENT_HASH" \
+curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import?$QUERY" \
   -H "Authorization: Bearer $DEEPNOTE_TOKEN" \
   -H "Content-Type: application/zip" \
   --data-binary @project.zip
