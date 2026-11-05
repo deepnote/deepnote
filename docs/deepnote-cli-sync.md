@@ -239,13 +239,14 @@ deepnote sync ./workspace --all-files --on-conflict skip -o json
 A single broken project does not abort the rest of the workspace; it is reported as an error and the
 run continues.
 
-## Choosing between the three
+## Choosing between them
 
-| You want to…                                                            | Use                                              |
-| ----------------------------------------------------------------------- | ------------------------------------------------ |
-| Keep one project in a Git repo, synced automatically by Deepnote        | [Deepnote file sync](/docs/deepnote-file-sync)   |
-| Mirror many projects to your machine on demand, and push notebook edits | `deepnote sync`                                  |
-| Deploy a built app to a project                                         | [`deepnote publish`](/docs/deepnote-cli-publish) |
+| You want to…                                                            | Use                                                                                       |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Keep one project in a Git repo, synced automatically by Deepnote        | [Deepnote file sync](/docs/deepnote-file-sync)                                            |
+| Mirror many projects to your machine on demand, and push notebook edits | `deepnote sync`                                                                           |
+| Keep a repository and Deepnote in step from CI, on every merge          | [`deepnote sync` in CI](/docs/deepnote-cli-ci#keep-deepnote-in-step-with-your-repository) |
+| Deploy a built app to a project                                         | [`deepnote publish`](/docs/deepnote-cli-publish)                                          |
 
 ## Related
 

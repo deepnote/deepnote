@@ -1,6 +1,6 @@
 ---
 title: Running notebooks in CI with the Deepnote CLI
-description: Run Deepnote notebooks without an editor in GitHub Actions or any other CI system with deepnote run, on the runner or in Deepnote Cloud, and keep your API key safe while doing it
+description: Run Deepnote notebooks without an editor in GitHub Actions or any other CI system with deepnote run, on the runner or in Deepnote Cloud, sync a repository to Deepnote, and keep your API key safe while doing it
 noIndex: false
 noContent: false
 ---
@@ -97,9 +97,10 @@ A few things this relies on:
   notebook fails in minutes instead of running until the job's own timeout.
 - **Inputs.** Pass values for input blocks with `--input name=value` (repeatable). Run
   `deepnote run analysis.deepnote --list-inputs` locally to see which inputs a notebook has.
-- **Integrations.** Database blocks read their connections from `.deepnote.env.yaml` in the working
-  directory and secrets from `.env`. Generate those files in a step from CI secrets rather than
-  committing them, and only on events that are allowed to see secrets.
+- **Integrations.** Database blocks read their connections from `.deepnote.env.yaml` and secrets
+  from `.env`, both next to the notebook (or in the directory given with `--cwd`). Generate those
+  files in a step from CI secrets rather than committing them, and only on events that are allowed to
+  see secrets.
 
 ### Reading the result
 
@@ -181,6 +182,104 @@ jobs:
 - **Exit codes.** `0` when the run succeeded and its snapshot was downloaded, `1` when the run failed
   or the snapshot could not be fetched, and `2` for a missing or rejected token or bad arguments.
 
+## Keep Deepnote in step with your repository
+
+A pipeline can do more with the CLI than run notebooks. A job that runs
+[`deepnote sync`](/docs/deepnote-cli-sync) keeps your repository and Deepnote in step, and is an
+alternative to [Deepnote file sync](/docs/deepnote-file-sync), the Git sync built into Deepnote:
+
+|                          | Deepnote file sync                                                                                      | `deepnote sync` in CI                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Set up in                | Each project, with the repository connected in Deepnote                                                 | One workflow in your repository      |
+| Scope                    | One project per linked file                                                                             | Every project in the sync directory  |
+| Repository → Deepnote    | When someone pulls or switches branch in the Deepnote project                                           | On every merge to the branch         |
+| Deepnote → repository    | When someone commits and pushes from Deepnote                                                           | Committed by the job on its schedule |
+| Git hosts                | Ones Deepnote connects to: [GitHub](/docs/github), [GitLab](/docs/gitlab), [Bitbucket](/docs/bitbucket) | Any host your CI can push to         |
+| Needs a Deepnote API key | No                                                                                                      | Yes                                  |
+| Branches                 | Switch branch in the project                                                                            | Follows one branch                   |
+
+Choose file sync when people work on a project's branches inside Deepnote; choose a sync job when the
+repository is the source of truth and changes should land in Deepnote on merge without anyone
+pulling them.
+
+The job works on a sync directory committed to the repository: one directory per project holding
+its `.deepnote` files, and `.deepnote-sync.json` at the root. Create it once from your machine with
+`deepnote sync ./workspace` and commit it. Sync never creates cloud projects, so a new project has
+to exist in Deepnote before a sync can track it.
+
+```yaml
+# .github/workflows/deepnote-sync.yml
+name: Sync with Deepnote
+
+on:
+  push:
+    branches: [main]
+    paths: ["workspace/**"]
+  schedule:
+    - cron: "0 * * * *" # also bring edits made in Deepnote back into the repository
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deepnote-sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: deepnote # holds the DEEPNOTE_TOKEN secret; see Security below
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Sync with Deepnote
+        env:
+          DEEPNOTE_TOKEN: ${{ secrets.DEEPNOTE_TOKEN }}
+        run: npx @deepnote/cli sync workspace --on-conflict skip -o json > sync-result.json
+
+      - name: Commit what sync wrote
+        if: ${{ !cancelled() }}
+        run: |
+          git add workspace
+          if git diff --cached --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Sync with Deepnote"
+          git pull --rebase
+          git push
+
+      - name: Fail if a project was skipped as a conflict
+        run: jq -e '[.projects[] | select(.action == "skipped-conflict")] | length == 0' sync-result.json
+```
+
+- **Which way each project goes.** Sync compares the local files and Deepnote's copy against the
+  content recorded in `.deepnote-sync.json` at the last sync. A project changed only in the
+  repository is pushed, one changed only in Deepnote is pulled, and one changed on both sides is a
+  conflict. A push is also rejected as a conflict if the project changed in Deepnote since that
+  record, so it never silently overwrites an edit.
+- **Commit what sync writes.** After pushing a project, sync rewrites its files with Deepnote's
+  export and updates `.deepnote-sync.json`. If the job does not commit both, the next run compares
+  against the old record, sees both sides changed, and skips the project as a conflict — and keeps
+  skipping it. The commit step runs even when sync fails, because projects that did sync still need
+  their record kept. A commit pushed with the workflow's `GITHUB_TOKEN` does not start another
+  workflow run, so the job does not loop. If branch protection blocks direct pushes to `main`, allow
+  this workflow to bypass it, or the commit step fails.
+- **Conflicts fail the job.** In CI, sync skips conflicts and still exits `0`, so the last step
+  checks the JSON result. To resolve one, run `deepnote sync ./workspace` on your machine and keep
+  the Deepnote version when it asks, re-apply your change on top, and merge it; the next run pushes
+  it.
+- **Deletions are opt-in.** A notebook file removed from the repository is deleted in Deepnote only
+  with `--delete-missing-notebooks`. With `--all-files`, working-directory files such as
+  `requirements.txt` sync too, but files removed locally are never deleted in Deepnote.
+
+The same trigger can deploy apps: run [`deepnote publish`](/docs/deepnote-cli-publish) on pushes to
+`main` to republish an app from its build directory.
+
 ## Security
 
 <Callout status="warning">
@@ -198,9 +297,9 @@ deployments:
   out or execute code from a pull request: that hands the key to whoever opened it. GitHub does not
   pass secrets to `pull_request` runs from forks, so the cloud step fails there instead — run it
   conditionally rather than working around that.
-- **Be deliberate with `--push`.** It uploads the repository's version of the notebook into your
-  workspace and runs it. Whoever can merge to the branch that triggers the job can run code in your
-  Deepnote project.
+- **Be deliberate with `--push` and `deepnote sync`.** Both upload the repository's version of
+  notebooks into your workspace, and `--push` also runs it. Whoever can merge to the branch that
+  triggers the job can change, or run code in, your Deepnote projects.
 - **Keep the secret in a GitHub Environment** with deployment branch rules (and required reviewers if
   you want a human to approve each run), rather than as a repository-wide secret, and expose it as
   `DEEPNOTE_TOKEN` on the one step that needs it.
