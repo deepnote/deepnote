@@ -75,10 +75,34 @@ directory's `index.html`. Other paths serve exact filenames, so link to `about.h
 
 ### Add viewer API access
 
-Enable API access only when the app needs notebook inputs or runs. Use the token handshake in
+Enable API access only when the app needs notebook inputs or runs. Load Deepnote's browser client
+from the origin of the app's URL, for example `https://deepnote.com/static/app-client/v1.js`,
+before the app's own scripts. Its `window.Deepnote.connect()` requests the viewer's token from the
+Deepnote shell, renews it, and starts runs with read-only project storage:
+
+```js
+const notebook = window.Deepnote.connect({
+  onAuthExpired: showReloadMessage,
+}).notebook(notebookId);
+const inputs = await notebook.inputs();
+const { run, result } = await notebook.run(values, {
+  onProgress: (_, phase) => showProgress(phase),
+});
+const payload = run.status === "success" ? result("sales-by-region/v1") : null;
+```
+
+Key `values` by input name. `run()` resolves with any final status, so check `run.status` and
+`run.error`. `result(schema)` returns the first `application/json` output whose `schema` field
+matches, or `null`. If the shell sends no token within 8 seconds, the call rejects,
+`onAuthExpired` runs, and later calls reject until the page reloads; show a message pointing to
+the app's Deepnote URL.
+
+Without the client, use the token handshake in
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app): request a token from the Deepnote shell over `postMessage`, pin
-the shell origin when sending and receiving messages, and send API requests to the returned API
-origin. Keep personal development tokens out of the published build.
+the shell origin when sending and receiving messages, send API requests to the returned API
+origin, refresh the token through the handshake before its 15-minute expiry and on a 401, and send
+`detachedRunStorageMode: "readonly"` with each run. Keep personal development tokens out of the
+published build.
 
 An app's viewer token can access notebooks in the hosting project and other projects in the
 same workspace where the viewer has direct access; starting runs in other projects also requires
@@ -93,8 +117,42 @@ Do not offer notebook enumeration, run history, or access to another viewer's ru
 app. Other endpoints return 403. If a local preview has these features, hide them when `isEmbedded`
 is true and surface unexpected API errors.
 
-Refresh the token through the handshake before its 15-minute expiry and retry authentication on a 401. Verify the hosted flow: a successful local preview with a personal token does not test viewer
+Verify the hosted flow: a successful local preview with a personal token does not test viewer
 permissions or token refresh.
+
+### Return notebook results to an app
+
+Have one notebook block display exactly what the app renders as JSON, under a schema name the app
+passes to `result()`:
+
+```python
+import json
+from IPython.display import display
+
+rows = json.loads(df.to_json(orient='records', date_format='iso'))
+display({'application/json': {'schema': 'sales-by-region/v1', 'rows': rows}}, raw=True)
+```
+
+`to_json` writes missing values as `null` and dates as ISO strings. `df.to_dict('records')` does
+not: a missing number reaches the app as the string `"nan"`, and a missing timestamp fails the
+block. Send integers past 2^53 as strings, because `JSON.parse` rounds them. Aggregate in the
+notebook: Deepnote replaces a block's outputs with a short notice when they pass 512 KiB as JSON,
+or when the notebook's outputs together pass 5 MiB.
+
+Reading a dataframe output (`application/vnd.deepnote.dataframe.v3+json`) instead gives one page of
+`rows`, 10 unless the block's [`deepnote_table_state`](blocks-code-and-sql.md) sets a larger
+`pageSize`, while `row_count` is the total. For pandas frames, its values do not follow the column
+types:
+
+- Missing values are the strings `nan`, `None`, `NaT`, or `<NA>`, also inside numeric columns.
+- Booleans and nullable integers are strings, such as `"True"` and `"1.0"`. Timestamps are strings
+  such as `"2024-01-01 00:00:00"`.
+- When a value on the page is past 2^53 or infinite, the whole column is strings on that page. In
+  an integer column, keep those strings or use `BigInt`; `Number()` rounds them.
+- Every row has `_deepnote_index_column`, the frame's index, which is not counted in
+  `column_count`.
+
+Polars and Spark frames send missing values as `null` and numbers as JSON numbers.
 
 ## Run a local server
 

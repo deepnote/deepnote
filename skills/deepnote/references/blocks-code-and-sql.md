@@ -18,7 +18,7 @@ Executable Python code cells.
 | `is_output_hidden`     | `boolean` | Hide output in app mode                    |
 | `function_export_name` | `string`  | Name when used as notebook function export |
 
-**DataFrame config** (`deepnote_table_state`): Controls how DataFrames display in output. Contains column visibility, sort order, filters, and pagination settings.
+**DataFrame config** (`deepnote_table_state`): Controls how DataFrames display in output. Contains column visibility, sort order, filters, and pagination settings. `pageSize` sets how many rows the stored output keeps, 10 by default; keep it close to the rows the block returns, and never `0`.
 
 ```yaml
 - id: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
