@@ -153,26 +153,39 @@ function requestToken() {
 }
 
 async function runNotebook(notebookId, inputs) {
-  const { token, apiOrigin } = await requestToken();
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
+  let auth = await requestToken();
 
-  const { runId } = await fetch(`${apiOrigin}/v2/runs`, {
+  // Calls the API, fetching a new token once if the current one has expired (401).
+  async function api(path, init = {}) {
+    for (let attempt = 0; ; attempt++) {
+      const response = await fetch(`${auth.apiOrigin}${path}`, {
+        ...init,
+        headers: {
+          Authorization: `Bearer ${auth.token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.status === 401 && attempt === 0) {
+        auth = await requestToken();
+        continue;
+      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok)
+        throw new Error(
+          body.message ?? `Deepnote API returned ${response.status}`,
+        );
+      return body;
+    }
+  }
+
+  const { runId } = await api("/v2/runs", {
     method: "POST",
-    headers,
     body: JSON.stringify({ notebookId, inputs }),
-  }).then((response) => response.json());
+  });
 
   while (true) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
-    const { run } = await fetch(
-      `${apiOrigin}/v2/runs/${runId}?snapshotDelivery=blocks`,
-      {
-        headers,
-      },
-    ).then((response) => response.json());
+    const { run } = await api(`/v2/runs/${runId}?snapshotDelivery=blocks`);
     if (run.status === "success" && run.snapshotStatus !== "pending")
       return run.snapshotBlocks;
     if (["error", "internal_error", "stopped"].includes(run.status))
@@ -182,8 +195,8 @@ async function runNotebook(notebookId, inputs) {
 ```
 
 `GET /v2/notebooks/{notebookId}` returns the notebook's `inputs`, so the page can build its form from
-the notebook rather than hard-coding it. For a long session, request a new token before
-`expiresAtSeconds` and whenever a call returns `401`.
+the notebook rather than hard-coding it. The example fetches a new token when a call returns `401`;
+a page that stays open can also refresh it ahead of `expiresAtSeconds`.
 
 API access requires app sharing and does not grant additional viewers project access. Omitting
 `--api-access` preserves the current setting; use `--api-access disabled` to revoke it. Test the

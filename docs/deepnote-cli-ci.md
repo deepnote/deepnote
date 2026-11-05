@@ -227,11 +227,14 @@ concurrency:
 
 jobs:
   sync:
+    if: github.ref == 'refs/heads/main' # a manual run from another branch would sync that branch
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: deepnote # holds the DEEPNOTE_TOKEN secret; see Security below
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: main # the latest main, not the commit that queued this run
 
       - uses: actions/setup-node@v7
         with:
@@ -250,8 +253,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Sync with Deepnote"
-          git pull --rebase
-          git push
+          git pull --rebase origin main
+          git push origin HEAD:main
 
       - name: Fail if a project was skipped as a conflict
         run: jq -e '[.projects[] | select(.action == "skipped-conflict")] | length == 0' sync-result.json
@@ -268,7 +271,9 @@ jobs:
   skipping it. The commit step runs even when sync fails, because projects that did sync still need
   their record kept. A commit pushed with the workflow's `GITHUB_TOKEN` does not start another
   workflow run, so the job does not loop. If branch protection blocks direct pushes to `main`, allow
-  this workflow to bypass it, or the commit step fails.
+  this workflow to bypass it, or the commit step fails. If a merge changes the same project while
+  the job runs, the rebase stops and nothing is pushed; the next run then reports that project as a
+  conflict, which you resolve as below.
 - **Conflicts fail the job.** In CI, sync skips conflicts and still exits `0`, so the last step
   checks the JSON result. To resolve one, run `deepnote sync ./workspace` on your machine and keep
   the Deepnote version when it asks, re-apply your change on top, and merge it; the next run pushes

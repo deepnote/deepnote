@@ -78,7 +78,9 @@ Summary:
 ```
 
 Without `--content` it lists only which blocks changed. Add `-o json` to process the result in a
-script.
+script. It compares each block's type and content, not its metadata or position, so a moved block, a
+changed input value or a SQL block's new integration does not show up; check those with the raw YAML
+in `git diff --no-textconv`.
 
 ## Check notebooks before they are committed
 

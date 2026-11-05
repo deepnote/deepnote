@@ -21,10 +21,21 @@ curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/export" \
   -H "Authorization: Bearer $DEEPNOTE_TOKEN" -o project.zip
 ```
 
-`POST /v2/projects/{projectId}/import` applies such a ZIP back to the project:
+`POST /v2/projects/{projectId}/import` applies such a ZIP back to the project. Before you edit the
+export, note two values from it so the import can refuse to overwrite changes made in the meantime:
+`metadata.modifiedAt`, which is the same in every file, and a content hash of the files:
 
 ```bash
-curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import" \
+unzip -q project.zip -d base
+BASE_MODIFIED_AT=$(awk '/^  modifiedAt:/ { gsub(/["\047]/, "", $2); print $2; exit }' base/*.deepnote)
+BASE_CONTENT_HASH=$(cd base && LC_ALL=C && printf '%s' "$(for f in *.deepnote; do
+  printf '%s\n%s\n' "$f" "$(shasum -a 256 < "$f" | cut -d' ' -f1)"; done)" | shasum -a 256 | cut -d' ' -f1)
+```
+
+Edit the files, zip them again and import:
+
+```bash
+curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import?baseModifiedAt=$BASE_MODIFIED_AT&baseContentHash=$BASE_CONTENT_HASH" \
   -H "Authorization: Bearer $DEEPNOTE_TOKEN" \
   -H "Content-Type: application/zip" \
   --data-binary @project.zip
@@ -35,9 +46,12 @@ curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import" \
 - **It reconciles, it does not replace.** Notebooks are matched by id. Notebooks missing from the
   archive are left alone unless you add `deleteMissingNotebooks=true`, so you can import a single
   notebook. Imported notebooks lose their outputs, since the archive has none.
-- **It will not overwrite someone else's work.** Pass `baseModifiedAt` (the `metadata.modifiedAt`
-  value from the files you exported) and the import returns `409` if the project changed in the
-  meantime. `force=true` skips that check.
+- **It will not overwrite someone else's work.** With `baseModifiedAt` the import returns `409` if
+  notebooks were added, removed, renamed or restored since your export; with `baseContentHash` it
+  also does so if any block's content changed. Pass both. The hash is the SHA-256 of one
+  `<filename>` and `<SHA-256 of the file>` line pair per exported file, sorted by filename and
+  joined with newlines, as the commands above compute. `force=true` skips both checks.
+  [`deepnote sync`](/docs/deepnote-cli-sync) does all of this for you.
 - Python requirements are not part of the archive.
 
 What this enables:

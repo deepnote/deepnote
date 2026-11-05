@@ -111,9 +111,11 @@ below the block, and checks their results until it is done.
   storage. Change it with **Deepnote: Set OpenAI API Key** or **Deepnote: Clear OpenAI API Key**.
 - A notebook can have one agent block.
 
-Blocks set to a Claude or `openai-compatible` model read their key, model and endpoint from the same
+Blocks set to a Claude or `openai-compatible` model read their key and endpoint from the same
 environment variables as the CLI, taken from the editor's environment; the extension still asks for
-an OpenAI key first. See [Running agent blocks locally](/docs/deepnote-cli-agent-blocks).
+an OpenAI key first. A model named in the block takes precedence over the model variable, which
+applies only when the block's model is `auto`. See
+[Running agent blocks locally](/docs/deepnote-cli-agent-blocks).
 
 ### Rich output display
 

@@ -165,7 +165,9 @@ output, so keep one such block per notebook. This is the same mechanism
 ## Run history
 
 `GET /v2/notebooks/{notebookId}/runs` lists past runs of a notebook (started from the editor, a
-schedule or the API), newest first, with their status and timestamps. Pass any `runId` to
+schedule or the API), newest first, with their status and timestamps. It returns 20 runs per page
+by default (`pageSize` up to 100); pass `pagination.nextPageToken` as `pageToken` to get older ones
+until `hasMore` is `false`. Pass any `runId` to
 `GET /v2/runs/{runId}` to read that run's outputs while its snapshot is kept; `snapshotExpiresAt`
 says how long that is. See [Run snapshots](/docs/run-snapshots).
 

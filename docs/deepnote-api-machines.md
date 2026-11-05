@@ -67,8 +67,10 @@ curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine/start"
 `start` and `stop` are safe to repeat. `restart` is not: every call replaces whatever machine is
 running, so a retried restart replaces the machine the previous one just started, and everyone's
 variables are lost again. If a restart request times out, poll `GET …/machine` instead of retrying
-it. A `409` explains what is in the way, for example a plan's machine limit. A `409` from `restart`
-means the old machine was stopped but the new one could not start yet: wait, then call `start`.
+it. A `409` explains what is in the way. From `restart`, a `409` for a suspended project means
+nothing changed. Any other `409` comes after the old machine was stopped: if the new one could not
+start yet, wait and call `start`; a plan's machine limit or disabled pay-as-you-go has to be
+resolved first, and calling `start` again will not help until it is.
 
 ## Change the hardware or idle shutdown
 
@@ -101,7 +103,8 @@ curl -s -X PATCH "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine" \
 - **Bigger hardware for crunch time.** Switch a project to a GPU or high-memory type before a
   training sprint, and back afterwards, from the same script.
 - **Self-healing.** A monitor that sees `error` calls `restart` once and polls until `running`,
-  rather than retrying the restart; on a `409`, it waits and calls `start`.
+  rather than retrying the restart; on a `409` saying the new machine could not start yet, it waits
+  and calls `start`, and on any other `409` it alerts someone.
 
 ## Related
 

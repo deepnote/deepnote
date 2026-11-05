@@ -329,3 +329,4 @@ elif
 difftool
 textconv
 Tsvg
+gsub
