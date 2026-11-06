@@ -19,7 +19,7 @@ This playbook shows two ways to turn a scheduled notebook into an alert, and how
 | [Environment variables](/docs/environment-variables) | Store the webhook or bot token for richer alerts |
 | [Slack](/docs/slack) or [Telegram](/docs/telegram)   | Where alerts arrive                              |
 | [Run snapshots](/docs/run-snapshots)                 | The data each alert was based on                 |
-| [Notebook apps](/docs/data-apps)                     | Where people go to investigate                   |
+| [Data app projects](/docs/data-app-projects)         | Where people go to investigate                   |
 
 ## Option 1 (recommended): send the message from the notebook
 
@@ -42,7 +42,7 @@ if drop > 0.3:
         json={
             "text": (
                 f":warning: Sign-ups fell {drop:.0%} week over week ({this_week} vs {last_week}).\n"
-                "Breakdown by channel: https://deepnote.com/app/your-workspace/Sign-up-health-<id>"
+                "Breakdown by channel: <link from Copy link to app>"
             )
         },
         timeout=30,
@@ -53,7 +53,7 @@ Keep a schedule **failure** notification as well, sent to the people who maintai
 
 ## Option 2: raise an error and use schedule notifications
 
-With the default auto-pause, three alerts in a row pause the schedule, which turns the alert off without telling anyone. Use this option only if you turn auto-pause off or raise its threshold.
+With auto-pause on, three alerts in a row pause the schedule. Only the schedule's owner gets an email about the pause, so the people who receive the alerts aren't told that it stopped. Use this option only if you turn auto-pause off or raise its threshold.
 
 It needs no code beyond the check. End the notebook with a block that raises when the condition is met:
 
@@ -70,14 +70,14 @@ This works well for a small team, but has three limits:
 
 - **The message is generic.** A failure notification says that a scheduled job failed for the project and links to the notebook. It doesn't include your error message, so people have to click through to see the numbers.
 - **Alerts and errors look the same.** A real error, such as an expired credential, produces the same notification as the business condition.
-- **Repeated alerts pause the schedule.** Every raise counts as a failure. If auto-pause is on, which is the default for new schedules, three alerts in a row pause the schedule, and you stop being told. For this pattern, turn auto-pause off or raise its threshold.
+- **Repeated alerts pause the schedule.** Every raise counts as a failure. If auto-pause is on, which is the default for schedules created in Deepnote, three alerts in a row pause the schedule, and only its owner is told. For this pattern, turn auto-pause off or raise its threshold.
 
 ## Make alerts worth reading
 
 - **Include the numbers and the comparison** in the message, so people can judge it without clicking.
-- **Link to an app, not the notebook.** Publish a separate notebook as an [app](/docs/data-apps) that breaks the number down, and put its link in the alert. Don't use the alert notebook itself: opening the link would run the alert block again and fail the app or send a second alert. Add input values to the link, such as `?country=DE&__run=true`, to open the app on the right slice.
+- **Link to an app, not the notebook.** Build a [data app](/docs/data-app-projects) that breaks the number down, with its own notebook, and put its link in the alert. Don't build it on the alert notebook: every viewer's run executes the whole notebook, so it would run the alert block again and could send a second alert. To open the app on the right slice, ask the agent to fill its inputs from the link, such as `?country=DE`.
 - **Compare like with like.** Compare against the same weekday last week or a trailing average rather than yesterday, to avoid alerting on every weekend.
-- **Run at the right frequency.** Hourly checks are available on Team. Checking more often than hourly needs Enterprise.
+- **Run at the right frequency.** Hourly checks are available on Team and Enterprise, but not during a Team trial. Checking more often than hourly needs Enterprise.
 - **Keep the evidence.** Every scheduled run creates a [run snapshot](/docs/run-snapshots), so you can see what the data looked like when an alert fired.
 
 ## Security
@@ -87,7 +87,7 @@ This works well for a small team, but has three limits:
 
 ## Plan requirements
 
-- **Scheduling:** Team and Enterprise.
+- **Scheduling:** Pro, Team and Enterprise. Hourly and custom cron schedules need Team or Enterprise.
 - **Schedules more frequent than hourly:** Enterprise.
 
 ## Variations

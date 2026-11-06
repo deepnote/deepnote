@@ -49,7 +49,7 @@ curl -X POST https://api.deepnote.com/v2/runs \
   -d '{"notebookId": "<notebook-id>", "inputs": {"account_id": "A-1042"}}'
 ```
 
-The response contains a `runId`. Runs are detached by default: they run separately from the editor and don't change the outputs anyone working in the notebook sees. They can still write to the project's files, unless you set `detachedRunStorageMode` to `"readonly"`. Poll `GET /v2/runs/{runId}` until `status` is no longer `pending` or `running`. The final status is `success`, `error`, `internal_error` or `stopped`.
+The response contains a `runId`. Runs are detached by default: they run separately from the editor and don't change the outputs anyone working in the notebook sees. They can still write to the project's files, unless you set `detachedRunStorageMode` to `"readonly"`. Poll `GET /v2/runs/{runId}` until `status` is no longer `pending` or `running`. The final status is `success`, `error`, `internal_error` or `stopped`. The outputs are stored a moment later, so after a `success` keep polling until `snapshotStatus` is `available` before you read the result.
 
 Then read the result in one of two ways:
 
@@ -60,7 +60,7 @@ The app data endpoint returns the caller's newest successful run, not the run yo
 
 Useful options on `POST /v2/runs`:
 
-- **`detachedRunStorageMode: "readonly"`** mounts project storage read-only, so a run can't change files that other runs depend on. It only protects project files: the notebook can still write to databases and call other services.
+- **`detachedRunStorageMode: "readonly"`** (beta) mounts project storage read-only, so a run can't change files that other runs depend on. It only protects project files: the notebook can still write to databases and call other services.
 - **`machineType`** (beta) runs on a larger machine, as an `id` from `GET /v2/machine-types`, without changing the project's own machine.
 
 ### Repeated calls with a session
@@ -75,7 +75,7 @@ Only the person whose key created a session can use it. Running arbitrary code i
 
 ### Warming up for a busy period
 
-The machines API controls a project's editor machine, which live runs use, and notebook apps set to **Shared project machine**:
+The machines API controls a project's machine, which the editor, live runs and hosted [Streamlit apps](/docs/streamlit-app-projects) use:
 
 - `POST /v2/projects/{projectId}/machine/start` starts it before a scheduled meeting or a daily peak.
 - `PATCH /v2/projects/{projectId}/machine` changes the machine type or the idle shutdown time. A new machine type applies on the next start. To change it while the machine is running, send `"restart": true`, which loses the kernel's variables; without it the request returns `409` and changes nothing.
@@ -84,7 +84,7 @@ The machines API controls a project's editor machine, which live runs use, and n
 ## Security
 
 - **A key acts as the person who created it.** Runs use that person's permissions, and runs in private projects work only with the project owner's key. If they leave the workspace or are suspended or deactivated, the key stops working. Create keys for production systems from an account whose lifetime matches the integration, and replace them when people change roles.
-- **Keep the key on the server.** Never put an API key in a browser, a mobile app or a spreadsheet. For a web front end that calls notebooks as the signed-in viewer, use a [static site with viewer API access](/docs/deepnote-cli-publish) instead.
+- **Keep the key on the server.** Never put an API key in a browser, a mobile app or a spreadsheet. For a web front end that runs notebooks as the signed-in viewer, build a [data app project](/docs/data-app-projects) instead.
 - **Credentials stay in Deepnote.** The calling system never sees database passwords. It sends inputs and receives results.
 - **Validate inputs in the notebook.** Inputs come from another system. Check them before they reach a SQL query, and bind them as [SQL parameters](/docs/sql-cells) rather than building query strings by hand.
 

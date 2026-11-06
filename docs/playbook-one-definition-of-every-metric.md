@@ -11,15 +11,15 @@ In Deepnote you can build that layer from [modules](/docs/modules), notebooks th
 
 ## What you'll combine
 
-| Feature                                                         | Role in this playbook                               |
-| --------------------------------------------------------------- | --------------------------------------------------- |
-| [Modules](/docs/modules)                                        | Each metric's single definition                     |
-| [Input blocks](/docs/input-blocks)                              | Parameters such as date range, region or plan       |
-| [Team permissions](/docs/team-permissions) and groups           | Who can change a definition and who can only use it |
-| [Notebook locking](/docs/notebook-locking)                      | Guards against accidental edits                     |
-| [Version history](/docs/history) and [comments](/docs/comments) | Records why a definition changed                    |
-| [Scheduling](/docs/scheduling) and [apps](/docs/data-apps)      | Consume the definitions in reports and dashboards   |
-| [Deepnote Agent](/docs/deepnote-agent)                          | Uses the definitions when answering questions       |
+| Feature                                                                 | Role in this playbook                               |
+| ----------------------------------------------------------------------- | --------------------------------------------------- |
+| [Modules](/docs/modules)                                                | Each metric's single definition                     |
+| [Input blocks](/docs/input-blocks)                                      | Parameters such as date range, region or plan       |
+| [Team permissions](/docs/team-permissions) and groups                   | Who can change a definition and who can only use it |
+| [Notebook locking](/docs/notebook-locking)                              | Guards against accidental edits                     |
+| [Version history](/docs/history) and [comments](/docs/comments)         | Records why a definition changed                    |
+| [Scheduling](/docs/scheduling) and [data apps](/docs/data-app-projects) | Consume the definitions in reports and dashboards   |
+| [Deepnote Agent](/docs/deepnote-agent)                                  | Uses the definitions when answering questions       |
 
 ## How modules behave
 
@@ -27,10 +27,10 @@ These module behaviors affect the setup:
 
 - **A module runs in its own project.** When a notebook runs a module block, the module executes on its own project's machine, with that project's environment and integrations, and returns only the values it exports. People using the metric don't need the database integration in their own project. Exported functions are the exception: an imported function runs in the importing notebook, so anything it uses, such as an integration, must be available there or passed in.
 - **The caller needs Execute access.** A module runs as the person, or the schedule owner, who triggered it. They need at least Execute access to the module's project.
-- **Changes apply on the next run.** Every notebook that imports a module picks up its latest version the next time the module block runs. If a change affects configuration, for example a new input, the module block flags it before running.
+- **Changes apply on the next run.** Every notebook that imports a module picks up its latest version the next time the module block runs. If a change adds an input or export, the module block marks it as new.
 - **Input blocks become parameters.** Each input block in the module becomes a parameter that the importing notebook can set or bind to one of its own variables.
 - **Modules can read the SQL cache.** Module runs can use cached query results when [SQL query caching](/docs/sql-query-caching) is enabled, so a popular metric doesn't query the warehouse each time. Caching is off for integrations that use OAuth, so metrics built on Snowflake OAuth or BigQuery with Google OAuth query the warehouse on every run.
-- **Private-project modules stay private.** A module in a private project can only be used from other private projects.
+- **Private-project modules stay private.** A module in a private project can only be run by that project's owner, or by schedules they own.
 
 ## Set it up
 
@@ -42,7 +42,7 @@ Create one project, for example "Metrics", shared with the whole workspace. Ever
 
 For each metric:
 
-1. Start with a text block that defines the metric in plain language: what it counts, what it excludes, and who owns it. People reading the notebook, and Deepnote's AI, both use this description.
+1. Start with a text block that defines the metric in plain language: what it counts, what it excludes, and who owns it. Deepnote's AI sees each module's name, inputs and exports in every request, but reads this description only when it opens the notebook, so name the notebook and its exports clearly too.
 2. Add input blocks for the parameters people change, such as `start_date`, `end_date` or `region`. Give them sensible defaults, so that running the module with no overrides returns the standard number.
 3. Write the calculation in SQL or Python blocks.
 4. [Export](/docs/modules#creating-a-module) the result: one DataFrame at the grain people need, such as daily revenue by region, and the headline value if useful. Name the exports clearly, for example `revenue_daily` and `revenue_total`.
@@ -62,13 +62,13 @@ Sharing with [user groups](/docs/team-permissions#user-groups) keeps step 2 mana
 ### 4. Use the definitions everywhere
 
 - **Ad-hoc analysis:** import the module and set its inputs. The imported variables appear in your notebook like any other.
-- **Apps:** build the dashboard on module imports, so it shows the same numbers as everyone else.
+- **Apps:** have the notebook behind a [data app](/docs/data-app-projects) import the modules, so the app shows the same numbers as everyone else. Each viewer's run imports them as that viewer, so app users need at least Execute access to the metrics project, which step 3 gives every workspace member.
 - **Scheduled reports:** a scheduled notebook that imports a module runs it as the schedule's owner on every run, so the report always uses the current definition.
 - **Deepnote Agent:** Agent sees a limited number of the modules you can access, those whose notebooks were created most recently first, and in Edit mode, can insert a module block with the right inputs. See [Trustworthy AI answers on your data](/docs/playbook-trustworthy-ai-answers).
 
 ### 5. Check the impact before changing a definition
 
-The module library, under **Modules** in the workspace sidebar, shows each module's source project and the projects that import it. Before changing a definition, check that list and tell the owners of those projects. Version history saves a version automatically every 10 minutes while someone works, so an edit that is made and undone between two versions may not appear. Create a named version before and after changing a definition to keep a clear record, for as long as your plan keeps history.
+The module library, which you open from **Explore module library** in a module block or from the module's publishing dialog, shows each module's project and the projects that use it. Names of other people's private projects are hidden. Before changing a definition, check that list and tell the owners of those projects. Version history saves a version automatically after 2 minutes without edits, or every 10 minutes during continuous editing, so an edit that is made and undone in between may not appear. Create a named version before and after changing a definition to keep a clear record, for as long as your plan keeps history.
 
 ## Governance
 
@@ -86,7 +86,7 @@ Version history is kept for 7 days on Free, 30 days on Team and without limit on
 ## Plan requirements
 
 - **Modules:** all plans.
-- **Scheduling:** Team and Enterprise.
+- **Scheduling:** Pro, Team and Enterprise.
 - **SQL query caching:** Team and Enterprise.
 - **Sharing a project at Execute level with individual people:** Team and Enterprise.
 - **User groups and unlimited version history:** Enterprise.

@@ -45,7 +45,7 @@ Before saving, check that the new owner:
 
 1. **Watch for paused-schedule emails.** Each one names the schedule that stopped. Assign an owner and save it, or delete it if it's no longer needed. Schedules in their private projects email only them, so admins won't hear about those; use the list you made before they left.
 2. **Check the audit log (Enterprise).** The [audit log](/docs/audit-log) records their removal.
-3. **Check in with the database admins.** If integrations used credentials the person knew, rotate them. Before rotating, the [Deepnote API](/docs/api-reference) integration usage endpoints list the projects, notebooks and blocks that use each integration.
+3. **Check in with the database admins.** If integrations used credentials the person knew, rotate them. Before rotating, the [Deepnote API](/docs/api-reference) integration usage endpoints list the projects, notebooks and blocks that use each integration, except other members' private projects, so they won't show the person's own private work.
 
 ## Make the next departure easier
 
@@ -53,11 +53,11 @@ Before saving, check that the new owner:
 - **Use service credentials for scheduled work.** A per-user OAuth integration gives each person their own data access, which is ideal for analysis and apps, but a schedule uses its owner's OAuth tokens, which end when they leave. For production schedules, connect an integration with service credentials limited to what the schedule needs.
 - **Keep production notebooks out of private projects**, so admins can see and hand them over.
 - **Name API keys after the system that uses them**, so the key list shows what breaks if a key is deleted.
-- **Use directory sync (Enterprise)**, so removing someone from your identity provider removes them from Deepnote and pauses their schedules the same day. See [SSO and directory sync](/docs/sso).
+- **Use directory sync (Enterprise)**, so removing someone from your identity provider removes them from Deepnote and pauses their schedules at the next sync. See [SSO and directory sync](/docs/sso).
 
 ## Plan requirements
 
-- **Scheduling:** Team and Enterprise. Schedules more frequent than hourly need Enterprise.
+- **Scheduling:** Pro, Team and Enterprise. Hourly and cron schedules need Team or Enterprise, and schedules more frequent than hourly need Enterprise.
 - **API keys:** Team and Enterprise.
 - **User groups, directory sync, the audit log and per-user OAuth integrations:** Enterprise.
 

@@ -44,7 +44,7 @@ For larger suites, [Great Expectations](/docs/great-expectations) runs in a note
 
 `deepnote run` executes the notebook without an editor and exits with code `1` when a block fails. With `-o json`, the result names the failed block and a `failureCategory`, such as `in-block` when the block's own code raised.
 
-Locally, `deepnote run` reads database connections from a `.deepnote.env.yaml` file next to the notebook. Commit that file with every secret written as an `env:` reference, for example `password: env:WAREHOUSE_PASSWORD`, and provide the values as CI secrets. Real environment variables take precedence over a local `.env` file. `deepnote integrations pull` writes secret values into `.env`, so add `.env` to `.gitignore` and commit only `.deepnote.env.yaml`. `deepnote integrations pull` creates both files from your workspace's integrations.
+Locally, `deepnote run` reads database connections from a `.deepnote.env.yaml` file next to the notebook. Run `deepnote integrations pull` in the notebook's folder, here `checks/`: it writes `.deepnote.env.yaml` with every secret as an `env:` reference, and the secret values into `.env`. Pulled references are named after the integration ID, such as `env:<INTEGRATION_ID>__PASSWORD`; rename them, for example to `env:WAREHOUSE_PASSWORD`, to match your CI secrets, and later pulls keep your names. Add `.env` to `.gitignore`, commit only `.deepnote.env.yaml`, and provide the values as CI secrets. Real environment variables take precedence over a local `.env` file.
 
 A GitHub Actions job looks like this:
 
@@ -73,13 +73,13 @@ The job checks the data already in the database it points at. If the pull reques
 
 ## 3. Run the same notebook on a schedule
 
-Keep the notebook in Git and in Deepnote Cloud at the same time with [`deepnote sync`](/docs/deepnote-cli-sync), which mirrors your workspace to a local folder and pushes edits back. It runs only when you call it, so after a change merges, run `deepnote sync` from the default branch, by hand or in a CI job on pushes to that branch, so that Deepnote schedules the merged notebook. Sync records what it last synced in `.deepnote-sync.json`. Commit that file, and the notebook files sync rewrites, back to the branch after every run; a CI job that starts from a fresh checkout without them sees both sides as changed and skips the notebook as a conflict. Run it with `-o json` and fail the job when the result reports a skipped conflict, because sync still exits successfully. If someone also edited the notebook in Deepnote, sync reports a conflict instead of overwriting either side. Sync mirrors every project the API key's account can access, not just the checks notebook, and everything it writes ends up in the repository. Use a key from an account that can reach only the projects that belong in this repository, or keep the mirror out of the repository. Alternatively, use [Deepnote file sync](/docs/deepnote-file-sync). It writes the whole project, every notebook in it, to one `.deepnote` file, so keep the checks in a project of their own, or review everything else in the project before committing it. `deepnote run` runs every notebook in a file, so pass `--notebook` with the checks notebook's name in CI if the project has others. File sync doesn't fetch new commits by itself: after a merge, someone has to pull the repository in the Deepnote project before the schedule runs the merged version.
+Keep the notebook in Git and in Deepnote Cloud at the same time with [`deepnote sync`](/docs/deepnote-cli-sync), which mirrors your workspace to a local folder and pushes edits back. It runs only when you call it, so after a change merges, run `deepnote sync` from the default branch, by hand or in a CI job on pushes to that branch, so that Deepnote schedules the merged notebook. Sync records what it last synced in `.deepnote-sync.json`. Commit that file, and the notebook files sync rewrites, back to the branch after every run; a CI job that starts from a fresh checkout without them sees both sides as changed and skips the notebook as a conflict. Run it with `-o json` and fail the job when the result reports a skipped conflict, because sync still exits successfully. If someone also edited the notebook in Deepnote, sync reports a conflict instead of overwriting either side. Sync mirrors every project the API key's account can access, not just the checks notebook, and everything it writes ends up in the repository. Use a key from an account that can reach only the projects that belong in this repository, or keep the mirror out of the repository. Alternatively, use [Deepnote file sync](/docs/deepnote-file-sync). It links the project to a folder in the repository with one `.deepnote` file per notebook, so CI can run the checks notebook's file on its own. Everything else in the project lands in the same folder, so review it before committing. File sync doesn't fetch new commits by itself: after a merge, someone has to pull the repository in the Deepnote project before the schedule runs the merged version.
 
 In Deepnote Cloud, [schedule](/docs/scheduling) the notebook:
 
 1. **Choose a time after your data loads**, for example daily at 07:00 in your team's time zone.
 2. **Add failure notifications** to the Slack channel that owns the data, or to the people responsible by email.
-3. **Keep auto-pause on.** New schedules pause after 3 consecutive failures, and never before about an hour of failures for frequent schedules. A check that keeps failing then stops using compute until someone looks. You can change the number of failures or turn auto-pause off.
+3. **Keep auto-pause on.** Schedules you create in Deepnote pause after 3 consecutive failures, and never before about an hour of failures for frequent schedules. A check that keeps failing then stops using compute until someone looks. You can change the number of failures or turn auto-pause off. Schedules created through the API start with auto-pause off.
 
 When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see which check failed and what the data looked like at the time, even if someone has run the notebook since.
 
@@ -92,7 +92,7 @@ When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see 
 ## Plan requirements
 
 - **Running checks in CI with the CLI:** free and open source. The CLI needs a Deepnote API key only for commands that talk to Deepnote Cloud, such as `integrations pull` and `sync`.
-- **Scheduling:** Team and Enterprise.
+- **Scheduling:** Pro, Team and Enterprise.
 - **API keys:** Team and Enterprise.
 - **Schedules more frequent than hourly:** Enterprise.
 

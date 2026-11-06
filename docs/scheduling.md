@@ -7,7 +7,7 @@ noContent: false
 Deepnote lets you execute your notebooks on a daily, weekly, monthly or hourly basis, or with a custom cron string. This is useful if you want to process data or update a dashboard at a regular frequency.
 
 <Callout  status="info">
-Scheduling, including hourly and custom cron schedules, is available on Team and Enterprise plans. Schedules that run more often than once an hour are available on the Enterprise plan.
+Scheduling is available on the Pro, Team and Enterprise plans. Hourly and custom cron schedules are available on Team and Enterprise, but not during a Team trial. Schedules that run more often than once an hour are available on the Enterprise plan.
 </Callout>
 
 ### From exploratory analysis to production pipelines

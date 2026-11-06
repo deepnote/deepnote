@@ -11,25 +11,25 @@ Deepnote gives its AI the same context your analysts use: the metric definitions
 
 ## What you'll combine
 
-| Feature                                                    | Role in this playbook                                                                              |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [Modules](/docs/modules)                                   | Published metric definitions the agent can find and import                                         |
-| [Scheduling](/docs/scheduling) and [apps](/docs/data-apps) | Mark the queries the AI should learn from                                                          |
-| [Deepnote Agent](/docs/deepnote-agent)                     | Builds analyses in notebooks                                                                       |
-| MCP integrations                                           | Connect the agent to tools that already define your metrics, such as dbt                           |
-| [Slack agent](/docs/slack)                                 | Runs existing notebooks from Slack and summarizes the results                                      |
-| [Deepnote MCP server](/docs/deepnote-mcp)                  | Gives Claude, Codex and Cursor the same workspace                                                  |
-| [Custom AI instructions](/docs/custom-ai-instructions)     | Personal preferences for each analyst                                                              |
-| [Team permissions](/docs/team-permissions)                 | Decide what every AI surface can see, because each acts as the person whose account or key it uses |
+| Feature                                                | Role in this playbook                                                                              |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| [Modules](/docs/modules)                               | Published metric definitions the agent can find and import                                         |
+| [Scheduling](/docs/scheduling)                         | Marks the queries the AI should learn from                                                         |
+| [Deepnote Agent](/docs/deepnote-agent)                 | Builds analyses in notebooks                                                                       |
+| MCP integrations                                       | Connect the agent to tools that already define your metrics, such as dbt                           |
+| [Slack agent](/docs/slack)                             | Runs existing notebooks from Slack and summarizes the results                                      |
+| [Deepnote MCP server](/docs/deepnote-mcp)              | Gives Claude, Codex and Cursor the same workspace                                                  |
+| [Custom AI instructions](/docs/custom-ai-instructions) | Personal preferences for each analyst                                                              |
+| [Team permissions](/docs/team-permissions)             | Decide what every AI surface can see, because each acts as the person whose account or key it uses |
 
 ## What the agent reads
 
 Knowing what context Deepnote's AI uses tells you where to put your effort.
 
-- **The open notebook.** Agent reads every block in the notebook you're working in. If a workspace admin turns on **Provide access to block outputs** in **Settings & members** → **AI**, it also reads outputs, including row-level data.
-- **Your modules.** Every request includes a limited number of the [modules](/docs/modules) you have access to, newest notebooks first, with their input parameters and exported values. Agent is told to treat modules as the workspace's semantic layer. In Edit mode, it can insert a module block and set its inputs to match your question.
-- **Queries your team already runs.** When Agent writes or edits SQL for a database integration, it looks for relevant tables in that integration's schema and adds a few example queries that have already been run on the same integration. It prefers queries from scheduled notebooks, then queries from published apps, then any other executed query. Only projects you can access are used.
-- **Tables you mention.** Typing `@` in a prompt lets you name a table, which then always goes into the context.
+- **The open notebook.** Agent reads the blocks of the notebook you're working in, including their text outputs and previews of variables in memory, which can contain row-level data.
+- **Your modules.** Every request includes a limited number of the [modules](/docs/modules) you have access to, newest notebooks first, with their input parameters and exported values. Agent is told that modules can serve as a semantic layer, but not to prefer them, so name or `@`-mention the module in your prompt. In Edit mode, it can insert a module block and set its inputs to match your question.
+- **Queries your team already runs.** When Agent writes SQL for a database integration, it looks for relevant tables in that integration's schema and adds up to five example queries that have already been run on the same integration. It takes queries from scheduled notebooks first, then any other executed query. Only projects you can access are used.
+- **Resources you mention.** Typing `@` in a prompt lets you mention a project, integration or module, so Agent knows exactly which one you mean.
 - **Connected MCP integrations.** In Edit mode, Agent can call tools from MCP integrations connected to the project. Agent is told to look up metrics, schemas and catalogs in those services before writing its own queries.
 - **Your custom instructions.** Each person's [custom instructions](/docs/custom-ai-instructions) are added to their own requests. They're personal and aren't shared with teammates.
 
@@ -41,12 +41,12 @@ Start with the five to ten numbers people ask about most often: revenue, active 
 
 Two details decide whether Agent finds a module:
 
-- Agent sees only a limited number of the modules you can access, those whose notebooks were created most recently first. Publishing an older notebook as a module doesn't move it up, so retire outdated modules to keep the important definitions in view.
-- A module in a private project can only be used from other private projects. Put shared definitions in a project the whole workspace can access.
+- Agent sees the 20 modules you can access whose notebooks were created most recently. Publishing an older notebook as a module doesn't move it up, so retire outdated modules to keep the important definitions in view. Agent can still use others if you `@`-mention them or it finds them by searching the workspace.
+- A module in a private project can only be run by that project's owner. Put shared definitions in a project the whole workspace can access.
 
-### 2. Schedule or publish your canonical queries
+### 2. Schedule your canonical queries
 
-When Agent writes SQL, the queries it learns from come first from scheduled notebooks and then from published apps. Your scheduled reports become the examples the AI follows. Schedule the notebooks whose queries reflect how your team joins and filters the data, and keep exploratory or broken queries out of them.
+When Agent writes SQL, the queries it learns from come first from scheduled notebooks. Your scheduled reports become the examples the AI follows. Schedule the notebooks whose queries reflect how your team joins and filters the data, and keep exploratory or broken queries out of them.
 
 ### 3. Connect the tools that already hold definitions
 
@@ -56,7 +56,7 @@ For example, with the dbt MCP integration connected to a project, Agent in Edit 
 
 ### 4. Decide how much data the AI may see
 
-**Provide access to block outputs** controls whether Agent can read outputs, including row-level data. The Slack agent needs it, because it summarizes notebook outputs. On the Enterprise plan you can also route Agent requests to [your own AI models](/docs/ai-custom-models) or to EU-hosted models. Code completions still use Deepnote's completions provider either way; turn them off in the workspace settings if that matters to you. See [AI data privacy](/docs/ai-data-privacy) for what is sent to each provider.
+**Provide access to block outputs** in **Settings & members** → **AI** controls whether AI inside a single code or SQL block can read outputs. The Slack agent needs it, because it summarizes notebook outputs. Deepnote Agent in the side panel reads outputs either way. On the Enterprise plan you can also route Agent requests to [your own AI models](/docs/ai-custom-models) or to EU-hosted models. Code completions still use Deepnote's completions provider, and finding tables for SQL still sends your prompt and table names to OpenAI. Turn completions off in the workspace settings if that matters to you. See [AI data privacy](/docs/ai-data-privacy) for what is sent to each provider.
 
 ### 5. Use the same workspace from every surface
 
@@ -80,8 +80,9 @@ Database integrations that use per-user OAuth, such as [Snowflake OAuth](/docs/s
 
 ## Plan requirements
 
-- **Deepnote Agent:** available on all plans, with limited requests on Free.
-- **Scheduling:** Team and Enterprise.
+- **Deepnote Agent:** available on all plans, with a request limit on Free and monthly AI credits on paid plans.
+- **Slack agent and the Deepnote MCP server:** Team and Enterprise.
+- **Scheduling:** Pro, Team and Enterprise.
 - **Custom and EU-hosted AI models:** Enterprise.
 - **Per-user OAuth for database integrations:** Enterprise.
 

@@ -14,7 +14,7 @@ This playbook gives workspace admins an order to answer those questions in, from
 Decide on the following and write it down:
 
 - **Who owns the workspace.** The person who creates it becomes its owner and can't be removed from it. Pick a long-lived account. If the owner needs to change later, contact support.
-- **Which roles people get.** Admins manage members, integrations and settings. Editors create projects and connect integrations to them. Viewers run notebooks and change input values. Restricted users see only projects shared with them. See [team permissions](/docs/team-permissions).
+- **Which roles people get.** Admins manage members, integrations and settings. Editors create projects and connect integrations to them. Viewers run notebooks and change input values. Restricted users see only projects shared with them, with a group they're in, or by link. See [team permissions](/docs/team-permissions).
 - **Who creates integrations.** Only admins can create or edit integrations. Editors connect existing integrations to projects.
 
 ## Phase 1: pilot
@@ -31,10 +31,10 @@ Start with one team and the data it needs.
 Before inviting more people, control how they get in.
 
 - **Single sign-on (Enterprise).** Deepnote supports SAML and OIDC, including Okta, Azure AD, Google and OneLogin. Support sets it up with you. See [SSO and directory sync](/docs/sso).
-- **Enforce the sign-in provider.** Admins can require everyone in the workspace to sign in with the company's provider, so personal accounts can't join. People invited to a single project still appear as guests.
+- **Enforce the sign-in provider.** Admins can require everyone in the workspace to sign in with one provider, such as your SSO, Google or Microsoft. With SSO enforced, personal accounts can't join. People invited to a single project still appear as guests.
 - **Directory sync (Enterprise).** With SCIM, membership follows your identity provider:
   - People in the `Deepnote Viewers`, `Deepnote Editors`, `Deepnote Admins` and `Deepnote Restricted Users` groups get the matching role. People must be direct members of these groups, since nested groups don't assign roles. With these default groups, anyone in none of them joins as a Viewer, so pair directory sync with a conservative default project permission. Support can map your existing groups instead.
-  - Other groups you sync become Deepnote [user groups](/docs/team-permissions#user-groups) that you can share projects with. Their membership is managed in the identity provider and can't be edited in Deepnote.
+  - Groups that support maps for you also become Deepnote [user groups](/docs/team-permissions#user-groups) that you can share projects with. Their membership is managed in the identity provider and can't be edited in Deepnote. Other directory groups aren't synced.
   - People removed or deactivated in the directory are removed from the workspace.
 - **Domain invites.** Without directory sync, turn on domain invites so that anyone with an email address on the workspace owner's domain can join as a Viewer. Only that one domain can be used. Admins then promote people who need to edit.
 
@@ -44,14 +44,14 @@ Decide what people see by default before the number of projects grows.
 
 1. **Set the default project permission.** In the workspace settings, choose what access workspace members get to new projects. A conservative default, such as **View**, means projects are visible but not editable until their owner opens them up.
 2. **Organize projects in folders**, for example one per department, and on Enterprise give each folder its own default project permission. New projects get the default of the nearest folder that sets one. A folder default of **No access** requires private projects to be enabled.
-3. **Share with groups, not people.** On Enterprise, share department projects with the department's group, so access follows the directory when people join or leave. Set those projects' workspace access to **No access** too; otherwise everyone in the workspace keeps the default access, including people removed from the group.
+3. **Share with groups, not people.** On Enterprise, share department projects with the department's group, so access follows the directory when people join or leave. Everyone in the workspace still keeps the project's workspace access, including people removed from the group. Setting workspace access to **No access** makes the project private: it needs private projects to be enabled, and workspace admins who aren't in the group can no longer open it.
 4. **Decide on public sharing.** In the security settings, turn off **Allow apps to be shared publicly** if apps should never be visible outside the company. Turn off **Allow projects to be shared publicly** for projects.
 
 ## Phase 4: company-wide use
 
 1. **Publish shared definitions.** Put the company's core metrics in [modules](/docs/modules), so new teams don't start from scratch and Deepnote Agent can use them.
 2. **Connect Slack.** Scheduled notebooks can then notify channels, and people can ask the Slack agent to run notebooks. See [Slack](/docs/slack).
-3. **Show people how to share results.** Most teams start with [notebook apps](/docs/data-apps) for dashboards and self-serve tools.
+3. **Show people how to share results.** Build dashboards and self-serve tools as [data app projects](/docs/data-app-projects), or as [Streamlit app projects](/docs/streamlit-app-projects) when the tool is mostly Python. See [Choosing how to build an app](/docs/playbook-choosing-an-app-type).
 
 ## Keep spending predictable
 
@@ -62,19 +62,19 @@ Decide what people see by default before the number of projects grows.
 
 ## Keep an eye on things
 
-- **Usage insights** show who views each notebook and app and who runs each app, with anonymous viewers counted once per session, so you can retire what nobody uses. See [usage insights](/docs/app-and-notebook-analytics).
+- **Usage insights** show who views each notebook and which runs it had, with anonymous viewers counted once per session, so you can retire what nobody uses. See [usage insights](/docs/app-and-notebook-analytics).
 - **The audit log (Enterprise)** records actions in the workspace, including membership changes. Admins export it as a CSV from **Settings & members** → **Security**. See [audit log](/docs/audit-log).
-- **Database-side auditing.** Every query from a SQL block carries a comment with the workspace, project and notebook, a link to the project, the email of the person who ran it, and whether a person, a schedule or the API ran it, so your database admins can audit Deepnote traffic in their own tools.
+- **Database-side auditing.** Every query from a SQL block carries a comment with the workspace, project and notebook IDs, a link to the project, the email of the person who ran it, and what triggered it, such as a person, a schedule or the API, so your database admins can audit Deepnote traffic in their own tools.
 
 ## Plan requirements
 
-| Capability                                                                           | Plan                |
-| ------------------------------------------------------------------------------------ | ------------------- |
-| Folders, private projects, scheduling, API keys                                      | Team and Enterprise |
-| Schedules more frequent than hourly                                                  | Enterprise          |
-| Turning off public app sharing                                                       | Team and Enterprise |
-| SSO, enforced sign-in, directory sync, user groups                                   | Enterprise          |
-| Folder default permissions, audit log, per-user OAuth integrations, custom AI models | Enterprise          |
+| Capability                                                                           | Plan                     |
+| ------------------------------------------------------------------------------------ | ------------------------ |
+| Folders, private projects, scheduling, turning off public app sharing                | Pro, Team and Enterprise |
+| API keys                                                                             | Team and Enterprise      |
+| Schedules more frequent than hourly                                                  | Enterprise               |
+| SSO, enforced sign-in, directory sync, user groups                                   | Enterprise               |
+| Folder default permissions, audit log, per-user OAuth integrations, custom AI models | Enterprise               |
 
 ## Related
 

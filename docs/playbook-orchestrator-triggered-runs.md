@@ -103,7 +103,7 @@ Things to know:
 - **Runs are detached by default.** Each run uses a separate copy of the project, so a pipeline run never disturbs someone editing the notebook, and two runs of the same notebook can happen at once.
 - **Input values are per run.** Use them for the partition, date or tenant the pipeline just processed. Keys are the input `name`s listed by `GET /v2/notebooks/{notebookId}`.
 - **The API has no endpoint to cancel a run.** The helper's timeout stops waiting, but the run continues until it finishes.
-- **Read results if the next step needs them.** Add `?snapshotDelivery=blocks` to the last `GET /v2/runs/{runId}` to get every block's outputs, or call `GET /v2/notebooks/{notebookId}/app-data` for the notebook's JSON output. See [a notebook as a backend](/docs/playbook-notebook-as-a-backend).
+- **Read results if the next step needs them.** Outputs are stored a moment after the run finishes, so keep polling until `snapshotStatus` is `available`. Then add `?snapshotDelivery=blocks` to `GET /v2/runs/{runId}` to get every block's outputs, or call `GET /v2/notebooks/{notebookId}/app-data` for the notebook's JSON output. See [a notebook as a backend](/docs/playbook-notebook-as-a-backend).
 
 ## Keep a schedule as a fallback
 
@@ -117,11 +117,11 @@ If the orchestrator itself is down, nothing triggers the notebook. A schedule th
 - `GET /v2/notebooks/{notebookId}/schedule` returns the next run time, whether the schedule is paused, and why: `access-revoked` or `consecutive-failures`.
 - `DELETE /v2/notebooks/{notebookId}/schedule` removes it.
 
-Schedules more frequent than hourly need the Enterprise plan.
+Schedules created through the API start with auto-pause off; turn it on in the scheduling settings if you want repeated failures to pause the schedule. Schedules more frequent than hourly need the Enterprise plan.
 
 ## Monitor from one place
 
-`GET /v2/notebooks/{notebookId}/runs` lists a notebook's runs, newest first, whether the orchestrator, a schedule or a person started them. A small monitoring job can read it for every production notebook and alert when the latest run failed or is older than expected.
+`GET /v2/notebooks/{notebookId}/runs` lists a notebook's runs, newest first, whether the orchestrator, a schedule or a person started them. In a project that runs privately, it lists only the runs started with your key. A small monitoring job can read it for every production notebook and alert when the latest run failed or is older than expected.
 
 Scheduled runs can also notify Slack channels or email recipients on success, on failure or both. API runs don't send these notifications, so rely on your orchestrator's alerting for them.
 
@@ -138,7 +138,7 @@ API requests are rate limited per minute for each API key, at a level set by the
 ## Plan requirements
 
 - **API keys:** Team and Enterprise.
-- **Scheduling:** Team and Enterprise.
+- **Scheduling:** Pro, Team and Enterprise. Hourly and custom cron schedules need Team or Enterprise.
 - **Schedules more frequent than hourly:** Enterprise.
 
 ## Variations
