@@ -90,7 +90,7 @@ def run_notebook(notebook_id: str, inputs: dict | None = None, timeout_s: int = 
     raise TimeoutError(f"Deepnote run {run_id} did not finish within {timeout_s} seconds")
 ```
 
-If starting a run fails with a network error or a server error, the helper raises instead of retrying, because the run may already have started. The same applies when your orchestrator retries a failed task: the retry starts a new run while the first may still be going. Either turn off retries for this task, or check `GET /v2/notebooks/{notebookId}/runs` for a run started in the last few minutes before starting another.
+If starting a run fails with a network error or a server error, the helper raises instead of retrying, because the run may already have started. The same applies when your orchestrator retries a failed task: the retry starts a new run while the first may still be going. Either turn off retries for this task, or save the `runId` in your orchestrator's task state as soon as the start succeeds, and have a retry resume polling that run instead of starting a new one. Don't pick a run from `GET /v2/notebooks/{notebookId}/runs` by time alone: other tasks and schedules can run the same notebook, and the list doesn't show a run's inputs. If a start failed without returning a `runId`, check the run history by hand before running again, and rely on the notebook being safe to run twice.
 
 Call it from an Airflow `PythonOperator`, a Dagster op, a Prefect task or a GitHub Actions step, after the task that loads the data:
 

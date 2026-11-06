@@ -29,7 +29,7 @@ These module behaviors affect the setup:
 - **The caller needs Execute access.** A module runs as the person, or the schedule owner, who triggered it. They need at least Execute access to the module's project.
 - **Changes apply on the next run.** Every notebook that imports a module picks up its latest version the next time the module block runs. If a change affects configuration, for example a new input, the module block flags it before running.
 - **Input blocks become parameters.** Each input block in the module becomes a parameter that the importing notebook can set or bind to one of its own variables.
-- **Modules can read the SQL cache.** Module runs can use cached query results when [SQL query caching](/docs/sql-query-caching) is enabled, so a popular metric doesn't query the warehouse each time.
+- **Modules can read the SQL cache.** Module runs can use cached query results when [SQL query caching](/docs/sql-query-caching) is enabled, so a popular metric doesn't query the warehouse each time. Caching is off for integrations that use OAuth, so metrics built on Snowflake OAuth or BigQuery with Google OAuth query the warehouse on every run.
 - **Private-project modules stay private.** A module in a private project can only be used from other private projects.
 
 ## Set it up

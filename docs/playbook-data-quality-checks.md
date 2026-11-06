@@ -38,7 +38,7 @@ A notebook run fails at the first block that raises, and later blocks don't run.
 - **Write messages that say what's wrong and how much**, because the error message is what people see first.
 - **Use input blocks for anything that differs between environments**, such as the schema name or the date being checked.
 
-For larger suites, [Great Expectations](/docs/great-expectations) runs in a notebook like any other library.
+For larger suites, [Great Expectations](/docs/great-expectations) runs in a notebook like any other library. Install it, and any other package the notebook imports, in the CI job as well, for example by adding it to the `pip install` step below.
 
 ## 2. Run it in CI on every pull request
 

@@ -36,7 +36,7 @@ Before saving, check that the new owner:
 ### Before they leave
 
 1. **List their schedules.** Ask them to list the notebooks they've scheduled, or check the notification emails each schedule sends. Agree who takes over each one, then have the new owner open and save it while the original owner is still around to answer questions.
-2. **Replace their API keys.** In **Settings & members** → **Security** → **API keys**, the list shows who created each key and when it was last used. Find the keys they created. Create replacement keys from the new owner's account, update the systems that use them, then delete the old keys.
+2. **Replace their API keys.** In **Settings & members** → **Security** → **API keys**, the list shows who created each key and when it was last used. Find the keys they created. Create replacement keys from the new owner's account. Each key acts as its creator, so first check that the new owner has access to every project the systems use. Update the systems, test them with the new keys, then delete the old keys.
 3. **Move private work.** Workspace admins can't open other members' private projects. Ask them to share anything worth keeping with the workspace or a teammate before they go.
 4. **Hand over integrations they set up.** If a project relies on credentials tied to them personally, for example an environment variable holding their own API token, replace it with a service credential.
 5. **Hand over apps and metric definitions they maintain.** Give someone else Edit access to those projects.

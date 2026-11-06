@@ -28,7 +28,7 @@ A weekly report often costs someone a morning: run the notebook, check the numbe
 
 ## 2. Publish it as an app
 
-Publish the notebook as an [app](/docs/data-apps), hide the code, and in **App data** select **Show last run results**. Readers then open the app and see the latest edition immediately, without waiting for queries to run. **Show last run results** isn't available in a project that runs privately, so keep the report in a project that doesn't.
+Publish the notebook as an [app](/docs/data-apps), hide the code, and in **App data** select **Show last run results**. Readers then open the app and see the latest edition immediately, without waiting for queries to run. **Show last run results** isn't available in a project that runs privately, so keep the report in a project that doesn't. The app shows the notebook's last run, not necessarily the scheduled one, so a manual run for another period replaces the edition readers see. Do exploratory runs in a copy of the notebook, and rerun the report if someone changes it by hand.
 
 If readers shouldn't change anything, turn off **Allow app to be run**. Leave it on if they may change the inputs to look at another period or region.
 
