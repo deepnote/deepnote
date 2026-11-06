@@ -17,8 +17,8 @@ Choose the command that matches your source:
 | App           | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                      |
 | Streamlit app | A Python entrypoint already in the project's Files     | `deepnote streamlit publish apps/dashboard.py --project-id <project-id>` |
 
-To publish notebook blocks through the Deepnote editor instead, see
-[Data apps](/docs/data-apps).
+To build an app from a notebook by chatting with Deepnote Agent instead, see
+[Data app projects](/docs/data-app-projects).
 
 ## Prerequisites
 
@@ -91,8 +91,7 @@ members, project collaborators (including app users), and user groups can receiv
 Sharing also requires the workspace to allow app file sharing and a plan that supports the feature.
 These permissions are checked on every request.
 
-Apps have no anonymous or link-only access. If the audience needs those access levels,
-consider [Data apps](/docs/data-apps).
+Apps have no anonymous or link-only access.
 
 ### Remove files from an earlier build
 
@@ -222,4 +221,4 @@ invalid arguments, a missing token, or missing/contradictory settings.
   directory and push notebook edits back
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product feature that keeps a project synced
   with a `.deepnote` file in a Git repository
-- [Data apps](/docs/data-apps) — building interactive apps on Deepnote
+- [Data app projects](/docs/data-app-projects) — building interactive apps on Deepnote

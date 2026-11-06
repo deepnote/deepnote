@@ -49,7 +49,7 @@ Choose your editor and install the extension:
 - **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
 - Or search for "Deepnote" in Cursor's extension marketplace
 
-**Additional requirement**: Python 3.10 to 3.13, the range the extension's bundled toolkit supports
+**Additional requirement**: Python 3.10 to 3.13, the range supported by the `deepnote-toolkit` version the extension installs
 
 ### Getting started
 
