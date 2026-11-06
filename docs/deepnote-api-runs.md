@@ -119,6 +119,13 @@ DONE = {"success", "error", "internal_error", "stopped"}
 REQUEST_TIMEOUT = (5, 30)
 
 
+def wait_for_retry(response: requests.Response, deadline: float) -> None:
+    delay = int(response.headers["Retry-After"])
+    if time.monotonic() + delay > deadline:
+        raise TimeoutError("Rate limited for longer than the timeout")
+    time.sleep(delay)
+
+
 def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[dict]:
     deadline = time.monotonic() + timeout
 
@@ -133,7 +140,7 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
         )
         # A 429 means the run was not created, so starting it again is safe.
         if response.status_code == 429:
-            time.sleep(int(response.headers["Retry-After"]))
+            wait_for_retry(response, deadline)
             continue
         response.raise_for_status()
         break
@@ -151,7 +158,7 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
             timeout=REQUEST_TIMEOUT,
         )
         if response.status_code == 429:
-            time.sleep(int(response.headers["Retry-After"]))
+            wait_for_retry(response, deadline)
             continue
         response.raise_for_status()
         result = response.json()["run"]

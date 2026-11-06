@@ -84,7 +84,7 @@ with it. `-o json` returns the same list with block ids, for scripts and AI agen
 
 ## Run a block with only what it needs
 
-`deepnote run --block` runs a block together with the blocks it depends on.
+`deepnote run --block` runs a block together with the blocks its variables come from.
 Preview the plan with `--dry-run`:
 
 ```bash
@@ -104,7 +104,14 @@ Total: 3 block(s) would be executed
 Blocks outside the target block and the blocks it depends on, directly or through another block,
 are skipped. The analysis also links a block to the nearest
 earlier block that uses one of the same variables, so a block that only reads `orders`, such as an
-export, can still be part of the plan. In Deepnote Cloud, the
+export, can still be part of the plan. Review the plan before running a block next to ones with
+side effects, such as writes to a database.
+
+Imports are not followed: a block that only imports modules, such as `import pandas as pd` on its
+own, is left out even when the target uses `pd`, and the run fails with `NameError`. Put imports in
+the block that uses them, or in a block that also defines a variable the target needs.
+
+In Deepnote Cloud, the
 [API](/docs/deepnote-api-runs) can do the reverse: run selected blocks and everything that depends
 on them with `runDependentBlocks`.
 
