@@ -44,7 +44,7 @@ For larger suites, [Great Expectations](/docs/great-expectations) runs in a note
 
 `deepnote run` executes the notebook without an editor and exits with code `1` when a block fails. With `-o json`, the result names the failed block and a `failureCategory`, such as `in-block` when the block's own code raised.
 
-Locally, `deepnote run` reads database connections from a `.deepnote.env.yaml` file next to the notebook. Run `deepnote integrations pull` in the notebook's folder, here `checks/`: it writes `.deepnote.env.yaml` with every secret as an `env:` reference, and the secret values into `.env`. Pulled references are named after the integration ID, such as `env:<INTEGRATION_ID>__PASSWORD`; rename them, for example to `env:WAREHOUSE_PASSWORD`, to match your CI secrets, and later pulls keep your names. Add `.env` to `.gitignore`, commit only `.deepnote.env.yaml`, and provide the values as CI secrets. Real environment variables take precedence over a local `.env` file.
+Locally, `deepnote run` reads database connections from a `.deepnote.env.yaml` file next to the notebook. Run `deepnote integrations pull` in the notebook's folder, here `checks/`: it writes `.deepnote.env.yaml` with every secret as an `env:` reference, and the secret values into `.env`. Pulled references are named after the integration ID, such as `env:<INTEGRATION_ID>__PASSWORD`; rename them, for example to `env:WAREHOUSE_PASSWORD`, to match your CI secrets, and later pulls keep your names. Rename the matching key in `.env` too, or local runs lose the value. Add `.env` to `.gitignore`, commit only `.deepnote.env.yaml`, and provide the values as CI secrets. Real environment variables take precedence over a local `.env` file.
 
 A GitHub Actions job looks like this:
 

@@ -53,7 +53,7 @@ Keep a schedule **failure** notification as well, sent to the people who maintai
 
 ## Option 2: raise an error and use schedule notifications
 
-With auto-pause on, three alerts in a row pause the schedule. Only the schedule's owner gets an email about the pause, so the people who receive the alerts aren't told that it stopped. Use this option only if you turn auto-pause off or raise its threshold.
+With auto-pause on, the default threshold of three alerts in a row pauses the schedule, though a frequent schedule isn't paused before about an hour of failures. Only the schedule's owner gets an email about the pause, so the people who receive the alerts aren't told that it stopped. Use this option only if you turn auto-pause off or raise its threshold.
 
 It needs no code beyond the check. End the notebook with a block that raises when the condition is met:
 
@@ -70,7 +70,7 @@ This works well for a small team, but has three limits:
 
 - **The message is generic.** A failure notification says that a scheduled job failed for the project and links to the notebook. It doesn't include your error message, so people have to click through to see the numbers.
 - **Alerts and errors look the same.** A real error, such as an expired credential, produces the same notification as the business condition.
-- **Repeated alerts pause the schedule.** Every raise counts as a failure. If auto-pause is on, which is the default for schedules created in Deepnote, three alerts in a row pause the schedule, and only its owner is told. For this pattern, turn auto-pause off or raise its threshold.
+- **Repeated alerts pause the schedule.** Every raise counts as a failure. If auto-pause is on, which is the default for schedules created in Deepnote, three alerts in a row pause the schedule, though not before about an hour of failures for a frequent schedule, and only its owner is told. For this pattern, turn auto-pause off or raise its threshold.
 
 ## Make alerts worth reading
 

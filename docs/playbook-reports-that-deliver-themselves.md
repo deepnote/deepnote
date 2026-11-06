@@ -32,7 +32,7 @@ The schedule updates the notebook's outputs, so put the report where those outpu
 
 - **In the tools readers already use.** [Embed](/docs/sharing-and-embedding-blocks) the headline numbers and charts in Notion, Confluence or your wiki. Embedded blocks show the notebook's latest outputs, so they update after each scheduled run.
 - **In Deepnote.** Share the project with readers at **View** access. They open the notebook and see the latest edition, along with its code. Keep the report in a project that doesn't run privately, so everyone sees the same outputs.
-- **For their own slice.** If readers want another period or region, build a [data app project](/docs/data-app-projects) on the same definitions, with the period and region as inputs. Each reader runs it for their own values and sees only their own results, so it answers follow-up questions rather than replacing the weekly edition.
+- **For their own slice.** If readers want another period or region, build a [data app project](/docs/data-app-projects) on the same definitions, with the period and region as inputs. Each reader runs it for their own values and sees only their own results, so it answers follow-up questions rather than replacing the weekly edition. If its notebook imports metric [modules](/docs/modules), each reader needs Execute access to the modules' projects, and a module in a private project runs only for that project's owner.
 
 A manual run of the report notebook replaces the outputs readers see, so do exploratory runs in a copy of the notebook, and rerun the report if someone changes it by hand.
 
@@ -68,7 +68,7 @@ Snapshots are kept for 30 days on Team and 365 days on Enterprise. To keep editi
 
 - **Inside the workspace:** share the project with readers at **View** access, or embed the report's blocks where they already read.
 - **Outside the workspace:** embedded blocks are visible to anyone with the link, so embed only what may be shared that widely. A data app can be shared only with people invited to its project.
-- **Each reader's own data:** a scheduled edition runs as the schedule's owner with their access, and everyone who reads the notebook or its embedded blocks sees that edition. With per-user OAuth integrations (Enterprise), a data app runs with each reader's own account instead.
+- **Each reader's own data:** a scheduled edition runs as the schedule's owner with their access, and everyone who reads the notebook or its embedded blocks sees that edition. With per-user OAuth integrations (Enterprise), a data app runs with each reader's own account instead. A module block queries its own project's integrations, so check those too: one that uses shared credentials returns the same data to every reader.
 
 ## Plan requirements
 

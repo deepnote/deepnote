@@ -42,7 +42,7 @@ Create one project, for example "Metrics", shared with the whole workspace. Ever
 
 For each metric:
 
-1. Start with a text block that defines the metric in plain language: what it counts, what it excludes, and who owns it. Deepnote's AI sees each module's name, inputs and exports in every request, but reads this description only when it opens the notebook, so name the notebook and its exports clearly too.
+1. Start with a text block that defines the metric in plain language: what it counts, what it excludes, and who owns it. Deepnote's AI sees the name, inputs and exports of the 20 most recently created modules you can access in every request, but reads this description only when it opens the notebook, so name the notebook and its exports clearly too, and `@`-mention an older metric when you need it.
 2. Add input blocks for the parameters people change, such as `start_date`, `end_date` or `region`. Give them sensible defaults, so that running the module with no overrides returns the standard number.
 3. Write the calculation in SQL or Python blocks.
 4. [Export](/docs/modules#creating-a-module) the result: one DataFrame at the grain people need, such as daily revenue by region, and the headline value if useful. Name the exports clearly, for example `revenue_daily` and `revenue_total`.
@@ -62,7 +62,7 @@ Sharing with [user groups](/docs/team-permissions#user-groups) keeps step 2 mana
 ### 4. Use the definitions everywhere
 
 - **Ad-hoc analysis:** import the module and set its inputs. The imported variables appear in your notebook like any other.
-- **Apps:** have the notebook behind a [data app](/docs/data-app-projects) import the modules, so the app shows the same numbers as everyone else. Each viewer's run imports them as that viewer, so app users need at least Execute access to the metrics project, which step 3 gives every workspace member.
+- **Apps:** have the notebook behind a [data app](/docs/data-app-projects) import the modules, so the app shows the same numbers as everyone else. Each viewer's run imports them as that viewer, so app users need at least Execute access to the metrics project. Step 3 gives every workspace member that, but guests and restricted users need the metrics project shared with them directly, or their runs fail on the import.
 - **Scheduled reports:** a scheduled notebook that imports a module runs it as the schedule's owner on every run, so the report always uses the current definition.
 - **Deepnote Agent:** Agent sees a limited number of the modules you can access, those whose notebooks were created most recently first, and in Edit mode, can insert a module block with the right inputs. See [Trustworthy AI answers on your data](/docs/playbook-trustworthy-ai-answers).
 

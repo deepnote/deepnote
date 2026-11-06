@@ -47,7 +47,7 @@ Then:
 ## Plan requirements
 
 - **Data app projects, Streamlit app projects and embedded blocks:** all plans.
-- **App user access for individual people:** Team and Enterprise.
+- **App user access for individual people:** Pro, Team and Enterprise.
 - **Per-user OAuth integrations:** Enterprise.
 
 ## Related

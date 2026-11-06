@@ -44,7 +44,7 @@ Reference inputs in SQL blocks with `{{ variable_name }}` and in Python by their
 
 When someone submits the inputs, the whole notebook runs for them on a new machine with the project's machine type. Nobody waits for anyone else, but every answer includes the time a machine takes to start. Query only what the app shows, and aggregate in the warehouse rather than in Python.
 
-There are no shared, precomputed results: each viewer sees their own latest run, kept for your plan's run retention. If many people ask the same few questions and need answers instantly, a [Streamlit app project](/docs/streamlit-app-projects) can cache results for every viewer.
+There are no shared, precomputed results: each viewer sees their own latest run, kept for your plan's run retention. If many people ask the same few questions and need answers instantly, a [Streamlit app project](/docs/streamlit-app-projects) can cache results for every viewer. Cache only results every viewer may see: a shared `st.cache_data` entry doesn't distinguish viewers, so it would hand one person's per-user OAuth results to the next.
 
 ### 4. Send links that answer a specific question
 
@@ -54,15 +54,17 @@ The app's link can carry query parameters, and the page can read them. Ask the a
 
 ### Publish it and give people the right access
 
-A new data app is unpublished, so only the project's editors can open it. Click **Share**, set the app to **Published**, invite the people who should use it, and send them the link from **Copy link to app**.
+A new data app is unpublished, so only the project's editors can open it. Click **Share**, set the app to **Published**, invite the people who should use it, and send them the link from **Copy link to app**. Published apps open only when **Allow static file sharing in projects** is on in **Settings & members → Project settings**, so check that first.
 
-| Who                                       | Access                                                                                | What they can do                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Business users                            | **App user** on the project, and no higher access through workspace access or a group | Open and run the app, but not the notebook or code |
-| The analysts who maintain the tool        | **Edit**                                                                              | Change the app and the notebook, and use the agent |
-| Contractors or partners in your workspace | The **Restricted user** workspace role, plus App user on this project                 | Use only the projects shared with them             |
+| Who                                       | Access                                                                                | What they can do                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Business users                            | **App user** on the project, and no higher access through workspace access or a group | Open and run the app, but not the notebook or its code |
+| The analysts who maintain the tool        | **Edit**                                                                              | Change the app and the notebook, and use the agent     |
+| Contractors or partners in your workspace | The **Restricted user** workspace role, plus App user on this project                 | Use only the projects shared with them                 |
 
 Restricted users see only projects shared with them, and can't duplicate or delete those projects or change their settings, even with higher project access. People outside your workspace who are invited to the project appear as guests. Data apps can't be shared with anyone who has the link.
+
+App users can't open the notebook or its code. The app's own HTML and scripts are sent to their browser like any web page, so keep nothing secret in them.
 
 Every viewer's runs are independent: one person changing an input doesn't change what anyone else sees.
 
@@ -72,7 +74,7 @@ If the tool queries Snowflake or BigQuery through an integration that uses per-u
 
 With an integration that uses shared credentials, every viewer queries with the integration's credentials. App users can read every output of their own runs through the app's API access, not only what the page shows. Filter by the viewer's input values only when every viewer may see all of the data, and keep anything they may not see out of the notebook's outputs.
 
-If the notebook imports [modules](/docs/modules), each viewer's run imports them as that viewer, so viewers need at least Execute access to the modules' projects.
+If the notebook imports [modules](/docs/modules), each viewer's run imports them as that viewer, so viewers need at least Execute access to the modules' projects. That access also lets them open those projects, so keep modules the app's viewers shouldn't read in a project of their own.
 
 ### Let people download results
 
@@ -86,7 +88,7 @@ A data app can't serve files from viewers' runs. Ask the agent to add a download
 ## Plan requirements
 
 - **Data app projects and input blocks:** all plans.
-- **App user access for individual people:** Team and Enterprise.
+- **App user access for individual people:** Pro, Team and Enterprise.
 - **Per-user OAuth integrations:** Enterprise.
 
 ## Variations

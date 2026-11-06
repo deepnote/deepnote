@@ -103,7 +103,7 @@ Things to know:
 - **Runs are detached by default.** Each run uses a separate copy of the project, so a pipeline run never disturbs someone editing the notebook, and two runs of the same notebook can happen at once.
 - **Input values are per run.** Use them for the partition, date or tenant the pipeline just processed. Keys are the input `name`s listed by `GET /v2/notebooks/{notebookId}`.
 - **The API has no endpoint to cancel a run.** The helper's timeout stops waiting, but the run continues until it finishes.
-- **Read results if the next step needs them.** Outputs are stored a moment after the run finishes, so keep polling until `snapshotStatus` is `available`. Then add `?snapshotDelivery=blocks` to `GET /v2/runs/{runId}` to get every block's outputs, or call `GET /v2/notebooks/{notebookId}/app-data` for the notebook's JSON output. See [a notebook as a backend](/docs/playbook-notebook-as-a-backend).
+- **Read results if the next step needs them.** Outputs are stored a moment after the run finishes, so keep polling until `snapshotStatus` is `available`. Then add `?snapshotDelivery=blocks` to `GET /v2/runs/{runId}` to get that run's own outputs. `GET /v2/notebooks/{notebookId}/app-data` returns the notebook's latest JSON output instead, so when two tasks run the same notebook at once it can give a task the other one's partition or tenant; read the run's blocks when the result has to match the run you started. See [a notebook as a backend](/docs/playbook-notebook-as-a-backend).
 
 ## Keep a schedule as a fallback
 
@@ -138,7 +138,7 @@ API requests are rate limited per minute for each API key, at a level set by the
 ## Plan requirements
 
 - **API keys:** Team and Enterprise.
-- **Scheduling:** Pro, Team and Enterprise. Hourly and custom cron schedules need Team or Enterprise.
+- **Scheduling:** Pro, Team and Enterprise. Hourly and custom cron schedules need Team or Enterprise, but not during a Team trial.
 - **Schedules more frequent than hourly:** Enterprise.
 
 ## Variations
