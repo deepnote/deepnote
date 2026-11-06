@@ -128,6 +128,12 @@ def wait_for_retry(response: requests.Response, deadline: float, message: str) -
     time.sleep(delay)
 
 
+def poll_timeout(run_id: str, status: str | None, timeout: float) -> str:
+    if status in DONE:
+        return f"Run {run_id} ended with {status}, but its outputs weren't stored within {timeout} seconds"
+    return f"Run {run_id} did not finish within {timeout} seconds"
+
+
 def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[dict]:
     deadline = time.monotonic() + timeout
 
@@ -149,31 +155,37 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
 
     run_id = response.json()["runId"]
 
-    timed_out = f"Run {run_id} did not finish within {timeout} seconds"
+    status = None
     snapshot_checks = 0
     while True:
         if time.monotonic() > deadline:
-            raise TimeoutError(timed_out)
-        response = requests.get(
-            f"{API}/runs/{run_id}",
-            headers=HEADERS,
-            params={"snapshotDelivery": "blocks"},
-            timeout=REQUEST_TIMEOUT,
-        )
+            raise TimeoutError(poll_timeout(run_id, status, timeout))
+        try:
+            response = requests.get(
+                f"{API}/runs/{run_id}",
+                headers=HEADERS,
+                params={"snapshotDelivery": "blocks"},
+                timeout=REQUEST_TIMEOUT,
+            )
+        except (requests.ConnectionError, requests.Timeout):
+            # Reading a run is safe to repeat, and the run keeps going meanwhile.
+            time.sleep(max(0, min(5, deadline - time.monotonic())))
+            continue
         if response.status_code == 429:
-            wait_for_retry(response, deadline, timed_out)
+            wait_for_retry(response, deadline, poll_timeout(run_id, status, timeout))
             continue
         response.raise_for_status()
         result = response.json()["run"]
-        if result["status"] in DONE:
+        status = result["status"]
+        if status in DONE:
             # Outputs are stored a moment later; a notebook with nothing to run never gets them.
             if result["snapshotStatus"] != "pending" or snapshot_checks >= 6:
                 break
             snapshot_checks += 1
         time.sleep(max(0, min(5, deadline - time.monotonic())))
 
-    if result["status"] != "success":
-        raise RuntimeError(result.get("error") or result["status"])
+    if status != "success":
+        raise RuntimeError(result.get("error") or status)
     return result["snapshotBlocks"] or []
 
 
