@@ -35,10 +35,7 @@ export function getEnvironmentVariablesForIntegrations(
 
     const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata)
       .filter(([key]) => {
-        // Drivers read the CA certificate from a file path, and Linux refuses to start a process with an env var
-        // over 128 KiB, which a CA bundle can exceed.
-        // Federated integrations connect with each user's own credentials, so notebook code must not
-        // receive their integration-level secrets.
+        // Filter out caCertificateText - we only provide the path, not the cert text
         return key !== 'caCertificateText' && !isFederatedAuthSecretField(integration.type, integration.metadata, key)
       })
       .map(([key, rawValue]) => {
