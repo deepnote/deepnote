@@ -365,6 +365,77 @@ describe('merge-integrations', () => {
       expect(content).toContain('dbtProxyServerUrl: https://proxy.example.com')
     })
 
+    it('keeps a multi-line CA certificate in the file, since it is public', async () => {
+      const filePath = join(tempDir, 'ca-certificate.yaml')
+      const caCertificate = '-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIU\n-----END CERTIFICATE-----\n'
+
+      const apiIntegrations = [
+        createMockApiIntegration({
+          id: 'pg-ssl-id',
+          metadata: {
+            host: 'localhost',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'test-password',
+            sslEnabled: true,
+            caCertificateName: 'ca.pem',
+            caCertificateText: caCertificate,
+          },
+        }),
+      ]
+
+      const doc = createNewDocument()
+      const { secrets } = mergeApiIntegrationsIntoDocument(doc, apiIntegrations)
+
+      await writeIntegrationsFile(filePath, doc)
+      const content = await readFile(filePath, 'utf-8')
+
+      expect(secrets).toEqual({ PG_SSL_ID__PASSWORD: 'test-password' })
+      expect(content).toContain('-----BEGIN CERTIFICATE-----')
+
+      const { integrations, issues } = parseIntegrations({ yaml: content, env: secrets })
+      expect(issues).toEqual([])
+      expect(integrations).toMatchObject([{ type: 'pgsql', metadata: { caCertificateText: caCertificate } }])
+    })
+
+    it('writes a CA certificate that replaces an env: reference as a block scalar', () => {
+      const existingDoc = parseIntegrationsDocument(`integrations:
+  - id: pg-ssl-id
+    name: Test Integration
+    type: pgsql
+    metadata:
+      host: 'localhost'
+      database: test-database
+      user: test-user
+      password: env:PG_SSL_ID__PASSWORD
+      sslEnabled: true
+      caCertificateName: ca.pem
+      caCertificateText: env:PG_SSL_ID__CACERTIFICATETEXT
+`)
+      if (!existingDoc) throw new Error('Expected document to exist')
+
+      mergeApiIntegrationsIntoDocument(existingDoc, [
+        createMockApiIntegration({
+          id: 'pg-ssl-id',
+          metadata: {
+            host: 'localhost',
+            database: 'test-database',
+            user: 'test-user',
+            password: 'test-password',
+            sslEnabled: true,
+            caCertificateName: 'ca.pem',
+            caCertificateText: '-----BEGIN CERTIFICATE-----\nMIIBszCCAVmgAwIBAgIU\n-----END CERTIFICATE-----',
+          },
+        }),
+      ])
+
+      const content = serializeIntegrationsDocument(existingDoc)
+      expect(content).toContain(
+        '      caCertificateText: |-\n        -----BEGIN CERTIFICATE-----\n        MIIBszCCAVmgAwIBAgIU\n        -----END CERTIFICATE-----\n'
+      )
+      expect(content).toContain("      host: 'localhost'\n")
+    })
+
     it('handles integrations with no secrets', async () => {
       const filePath = join(tempDir, 'no-secrets.yaml')
 

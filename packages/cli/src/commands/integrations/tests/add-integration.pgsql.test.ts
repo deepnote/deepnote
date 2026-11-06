@@ -299,12 +299,11 @@ describe('add-integration pgsql', () => {
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
             sslEnabled: true
             caCertificateName: my-ca-cert
-            caCertificateText: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT
+            caCertificateText: cert-content-here
       "
     `)
     expect(envContent).toMatchInlineSnapshot(`
       "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
-      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT=cert-content-here
       "
     `)
   })

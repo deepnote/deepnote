@@ -465,13 +465,12 @@ integrations:
             database: analytics
             sslEnabled: true
             caCertificateName: mongo-ca
-            caCertificateText: env:MONGO_ID_001__CACERTIFICATETEXT
+            caCertificateText: mongo-cert-content
       "
     `)
     expect(envContent).toMatchInlineSnapshot(`
       "MONGO_ID_001__CONNECTION_STRING=mongodb://mongo-admin:secret-pass@mongo.example.com:27017/analytics
       MONGO_ID_001__PASSWORD=secret-pass
-      MONGO_ID_001__CACERTIFICATETEXT=mongo-cert-content
       "
     `)
   })
