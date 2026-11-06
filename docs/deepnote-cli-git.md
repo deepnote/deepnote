@@ -186,9 +186,10 @@ jobs:
         env:
           BASE: origin/${{ github.base_ref }}
         run: |
+          PYTHON="$(command -v python)"
           git diff --name-only --diff-filter=AM "$BASE"...HEAD -- '*.deepnote' ':!*.snapshot.deepnote' |
             while read -r file; do
-              npx @deepnote/cli validate "$file" && npx @deepnote/cli lint "$file" || exit 1
+              npx @deepnote/cli validate "$file" && npx @deepnote/cli lint "$file" --python "$PYTHON" || exit 1
             done
 ````
 

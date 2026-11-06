@@ -101,7 +101,8 @@ Execution Plan (dry run)
 Total: 3 block(s) would be executed
 ```
 
-Blocks that share no variables with it are skipped. The analysis also links a block to the nearest
+Blocks outside the target block and the blocks it depends on, directly or through another block,
+are skipped. The analysis also links a block to the nearest
 earlier block that uses one of the same variables, so a block that only reads `orders`, such as an
 export, can still be part of the plan. In Deepnote Cloud, the
 [API](/docs/deepnote-api-runs) can do the reverse: run selected blocks and everything that depends

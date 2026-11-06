@@ -69,11 +69,12 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Lint
-        run: npx @deepnote/cli lint analysis.deepnote
+        run: npx @deepnote/cli lint analysis.deepnote --python "$(command -v python)"
 
       - name: Run
         run: |
           npx @deepnote/cli run analysis.deepnote \
+            --python "$(command -v python)" \
             --startup-timeout 60 --block-timeout 300 \
             -o json > run-result.json
 
@@ -91,8 +92,9 @@ A few things this relies on:
   `DEEPNOTE_PYTHON` environment variable, then an interpreter selected in the Deepnote editor
   extension, then a `.venv` or `venv` with `deepnote-toolkit` installed in the notebook's folder or a
   folder above it, and
-  finally the system Python. After `actions/setup-python`, the system
-  Python is the one you just installed into, so no flag is needed.
+  finally the system Python. The workflow passes `--python` so the run always uses the interpreter
+  `actions/setup-python` provided, the one the dependencies were installed into, even if the
+  repository also contains a `.venv` or an editor's interpreter setting.
 - **Timeouts.** `--startup-timeout` bounds how long the toolkit server and the kernel may take to
   start; `--block-timeout` interrupts any single block that runs longer. Set both in CI so a stuck
   notebook fails in minutes instead of running until the job's own timeout.

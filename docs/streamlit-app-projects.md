@@ -64,7 +64,7 @@ if st.button("Run"):
         if not result.success:
             st.error(result.error or "The run failed.")
         elif result.snapshot_status == "pending":
-            st.info("The run finished, but its outputs are not available yet.")
+            st.info("No outputs are available. A notebook with no blocks to run stays pending.")
         elif (table := result.first_dataframe()) is not None:
             st.dataframe(table.records(include_index=False))
         else:
@@ -101,7 +101,8 @@ when queries must run as the viewer in the database too.
 - **Drift check.** `runner.info().matches_inputs(document.inputs)` tells you whether the notebook's
   inputs still match the `.deepnote` file the app was built from.
 
-To run the app on your machine against Deepnote, opt into your own API key with
+To run the app on your machine against Deepnote, add `import os` to the app and opt into your own
+API key with
 `StreamlitCloudRunner(notebook_id, local=True, token=os.environ["DEEPNOTE_TOKEN"])`. In Deepnote,
 `local=True` and the token are ignored and the viewer's credentials are used.
 `DeepnoteDocument.load("report.snapshot.deepnote")` loads saved outputs from a

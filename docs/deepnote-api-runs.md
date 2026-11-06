@@ -115,16 +115,31 @@ import requests
 API = "https://api.deepnote.com/v2"
 HEADERS = {"Authorization": f"Bearer {os.environ['DEEPNOTE_TOKEN']}"}
 DONE = {"success", "error", "internal_error", "stopped"}
+# (connect, read) timeouts, so a stalled request can't outlive the deadline below
+REQUEST_TIMEOUT = (5, 30)
 
 
 def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[dict]:
-    response = requests.post(
-        f"{API}/runs", headers=HEADERS, json={"notebookId": notebook_id, "inputs": inputs}
-    )
-    response.raise_for_status()
+    deadline = time.monotonic() + timeout
+
+    while True:
+        if time.monotonic() > deadline:
+            raise TimeoutError("Rate limited for longer than the timeout")
+        response = requests.post(
+            f"{API}/runs",
+            headers=HEADERS,
+            json={"notebookId": notebook_id, "inputs": inputs},
+            timeout=REQUEST_TIMEOUT,
+        )
+        # A 429 means the run was not created, so starting it again is safe.
+        if response.status_code == 429:
+            time.sleep(int(response.headers["Retry-After"]))
+            continue
+        response.raise_for_status()
+        break
+
     run_id = response.json()["runId"]
 
-    deadline = time.monotonic() + timeout
     snapshot_checks = 0
     while True:
         if time.monotonic() > deadline:
@@ -133,6 +148,7 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
             f"{API}/runs/{run_id}",
             headers=HEADERS,
             params={"snapshotDelivery": "blocks"},
+            timeout=REQUEST_TIMEOUT,
         )
         if response.status_code == 429:
             time.sleep(int(response.headers["Retry-After"]))
@@ -199,7 +215,8 @@ The same path takes `GET` to read the schedule, including `nextRunAt` and whethe
 `DELETE` to remove it. Each notebook has at most one schedule. Posting again updates its `cron` and
 `timezone`, keeps its notification settings, resumes it if it was paused after failures, and makes
 you its owner. `timezone` defaults to UTC. Creating or changing a schedule needs a plan that includes
-scheduling, and schedules that run more often than once an hour need Enterprise. See
+scheduling, hourly and custom cron schedules need Team or Enterprise, and schedules that run
+more often than once an hour need Enterprise. See
 [Scheduling](/docs/scheduling) for what a scheduled run does, and
 [`deepnote schedule`](/docs/deepnote-cli) for the same from the terminal.
 
