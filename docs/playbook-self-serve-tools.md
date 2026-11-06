@@ -44,7 +44,7 @@ Reference inputs in SQL blocks with `{{ variable_name }}` and in Python by their
 
 When someone submits the inputs, the whole notebook runs for them on a new machine with the project's machine type. Nobody waits for anyone else, but every answer includes the time a machine takes to start. Query only what the app shows, and aggregate in the warehouse rather than in Python.
 
-There are no shared, precomputed results: each viewer sees their own latest run, kept for your plan's run retention. If many people ask the same few questions and need answers instantly, a [Streamlit app project](/docs/streamlit-app-projects) can cache results for every viewer. Cache only results every viewer may see: a shared `st.cache_data` entry doesn't distinguish viewers, so it would hand one person's per-user OAuth results to the next.
+There are no shared, precomputed results: each viewer sees their own latest run, kept for your plan's run retention. Each run still queries through [SQL query caching](/docs/sql-query-caching) when it's enabled, so a viewer's run can return a cached result of the same query rather than fresh data; caching is off for integrations that use OAuth. If many people ask the same few questions and need answers instantly, a [Streamlit app project](/docs/streamlit-app-projects) can cache results for every viewer. Cache only results every viewer may see: a shared `st.cache_data` entry doesn't distinguish viewers, so it would hand one person's per-user OAuth results to the next.
 
 ### 4. Send links that answer a specific question
 
