@@ -75,11 +75,11 @@ Put links like this in a weekly email, a CRM record or a wiki page, so people la
 
 ### Give people the right access
 
-| Who                                       | Access                                                                            | What they can do                           |
-| ----------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------ |
-| Business users                            | **App user** on the project, with workspace access and link sharing set no higher | Open and run the app, but not the notebook |
-| The analysts who maintain the tool        | **Edit**                                                                          | Change the notebook and the app            |
-| Contractors or partners in your workspace | The **Restricted user** workspace role, plus App user on this project             | Use only the projects shared with them     |
+| Who                                       | Access                                                                                              | What they can do                           |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Business users                            | **App user** on the project, and no higher access through workspace access, link sharing or a group | Open and run the app, but not the notebook |
+| The analysts who maintain the tool        | **Edit**                                                                                            | Change the notebook and the app            |
+| Contractors or partners in your workspace | The **Restricted user** workspace role, plus App user on this project                               | Use only the projects shared with them     |
 
 Restricted users see only projects shared with them directly, and can't duplicate or delete those projects or change their settings, even with higher project access. People outside your workspace who are invited to a single project appear as guests.
 
