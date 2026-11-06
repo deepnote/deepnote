@@ -108,8 +108,9 @@ workspace settings in Cloud.
 The [Deepnote extension](/docs/vscode-extension) runs agent blocks too: use **Add Agent Block**,
 write a prompt and run it. The extension asks for an OpenAI API key the first time and stores it in
 the editor's secret storage; **Deepnote: Set OpenAI API Key** and **Deepnote: Clear OpenAI API Key**
-change it. The extension runs agent blocks with OpenAI models only. It reads `OPENAI_BASE_URL` from
-the editor's environment, and `OPENAI_MODEL` when the block's model is `auto`.
+change it. The extension runs agent blocks with OpenAI models only; Claude and
+`openai-compatible` endpoints are coming soon. It reads `OPENAI_BASE_URL` from the editor's
+environment, and `OPENAI_MODEL` when the block's model is `auto`.
 
 ## Related
 

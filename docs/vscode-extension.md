@@ -112,8 +112,8 @@ below the block, and checks their results until it is done.
 - A notebook can have one agent block.
 
 The extension runs agent blocks with OpenAI models. It reads `OPENAI_BASE_URL` from the editor's
-environment, and `OPENAI_MODEL` when the block's model is `auto`. To use Claude or an
-OpenAI-compatible endpoint, run the notebook with the
+environment, and `OPENAI_MODEL` when the block's model is `auto`. Claude and `openai-compatible`
+endpoints are coming soon; until then, run those notebooks with the
 [Deepnote CLI](/docs/deepnote-cli-agent-blocks).
 
 ### Rich output display

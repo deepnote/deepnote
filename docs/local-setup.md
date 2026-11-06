@@ -49,7 +49,7 @@ Choose your editor and install the extension:
 - **[Install from Open VSX Registry →](https://open-vsx.org/extension/Deepnote/vscode-deepnote)**
 - Or search for "Deepnote" in Cursor's extension marketplace
 
-**Additional requirement**: Python 3.10 to 3.13
+**Additional requirement**: Python 3.10 to 3.13, the range the extension's bundled toolkit supports
 
 ### Getting started
 
@@ -219,18 +219,18 @@ Want to be notified when Local Singleplayer launches?
 
 ### Feature Comparison
 
-| Feature                     | VS Code and Cursor extensions | Deepnote CLI                  | Deepnote Toolkit | Local Singleplayer\* |
-| --------------------------- | ----------------------------- | ----------------------------- | ---------------- | -------------------- |
-| **View notebooks**          | ✅                            | ✅                            | ✅               | ✅                   |
-| **Edit notebooks**          | ✅                            | ❌                            | ✅               | ✅                   |
-| **Execute code**            | ✅                            | ✅                            | ✅               | ✅                   |
-| **SQL blocks**              | ✅                            | ✅                            | ✅               | ✅                   |
-| **Database integrations**   | ✅                            | ✅                            | ✅               | ✅                   |
-| **Real-time collaboration** | ❌                            | ❌                            | ❌               | ❌                   |
-| **Deepnote UI**             | ❌                            | ❌                            | ❌               | ✅                   |
-| **Offline mode**            | ✅                            | ✅                            | ✅               | ✅                   |
-| **Custom integrations**     | ⚠️ Limited                    | ⚠️ Limited                    | ✅               | ✅                   |
-| **AI features**             | ⚠️ Agent blocks (OpenAI)      | ⚠️ Agent blocks, any provider | ❌               | ✅                   |
+| Feature                     | VS Code and Cursor extensions                         | Deepnote CLI                  | Deepnote Toolkit | Local Singleplayer\* |
+| --------------------------- | ----------------------------------------------------- | ----------------------------- | ---------------- | -------------------- |
+| **View notebooks**          | ✅                                                    | ✅                            | ✅               | ✅                   |
+| **Edit notebooks**          | ✅                                                    | ❌                            | ✅               | ✅                   |
+| **Execute code**            | ✅                                                    | ✅                            | ✅               | ✅                   |
+| **SQL blocks**              | ✅                                                    | ✅                            | ✅               | ✅                   |
+| **Database integrations**   | ✅                                                    | ✅                            | ✅               | ✅                   |
+| **Real-time collaboration** | ❌                                                    | ❌                            | ❌               | ❌                   |
+| **Deepnote UI**             | ❌                                                    | ❌                            | ❌               | ✅                   |
+| **Offline mode**            | ✅                                                    | ✅                            | ✅               | ✅                   |
+| **Custom integrations**     | ⚠️ Limited                                            | ⚠️ Limited                    | ✅               | ✅                   |
+| **AI features**             | ⚠️ Agent blocks (OpenAI; other providers coming soon) | ⚠️ Agent blocks, any provider | ❌               | ✅                   |
 
 \*Coming soon
 

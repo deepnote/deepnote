@@ -17,8 +17,8 @@ Choose the command that matches your source:
 | App           | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                      |
 | Streamlit app | A Python entrypoint already in the project's Files     | `deepnote streamlit publish apps/dashboard.py --project-id <project-id>` |
 
-Apps can be interactive and run notebooks through the Deepnote API. To publish notebook blocks
-through the Deepnote editor instead, see [Data apps](/docs/data-apps).
+To publish notebook blocks through the Deepnote editor instead, see
+[Data apps](/docs/data-apps).
 
 ## Prerequisites
 
@@ -94,30 +94,6 @@ These permissions are checked on every request.
 Apps have no anonymous or link-only access. If the audience needs those access levels,
 consider [Data apps](/docs/data-apps).
 
-### Viewer API access
-
-Enable API access when an app needs to read notebook inputs or start runs:
-
-```bash
-deepnote publish ./dist --project-id <project-id> --api-access enabled
-```
-
-The embedded app can request a viewer token from the Deepnote shell. It can read notebook
-inputs and block metadata and start detached runs in the hosting project or other projects in the
-same workspace where the viewer has direct access. Starting runs in other projects also requires
-execute permission. It can poll that viewer's own runs for `snapshotBlocks`. It cannot read block source, list notebooks or run history, or call other API
-endpoints; unsupported requests return 403.
-
-Use `postMessage` with `deepnote-static-files-api-token-request` to request a token. Pin the shell
-origin when sending and receiving messages, then use the API origin returned with the token.
-Tokens expire after 15 minutes; request a replacement before expiry and on a 401.
-The [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
-demonstrates the handshake and refresh.
-
-API access requires app sharing and does not grant additional viewers project access. Omitting
-`--api-access` preserves the current setting; use `--api-access disabled` to revoke it. Test the
-hosted app with a viewer token, since a personal token in a local preview has broader permissions.
-
 ### Remove files from an earlier build
 
 ```bash
@@ -147,14 +123,12 @@ without that baseline are not protected by it.
 Use the `static-site access` command to change an app's settings without changing its files:
 
 ```bash
-# Stop serving the app and disable viewer API access
+# Stop serving the app
 deepnote static-site access --project-id <project-id> --sharing disabled
 
 # Serve the retained files again
 deepnote static-site access --project-id <project-id> --sharing enabled
 ```
-
-Use `--api-access enabled|disabled` to change viewer API access. At least one setting is required.
 
 ### Recover from a failed publish
 
@@ -205,18 +179,17 @@ to check its status again.
 
 `deepnote publish <dir>`:
 
-| Option                           | Description                                            | Default                                |
-| -------------------------------- | ------------------------------------------------------ | -------------------------------------- |
-| `--project-id <id>`              | Target project (required)                              |                                        |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`        | `_deepnote_static`                     |
-| `--api-access enabled\|disabled` | Change viewer API access                               | unchanged                              |
-| `--prune`                        | Delete remote files absent from the build              | `false`                                |
-| `--sync-root <dir>`              | Sync workspace to update                               | search upward from the build directory |
-| `--no-sync-root`                 | Skip sync workspace discovery and updates              | `false`                                |
-| `--force`                        | Overwrite changes not pulled into the workspace        | `false`                                |
-| `--token <token>`                | API token                                              | `DEEPNOTE_TOKEN`                       |
-| `--url <url>`                    | API origin                                             | `https://api.deepnote.com`             |
-| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr | `false`                                |
+| Option              | Description                                            | Default                                |
+| ------------------- | ------------------------------------------------------ | -------------------------------------- |
+| `--project-id <id>` | Target project (required)                              |                                        |
+| `--path <prefix>`   | Target directory at or below `_deepnote_static`        | `_deepnote_static`                     |
+| `--prune`           | Delete remote files absent from the build              | `false`                                |
+| `--sync-root <dir>` | Sync workspace to update                               | search upward from the build directory |
+| `--no-sync-root`    | Skip sync workspace discovery and updates              | `false`                                |
+| `--force`           | Overwrite changes not pulled into the workspace        | `false`                                |
+| `--token <token>`   | API token                                              | `DEEPNOTE_TOKEN`                       |
+| `--url <url>`       | API origin                                             | `https://api.deepnote.com`             |
+| `-q, --quiet`       | Suppress progress and results; errors remain on stderr | `false`                                |
 
 `deepnote streamlit publish <entrypoint>`:
 

@@ -85,7 +85,8 @@ curl -s -X PATCH "https://api.deepnote.com/v2/projects/$PROJECT_ID/machine" \
   -d '{ "type": "<machine-type-id>", "idleShutdownSeconds": 3600, "restart": true }'
 ```
 
-- **`idleShutdownSeconds`** (up to 24 hours) applies immediately.
+- **`idleShutdownSeconds`** (up to 24 hours) applies immediately to the project's machine. In a
+  project that runs privately, a person's machine picks it up the next time it starts.
 - **`type`** and **`sandboxEnvironmentId`** apply on the machine's next start. A running machine
   needs `"restart": true`; without it the request returns `409` and changes nothing. Restarting
   loses the kernel's variables. If the restarted machine cannot start, the request
