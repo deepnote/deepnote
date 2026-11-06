@@ -62,7 +62,7 @@ Sharing with [user groups](/docs/team-permissions#user-groups) keeps step 2 mana
 ### 4. Use the definitions everywhere
 
 - **Ad-hoc analysis:** import the module and set its inputs. The imported variables appear in your notebook like any other.
-- **Apps:** have the notebook behind a [data app](/docs/data-app-projects) import the modules, so the app shows the same numbers as everyone else. Each viewer's run imports them as that viewer, so app users need at least Execute access to the metrics project. Step 3 gives every workspace member that, but guests and restricted users need the metrics project shared with them directly, or their runs fail on the import.
+- **Apps:** have the notebook behind a [data app](/docs/data-app-projects) import the modules, so the app shows the same numbers as everyone else. Each viewer's run imports them as that viewer, so app users need at least Execute access to the metrics project. Execute access lets them open every notebook in the metrics project and see its outputs, not only the modules the app imports, so keep metrics that the app's users shouldn't see in a separate project. Step 3 gives every workspace member that, but guests and restricted users need the metrics project shared with them directly, or their runs fail on the import.
 - **Scheduled reports:** a scheduled notebook that imports a module runs it as the schedule's owner on every run, so the report always uses the current definition.
 - **Deepnote Agent:** Agent sees a limited number of the modules you can access, those whose notebooks were created most recently first, and in Edit mode, can insert a module block with the right inputs. See [Trustworthy AI answers on your data](/docs/playbook-trustworthy-ai-answers).
 
