@@ -5,7 +5,11 @@ noIndex: false
 noContent: false
 ---
 
-A [run](/docs/deepnote-api-runs) starts fresh and ends when the notebook finishes. An interactive
+<Callout status="info">
+Interactive sessions are in beta, so their endpoints and options may change.
+</Callout>
+
+A detached [run](/docs/deepnote-api-runs) starts fresh and ends when the notebook finishes. An interactive
 session keeps going: it runs the notebook once, then keeps the kernel (the loaded data, trained
 models and every variable) so you can send more work to it. Each request skips the expensive setup
 and builds on what is already in memory.
@@ -91,11 +95,11 @@ curl -s -X POST "https://api.deepnote.com/v2/sessions/$SESSION_ID/execute" \
 
 ## Check on it, interrupt it, stop it
 
-| Request                                                     | Does                                                                                              |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `GET /v2/sessions/{sessionId}/status?notebookId=…`          | The session (`idle`, `busy` or `terminated`) and the kernel: what is executing and what is queued |
-| `POST /v2/sessions/{sessionId}/interrupt` with `notebookId` | Interrupts the running code and queued runs for that notebook; the session stays alive            |
-| `DELETE /v2/sessions/{sessionId}`                           | Stops everything, shuts the machine down and ends the session                                     |
+| Request                                                     | Does                                                                                                                |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `GET /v2/sessions/{sessionId}/status?notebookId=…`          | The session (`idle` or `busy`) and the kernel: what is executing and what is queued. An ended session returns `404` |
+| `POST /v2/sessions/{sessionId}/interrupt` with `notebookId` | Interrupts the running code and queued runs for that notebook; the session stays alive                              |
+| `DELETE /v2/sessions/{sessionId}`                           | Stops everything, shuts the machine down and ends the session                                                       |
 
 A session uses machine time until it ends, so stop it as soon as you are done instead of waiting for
 idle shutdown.

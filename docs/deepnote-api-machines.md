@@ -6,16 +6,17 @@ noContent: false
 ---
 
 Every project has a machine that powers its editor, its live runs and its hosted
-[Streamlit apps](/docs/streamlit). The API lets you control that machine from your own tools: have it
+[Streamlit apps](/docs/streamlit-app-projects). The API lets you control that machine from your own tools: have it
 running before people need it, upgrade it for a heavy job, and switch it off so it stops using
 [machine hours](/docs/machine-hours).
 
 Detached [runs](/docs/deepnote-api-runs) and [interactive sessions](/docs/deepnote-api-sessions)
 start machines of their own, so you do not need to start the project machine for them.
 
-In a project that runs privately, the editor and live runs use each person's own machine, and these
-endpoints act on the machine of whoever calls them. Hosted Streamlit apps stay on the project's
-machine.
+In a project that runs privately, the editor and live runs use each person's own machine. `GET`,
+`start`, `stop` and `restart` act on the machine of whoever calls them. `PATCH` changes the project's
+settings, which a person's machine picks up the next time it starts; its `restart` option and its
+`409` refer to the project's shared machine. Hosted Streamlit apps stay on the project's machine.
 
 All examples use `$DEEPNOTE_TOKEN`; see [Authentication](/docs/deepnote-api#authentication).
 

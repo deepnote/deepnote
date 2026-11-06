@@ -34,7 +34,8 @@ the quicker route.
 
 ## Authentication
 
-Create an API key in your workspace under **Settings & members → Security → API keys**.
+Workspace admins create API keys under **Settings & members → Security → API keys**. Other members
+create them under **API keys** in their **Account settings**.
 
 ![Screenshot 2022-09-05 at 15.06.57.png](../assets/docs/50a8WERkR5ivtYVpUQO0.webp)
 
@@ -68,16 +69,17 @@ page if it is exposed.
   Other list endpoints are not paginated.
 - **Errors** return `{ "message": "…" }` with a standard status code. `409` means the request
   conflicts with the current state, for example the project is suspended, a machine is in the wrong
-  state, or a plan limit is reached; the message says which.
+  state, or the plan does not allow that machine; the message says which. Other plan limits return
+  `403`.
 - **Rate limits** return `429` with a `Retry-After` header giving the seconds to wait.
 
 ## Apps that call the API as their viewer
 
-A website published from a project's static files, or a hosted Streamlit app, can call the API as
-the person viewing it rather than with your key. Deepnote hands the app a short-lived viewer token
-that is limited to reading a notebook's inputs, starting detached runs and reading that viewer's own
-runs. See [Viewer API access](/docs/deepnote-cli-publish#viewer-api-access) for websites and
-[Streamlit apps](/docs/streamlit) for Python.
+[Data apps](/docs/data-app-projects) and
+[Streamlit apps](/docs/streamlit-app-projects#running-the-notebook-from-the-app) call the API as the
+person viewing them rather than with your key. Deepnote hands the app a short-lived viewer token that
+can read a notebook's inputs, start detached runs, and read that viewer's own runs and their
+[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook).
 
 ## Related
 

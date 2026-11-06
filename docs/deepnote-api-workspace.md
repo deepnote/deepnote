@@ -59,7 +59,9 @@ curl -s -X POST "https://api.deepnote.com/v2/projects/$PROJECT_ID/import?$QUERY"
   `<filename>` and `<SHA-256 of the file>` line pair per exported file, sorted by filename and
   joined with newlines, as the commands above compute. `force=true` skips both checks.
   [`deepnote sync`](/docs/deepnote-cli-sync) does all of this for you.
-- Python requirements are not part of the archive.
+- Python requirements are exported in each file's `project.settings.requirements` but ignored on
+  import. They are part of the content hash, so a change to `requirements.txt` in Deepnote since your
+  export also makes the import return `409`.
 
 What this enables:
 
@@ -71,7 +73,7 @@ What this enables:
 - **Review before it lands.** Import from CI after a pull request is merged, so changes to important
   notebooks go through code review.
 
-`POST /v2/projects` creates an empty project; it does not take files. To create a project from a
+`POST /v2/projects` creates a project with one empty notebook; it does not take files. To create a project from a
 `.deepnote` file, upload it with [`deepnote open`](/docs/deepnote-cli).
 
 ## Integrations

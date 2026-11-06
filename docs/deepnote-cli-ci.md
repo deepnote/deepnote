@@ -11,13 +11,13 @@ Actions, GitLab CI or any other pipeline needs no plugin: install the CLI and ca
 
 There are two ways to do it, and they suit different jobs:
 
-|                     | On the runner                                 | In Deepnote Cloud                                                   |
-| ------------------- | --------------------------------------------- | ------------------------------------------------------------------- |
-| Command             | `deepnote run my-project.deepnote`            | `deepnote run my-project.deepnote --cloud`                          |
-| Where the code runs | The CI runner's Python                        | The project's own machine, environment and integrations in Deepnote |
-| Needs an API key    | No                                            | Yes                                                                 |
-| Good for            | "This notebook still runs" checks on every PR | Scheduled reports, refreshing outputs, runs that need your data     |
-| Safe on forked PRs  | Yes, nothing secret is involved               | No, see [Security](#security)                                       |
+|                     | On the runner                                 | In Deepnote Cloud                                                                         |
+| ------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Command             | `deepnote run my-project.deepnote`            | `deepnote run my-project.deepnote --cloud`                                                |
+| Where the code runs | The CI runner's Python                        | A separate Deepnote machine with the project's machine type, environment and integrations |
+| Needs an API key    | No                                            | Yes                                                                                       |
+| Good for            | "This notebook still runs" checks on every PR | Scheduled reports, refreshing outputs, runs that need your data                           |
+| Safe on forked PRs  | Yes, nothing secret is involved               | No, see [Security](#security)                                                             |
 
 ## Prerequisites
 
@@ -89,7 +89,8 @@ A few things this relies on:
 
 - **Which Python runs the notebook.** The CLI uses `--python <path>` if given, then the
   `DEEPNOTE_PYTHON` environment variable, then an interpreter selected in the Deepnote editor
-  extension, then a `.venv` or `venv` next to the notebook that has `deepnote-toolkit` installed, and
+  extension, then a `.venv` or `venv` with `deepnote-toolkit` installed in the notebook's folder or a
+  folder above it, and
   finally the system Python. After `actions/setup-python`, the system
   Python is the one you just installed into, so no flag is needed.
 - **Timeouts.** `--startup-timeout` bounds how long the toolkit server and the kernel may take to
@@ -106,30 +107,31 @@ A few things this relies on:
 
 With `-o json`, the command prints one JSON object to stdout and exits with:
 
-| Code | Meaning                                                        |
-| ---- | -------------------------------------------------------------- |
-| `0`  | Every block ran successfully                                   |
-| `1`  | A block failed, or the runtime could not start                 |
-| `2`  | Invalid usage: a missing file, an unknown input, or a bad flag |
+| Code | Meaning                                                                                                  |
+| ---- | -------------------------------------------------------------------------------------------------------- |
+| `0`  | Every block ran successfully                                                                             |
+| `1`  | A block failed, or the runtime could not start                                                           |
+| `2`  | Invalid usage: a missing file, an unknown input, or an invalid option value. An unknown option exits `1` |
 
 On failure, `failureCategory` says why, so a pipeline can tell a bug in the notebook from a problem
 with the runner:
 
-| `failureCategory`   | Meaning                                                                                       |
-| ------------------- | --------------------------------------------------------------------------------------------- |
-| `in-block`          | The block's own code raised                                                                   |
-| `execution-timeout` | A block ran longer than `--block-timeout` and was interrupted                                 |
-| `kernel-died`       | The kernel ended while a block ran, usually out of memory or a native crash                   |
-| `server-exited`     | The deepnote-toolkit server went away mid-run                                                 |
-| `server-launch`     | The server never became ready; most often `deepnote-toolkit` is not installed for that Python |
-| `kernel-launch`     | The server started but the kernel did not become ready within `--startup-timeout`             |
+| `failureCategory`   | Meaning                                                                                        |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `in-block`          | The block's own code raised                                                                    |
+| `execution-timeout` | A block ran longer than `--block-timeout` and was interrupted                                  |
+| `kernel-died`       | The kernel ended while a block ran or while starting, usually out of memory or a native crash  |
+| `server-exited`     | The deepnote-toolkit server went away mid-run                                                  |
+| `server-launch`     | The server never became ready; most often `deepnote-toolkit` is not installed for that Python  |
+| `kernel-launch`     | The server started but the kernel could not start, or was not ready within `--startup-timeout` |
 
 When the CLI knows the remedy, the result also carries a `hint`, for example the exact
 `pip install` command when the toolkit is missing.
 
 ## Run in Deepnote Cloud
 
-`--cloud` asks Deepnote to run the notebook on the project's own machine, waits for it to finish and
+`--cloud` asks Deepnote to run the notebook on a separate machine with the project's machine type,
+environment and integrations, waits for it to finish and
 downloads the resulting snapshot (the notebook with its outputs) into a `snapshots/` directory
 next to the source file, or to the exact path given with `--out`.
 
@@ -191,7 +193,7 @@ alternative to [Deepnote file sync](/docs/deepnote-file-sync), the Git sync buil
 |                          | Deepnote file sync                                                        | `deepnote sync` in CI                |
 | ------------------------ | ------------------------------------------------------------------------- | ------------------------------------ |
 | Set up in                | Each project, with the repository connected in Deepnote                   | One workflow in your repository      |
-| Scope                    | One project per linked file                                               | Every project in the sync directory  |
+| Scope                    | One project per link                                                      | Every project in the sync directory  |
 | Repository → Deepnote    | When someone pulls or switches branch in the Deepnote project             | On every merge to the branch         |
 | Deepnote → repository    | When someone commits and pushes from Deepnote                             | Committed by the job on its schedule |
 | Git hosts                | Ones Deepnote connects to: [GitHub](/docs/github), [GitLab](/docs/gitlab) | Any host your CI can push to         |
@@ -280,10 +282,8 @@ jobs:
   it.
 - **Deletions are opt-in.** A notebook file removed from the repository is deleted in Deepnote only
   with `--delete-missing-notebooks`. With `--all-files`, working-directory files such as
-  `requirements.txt` sync too, but files removed locally are never deleted in Deepnote.
-
-The same trigger can deploy apps: run [`deepnote publish`](/docs/deepnote-cli-publish) on pushes to
-`main` to republish an app from its build directory.
+  `requirements.txt` are uploaded when their project's notebooks are pushed, so a commit that changes
+  only those files does not reach Deepnote. Files removed locally are never deleted in Deepnote.
 
 ## Security
 
@@ -332,7 +332,8 @@ secret store on protected branches only.
 | `server-launch` with `deepnote-toolkit is not installed` | Install `deepnote-toolkit[server]` into the Python the CLI picked, or point at another with `--python` |
 | `server-launch` or `kernel-launch` on a slow runner      | Raise `--startup-timeout`                                                                              |
 | `ModuleNotFoundError` in a block                         | Install the notebook's own dependencies in the same Python as the toolkit                              |
-| Cloud run exits `2` mentioning the token                 | The secret is not set on that step, or the key belongs to a different workspace than the project       |
+| Cloud run exits `2` mentioning the token                 | The secret is not set on that step, or the key is invalid or revoked                                   |
+| Cloud run exits `1` with `Notebook not found`            | The key belongs to a different workspace than the project                                              |
 | `Timed out waiting for Deepnote run`                     | Raise `--timeout`; the run may have finished in Deepnote anyway                                        |
 | `--push deletes blocks … needs confirmation`             | Add `--yes`, after making sure the job only runs on trusted events                                     |
 

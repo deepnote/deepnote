@@ -5,8 +5,8 @@ noIndex: false
 noContent: false
 ---
 
-A notebook is a function your other systems can call. Pass it input values, let it run on the
-project's machine with the project's integrations, and read back the tables, charts and text it
+A notebook is a function your other systems can call. Pass it input values, let it run with the
+project's environment and integrations, and read back the tables, charts and text it
 produced. Use this to put a notebook behind a product feature, refresh a report when a pipeline
 finishes, or post this week's numbers to Slack.
 
@@ -67,7 +67,8 @@ does not disturb anyone working in the editor and does not change the outputs th
 run also accepts:
 
 - `machineType`: run on different hardware than the project uses, for example a GPU for one heavy
-  job. Valid ids come from `GET /v2/machine-types`.
+  job. Valid ids come from `GET /v2/machine-types`. It needs permission to manage the project's
+  hardware and a plan that includes that machine.
 - `detachedRunStorageMode: "readonly"`: make the project's persistent storage read-only for the
   run. The run can still create temporary files.
 
@@ -86,9 +87,10 @@ curl -s "https://api.deepnote.com/v2/runs/$RUN_ID?snapshotDelivery=blocks" \
 ```
 
 The response's `run.snapshotBlocks` lists each block with its `id`, `type` and Jupyter-style
-`outputs`. Outputs are stored a moment after the run finishes, so wait until `snapshotStatus` is
-`available` as well. Very large outputs are shortened to `outputHead` and `outputTail` unless you add
-`fullOutputs=true`.
+`outputs`. Outputs are stored a moment after the run finishes, so also wait until `snapshotStatus`
+is no longer `pending`: it becomes `available`, or `unavailable` when nothing was stored. A notebook
+with no blocks to run can stay `pending`, so stop waiting after a short while. Very large outputs
+are shortened to `outputHead` and `outputTail` unless you add `fullOutputs=true`.
 
 There are two other ways to receive the result:
 
@@ -115,23 +117,33 @@ HEADERS = {"Authorization": f"Bearer {os.environ['DEEPNOTE_TOKEN']}"}
 DONE = {"success", "error", "internal_error", "stopped"}
 
 
-def run_notebook(notebook_id: str, inputs: dict) -> list[dict]:
-    run = requests.post(
+def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[dict]:
+    response = requests.post(
         f"{API}/runs", headers=HEADERS, json={"notebookId": notebook_id, "inputs": inputs}
-    ).json()
+    )
+    response.raise_for_status()
+    run_id = response.json()["runId"]
 
+    deadline = time.monotonic() + timeout
+    snapshot_checks = 0
     while True:
+        if time.monotonic() > deadline:
+            raise TimeoutError(f"Run {run_id} did not finish within {timeout} seconds")
         response = requests.get(
-            f"{API}/runs/{run['runId']}",
+            f"{API}/runs/{run_id}",
             headers=HEADERS,
             params={"snapshotDelivery": "blocks"},
         )
         if response.status_code == 429:
             time.sleep(int(response.headers["Retry-After"]))
             continue
+        response.raise_for_status()
         result = response.json()["run"]
-        if result["status"] in DONE and result["snapshotStatus"] != "pending":
-            break
+        if result["status"] in DONE:
+            # Outputs are stored a moment later; a notebook with nothing to run never gets them.
+            if result["snapshotStatus"] != "pending" or snapshot_checks >= 6:
+                break
+            snapshot_checks += 1
         time.sleep(5)
 
     if result["status"] != "success":
@@ -184,7 +196,10 @@ curl -s -X POST "https://api.deepnote.com/v2/notebooks/$NOTEBOOK_ID/schedule" \
 ```
 
 The same path takes `GET` to read the schedule, including `nextRunAt` and whether it is paused, and
-`DELETE` to remove it. Each notebook has at most one schedule, and posting again replaces it. See
+`DELETE` to remove it. Each notebook has at most one schedule. Posting again updates its `cron` and
+`timezone`, keeps its notification settings, resumes it if it was paused after failures, and makes
+you its owner. `timezone` defaults to UTC. Creating or changing a schedule needs a plan that includes
+scheduling, and schedules that run more often than once an hour need Enterprise. See
 [Scheduling](/docs/scheduling) for what a scheduled run does, and
 [`deepnote schedule`](/docs/deepnote-cli) for the same from the terminal.
 

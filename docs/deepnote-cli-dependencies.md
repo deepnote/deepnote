@@ -13,7 +13,8 @@ re-run?_
 It is the same idea behind the **Block and dependent blocks** [execution mode](/docs/execution-modes)
 in Deepnote, which runs a block together with the blocks below it that depend on it.
 
-All commands work on local `.deepnote` files and need a Python 3 interpreter; see
+All commands work on local `.deepnote` files and need a Python 3 interpreter that can import
+`jinja2` (`deepnote-toolkit` installs it); see
 [Deepnote CLI](/docs/deepnote-cli) for installation.
 
 ## See the whole graph
@@ -83,7 +84,7 @@ with it. `-o json` returns the same list with block ids, for scripts and AI agen
 
 ## Run a block with only what it needs
 
-`deepnote run --block` runs a block together with the blocks it depends on, and nothing else.
+`deepnote run --block` runs a block together with the blocks it depends on.
 Preview the plan with `--dry-run`:
 
 ```bash
@@ -100,7 +101,9 @@ Execution Plan (dry run)
 Total: 3 block(s) would be executed
 ```
 
-Unrelated blocks, such as slow exports or other analyses, are skipped. In Deepnote Cloud, the
+Blocks that share no variables with it are skipped. The analysis also links a block to the nearest
+earlier block that uses one of the same variables, so a block that only reads `orders`, such as an
+export, can still be part of the plan. In Deepnote Cloud, the
 [API](/docs/deepnote-api-runs) can do the reverse: run selected blocks and everything that depends
 on them with `runDependentBlocks`.
 
@@ -127,7 +130,8 @@ teaches agents such as Claude Code, Codex and Cursor to use them; see
 
 The analysis reads Python and SQL source without running it, so it cannot see dependencies created
 at run time, for example variables set through `globals()`, `exec` or a `%run` of another file.
-Names that are used but never defined anywhere in the notebook do not appear as dependencies.
+A name that is never defined in the notebook, such as `spark` provided by the environment, links the
+blocks that use it, and the first of them is shown as defining it.
 
 ## Related
 

@@ -7,7 +7,9 @@ noContent: false
 
 An agent block holds a prompt instead of code. When it runs, an AI agent reads the notebook so far
 (its code, outputs and data), writes and runs Python blocks, checks the results, and explains what it
-found in Markdown. In Deepnote Cloud the agent uses your workspace's [AI settings](/docs/deepnote-agent).
+found in Markdown. In Deepnote Cloud the agent uses your workspace's [AI settings](/docs/deepnote-agent),
+unless the block names a model Deepnote supports (see
+[Notebooks shared with Deepnote Cloud](#notebooks-shared-with-deepnote-cloud)).
 On your own machine, the [Deepnote CLI](/docs/deepnote-cli) runs the same agent block with the model
 provider you choose: Anthropic, OpenAI, or any OpenAI-compatible endpoint, including local models.
 
@@ -48,11 +50,11 @@ An agent block's `deepnote_agent_model` field selects the model:
   `openai-compatible:<model>`.
 - `auto`, or no model at all, uses OpenAI's default.
 
-| Provider            | Default model     | API key                  | Choose the model with  | Endpoint override         |
-| ------------------- | ----------------- | ------------------------ | ---------------------- | ------------------------- |
-| `openai`            | `gpt-6.1-sol`     | `OPENAI_API_KEY`         | `OPENAI_MODEL`         | `OPENAI_BASE_URL`         |
-| `anthropic`         | `claude-opus-5-5` | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      | `ANTHROPIC_BASE_URL`      |
-| `openai-compatible` | must be set       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` | `DEEPNOTE_AGENT_BASE_URL` |
+| Provider            | Default model     | API key                  | Choose the model with  | Endpoint override                    |
+| ------------------- | ----------------- | ------------------------ | ---------------------- | ------------------------------------ |
+| `openai`            | `gpt-6.1-sol`     | `OPENAI_API_KEY`         | `OPENAI_MODEL`         | `OPENAI_BASE_URL`                    |
+| `anthropic`         | `claude-opus-5-5` | `ANTHROPIC_API_KEY`      | `ANTHROPIC_MODEL`      | `ANTHROPIC_BASE_URL`                 |
+| `openai-compatible` | must be set       | `DEEPNOTE_AGENT_API_KEY` | `DEEPNOTE_AGENT_MODEL` | `DEEPNOTE_AGENT_BASE_URL` (required) |
 
 A model named in the block takes precedence over the environment variable. The CLI also reads these
 variables from a `.env` file next to the notebook, so keys stay out of your shell history.
@@ -77,8 +79,8 @@ On OpenRouter, use its model ids, such as `openai-compatible:anthropic/claude-op
 ## Give the agent more tools
 
 Besides adding code and Markdown blocks, an agent can use tools from
-[MCP servers](https://modelcontextprotocol.io/). Add them to the block, or to the project's settings
-to share them between all agent blocks:
+[MCP servers](https://modelcontextprotocol.io/). Add them to the block as below, or to
+`project.settings.mcpServers`, in the same shape, to share them between all agent blocks:
 
 ```yaml
 metadata:
@@ -106,9 +108,8 @@ workspace settings in Cloud.
 The [Deepnote extension](/docs/vscode-extension) runs agent blocks too: use **Add Agent Block**,
 write a prompt and run it. The extension asks for an OpenAI API key the first time and stores it in
 the editor's secret storage; **Deepnote: Set OpenAI API Key** and **Deepnote: Clear OpenAI API Key**
-change it. Blocks set to a Claude or `openai-compatible` model read their key and endpoint from the
-same environment variables as the CLI, taken from the editor's environment, and the model variable
-only when the block's model is `auto`; the extension still asks for an OpenAI key first.
+change it. The extension runs agent blocks with OpenAI models only. It reads `OPENAI_BASE_URL` from
+the editor's environment, and `OPENAI_MODEL` when the block's model is `auto`.
 
 ## Related
 

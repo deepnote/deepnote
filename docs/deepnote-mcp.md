@@ -141,7 +141,8 @@ The examples below assume you have created a workspace API key under **Settings 
 The quickest way to set up a coding agent is the [Deepnote plugin](https://github.com/deepnote/agent-plugins).
 It connects the agent to the Deepnote MCP server and also installs skills: instructions that teach the
 agent how to work with Deepnote well: how to read and edit notebooks, run them and debug failed runs,
-inspect integrations, link to what it changed, and build data apps and Streamlit apps.
+inspect integrations, link to what it changed, and build [data apps](/docs/data-app-projects) and
+[Streamlit apps](/docs/streamlit-app-projects).
 
 **Claude Code:**
 
@@ -164,7 +165,8 @@ To use an API key instead of signing in, set `DEEPNOTE_MCP_TOKEN` in the environ
 from and restart Codex.
 
 With the plugin installed, the agent can also preview a [data app](/docs/data-app-projects) on your
-machine against the notebook's real data before publishing it (this needs Node.js 18 or later). Try
+machine against the notebook's real data before it uploads the page to Deepnote (this needs Node.js
+18 or later). Try
 prompts like:
 
 - `Search my Deepnote workspace for customer retention notebooks.`

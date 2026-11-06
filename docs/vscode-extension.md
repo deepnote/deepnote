@@ -75,7 +75,7 @@ notebooks, converting the latter to Deepnote format.
 
 Each notebook is its own `.deepnote` file, and notebooks of the same project sit next to each other
 as sibling files. Opening an older file that holds several notebooks offers to split it into one file
-per notebook. The status bar shows which project and notebook is active; click it to copy their
+per notebook. The status bar shows the active notebook; click it to copy its notebook and project
 details.
 
 ### Block execution
@@ -101,7 +101,7 @@ You can run a single block by clicking the play button or pressing Shift + Enter
 
 An agent block holds a prompt instead of code. Add one with **Add Agent Block** (the robot button in
 the notebook toolbar), describe what you want, such as _"chart monthly revenue by region and explain
-the trend"_, and run it. The agent reads the notebook so far, adds and runs code and Markdown cells
+the trend"_, and run it. The agent reads the rest of the notebook, adds and runs code and Markdown cells
 below the block, and checks their results until it is done.
 
 - The cells it adds are marked **Ephemeral** and are not saved to the `.deepnote` file. Running the
@@ -111,11 +111,10 @@ below the block, and checks their results until it is done.
   storage. Change it with **Deepnote: Set OpenAI API Key** or **Deepnote: Clear OpenAI API Key**.
 - A notebook can have one agent block.
 
-Blocks set to a Claude or `openai-compatible` model read their key and endpoint from the same
-environment variables as the CLI, taken from the editor's environment; the extension still asks for
-an OpenAI key first. A model named in the block takes precedence over the model variable, which
-applies only when the block's model is `auto`. See
-[Running agent blocks locally](/docs/deepnote-cli-agent-blocks).
+The extension runs agent blocks with OpenAI models. It reads `OPENAI_BASE_URL` from the editor's
+environment, and `OPENAI_MODEL` when the block's model is `auto`. To use Claude or an
+OpenAI-compatible endpoint, run the notebook with the
+[Deepnote CLI](/docs/deepnote-cli-agent-blocks).
 
 ### Rich output display
 
@@ -282,21 +281,21 @@ kernel, so you can check what a block defined without printing it.
 When the extension starts a notebook, it installs Deepnote's agent skills into the workspace for the
 editor's assistant: Cursor, Windsurf, Antigravity, or GitHub Copilot in VS Code. The skills teach
 the assistant the `.deepnote` format and the Deepnote CLI, so it can write notebooks and check its
-work with `deepnote lint` and `deepnote run`. The CLI comes bundled with the extension; nothing is
-installed into your Python environment.
+work with `deepnote lint` and `deepnote run`. The CLI comes bundled with the extension, so the skills
+install nothing into your Python environment.
 
-In VS Code, GitHub Copilot's agent mode also gets tools to prepare a notebook's kernel, list and
-install packages in it, and restart it.
+In VS Code, GitHub Copilot's agent mode also gets tools to prepare a notebook's kernel and to list
+and install packages in it.
 
 To give an assistant access to your Deepnote Cloud workspace as well, connect the
 [Deepnote MCP server](/docs/deepnote-mcp).
 
 ### Open in Deepnote
 
-**Open in Deepnote** in the notebook toolbar, or in the context menu of a `.deepnote` file, uploads
-the file to Deepnote Cloud and opens it in your browser. Use it to share a notebook with your team,
-collaborate on it in real time, [schedule](/docs/scheduling) it, publish it as an app, or run it on
-bigger CPU and GPU machines.
+**Open in Deepnote** in the notebook toolbar, or in the editor's context menu for a `.deepnote` file,
+uploads the file to Deepnote Cloud and opens it in your browser. Use it to share a notebook with your
+team, collaborate on it in real time, [schedule](/docs/scheduling) it, or run it on bigger CPU and
+GPU machines.
 
 ### Exporting to different formats
 

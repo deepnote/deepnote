@@ -88,10 +88,11 @@ Two commands catch broken notebooks before they reach the repository:
 
 - `deepnote validate` checks a file against the `.deepnote` schema: the right fields, block types
   and structure. It exits with `2` for an invalid file.
-- `deepnote lint` analyzes the code. Syntax errors, undefined variables, circular dependencies and
-  SQL blocks whose integration is not configured are errors (exit code `1`); unused and redefined
-  variables and input blocks without a value are warnings. It needs a Python 3 interpreter, which
-  it finds the same way [`deepnote run`](/docs/deepnote-cli) does, or takes with `--python`.
+- `deepnote lint` analyzes the code. Syntax errors and SQL blocks whose integration is not
+  configured are errors (exit code `1`); unused and redefined variables and input blocks without a
+  value are warnings. It needs a Python 3 interpreter that can import `jinja2`, which
+  `deepnote-toolkit` installs. It looks for one the way [`deepnote run`](/docs/deepnote-cli) does,
+  then falls back to `python3`, or takes one with `--python`.
 
 ```text
   ⚠ unused-variable: Variable "x" is defined but never used
@@ -129,7 +130,7 @@ git diff --cached --name-only --diff-filter=ACM -- '*.deepnote' ':!*.snapshot.de
 ```
 
 Both assume the `deepnote` command is installed (`npm install -g @deepnote/cli` or
-`pip install deepnote-cli`).
+`pip install deepnote-cli`) and a Python 3 that can import `jinja2` (`pip install jinja2`).
 
 ## Review notebook changes in pull requests
 
@@ -173,6 +174,13 @@ jobs:
               fi
               echo '```'
             done >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      - name: Install the analyzer's dependency
+        run: python -m pip install jinja2
 
       - name: Lint changed notebooks
         env:

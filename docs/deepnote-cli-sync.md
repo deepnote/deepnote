@@ -246,7 +246,6 @@ run continues.
 | Keep one project in a Git repo, synced automatically by Deepnote        | [Deepnote file sync](/docs/deepnote-file-sync)                                            |
 | Mirror many projects to your machine on demand, and push notebook edits | `deepnote sync`                                                                           |
 | Keep a repository and Deepnote in step from CI, on every merge          | [`deepnote sync` in CI](/docs/deepnote-cli-ci#keep-deepnote-in-step-with-your-repository) |
-| Deploy a built app to a project                                         | [`deepnote publish`](/docs/deepnote-cli-publish)                                          |
 
 ## Related
 
