@@ -115,14 +115,16 @@ import requests
 API = "https://api.deepnote.com/v2"
 HEADERS = {"Authorization": f"Bearer {os.environ['DEEPNOTE_TOKEN']}"}
 DONE = {"success", "error", "internal_error", "stopped"}
-# (connect, read) timeouts, so a stalled request can't outlive the deadline below
+# (connect, read) timeouts, so a stalled request fails instead of hanging. The read timeout
+# limits each wait for data, not the whole response, so `timeout` below is best effort: a
+# request started just before the deadline can finish after it.
 REQUEST_TIMEOUT = (5, 30)
 
 
-def wait_for_retry(response: requests.Response, deadline: float) -> None:
+def wait_for_retry(response: requests.Response, deadline: float, message: str) -> None:
     delay = int(response.headers["Retry-After"])
     if time.monotonic() + delay > deadline:
-        raise TimeoutError("Rate limited for longer than the timeout")
+        raise TimeoutError(message)
     time.sleep(delay)
 
 
@@ -140,17 +142,18 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
         )
         # A 429 means the run was not created, so starting it again is safe.
         if response.status_code == 429:
-            wait_for_retry(response, deadline)
+            wait_for_retry(response, deadline, "Rate limited for longer than the timeout")
             continue
         response.raise_for_status()
         break
 
     run_id = response.json()["runId"]
 
+    timed_out = f"Run {run_id} did not finish within {timeout} seconds"
     snapshot_checks = 0
     while True:
         if time.monotonic() > deadline:
-            raise TimeoutError(f"Run {run_id} did not finish within {timeout} seconds")
+            raise TimeoutError(timed_out)
         response = requests.get(
             f"{API}/runs/{run_id}",
             headers=HEADERS,
@@ -158,7 +161,7 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
             timeout=REQUEST_TIMEOUT,
         )
         if response.status_code == 429:
-            wait_for_retry(response, deadline)
+            wait_for_retry(response, deadline, timed_out)
             continue
         response.raise_for_status()
         result = response.json()["run"]
@@ -167,7 +170,7 @@ def run_notebook(notebook_id: str, inputs: dict, timeout: float = 1800) -> list[
             if result["snapshotStatus"] != "pending" or snapshot_checks >= 6:
                 break
             snapshot_checks += 1
-        time.sleep(5)
+        time.sleep(max(0, min(5, deadline - time.monotonic())))
 
     if result["status"] != "success":
         raise RuntimeError(result.get("error") or result["status"])
