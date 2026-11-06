@@ -224,14 +224,28 @@ describe('add-integration mysql', () => {
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
             sslEnabled: true
             caCertificateName: my-ca-cert
-            caCertificateText: placeholder
+            caCertificateText: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT
       "
     `)
 
     const envContent = await readFile(envFilePath, 'utf-8')
     expect(envContent).toMatchInlineSnapshot(`
       "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
+      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT=placeholder
       "
     `)
+
+    // Verify multiline values survive the updateDotEnv → readDotEnv roundtrip.
+    // screen.type() cannot inject literal newlines (they act as Enter/submit),
+    // so we write a multiline cert value directly and verify it parses back.
+    const { updateDotEnv, readDotEnv } = await import('../../../utils/dotenv')
+    const multilineCert = 'line-1-of-cert\nline-2-of-cert\nline-3-of-cert'
+    await updateDotEnv(envFilePath, {
+      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT: multilineCert,
+    })
+
+    const parsedEnv = await readDotEnv(envFilePath)
+    expect(parsedEnv.AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD).toBe('supersecret')
+    expect(parsedEnv.AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT).toBe(multilineCert)
   })
 })

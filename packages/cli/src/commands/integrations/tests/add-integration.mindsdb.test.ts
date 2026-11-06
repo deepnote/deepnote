@@ -226,11 +226,12 @@ describe('add-integration mindsdb', () => {
             password: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD
             sslEnabled: true
             caCertificateName: my-ca-cert
-            caCertificateText: cert-content-here
+            caCertificateText: env:AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT
       "
     `)
     expect(envContent).toMatchInlineSnapshot(`
       "AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__PASSWORD=supersecret
+      AAAAAAAA_BBBB_CCCC_DDDD_EEEEEEEEEEEE__CACERTIFICATETEXT=cert-content-here
       "
     `)
   })

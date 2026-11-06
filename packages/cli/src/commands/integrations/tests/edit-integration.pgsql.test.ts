@@ -423,7 +423,7 @@ integrations:
             password: env:PG_ID_001__PASSWORD
             sslEnabled: true
             caCertificateName: my-ca-cert
-            caCertificateText: cert-content-here
+            caCertificateText: env:PG_ID_001__CACERTIFICATETEXT
         - id: pg-id-002
           name: Staging DB
           type: pgsql
@@ -438,6 +438,7 @@ integrations:
     `)
     expect(envContent).toMatchInlineSnapshot(`
       "PG_ID_001__PASSWORD=secret-pass
+      PG_ID_001__CACERTIFICATETEXT=cert-content-here
       "
     `)
   })

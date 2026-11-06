@@ -24,16 +24,16 @@ export type MetadataKey<T extends DatabaseIntegrationType> = AllKeysOf<DatabaseI
  */
 const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] } = {
   // Common database pattern (user/password based)
-  alloydb: ['password'],
-  mariadb: ['password'],
-  materialize: ['password'],
-  mindsdb: ['password'],
-  mysql: ['password'],
-  pgsql: ['password'],
+  alloydb: ['password', 'caCertificateText'],
+  mariadb: ['password', 'caCertificateText'],
+  materialize: ['password', 'caCertificateText'],
+  mindsdb: ['password', 'caCertificateText'],
+  mysql: ['password', 'caCertificateText'],
+  pgsql: ['password', 'caCertificateText'],
   'sql-server': ['password'],
 
   // Clickhouse - password is optional
-  clickhouse: ['password'],
+  clickhouse: ['password', 'caCertificateText'],
 
   // Token-based auth
   databricks: ['token'],
@@ -47,7 +47,7 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
   'cloud-sql': ['service_account'],
 
   // MongoDB - connection string may contain password
-  mongodb: ['password', 'connection_string', 'rawConnectionString'],
+  mongodb: ['password', 'connection_string', 'rawConnectionString', 'caCertificateText'],
 
   // Pandas dataframe has no secrets
   'pandas-dataframe': [],
@@ -59,10 +59,10 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
   snowflake: ['password', 'clientSecret', 'privateKey', 'privateKeyPassphrase', 'dbtServiceToken'],
 
   // Redshift - password or IAM
-  redshift: ['password'],
+  redshift: ['password', 'caCertificateText'],
 
   // Trino - password or OAuth
-  trino: ['password', 'clientSecret'],
+  trino: ['password', 'clientSecret', 'caCertificateText'],
 }
 
 // ============================================================================
@@ -76,7 +76,7 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
  * @returns Array of field names that contain secrets
  *
  * @example
- * getSecretFieldPaths('pgsql') // => ['password']
+ * getSecretFieldPaths('pgsql') // => ['password', 'caCertificateText']
  * getSecretFieldPaths('snowflake') // => ['password', 'clientSecret', 'privateKey', 'privateKeyPassphrase', 'dbtServiceToken']
  */
 export function getSecretFieldPaths(type: DatabaseIntegrationType): readonly string[] {
