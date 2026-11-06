@@ -53,8 +53,8 @@ The response contains a `runId`. Runs are detached by default: they run separate
 
 Then read the result in one of two ways:
 
-- **`GET /v2/notebooks/{notebookId}/app-data`** returns the first JSON output, and the agent block summary if there is one, from the caller's own newest successful detached run. It's the simplest way to get a single result.
-- **`GET /v2/runs/{runId}?snapshotDelivery=blocks`** returns every executed block with its outputs, for callers that need more than one value. Large outputs are shortened unless you add `fullOutputs=true`. That only returns what the run stored: printed output (stdout and stderr) is cut to its last 1,000 lines when the block runs, and nothing can bring back the dropped part.
+- **`GET /v2/notebooks/{notebookId}/app-data`** returns the first JSON output, and the agent block summary if there is one, from the caller's own newest successful detached run. It's the simplest way to get a single result. Read it only when your run ended with `success`; after `error`, `internal_error` or `stopped`, return an error instead, because the endpoint would return an older run's result.
+- **`GET /v2/runs/{runId}?snapshotDelivery=blocks`** returns every executed block with its outputs, for callers that need more than one value. Large outputs are shortened unless you add `fullOutputs=true`. That only returns what the run stored: printed output (stdout and stderr) is cut to its last 1,000 lines or 600,000 characters, whichever is shorter, when the block runs, and nothing can bring back the dropped part.
 
 The app data endpoint returns the caller's newest successful run, not the run you just started. If the same key can start more than one run at a time, or a run can fail, it can return another request's result or an older one. Whenever a result has to match its request, read it from `GET /v2/runs/{runId}?snapshotDelivery=blocks` instead.
 
@@ -68,7 +68,7 @@ Useful options on `POST /v2/runs`:
 Each detached run starts its own machine, so the first result takes as long as the machine takes to start. When a system calls the same notebook many times in a row, for example scoring a batch of records one at a time, use a session (beta):
 
 1. `POST /v2/sessions` with the `notebookId` starts a machine, runs the notebook once and keeps it alive. `idleShutdownSeconds` sets how long it waits for the next request.
-2. `POST /v2/sessions/{sessionId}/runs` runs the notebook again on the warm machine. Requests sent while it's busy are queued.
+2. `POST /v2/sessions/{sessionId}/runs` runs the notebook again on the warm machine. Requests sent while it's busy are queued. The session runs its own copy of the notebook, so later changes to the source notebook don't reach it; after changing the notebook, start a new session.
 3. `DELETE /v2/sessions/{sessionId}` stops it when you're done.
 
 Only the person whose key created a session can use it. Running arbitrary code in a session with `POST /v2/sessions/{sessionId}/execute` also requires Edit access to the project.

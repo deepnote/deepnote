@@ -25,7 +25,7 @@ In Deepnote you can build that layer from [modules](/docs/modules), notebooks th
 
 These module behaviors affect the setup:
 
-- **A module runs in its own project.** When a notebook runs a module block, the module executes on its own project's machine, with that project's environment and integrations, and returns only the values it exports. People using the metric don't need the database integration in their own project.
+- **A module runs in its own project.** When a notebook runs a module block, the module executes on its own project's machine, with that project's environment and integrations, and returns only the values it exports. People using the metric don't need the database integration in their own project. Exported functions are the exception: an imported function runs in the importing notebook, so anything it uses, such as an integration, must be available there or passed in.
 - **The caller needs Execute access.** A module runs as the person, or the schedule owner, who triggered it. They need at least Execute access to the module's project.
 - **Changes apply on the next run.** Every notebook that imports a module picks up its latest version the next time the module block runs. If a change affects configuration, for example a new input, the module block flags it before running.
 - **Input blocks become parameters.** Each input block in the module becomes a parameter that the importing notebook can set or bind to one of its own variables.
@@ -50,7 +50,7 @@ For each metric:
 
 ### 3. Control who can change a definition
 
-A person's access to a project shared with the workspace is the lower of two levels: the access the project grants the workspace, and what their workspace role allows. Workspace admins are the exception and always have full access. To make the definitions read-only for most people:
+Workspace access is one of the grants that decide a person's access to a project: they get the access the project grants the workspace, capped by what their workspace role allows. Direct sharing and link sharing can give them more, and a person gets the most permissive of their grants, so check those too. Workspace admins always have full access to projects shared with the workspace. To make the definitions read-only for most people:
 
 1. In the metrics project's sharing settings, set workspace access to **Execute**. Workspace members can now run and import the modules but can't edit them, even if their role is Editor.
 2. Share the project with the metric owners, for example the analytics engineering group, at **Edit**.

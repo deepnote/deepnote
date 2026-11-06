@@ -57,7 +57,7 @@ Before saving, check that the new owner:
 
 ## Plan requirements
 
-- **Scheduling:** Team and Enterprise.
+- **Scheduling:** Team and Enterprise. Schedules more frequent than hourly need Enterprise.
 - **API keys:** Team and Enterprise.
 - **User groups, directory sync, the audit log and per-user OAuth integrations:** Enterprise.
 

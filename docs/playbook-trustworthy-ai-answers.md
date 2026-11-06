@@ -7,20 +7,20 @@ noContent: false
 
 An AI assistant answering questions about your business is only as reliable as the context it works from. Asked "what was revenue last quarter?", an agent with no context invents a definition of revenue and picks whichever table looks right. Two people asking the same question get two different numbers.
 
-Deepnote gives its AI the same context your analysts use: the metric definitions your team has published, the queries it already trusts, your connected tools and your permissions. This playbook shows how to set that context up once so that every AI surface, in a notebook, in Slack, and in Claude, Codex or Cursor, starts from the same definitions. Good context makes answers more consistent and easier to check, but not necessarily correct. Review the SQL Agent writes before you rely on it, and prefer answers that come from running a notebook your team has reviewed.
+Deepnote gives its AI the same context your analysts use: the metric definitions your team has published, the queries it already trusts, your connected tools and your permissions. This playbook shows how to set that context up once so that every AI surface, in a notebook, in Slack, and in Claude, Codex or Cursor, can start from the same definitions. Connecting a surface makes those definitions available, but doesn't make it use them: name the notebook or module in your prompt, and in Slack ask for the notebook that holds the answer. Good context makes answers more consistent and easier to check, but not necessarily correct. Review the SQL Agent writes before you rely on it, and prefer answers that come from running a notebook your team has reviewed.
 
 ## What you'll combine
 
-| Feature                                                    | Role in this playbook                                                          |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| [Modules](/docs/modules)                                   | Published metric definitions the agent can find and import                     |
-| [Scheduling](/docs/scheduling) and [apps](/docs/data-apps) | Mark the queries the AI should learn from                                      |
-| [Deepnote Agent](/docs/deepnote-agent)                     | Builds analyses in notebooks                                                   |
-| MCP integrations                                           | Connect the agent to tools that already define your metrics, such as dbt       |
-| [Slack agent](/docs/slack)                                 | Runs existing notebooks from Slack and summarizes the results                  |
-| [Deepnote MCP server](/docs/deepnote-mcp)                  | Gives Claude, Codex and Cursor the same workspace                              |
-| [Custom AI instructions](/docs/custom-ai-instructions)     | Personal preferences for each analyst                                          |
-| [Team permissions](/docs/team-permissions)                 | Decide what every AI surface can see, because each acts as the person using it |
+| Feature                                                    | Role in this playbook                                                                              |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [Modules](/docs/modules)                                   | Published metric definitions the agent can find and import                                         |
+| [Scheduling](/docs/scheduling) and [apps](/docs/data-apps) | Mark the queries the AI should learn from                                                          |
+| [Deepnote Agent](/docs/deepnote-agent)                     | Builds analyses in notebooks                                                                       |
+| MCP integrations                                           | Connect the agent to tools that already define your metrics, such as dbt                           |
+| [Slack agent](/docs/slack)                                 | Runs existing notebooks from Slack and summarizes the results                                      |
+| [Deepnote MCP server](/docs/deepnote-mcp)                  | Gives Claude, Codex and Cursor the same workspace                                                  |
+| [Custom AI instructions](/docs/custom-ai-instructions)     | Personal preferences for each analyst                                                              |
+| [Team permissions](/docs/team-permissions)                 | Decide what every AI surface can see, because each acts as the person whose account or key it uses |
 
 ## What the agent reads
 
@@ -68,13 +68,13 @@ All of these work from the same context:
 
 ## Governance
 
-Every AI surface acts as the person using it.
+Every AI surface acts as a person: the one using it, or for the MCP server, the one whose sign-in or key it was connected with.
 
 - Agent reads only the projects, modules and example queries the current user can access.
 - The Slack agent acts as the Deepnote account linked to the person who mentioned it, so it can find and run only what that person can.
 - The MCP server uses the API key or sign-in it was connected with, which acts as the person who created that key or signed in. Have each person connect their own client with their own sign-in or key; a shared key gives everyone using it the key creator's access.
 
-So you don't need separate permissions for AI. Restricting a project in Deepnote also keeps it out of AI answers for people who can't open it.
+So you don't need separate permissions for AI. Restricting a project in Deepnote also keeps it out of AI answers for people who can't open it, as long as nobody shares an API key; turn on **Enforce OAuth** in the AI settings to make every MCP client sign in as its own user.
 
 Database integrations that use per-user OAuth, such as [Snowflake OAuth](/docs/snowflake-oauth) or [BigQuery with Google OAuth](/docs/bigquery-oauth), go one step further: each person, and the AI acting for them, can query only the tables their own credentials allow.
 

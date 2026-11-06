@@ -107,7 +107,11 @@ Things to know:
 
 ## Keep a schedule as a fallback
 
-If the orchestrator itself is down, nothing triggers the notebook. A schedule that runs a few hours after the expected load time catches that case. The schedule also runs when the orchestrator already succeeded or the load is still late, so start the notebook with a block that stops when the data isn't loaded yet or the partition was already processed, for example by checking a table the notebook writes to when it finishes. The notebook must also be safe to run twice for the same data: update existing rows or replace the partition rather than appending, and don't send notifications from a run that found the partition already processed. Manage the schedule in code alongside the pipeline:
+If the orchestrator itself is down, nothing triggers the notebook. A schedule that runs a few hours after the expected load time catches that case. The schedule doesn't receive a `load_date` from the orchestrator, so the notebook has to work out which partition to process itself, for example yesterday's date or the newest partition in the source table. Plan for three cases:
+
+- **The data is late.** Run the schedule several times through the window when the data can arrive, for example hourly through the morning, and have the notebook stop quietly when the data isn't loaded yet, so a later run picks it up.
+- **Both runs start.** The orchestrator's run and the schedule can process the same partition at the same time. Start the notebook by claiming the partition atomically, for example by inserting a row into a claims table with the partition as its unique key, and stop if the insert fails because another run holds it. A table that records finished partitions isn't enough on its own, because both runs can check it before either finishes.
+- **A run repeats.** Make the notebook's writes safe to repeat: update existing rows or replace the partition rather than appending, and don't send notifications from a run that found the partition already claimed. Manage the schedule in code alongside the pipeline:
 
 - `POST /v2/notebooks/{notebookId}/schedule` with `cron` and `timezone` creates or updates the schedule.
 - `GET /v2/notebooks/{notebookId}/schedule` returns the next run time, whether the schedule is paused, and why: `access-revoked` or `consecutive-failures`.

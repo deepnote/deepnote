@@ -47,13 +47,13 @@ With **Update notebook with run results** turned off, the notebook and its app s
 Add **success** notifications to the schedule:
 
 - **Slack channels** suit a team or company-wide audience.
-- **Email** goes to members of your workspace. When the scheduled notebook is the one published as the app, the email links straight to the app. The app always shows the latest edition, so an old email opens the current one; past editions are in the run snapshots.
+- **Email** goes to members of your workspace. When the scheduled notebook is the one published as the app, the email links straight to the app. The app always shows the latest edition, so an old email opens the current one.
 
 Add a **failure** notification for the report's owner, so a broken edition is noticed before readers notice it.
 
 ## 5. Keep an archive
 
-Every scheduled run creates a [run snapshot](/docs/run-snapshots): an unchangeable record of the notebook and its outputs after that run, with its own link. Past editions stay as they were sent, even after definitions or data change. Find snapshots in the **Runs** sidebar or the project log.
+Every scheduled run creates a [run snapshot](/docs/run-snapshots): an unchangeable record of the notebook and its outputs after that run, with its own link. Past editions stay as they were sent, even after definitions or data change. Find snapshots in the **Runs** sidebar or the project log. Snapshots belong to the project and show the whole notebook, so readers with only **App user** access can't open them. For those readers, have the notebook write each edition's key numbers to a table and show that history in the app, for example as a chart of past editions.
 
 Snapshots are kept for 30 days on Team and 365 days on Enterprise. To keep editions longer, download the snapshot from the run, or have the notebook write each edition's key numbers to a table in your warehouse.
 

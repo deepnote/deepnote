@@ -83,7 +83,7 @@ This works well for a small team, but has three limits:
 ## Security
 
 - The webhook URL or bot token is a secret. Keep it in an environment variables integration, which stores it encrypted, rather than in a code block.
-- The scheduled run executes as the schedule's owner. If they leave the workspace, the schedule pauses until someone else saves it and becomes its owner. A paused alert is silent, so send the schedule's failure notifications to a shared channel and agree who takes the schedule over when its owner leaves.
+- The scheduled run executes as the schedule's owner. If they leave the workspace, the schedule pauses until someone else saves it and becomes its owner. A paused alert is silent, and the pause doesn't trigger a failure notification: the pause email goes only to the owner and, unless the project is private, the workspace admins. Agree who takes the schedule over before its owner leaves, and have the admins watch for pause emails.
 
 ## Plan requirements
 

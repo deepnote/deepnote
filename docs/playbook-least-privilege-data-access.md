@@ -46,7 +46,7 @@ Restricted users have no access to workspace projects unless a project is shared
 
 ## Narrow what AI can see
 
-Deepnote's AI acts as the person using it. Deepnote Agent, the Slack agent and the Deepnote MCP server can only reach projects and data that person can reach. Settings in **Settings & members** → **AI** narrow it further:
+Deepnote's AI acts as a person. Deepnote Agent and the Slack agent act as the person using them. The Deepnote MCP server acts as whoever signed in, or whoever created the API key it was connected with, so a shared key gives everyone using it that person's access; give each person their own key, or turn on **Enforce OAuth** below. Each surface can only reach projects and data its person can reach. Settings in **Settings & members** → **AI** narrow it further:
 
 - **Provide access to block outputs.** When it's off, Agent doesn't read outputs, including row-level query results. The Slack agent needs it on.
 - **MCP access.** Under **MCP connector**, turn off **MCP access** to stop external clients such as Claude, Codex or Cursor from reaching the workspace through the [Deepnote MCP server](/docs/deepnote-mcp). Turn on **Enforce OAuth** to require those clients to sign in with OAuth and block access with API keys. Neither setting affects Deepnote Agent inside Deepnote.
