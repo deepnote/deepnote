@@ -126,8 +126,8 @@ export function updateIntegrationMetadataMap({
     // Check if this is a secret field that needs special handling
     if (!secretPaths.includes(key)) {
       const existingNode = metadataMap.get(key, true)
-      // YAMLMap.set keeps an existing scalar's style, which renders a multi-line value that replaces a
-      // plain or quoted one with a blank line between its lines.
+      // YAMLMap.set keeps an existing scalar's style, so a multi-line value written over a plain or
+      // quoted scalar would render with a blank line between each of its lines.
       if (isScalar(existingNode) && typeof value === 'string' && value.includes('\n')) {
         existingNode.type = undefined
       }
