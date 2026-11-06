@@ -12,6 +12,7 @@ This is a TypeScript monorepo for Deepnote's open-source packages, managed with 
 - **packages/cloud-sync** - Node-only workflows between a local folder and Deepnote Cloud (sync manifest, sync engine, app publishing)
 - **packages/convert** - Bidirectional converter between Jupyter Notebook files (`.ipynb`) and Deepnote project files (`.deepnote`)
 - **packages/database-integrations** - Database integration definitions, schemas, and authentication methods
+- **packages/federated-auth** - Node-only Google OAuth client for federated database integrations (PKCE, Deepnote proxy URLs, loopback callback server, token endpoint)
 - **packages/local-runner** - Local Python-backed runner and static UI for Deepnote notebooks
 - **packages/mcp** - MCP server for AI-assisted Deepnote notebook creation and manipulation
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
@@ -32,6 +33,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
 | Database integration definitions                               | `packages/database-integrations/`                     |
+| Google OAuth for federated database integrations               | `packages/federated-auth/`                            |
 | Shared test data                                               | `test-fixtures/`                                      |
 | Agent-facing format, CLI, and MCP references                   | `skills/deepnote/references/`                         |
 

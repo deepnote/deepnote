@@ -47,6 +47,7 @@
     "@deepnote/cloud-sync": "workspace:*",
     "@deepnote/convert": "workspace:*",
     "@deepnote/database-integrations": "workspace:*",
+    "@deepnote/federated-auth": "workspace:*",
     "@deepnote/local-runner": "workspace:*",
     "@deepnote/reactivity": "workspace:*",
     "@deepnote/runtime-core": "workspace:*",

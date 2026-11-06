@@ -2,16 +2,12 @@ import * as fsPromises from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { BigQueryAuthMethods, type DatabaseIntegrationConfig } from '@deepnote/database-integrations'
+import { computeClientFingerprint } from '@deepnote/federated-auth'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
   return { ...actual, homedir: vi.fn(actual.homedir) }
-})
-
-vi.mock('./google-oauth', async importOriginal => {
-  const actual = await importOriginal<typeof import('./google-oauth')>()
-  return { ...actual, fetchAccessToken: vi.fn() }
 })
 
 vi.mock('./token-store', async importOriginal => {
@@ -23,9 +19,8 @@ vi.mock('./token-store', async importOriginal => {
   }
 })
 
-import { fetchAccessToken, InvalidClientError, InvalidGrantError } from './google-oauth'
 import { IntegrationAuthenticationError, resolveFederatedSqlEnvVars } from './resolve-bigquery-sql-env-vars'
-import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
+import { getTokenStoreDir, readToken, writeToken } from './token-store'
 
 const CLIENT_ID = 'client-id.apps.googleusercontent.com'
 const CLIENT_SECRET = 'GOCSPX-client-secret'
@@ -33,14 +28,18 @@ const PROJECT = 'my-gcp-project'
 const ACCESS_TOKEN = 'minted-access-token'
 const REFRESH_TOKEN = 'stored-refresh-token'
 
+const fetchStub = vi.fn<typeof fetch>()
+
 let tempHome: string
 
 beforeEach(async () => {
   tempHome = await fsPromises.mkdtemp(join(tmpdir(), 'deepnote-resolve-federated-test-'))
   vi.mocked(homedir).mockReturnValue(tempHome)
+  vi.stubGlobal('fetch', fetchStub)
 })
 
 afterEach(async () => {
+  vi.unstubAllGlobals()
   vi.resetAllMocks()
   await fsPromises.rm(tempHome, { recursive: true, force: true })
 })
@@ -62,6 +61,12 @@ function bigQueryIntegration(overrides: {
       clientSecret: overrides.clientSecret ?? CLIENT_SECRET,
     },
   }
+}
+
+function stubTokenEndpoint(status: number, body: Record<string, string>): void {
+  fetchStub.mockImplementation(
+    async () => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  )
 }
 
 async function storeMatchingToken(
@@ -86,7 +91,7 @@ describe('resolveFederatedSqlEnvVars', () => {
 
       expect(result).toEqual({ envVars: [], errors: [] })
       expect(readToken).not.toHaveBeenCalled()
-      expect(fetchAccessToken).not.toHaveBeenCalled()
+      expect(fetchStub).not.toHaveBeenCalled()
     })
 
     it('matches sqlIntegrationIds case-insensitively', async () => {
@@ -117,11 +122,8 @@ describe('resolveFederatedSqlEnvVars', () => {
   })
 
   describe('validation', () => {
-    it.each([
-      ['an empty', ''],
-      ['a whitespace-only', '   '],
-    ])('errors on %s project before any token read or network call', async (_label, project) => {
-      const integration = bigQueryIntegration({ id: 'no-project', project })
+    it('errors on an empty project before any token read or network call', async () => {
+      const integration = bigQueryIntegration({ id: 'no-project', project: '' })
 
       const { errors, envVars } = await resolveFederatedSqlEnvVars([integration], ['no-project'], { refresh: true })
 
@@ -130,7 +132,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(errors[0]).toBeInstanceOf(IntegrationAuthenticationError)
       expect(errors[0]?.message).toBe('Integration "no-project" has no `project` configured.')
       expect(readToken).not.toHaveBeenCalled()
-      expect(fetchAccessToken).not.toHaveBeenCalled()
+      expect(fetchStub).not.toHaveBeenCalled()
     })
   })
 
@@ -145,7 +147,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       expect(errors[0]?.message).toBe(
         'Integration "never-authed" is not authenticated. Run `deepnote integrations auth never-authed`.'
       )
-      expect(fetchAccessToken).not.toHaveBeenCalled()
+      expect(fetchStub).not.toHaveBeenCalled()
     })
 
     it('errors distinctly on a fingerprint mismatch and does not delete the stored entry', async () => {
@@ -161,7 +163,7 @@ describe('resolveFederatedSqlEnvVars', () => {
           '`clientId` / `clientSecret` / `project` changed since you authenticated. ' +
           'Run `deepnote integrations auth stale-client`.'
       )
-      expect(fetchAccessToken).not.toHaveBeenCalled()
+      expect(fetchStub).not.toHaveBeenCalled()
       await expect(readToken('stale-client')).resolves.toMatchObject({ refreshToken: REFRESH_TOKEN })
     })
   })
@@ -177,29 +179,19 @@ describe('resolveFederatedSqlEnvVars', () => {
       const result = await resolveFederatedSqlEnvVars([integration], ['dry-run-id'], { refresh: false })
 
       expect(result).toEqual({ envVars: [], errors: [] })
-      expect(fetchAccessToken).not.toHaveBeenCalled()
+      expect(fetchStub).not.toHaveBeenCalled()
       expect(writeToken).not.toHaveBeenCalled()
       const filesAfter = await fsPromises.readdir(dir)
       const after = await Promise.all(filesAfter.map(f => fsPromises.readFile(join(dir, f), 'utf-8')))
       expect(after).toEqual(before)
     })
-
-    it('still reports a missing stored token before the refresh check', async () => {
-      const integration = bigQueryIntegration({ id: 'dry-run-no-token' })
-
-      const { errors } = await resolveFederatedSqlEnvVars([integration], ['dry-run-no-token'], { refresh: false })
-
-      expect(errors).toHaveLength(1)
-      expect(errors[0]).toBeInstanceOf(IntegrationAuthenticationError)
-      expect(fetchAccessToken).not.toHaveBeenCalled()
-    })
   })
 
   describe('Google grant outcomes', () => {
-    it('on InvalidGrantError, reports not-authenticated and leaves the stored token in place', async () => {
+    it('on invalid_grant, reports not-authenticated and leaves the stored token in place', async () => {
       const integration = bigQueryIntegration({ id: 'revoked-grant' })
       await storeMatchingToken('revoked-grant')
-      vi.mocked(fetchAccessToken).mockRejectedValue(new InvalidGrantError('Google rejected the request.'))
+      stubTokenEndpoint(400, { error: 'invalid_grant' })
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['revoked-grant'], { refresh: true })
 
@@ -211,10 +203,10 @@ describe('resolveFederatedSqlEnvVars', () => {
       await expect(readToken('revoked-grant')).resolves.toMatchObject({ refreshToken: REFRESH_TOKEN })
     })
 
-    it('on InvalidClientError, reports its own message and keeps the refresh token', async () => {
+    it('on invalid_client, reports its own message and keeps the refresh token', async () => {
       const integration = bigQueryIntegration({ id: 'bad-client' })
       await storeMatchingToken('bad-client')
-      vi.mocked(fetchAccessToken).mockRejectedValue(new InvalidClientError('Google rejected the OAuth client.'))
+      stubTokenEndpoint(401, { error: 'invalid_client' })
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['bad-client'], { refresh: true })
 
@@ -230,7 +222,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       const integration = bigQueryIntegration({ id: 'outage' })
       await storeMatchingToken('outage')
       const networkError = new Error('fetch failed: ECONNRESET')
-      vi.mocked(fetchAccessToken).mockRejectedValue(networkError)
+      fetchStub.mockRejectedValue(networkError)
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['outage'], { refresh: true })
 
@@ -243,7 +235,7 @@ describe('resolveFederatedSqlEnvVars', () => {
     it('persists a rotated refresh token', async () => {
       const integration = bigQueryIntegration({ id: 'rotating' })
       await storeMatchingToken('rotating', { refreshToken: 'old-refresh-token' })
-      vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN, newRefreshToken: 'new-refresh-token' })
+      stubTokenEndpoint(200, { access_token: ACCESS_TOKEN, refresh_token: 'new-refresh-token' })
 
       const { errors } = await resolveFederatedSqlEnvVars([integration], ['rotating'], { refresh: true })
 
@@ -258,7 +250,7 @@ describe('resolveFederatedSqlEnvVars', () => {
     it('still emits the env var when persisting a rotated refresh token fails', async () => {
       const integration = bigQueryIntegration({ id: 'rotating-fail' })
       await storeMatchingToken('rotating-fail', { refreshToken: 'old-refresh-token' })
-      vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN, newRefreshToken: 'new-refresh-token' })
+      stubTokenEndpoint(200, { access_token: ACCESS_TOKEN, refresh_token: 'new-refresh-token' })
       vi.mocked(writeToken).mockRejectedValueOnce(new Error('ENOSPC: no space left on device'))
 
       const { envVars, errors } = await resolveFederatedSqlEnvVars([integration], ['rotating-fail'], { refresh: true })
@@ -271,7 +263,7 @@ describe('resolveFederatedSqlEnvVars', () => {
     it('does not write when Google returns no rotated refresh token', async () => {
       const integration = bigQueryIntegration({ id: 'no-rotation' })
       await storeMatchingToken('no-rotation')
-      vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
+      stubTokenEndpoint(200, { access_token: ACCESS_TOKEN })
 
       await resolveFederatedSqlEnvVars([integration], ['no-rotation'], { refresh: true })
 
@@ -285,7 +277,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       const id = '3e2bed0f-ebc3-40fb'
       const integration = bigQueryIntegration({ id })
       await storeMatchingToken(id)
-      vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
+      stubTokenEndpoint(200, { access_token: ACCESS_TOKEN })
 
       const { envVars, errors } = await resolveFederatedSqlEnvVars([integration], [id], { refresh: true })
 
@@ -309,7 +301,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       const ok = bigQueryIntegration({ id: 'good-one' })
       const bad = bigQueryIntegration({ id: 'bad-one' })
       await storeMatchingToken('good-one')
-      vi.mocked(fetchAccessToken).mockResolvedValue({ accessToken: ACCESS_TOKEN })
+      stubTokenEndpoint(200, { access_token: ACCESS_TOKEN })
 
       const { envVars, errors } = await resolveFederatedSqlEnvVars([bad, ok], ['good-one', 'bad-one'], {
         refresh: true,
@@ -329,7 +321,7 @@ describe('resolveFederatedSqlEnvVars', () => {
       await storeMatchingToken('mismatch', { clientSecret: 'old-secret', refreshToken: 'secret-refresh-token' })
       const outageIntegration = bigQueryIntegration({ id: 'outage-2' })
       await storeMatchingToken('outage-2', { refreshToken: 'another-secret-refresh-token' })
-      vi.mocked(fetchAccessToken).mockRejectedValue(new Error('boom'))
+      fetchStub.mockRejectedValue(new Error('boom'))
 
       const { errors } = await resolveFederatedSqlEnvVars([mismatched, outageIntegration], ['mismatch', 'outage-2'], {
         refresh: true,

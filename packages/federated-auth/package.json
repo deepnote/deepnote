@@ -1,0 +1,45 @@
+{
+  "name": "@deepnote/federated-auth",
+  "version": "0.1.0",
+  "description": "Google OAuth for federated database integrations through the Deepnote OAuth proxy (Node.js)",
+  "keywords": [
+    "deepnote",
+    "oauth",
+    "bigquery"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/federated-auth"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

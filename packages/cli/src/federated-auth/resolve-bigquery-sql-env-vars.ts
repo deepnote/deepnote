@@ -5,9 +5,9 @@ import {
   getBigQueryOAuthSqlAlchemyInput,
   getSqlEnvVarName,
 } from '@deepnote/database-integrations'
+import { computeClientFingerprint, resolveBigQueryAccessToken } from '@deepnote/federated-auth'
 import { warn } from '../output'
-import { fetchAccessToken, InvalidClientError, InvalidGrantError } from './google-oauth'
-import { computeClientFingerprint, readToken, writeToken } from './token-store'
+import { readToken, writeToken } from './token-store'
 
 /**
  * A federated BigQuery credential problem the user can fix by running
@@ -54,76 +54,63 @@ export async function resolveFederatedSqlEnvVars(
     if (!wantedIds.has(id.toLowerCase())) continue
 
     try {
-      if (metadata.project.trim() === '') {
-        errors.push(new IntegrationAuthenticationError(`Integration "${id}" has no \`project\` configured.`))
-        continue
-      }
-
-      const stored = await readToken(id)
-      if (!stored) {
-        errors.push(notAuthenticatedError(id))
-        continue
-      }
-
-      const fingerprint = computeClientFingerprint({
-        clientId: metadata.clientId,
-        clientSecret: metadata.clientSecret,
-        project: metadata.project,
+      const result = await resolveBigQueryAccessToken({
+        client: metadata,
+        loadStoredCredential: () => readToken(id),
+        refresh: options.refresh,
       })
-      if (stored.clientFingerprint !== fingerprint) {
-        errors.push(
-          new IntegrationAuthenticationError(
-            `Stored credentials for "${id}" were issued against a different OAuth client — ` +
-              `\`clientId\` / \`clientSecret\` / \`project\` changed since you authenticated. ` +
-              `Run \`deepnote integrations auth ${id}\`.`
-          )
-        )
-        continue
-      }
 
-      if (!options.refresh) {
-        continue
-      }
-
-      let accessToken: string
-      let rotatedRefreshToken: string | undefined
-      try {
-        const result = await fetchAccessToken({
-          clientId: metadata.clientId,
-          clientSecret: metadata.clientSecret,
-          refreshToken: stored.refreshToken,
-        })
-        accessToken = result.accessToken
-        rotatedRefreshToken = result.newRefreshToken
-      } catch (error) {
-        if (error instanceof InvalidGrantError) {
+      switch (result.status) {
+        case 'missing-project':
+          errors.push(new IntegrationAuthenticationError(`Integration "${id}" has no \`project\` configured.`))
+          break
+        case 'not-authenticated':
+        case 'grant-rejected':
           errors.push(notAuthenticatedError(id))
-        } else if (error instanceof InvalidClientError) {
+          break
+        case 'client-mismatch':
+          errors.push(
+            new IntegrationAuthenticationError(
+              `Stored credentials for "${id}" were issued against a different OAuth client — ` +
+                `\`clientId\` / \`clientSecret\` / \`project\` changed since you authenticated. ` +
+                `Run \`deepnote integrations auth ${id}\`.`
+            )
+          )
+          break
+        case 'client-rejected':
           errors.push(
             new IntegrationAuthenticationError(
               `OAuth client credentials for "${id}" were rejected. Check \`clientId\` / \`clientSecret\`.`
             )
           )
-        } else {
-          throw error
-        }
-        continue
-      }
+          break
+        case 'verified':
+          break
+        case 'ready':
+          envVars.push({
+            name: getSqlEnvVarName(id),
+            value: JSON.stringify({
+              integration_id: id,
+              ...getBigQueryOAuthSqlAlchemyInput(metadata, result.accessToken),
+            }),
+          })
 
-      envVars.push({
-        name: getSqlEnvVarName(id),
-        value: JSON.stringify({ integration_id: id, ...getBigQueryOAuthSqlAlchemyInput(metadata, accessToken) }),
-      })
-
-      if (rotatedRefreshToken) {
-        try {
-          await writeToken(id, { refreshToken: rotatedRefreshToken, clientFingerprint: fingerprint })
-        } catch (error) {
-          warn(
-            `Could not store the rotated refresh token for "${id}": ${error instanceof Error ? error.message : String(error)}. ` +
-              `This run continues; the next one will ask you to run \`deepnote integrations auth ${id}\` again.`
-          )
-        }
+          if (result.rotatedRefreshToken !== undefined) {
+            try {
+              await writeToken(id, {
+                refreshToken: result.rotatedRefreshToken,
+                clientFingerprint: computeClientFingerprint(metadata),
+              })
+            } catch (error) {
+              warn(
+                `Could not store the rotated refresh token for "${id}": ${error instanceof Error ? error.message : String(error)}. ` +
+                  `This run continues; the next one will ask you to run \`deepnote integrations auth ${id}\` again.`
+              )
+            }
+          }
+          break
+        default:
+          result satisfies never
       }
     } catch (error) {
       errors.push(error instanceof Error ? error : new Error(String(error)))
