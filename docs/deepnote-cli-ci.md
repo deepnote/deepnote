@@ -188,15 +188,15 @@ A pipeline can do more with the CLI than run notebooks. A job that runs
 [`deepnote sync`](/docs/deepnote-cli-sync) keeps your repository and Deepnote in step, and is an
 alternative to [Deepnote file sync](/docs/deepnote-file-sync), the Git sync built into Deepnote:
 
-|                          | Deepnote file sync                                                                                      | `deepnote sync` in CI                |
-| ------------------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------ |
-| Set up in                | Each project, with the repository connected in Deepnote                                                 | One workflow in your repository      |
-| Scope                    | One project per linked file                                                                             | Every project in the sync directory  |
-| Repository → Deepnote    | When someone pulls or switches branch in the Deepnote project                                           | On every merge to the branch         |
-| Deepnote → repository    | When someone commits and pushes from Deepnote                                                           | Committed by the job on its schedule |
-| Git hosts                | Ones Deepnote connects to: [GitHub](/docs/github), [GitLab](/docs/gitlab), [Bitbucket](/docs/bitbucket) | Any host your CI can push to         |
-| Needs a Deepnote API key | No                                                                                                      | Yes                                  |
-| Branches                 | Switch branch in the project                                                                            | Follows one branch                   |
+|                          | Deepnote file sync                                                        | `deepnote sync` in CI                |
+| ------------------------ | ------------------------------------------------------------------------- | ------------------------------------ |
+| Set up in                | Each project, with the repository connected in Deepnote                   | One workflow in your repository      |
+| Scope                    | One project per linked file                                               | Every project in the sync directory  |
+| Repository → Deepnote    | When someone pulls or switches branch in the Deepnote project             | On every merge to the branch         |
+| Deepnote → repository    | When someone commits and pushes from Deepnote                             | Committed by the job on its schedule |
+| Git hosts                | Ones Deepnote connects to: [GitHub](/docs/github), [GitLab](/docs/gitlab) | Any host your CI can push to         |
+| Needs a Deepnote API key | No                                                                        | Yes                                  |
+| Branches                 | Switch branch in the project                                              | Follows one branch                   |
 
 Choose file sync when people work on a project's branches inside Deepnote; choose a sync job when the
 repository is the source of truth and changes should land in Deepnote on merge without anyone
