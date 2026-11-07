@@ -30,28 +30,12 @@ Deepnote uses (rows, columns, widths, visibility) and runs the notebook in a loc
 What the preview cannot reproduce exactly:
 
 - **Modules.** A local kernel cannot call Deepnote's module backend, so `build-preview.mjs`
-  inlines each module notebook in place of its module block. The shipped `.deepnote` file is
+  replaces each module block with the code of the module notebook it points at. The shipped `.deepnote` file is
   unchanged.
 - **The agent.** Locally the agent block runs on the open-source runtime (Claude by default, set
   `PREVIEW_AGENT_MODEL` to change it). Deepnote Cloud runs its own agent implementation with the
   workspace's model, so answers will differ in style and tools.
 - **Styling.** The page approximates Deepnote's app renderer, including its chart theming.
-
-## Files
-
-| Path                                             | What it is                                                                                         |
-| ------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
-| `revenue-review.deepnote`                        | The project. Open it in VS Code or Cursor with the Deepnote extension, or import it into Deepnote. |
-| `source/data.py`, `source/metrics.py`            | The module code, kept as plain Python so it is easy to edit.                                       |
-| `source/build_project.py`                        | Generates `revenue-review.deepnote` from the two files above, including the app layout.            |
-| `preview/serve.mjs`, `preview/build-preview.mjs` | The local preview server and the module-inlining step.                                             |
-| `preview/index.html`                             | The app-style preview page.                                                                        |
-
-To change the data or a metric, edit `source/`, then regenerate the project (needs PyYAML):
-
-```bash
-python3 examples/revenue-review-app/source/build_project.py examples/revenue-review-app/revenue-review.deepnote
-```
 
 ## Using it in Deepnote
 
