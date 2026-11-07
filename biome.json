@@ -1,7 +1,14 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.2.7/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": false, "includes": ["**", "!skills/deepnote/references/schema.ts"] },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "**",
+      "!skills/deepnote/references/schema.ts",
+      "!packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts"
+    ]
+  },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,

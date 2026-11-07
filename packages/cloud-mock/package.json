@@ -1,0 +1,58 @@
+{
+  "name": "@deepnote/cloud-mock",
+  "version": "0.1.0",
+  "description": "Local mock of the Deepnote Cloud Public API v2 for testing sync clients",
+  "keywords": [
+    "deepnote",
+    "cloud",
+    "mock",
+    "testing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/cloud-mock"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "deepnote-cloud-mock": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch",
+    "generate:api-types": "pnpm dlx openapi-typescript@7.13.0 https://api.deepnote.com/v2/openapi.json -o src/deepnote-cloud-api.generated.d.ts"
+  },
+  "dependencies": {
+    "@deepnote/blocks": "workspace:*",
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@deepnote/cloud": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
