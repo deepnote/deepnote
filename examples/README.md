@@ -113,6 +113,13 @@ OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the dat
 
 See [demo-agent-block.deepnote](./demo-agent-block.deepnote) for an example with MCP server configuration.
 
+### Data app with an AI analyst
+
+[revenue-review-app](./revenue-review-app/) is a quarterly revenue review built as a Deepnote data
+app: filters, KPIs, charts and tables computed by two module notebooks, then an agent block that
+answers the viewer's own question with the same metric definitions. Preview it locally with
+`pnpm example:revenue-review`.
+
 ## What's next?
 
 You can have a look at the other examples in this folder:
@@ -121,5 +128,6 @@ You can have a look at the other examples in this folder:
 - `2_blocks.deepnote` - Examples of different block types
 - `3_integrations.deepnote` - Example with database integrations
 - `demo-agent-block.deepnote` - agent block with MCP server support
+- `revenue-review-app/` - data app with modules and an agent block that answers viewers' questions
 
 For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.
