@@ -331,3 +331,6 @@ textconv
 Tsvg
 gsub
 nullglob
+Metabase
+EMEA
+Dagster
