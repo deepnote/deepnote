@@ -612,6 +612,7 @@ ${c.bold('Exit Codes:')}
     .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
     .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
     .option('--force', 'Publish even when files changed in Deepnote since the sync workspace last synced')
+    .option('--no-app-checks', 'Publish even if the build checks find calls that will fail in Deepnote')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
@@ -624,13 +625,22 @@ ${c.bold('Apps:')}
 
 ${c.bold('App viewer API access:')}
   With API access enabled, the embedded app uses a viewer token that expires after
-  15 minutes. It can read notebook inputs and block metadata (no source) and start detached
-  runs in the hosting project or other projects in the same workspace where the viewer has
-  direct access. Runs in other projects also require execute permission. It can poll the
-  viewer's own runs for ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so features
-  built against a local preview with a personal token can fail when embedded.
-  Gate those paths on an ${c.dim('isEmbedded')} check (${c.dim('window !== window.parent')}): skip or hide them
-  when embedded, and surface a 403 instead of swallowing it.
+  15 minutes. It can read notebook inputs and block metadata (no source), read the viewer's
+  latest app data for a notebook, and start detached runs in the hosting project or other
+  projects in the same workspace where the viewer has direct access. Runs in other projects
+  also require execute permission. It can poll the viewer's own runs for ${c.dim('snapshotBlocks')}.
+  Every other endpoint answers 403.
+
+  Call the API through the app client Deepnote serves at
+  ${c.dim('https://deepnote.com/static/app-client/v1.js')}: it performs the token handshake, refreshes
+  the token, and exposes only the calls a viewer token can make. Load it first in the page's
+  ${c.dim('<head>')} and connect with ${c.dim('Deepnote.connect()')}.
+
+  Before reading the token or calling Deepnote, publish checks the build and stops (exit 2) on
+  calls that will fail in Deepnote: the local development server's routes, API calls without the
+  token handshake, and API paths viewers cannot call. Before uploading, it also stops (exit 1)
+  if the app calls the API but the project's API access is off and ${c.dim('--api-access enabled')} is
+  not given. ${c.dim('--no-app-checks')} skips these checks.
   Details: ${c.underline('https://github.com/deepnote/deepnote/blob/main/docs/deepnote-cli-publish.md')}
 
 ${c.bold('Working with deepnote sync:')}
@@ -666,10 +676,15 @@ ${c.bold('Examples:')}
   ${c.dim('# CI deploy: never touch a sync workspace')}
   $ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
+  ${c.dim('# Publish a build the checks flag anyway')}
+  $ deepnote publish ./dist --project-id <uuid> --no-app-checks
+
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Files uploaded and app sharing enabled
-  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root)
+  ${c.dim('1')}  Upload, pruning, or settings update failed, Deepnote holds unsynced changes, or
+     the app calls the API but the project's API access is off
+  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root),
+     or the build checks found calls that will fail
 `
     })
     .action(createPublishAction(program))

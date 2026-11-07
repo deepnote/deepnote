@@ -46,9 +46,15 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
 
-Omitting `--api-access` preserves its current setting. Before enabling it, implement and verify
-[viewer API access](apps.md#add-viewer-api-access), including token refresh. A personal token in a
-local preview has broader permissions than a hosted viewer token.
+Omitting `--api-access` preserves its current setting. Before enabling it, implement
+[viewer API access](apps.md#add-viewer-api-access).
+
+Publish checks the build before it reads the token or calls Deepnote, and stops (exit 2) when the
+build calls the local development server's routes, calls the Deepnote API without the token
+handshake, or calls API paths a viewer token cannot use. Before uploading, it also stops (exit 1) when
+the app calls the API but the project's API access is off and `--api-access enabled` is not given.
+Fix the app rather than reaching for `--no-app-checks`; that flag is for a check that misread the
+build.
 
 ### Work with a sync workspace
 
@@ -107,12 +113,13 @@ publish again and use the returned URL, which may change.
 
 | Option                           | Use                                                             |
 | -------------------------------- | --------------------------------------------------------------- |
-| `--project-id <uuid>`            | Required target project                                         |
+| `--project-id <uuid>`            | Target project (required)                                       |
 | `--path <prefix>`                | Target directory at or below `_deepnote_static`                 |
 | `--api-access enabled\|disabled` | Change viewer API access; omitted preserves it                  |
 | `--prune`                        | Delete remote files absent from the local build                 |
 | `--sync-root <dir>`              | Use this sync workspace; default searches upward from the build |
 | `--no-sync-root`                 | Skip sync workspace discovery and updates                       |
+| `--no-app-checks`                | Skip the checks for calls that will fail in Deepnote            |
 | `--force`                        | Overwrite changes not yet pulled into the sync workspace        |
 | `--token <token>`                | API token; defaults to `DEEPNOTE_TOKEN`                         |
 | `--url <url>`                    | API origin; defaults to `https://api.deepnote.com`              |

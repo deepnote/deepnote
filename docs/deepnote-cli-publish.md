@@ -103,20 +103,36 @@ deepnote publish ./dist --project-id <project-id> --api-access enabled
 ```
 
 The embedded app can request a viewer token from the Deepnote shell. It can read notebook
-inputs and block metadata and start detached runs in the hosting project or other projects in the
-same workspace where the viewer has direct access. Starting runs in other projects also requires
-execute permission. It can poll that viewer's own runs for `snapshotBlocks`. It cannot read block source, list notebooks or run history, or call other API
-endpoints; unsupported requests return 403.
+inputs and block metadata, read the viewer's latest app data for a notebook, and start detached
+runs in the hosting project or other projects in the same workspace where the viewer has direct
+access. Starting runs in other projects also requires execute permission. It can poll that viewer's
+own runs for `snapshotBlocks`. It cannot read block source, list notebooks or run history, or call
+other API endpoints; unsupported requests return 403.
 
-Use `postMessage` with `deepnote-static-files-api-token-request` to request a token. Pin the shell
-origin when sending and receiving messages, then use the API origin returned with the token.
-Tokens expire after 15 minutes; request a replacement before expiry and on a 401.
-The [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
-demonstrates the handshake and refresh.
+Call the API through the app client Deepnote serves at
+`https://deepnote.com/static/app-client/v1.js`, loaded before any other script in the page's
+`<head>`. It performs the `postMessage` token handshake, sends the token only to the API origin
+returned with it, refreshes it before its 15-minute expiry, and offers only the calls a viewer token
+can make. Connect with `Deepnote.connect()`. The
+[cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
+uses it.
 
 API access requires app sharing and does not grant additional viewers project access. Omitting
-`--api-access` preserves the current setting; use `--api-access disabled` to revoke it. Test the
-hosted app with a viewer token, since a personal token in a local preview has broader permissions.
+`--api-access` preserves the current setting; use `--api-access disabled` to revoke it.
+
+Before it reads your token or contacts Deepnote, `deepnote publish` checks the build and stops with
+exit code `2` if it finds calls that will fail in Deepnote:
+
+- calls to the local development server's routes (`/api/run`, `/api/info`, and so on), which are not
+  published;
+- Deepnote API calls with no token handshake, which will have no credential;
+- Deepnote API paths a viewer token cannot call, which will answer 403.
+
+If the app calls the Deepnote API, publish also stops with exit code `1` before uploading when the
+project's API access is off and `--api-access enabled` is not given, since viewers would get no token.
+
+The checks read the build's string literals: they can miss calls assembled at runtime, and they can
+mistake text for a call. Pass `--no-app-checks` to publish anyway.
 
 ### Remove files from an earlier build
 
@@ -205,18 +221,19 @@ to check its status again.
 
 `deepnote publish <dir>`:
 
-| Option                           | Description                                            | Default                                |
-| -------------------------------- | ------------------------------------------------------ | -------------------------------------- |
-| `--project-id <id>`              | Target project (required)                              |                                        |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`        | `_deepnote_static`                     |
-| `--api-access enabled\|disabled` | Change viewer API access                               | unchanged                              |
-| `--prune`                        | Delete remote files absent from the build              | `false`                                |
-| `--sync-root <dir>`              | Sync workspace to update                               | search upward from the build directory |
-| `--no-sync-root`                 | Skip sync workspace discovery and updates              | `false`                                |
-| `--force`                        | Overwrite changes not pulled into the workspace        | `false`                                |
-| `--token <token>`                | API token                                              | `DEEPNOTE_TOKEN`                       |
-| `--url <url>`                    | API origin                                             | `https://api.deepnote.com`             |
-| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr | `false`                                |
+| Option                           | Description                                                | Default                                |
+| -------------------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| `--project-id <id>`              | Target project (required)                                  |                                        |
+| `--path <prefix>`                | Target directory at or below `_deepnote_static`            | `_deepnote_static`                     |
+| `--api-access enabled\|disabled` | Change viewer API access                                   | unchanged                              |
+| `--prune`                        | Delete remote files absent from the build                  | `false`                                |
+| `--sync-root <dir>`              | Sync workspace to update                                   | search upward from the build directory |
+| `--no-sync-root`                 | Skip sync workspace discovery and updates                  | `false`                                |
+| `--no-app-checks`                | Publish even if the build checks find calls that will fail | checks run                             |
+| `--force`                        | Overwrite changes not pulled into the workspace            | `false`                                |
+| `--token <token>`                | API token                                                  | `DEEPNOTE_TOKEN`                       |
+| `--url <url>`                    | API origin                                                 | `https://api.deepnote.com`             |
+| `-q, --quiet`                    | Suppress progress and results; errors remain on stderr     | `false`                                |
 
 `deepnote streamlit publish <entrypoint>`:
 
@@ -230,11 +247,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                                                                                                | `deepnote streamlit publish`                   |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`  | Files uploaded and sharing enabled                                                                                                                                                | App running, or created/found with `--no-wait` |
+| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes; or an app that calls the API in a project with API access off                                    | A request failed or startup timed out          |
+| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace, calls that will fail in Deepnote (unless `--no-app-checks`) | Invalid arguments or missing token             |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.

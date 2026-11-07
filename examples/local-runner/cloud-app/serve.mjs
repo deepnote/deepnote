@@ -1,5 +1,7 @@
 // Serves a static preview of the cloud app. It provides zero API routes and no notebook execution.
-// This only exists to wire /snapshot-reader.js from the built package without a copy step.
+//
+// The page asks the Deepnote page embedding it for a viewer token, so opened directly it renders its
+// layout and then reports that it has no token. Publish it to run notebooks.
 
 import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
@@ -8,32 +10,16 @@ import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-const routes = {
-  '/': [join(here, 'index.html'), 'text/html; charset=utf-8'],
-  '/snapshot-reader.js': [
-    join(here, '..', '..', '..', 'packages', 'local-runner', 'dist', 'snapshot-reader.iife.js'),
-    'text/javascript; charset=utf-8',
-  ],
-}
-
 const server = createServer(async (req, res) => {
-  const route = routes[(req.url ?? '/').split('?')[0]]
-  if (!route) {
+  if ((req.url ?? '/').split('?')[0] !== '/') {
     res.writeHead(404).end('Not found')
     return
   }
   try {
-    const body = await readFile(route[0])
-    res.writeHead(200, { 'content-type': route[1] }).end(body)
+    const body = await readFile(join(here, 'index.html'))
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(body)
   } catch (err) {
-    const missingReader = route[0].endsWith('snapshot-reader.iife.js')
-    res
-      .writeHead(500)
-      .end(
-        missingReader
-          ? 'snapshot-reader not built. Run: pnpm --filter @deepnote/local-runner build'
-          : `Failed to read ${route[0]}: ${err instanceof Error ? err.message : String(err)}`
-      )
+    res.writeHead(500).end(`Failed to read index.html: ${err instanceof Error ? err.message : String(err)}`)
   }
 })
 
