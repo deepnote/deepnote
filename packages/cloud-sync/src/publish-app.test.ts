@@ -553,6 +553,131 @@ describe('publishApp', () => {
       expect((error as PublishError).code).toBeUndefined()
       expect((error as PublishError).hint).toBeUndefined()
     })
+
+    describe('overlapping publish directory', () => {
+      async function writeOverlapWorkspace() {
+        const { root } = await writeWorkspace()
+        return { root, mirrorDir: join(await fs.realpath(root), 'Alpha', '.files', '_deepnote_static') }
+      }
+
+      async function overlapRefusal(options: Parameters<typeof publish>[0], mirrorDir: string) {
+        const error = await rejection(publish(options).attempt)
+
+        expect(error).toBeInstanceOf(PublishError)
+        expect(error).toMatchObject({
+          reason: 'invalid-input',
+          message: expect.stringContaining(`overlaps ${mirrorDir}`),
+        })
+        expect((error as PublishError).message).toContain(`Refusing to publish ${options.dir}:`)
+        expect((error as PublishError).code).toBeUndefined()
+        expect((error as PublishError).hint).toBeUndefined()
+        expect(mockedGetProject).not.toHaveBeenCalled()
+        return error as PublishError
+      }
+
+      it('refuses the mirror itself', async () => {
+        const { mirrorDir } = await writeOverlapWorkspace()
+        await writeFiles(mirrorDir, { 'index.html': 'hi' })
+
+        await overlapRefusal({ dir: mirrorDir }, mirrorDir)
+      })
+
+      it('refuses a directory below the mirror, naming the app source and the mirror to keep clear', async () => {
+        const { mirrorDir } = await writeOverlapWorkspace()
+        const dir = join(mirrorDir, 'dist')
+        await writeFiles(dir, { 'index.html': 'hi' })
+
+        const error = await overlapRefusal({ dir, targetPath: '_deepnote_static/v2' }, mirrorDir)
+
+        expect(error.message).toBe(
+          `Refusing to publish ${dir}: it overlaps ${mirrorDir}, the local copy of the project's app folder, ` +
+            'where publishing and working-file sync replace and delete files. ' +
+            `Keep the app source and its build output outside ${mirrorDir}, ` +
+            'and publish the build output directory from there.'
+        )
+      })
+
+      it('refuses a directory that contains a mirror that does not exist yet', async () => {
+        const { root, mirrorDir } = await writeOverlapWorkspace()
+        const dir = join(root, 'Alpha', '.files')
+        await writeFiles(dir, { 'app/index.html': 'hi' })
+
+        await overlapRefusal({ dir }, mirrorDir)
+      })
+
+      it('refuses a directory below the mirror of a project in a nested folder', async () => {
+        const { root } = await writeWorkspace()
+        await fs.mkdir(join(root, 'Team', 'Alpha'), { recursive: true })
+        await fs.writeFile(
+          join(root, '.deepnote-sync.json'),
+          JSON.stringify({
+            version: 1,
+            projects: { p1: { dir: 'Team/Alpha', notebooks: ['main.deepnote'], contentHash: '0'.repeat(64) } },
+          })
+        )
+        const mirrorDir = join(await fs.realpath(root), 'Team', 'Alpha', '.files', '_deepnote_static')
+        const dir = join(mirrorDir, 'dist')
+        await writeFiles(dir, { 'index.html': 'hi' })
+
+        await overlapRefusal({ dir }, mirrorDir)
+      })
+
+      it('refuses a symlink to a directory below the mirror when the sync root is discovered', async () => {
+        const { root, mirrorDir } = await writeOverlapWorkspace()
+        await writeFiles(join(mirrorDir, 'dist'), { 'index.html': 'hi' })
+        const dir = join(root, 'link')
+        await fs.symlink(join(mirrorDir, 'dist'), dir)
+
+        await overlapRefusal({ dir }, mirrorDir)
+      })
+
+      it('refuses a directory below the mirror when the sync root is a symlink', async () => {
+        const { root, mirrorDir } = await writeOverlapWorkspace()
+        const dir = join(mirrorDir, 'dist')
+        await writeFiles(dir, { 'index.html': 'hi' })
+        const syncRoot = join(tempDir, 'workspace-link')
+        await fs.symlink(root, syncRoot)
+
+        await overlapRefusal({ dir, syncRoot }, mirrorDir)
+      })
+
+      it('refuses a directory below the mirror whose name starts with two dots', async () => {
+        const { mirrorDir } = await writeOverlapWorkspace()
+        const dir = join(mirrorDir, '..dist')
+        await writeFiles(dir, { 'index.html': 'hi' })
+
+        await overlapRefusal({ dir }, mirrorDir)
+      })
+
+      it('refuses a directory below a case variant of the mirror', async () => {
+        const { root, mirrorDir } = await writeOverlapWorkspace()
+        const dir = join(root, 'Alpha', '.files', '_DEEPNOTE_STATIC', 'dist')
+        await writeFiles(dir, { 'index.html': 'hi' })
+
+        await overlapRefusal({ dir }, mirrorDir)
+      })
+
+      it('publishes a sibling directory whose name starts with the mirror name', async () => {
+        const { root } = await writeOverlapWorkspace()
+        const dir = join(root, 'Alpha', '.files', '_deepnote_static-src')
+        await writeFiles(dir, { 'index.html': 'hi' })
+
+        const result = await publish({ dir }).attempt
+
+        expect(result.uploaded).toBe(1)
+      })
+
+      it('publishes a directory below the mirror when syncRoot is false', async () => {
+        const { mirrorDir } = await writeOverlapWorkspace()
+        const dir = join(mirrorDir, 'dist')
+        await writeFiles(dir, { 'index.html': 'hi' })
+
+        const result = await publish({ dir, syncRoot: false }).attempt
+
+        expect(result.uploaded).toBe(1)
+        expect(result.syncRoot).toBeUndefined()
+      })
+    })
   })
 
   describe('input errors', () => {
