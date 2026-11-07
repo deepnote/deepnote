@@ -1,8 +1,4 @@
-import {
-  type DatabaseIntegrationConfig,
-  getEnvironmentVariablesForIntegrations,
-  isFederatedAuthMethod,
-} from '@deepnote/database-integrations'
+import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
 import {
   IntegrationAuthenticationError,
   resolveFederatedSqlEnvVars,
@@ -10,8 +6,8 @@ import {
 import { debug } from '../output'
 
 /**
- * Injects integration env vars into process.env and returns their names: the static ones for
- * non-federated `integrations`, and a `SQL_<ID>` with a freshly minted access token for federated
+ * Injects integration env vars into process.env and returns their names: the static ones for all
+ * `integrations`, and a `SQL_<ID>` with a freshly minted access token for federated
  * BigQuery integrations listed in `sqlIntegrationIds`. With `refreshFederatedTokens: false` (dry run),
  * their stored credential is only checked.
  *
@@ -27,14 +23,9 @@ export async function injectIntegrationEnvVarsAndCheckCredentials(
     return []
   }
 
-  // The generator exports every metadata field, and federated metadata holds the OAuth client secret.
-  const { envVars, errors } = getEnvironmentVariablesForIntegrations(
-    integrations.filter(
-      ({ metadata }) =>
-        !('authMethod' in metadata && metadata.authMethod != null && isFederatedAuthMethod(metadata.authMethod))
-    ),
-    { projectRootDirectory: workingDirectory }
-  )
+  const { envVars, errors } = getEnvironmentVariablesForIntegrations(integrations, {
+    projectRootDirectory: workingDirectory,
+  })
 
   // Log any errors from env var generation
   for (const error of errors) {
