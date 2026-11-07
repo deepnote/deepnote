@@ -64,6 +64,9 @@ It resolves to an object with:
   returns them.
 - The project's name is the first notebook's `project.name`, or its id when it has no notebooks.
 - The project's working files are everything under `.files/`.
+- Seed working files by copying them into `.files/`, not by linking them. The mock follows
+  symbolic links under `.files/`, so a request through one can read or write outside `rootDir`.
+  Deepnote Cloud has no symbolic links.
 
 Editing these files changes the project "in Deepnote". A test can do that between requests, or
 during one from `onRequest`.
@@ -81,12 +84,10 @@ during one from `onRequest`.
 | `POST /v2/files`                       | A multipart upload to `.files/<path>`, with `overwrite`.                                                                                |
 | `DELETE /v2/files`                     | Deletes `.files/<path>`.                                                                                                                |
 
-An import is validated as the
-[project import contract](https://github.com/deepnote/deepnote/blob/main/packages/cloud/docs/project-import-contract.md)
-describes. It answers 422 for an archive that breaks the document rules and 409 when
-`baseModifiedAt` or `baseContentHash` does not match the project, unless `force=true`. A request
-without an `Authorization: Bearer …` header gets a 401, an unknown project a 404, and an unknown
-route a 404.
+An import answers 422 for an archive entry that is not a top-level `.deepnote` file, a document of
+another project, or a document without exactly one notebook. It answers 409 when `baseModifiedAt`
+or `baseContentHash` does not match the project, unless `force=true`. A request without an
+`Authorization: Bearer …` header gets a 401, an unknown project a 404, and an unknown route a 404.
 
 ## Command line
 
@@ -113,12 +114,22 @@ API base URL: http://127.0.0.1:40123
 - `POST /v2/files` accepts multipart uploads only.
 - An upload to an existing path without `overwrite` is stored as `<stem> (<n>)<ext>`, a format of
   the mock's own.
+- Requests are not serialized per project, so concurrent requests to one project can interleave.
+  Two imports with the same `baseContentHash` or `baseModifiedAt` can both pass the check and
+  answer 200, the later write winning. Two uploads to the same path without `overwrite` can both be
+  answered with that path, keeping only the last one's bytes. A request that reads a project during
+  an import can see a partly written notebook file. Send a project's requests one at a time, as
+  `@deepnote/cloud-sync` does.
 - Responses carry no `Content-Disposition` or `X-Content-Type-Options` header.
 - `notebooks` and `integrations` are always `[]` in `GET /v2/projects` and
   `GET /v2/projects/{projectId}`.
+- An import checks only part of the
+  [project import contract](https://github.com/deepnote/deepnote/blob/main/packages/cloud/docs/project-import-contract.md).
+  It does not check that the documents agree on `project.name` or on the integrations, and an
+  archive that is not a readable ZIP gets a 500.
 - Documents are read with the bundled `@deepnote/blocks` schema. Importing a document it rejects,
-  such as one with a newer block type, gets a 422, and a project whose first notebook it rejects
-  makes `GET /v2/projects` answer 500.
+  such as one with a newer block type, gets a 500, as does `GET /v2/projects` for a project whose
+  first notebook it rejects.
 
 ## Regenerating the API types
 

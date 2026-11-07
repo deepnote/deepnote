@@ -26,7 +26,6 @@ interface DocumentOptions {
   projectName?: string
   notebooks?: { id: string; name: string }[]
   modifiedAt?: string | null
-  integrationIds?: string[]
 }
 
 function deepnoteDocument({
@@ -34,7 +33,6 @@ function deepnoteDocument({
   projectName = 'Alpha',
   notebooks = [{ id: 'nb-main', name: 'Main' }],
   modifiedAt = '2026-01-01T00:00:00.000Z',
-  integrationIds,
 }: DocumentOptions = {}): string {
   const lines = [
     'version: 1.0.0',
@@ -44,12 +42,6 @@ function deepnoteDocument({
     'project:',
     `  id: ${projectId}`,
     `  name: ${projectName}`,
-    ...(integrationIds
-      ? [
-          '  integrations:',
-          ...integrationIds.flatMap(id => [`    - id: ${id}`, `      name: ${id}`, '      type: pgsql']),
-        ]
-      : []),
     notebooks.length === 0 ? '  notebooks: []' : '  notebooks:',
     ...notebooks.flatMap(({ id, name }) => [`    - id: ${id}`, `      name: ${name}`, '      blocks: []']),
   ]
@@ -164,14 +156,6 @@ describe('startMockDeepnoteCloud', () => {
       message: 'The archive may contain only .deepnote files',
     },
     {
-      reason: 'a document without a project',
-      files: [
-        { filename: 'main.deepnote', content: MAIN_EDITED },
-        { filename: 'bad.deepnote', content: "version: 1.0.0\nmetadata:\n  createdAt: '2026-01-01T00:00:00.000Z'\n" },
-      ],
-      message: 'Failed to parse the Deepnote file: project: Invalid input: expected object, received undefined.',
-    },
-    {
       reason: 'a document for another project',
       files: [
         { filename: 'main.deepnote', content: MAIN_EDITED },
@@ -201,28 +185,6 @@ describe('startMockDeepnoteCloud', () => {
         },
       ],
       message: 'A document must contain exactly one notebook',
-    },
-    {
-      reason: 'documents with different project names',
-      files: [
-        { filename: 'main.deepnote', content: MAIN_EDITED },
-        {
-          filename: 'other.deepnote',
-          content: deepnoteDocument({ projectName: 'Renamed', notebooks: [{ id: 'nb-other', name: 'Other' }] }),
-        },
-      ],
-      message: 'The documents disagree on the project name',
-    },
-    {
-      reason: 'documents with different integrations',
-      files: [
-        { filename: 'main.deepnote', content: deepnoteDocument({ integrationIds: ['int-a'] }) },
-        {
-          filename: 'other.deepnote',
-          content: deepnoteDocument({ notebooks: [{ id: 'nb-other', name: 'Other' }], integrationIds: ['int-b'] }),
-        },
-      ],
-      message: 'The documents disagree on the integrations',
     },
   ])('rejects an import with $reason with 422 and keeps the notebook files', async ({ files, message }) => {
     const dir = await seedProject(ALPHA_ID, { 'main.deepnote': MAIN })
@@ -369,11 +331,8 @@ describe('startMockDeepnoteCloud', () => {
     expect((await getProjectDetail(cloud.url, TOKEN, BETA_ID)).files).toEqual([])
   })
 
-  it('downloads a working file, and rejects a missing file with 404 and a directory or an escaping path with 400', async () => {
-    await seedProject(ALPHA_ID, {
-      '.files/报告.csv': new Uint8Array([0x00, 0xff, 0x0a]),
-      '.files/reports/q1.csv': 'q1',
-    })
+  it('downloads a working file, and rejects a missing file with 404 and an escaping path with 400', async () => {
+    await seedProject(ALPHA_ID, { '.files/报告.csv': new Uint8Array([0x00, 0xff, 0x0a]) })
 
     expect(await downloadProjectFile(cloud.url, TOKEN, ALPHA_ID, '报告.csv')).toEqual(
       new Uint8Array([0x00, 0xff, 0x0a])
@@ -381,10 +340,6 @@ describe('startMockDeepnoteCloud', () => {
     await expect(downloadProjectFile(cloud.url, TOKEN, ALPHA_ID, 'missing.csv')).rejects.toMatchObject({
       statusCode: 404,
       message: 'File not found',
-    })
-    await expect(downloadProjectFile(cloud.url, TOKEN, ALPHA_ID, 'reports')).rejects.toMatchObject({
-      statusCode: 400,
-      message: 'Path is not a file',
     })
     await expect(downloadProjectFile(cloud.url, TOKEN, ALPHA_ID, '../x')).rejects.toMatchObject({
       statusCode: 400,
@@ -434,16 +389,6 @@ describe('startMockDeepnoteCloud', () => {
 
     expect(uploaded).toMatchObject({ path: 'reports/q1/data.csv', size: 4 })
     expect(await fs.readFile(path.join(dir, '.files/reports/q1/data.csv'), 'utf8')).toBe('a,b\n')
-  })
-
-  it('rejects an overwrite upload onto a directory with 409 and keeps the directory', async () => {
-    const dir = await seedProject(ALPHA_ID, { '.files/reports/q1.csv': 'q1' })
-
-    const response = await uploadWithOverwrite('reports', 'not a directory')
-
-    expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ message: 'Path is a directory' })
-    expect(await fs.readFile(path.join(dir, '.files/reports/q1.csv'), 'utf8')).toBe('q1')
   })
 
   it('deletes a working file once and never deletes a directory', async () => {

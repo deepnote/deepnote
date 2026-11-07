@@ -6,6 +6,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
+import { buffer } from 'node:stream/consumers'
 import { type DeepnoteFile, deserializeDeepnoteFile } from '@deepnote/blocks'
 import { unzipSync, zipSync } from 'fflate'
 import type { components } from './deepnote-cloud-api.generated'
@@ -15,7 +16,6 @@ type Schemas = components['schemas']
 const PROJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const NOTEBOOK_FILE = /^[^/\\]+\.deepnote$/
 const FILES_DIR = '.files'
-const MAX_BODY_BYTES = 100 * 1024 * 1024
 const EPOCH = '1970-01-01T00:00:00.000Z'
 
 /** The workspace name `GET /v2/me` returns. */
@@ -131,22 +131,6 @@ async function readNotebookFiles(projectDir: string): Promise<NotebookFile[]> {
   return Promise.all(
     filenames.map(async filename => ({ filename, content: await fs.readFile(path.join(projectDir, filename)) }))
   )
-}
-
-async function readBody(req: IncomingMessage): Promise<Buffer> {
-  const chunks: Buffer[] = []
-  let size = 0
-  // Draining past the limit lets the client read the 413 instead of a reset connection.
-  for await (const chunk of req) {
-    size += (chunk as Buffer).length
-    if (size <= MAX_BODY_BYTES) {
-      chunks.push(chunk as Buffer)
-    }
-  }
-  if (size > MAX_BODY_BYTES) {
-    throw new HttpError(413, 'Request body too large')
-  }
-  return Buffer.concat(chunks)
 }
 
 function sendJson(res: ServerResponse, status: number, body: object): void {
@@ -273,41 +257,22 @@ async function exportProject({ rootDir, res, pathProjectId }: RouteRequest): Pro
   sendBytes(res, 'application/zip', zipSync(Object.fromEntries(files.map(file => [file.filename, file.content]))))
 }
 
-function parseArchiveDocument(content: Uint8Array): DeepnoteFile {
-  try {
-    return parseDocument(content)
-  } catch (error) {
-    throw new HttpError(422, error instanceof Error ? error.message : String(error))
-  }
-}
-
 type ImportedNotebook = Schemas['ImportProjectResponse']['notebooks'][number]
 
 function importedNotebooks(document: DeepnoteFile, action: ImportedNotebook['action']): ImportedNotebook[] {
   return document.project.notebooks.map(({ id, name }) => ({ id, name, action }))
 }
 
-function integrationIds(document: DeepnoteFile): string | undefined {
-  const { integrations } = document.project
-  return integrations && JSON.stringify([...new Set(integrations.map(({ id }) => id))].sort())
-}
-
 async function importProject({ rootDir, req, res, requestUrl, pathProjectId }: RouteRequest): Promise<void> {
   const dir = await projectDir(rootDir, pathProjectId)
   const projectId = path.basename(dir)
-  const body = await readBody(req)
+  const body = await buffer(req)
 
-  let entries: Record<string, Uint8Array>
-  try {
-    entries = unzipSync(body)
-  } catch {
-    throw new HttpError(422, 'The archive is not a readable ZIP')
-  }
-  const archive = Object.entries(entries).map(([filename, content]) => ({ filename, content }))
+  const archive = Object.entries(unzipSync(body)).map(([filename, content]) => ({ filename, content }))
   if (!archive.every(({ filename }) => NOTEBOOK_FILE.test(filename))) {
     throw new HttpError(422, 'The archive may contain only .deepnote files')
   }
-  const documents = archive.map(file => ({ ...file, document: parseArchiveDocument(file.content) }))
+  const documents = archive.map(file => ({ ...file, document: parseDocument(file.content) }))
 
   const projects = documents.map(({ document }) => document.project)
   if (projects.some(project => project.id !== projectId)) {
@@ -315,15 +280,6 @@ async function importProject({ rootDir, req, res, requestUrl, pathProjectId }: R
   }
   if (projects.some(project => project.notebooks.length !== 1)) {
     throw new HttpError(422, 'A document must contain exactly one notebook')
-  }
-  if (new Set(projects.map(project => project.name)).size > 1) {
-    throw new HttpError(422, 'The documents disagree on the project name')
-  }
-  const declaredIntegrations = documents
-    .map(({ document }) => integrationIds(document))
-    .filter(ids => ids !== undefined)
-  if (new Set(declaredIntegrations).size > 1) {
-    throw new HttpError(422, 'The documents disagree on the integrations')
   }
 
   const current = await readNotebookFiles(dir)
@@ -365,18 +321,14 @@ async function importProject({ rootDir, req, res, requestUrl, pathProjectId }: R
 async function downloadFile({ rootDir, res, requestUrl }: RouteRequest): Promise<void> {
   const dir = await projectDir(rootDir, requestUrl.searchParams.get('projectId'))
   const target = path.join(dir, FILES_DIR, workingFilePath(requestUrl.searchParams.get('path')))
-  const stat = await statIfExists(target)
-  if (!stat) {
+  if (!(await statIfExists(target))) {
     throw new HttpError(404, 'File not found')
-  }
-  if (stat.isDirectory()) {
-    throw new HttpError(400, 'Path is not a file')
   }
   sendBytes(res, 'application/octet-stream', await fs.readFile(target))
 }
 
 async function uploadFile({ rootDir, req, res, requestUrl }: RouteRequest): Promise<void> {
-  const body = await readBody(req)
+  const body = await buffer(req)
   let form: FormData
   try {
     form = await new Request(requestUrl, {
@@ -398,9 +350,6 @@ async function uploadFile({ rootDir, req, res, requestUrl }: RouteRequest): Prom
   const requested = workingFilePath(requestedPath)
   const existing = await statIfExists(path.join(filesDir, requested))
   const overwrite = form.get('overwrite') === 'true'
-  if (existing && overwrite && existing.isDirectory()) {
-    throw new HttpError(409, 'Path is a directory')
-  }
   const stored = existing && !overwrite ? await freeWorkingFilePath(filesDir, requested) : requested
 
   const target = path.join(filesDir, stored)
@@ -481,10 +430,9 @@ export async function startMockDeepnoteCloud(options: MockDeepnoteCloudOptions =
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-  const openResponses = new Set<ServerResponse>()
   server.on('request', (req: IncomingMessage, res: ServerResponse) => {
-    openResponses.add(res)
-    res.on('close', () => openResponses.delete(res))
+    // `close()` would wait out the keep-alive timeout of a connection with a request in flight.
+    res.setHeader('Connection', 'close')
     void handleRequest({ rootDir, url }, options.onRequest, req, res)
   })
 
@@ -492,12 +440,7 @@ export async function startMockDeepnoteCloud(options: MockDeepnoteCloudOptions =
     rootDir,
     url,
     stop: async () => {
-      const closed = new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())))
-      // `close()` drops only the connections idle right now; one whose request is still open would
-      // otherwise keep the server alive until its keep-alive timeout.
-      await Promise.all([...openResponses].map(res => once(res, 'close')))
-      server.closeAllConnections()
-      await closed
+      await new Promise<void>((resolve, reject) => server.close(error => (error ? reject(error) : resolve())))
       if (options.rootDir === undefined) {
         await fs.rm(rootDir, { recursive: true, force: true })
       }
