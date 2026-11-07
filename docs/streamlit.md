@@ -137,6 +137,8 @@ You can find the integration UUID in the URL of the integration's settings page 
 
 The first time a viewer opens an app that uses an OAuth integration they have not authenticated yet, the helper renders an **Authenticate &lt;integration name&gt;** button that opens the same OAuth flow used by notebooks and published apps. After completing the sign-in, they reload the app and the query runs with their identity. Snowflake queries automatically use each viewer's username and (for Okta-mapped roles) their custom-attribute role.
 
+One app server serves every viewer, so Streamlit's cache is shared between them. Don't cache a result that depends on the viewer's credentials without the viewer in the cache key; see [caching in projects with private outputs](/docs/private-outputs#streamlit-apps).
+
 If you need lower-level control, `get_federated_auth_token(integration_id)` returns the raw `{integrationType, accessToken, connectionParams}` payload, and `prompt_federated_auth(integration_id)` renders the authentication prompt without opening a connection.
 
 ## Customizing app environment

@@ -13,7 +13,7 @@ running before people need it, upgrade it for a heavy job, and switch it off so 
 Detached [runs](/docs/deepnote-api-runs) and [interactive sessions](/docs/deepnote-api-sessions)
 start machines of their own, so you do not need to start the project machine for them.
 
-In a project that runs privately, the editor and live runs use each person's own machine. `GET`,
+In a project that [runs privately](/docs/private-outputs), the editor and live runs use each person's own machine. `GET`,
 `start`, `stop` and `restart` act on the machine of whoever calls them. `PATCH` changes the project's
 settings, which a person's machine picks up the next time it starts; its `restart` option and its
 `409` refer to the project's shared machine. Hosted Streamlit apps stay on the project's machine.
