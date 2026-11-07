@@ -32,7 +32,6 @@ let logged: string[]
 beforeEach(async () => {
   cloud = await startMockDeepnoteCloud()
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-cli-cloud-mock-'))
-  process.exitCode = undefined
   logged = []
   vi.spyOn(console, 'log').mockImplementation(message => {
     logged.push(String(message))
@@ -41,7 +40,6 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  process.exitCode = undefined
   vi.restoreAllMocks()
   resetOutputConfig()
   await cloud.stop()
