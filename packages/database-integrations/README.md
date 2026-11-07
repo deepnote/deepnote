@@ -68,7 +68,7 @@ This package provides TypeScript types and utilities for working with Deepnote S
     - returns:
       - `envVars: Array<EnvVar>` – List of environment variables to be set when executing a notebook that uses the integrations
         - The variable names produced have the following format:
-          - `*INTEGRATION_NAME*_*METADATA_KEY*` - for each metadata field of the integration, except `caCertificateText` (the kernel receives the certificate as a file path, not as text) and, for integrations whose `metadata.authMethod` is a federated auth method, the fields that `getSecretFieldPaths` lists for the integration's type
+          - `*INTEGRATION_NAME*_*METADATA_KEY*` - for each metadata field of the integration
           - `SQL_*INTEGRATION_ID*` - SQL Alchemy config for each SQL integration
       - `errors: Array<Error>` – List of errors that occurred when generating the environment variables. These are not thrown to allow partial functionality, even when some integrations are misconfigured.
   - `getSqlAlchemyInput(sqlIntegration: SqlIntegrationConfig, params: { projectRootDirectory: string, snowflakePartnerIdentifier?: string })` – Creates a SQL Alchemy config for a SQL integration, used to connect to the database from SQL blocks. This is used internally within `getEnvironmentVariablesForIntegrations()`.
