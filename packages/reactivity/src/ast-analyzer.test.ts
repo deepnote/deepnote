@@ -41,6 +41,84 @@ describe('AstAnalyzer', () => {
       ])
     })
 
+    it('should mark only code blocks as able to change the variables they use', async () => {
+      const mockBlocks = [
+        { id: '1', type: 'code', content: 'df = 1', blockGroup: 'a', sortingKey: 'a' },
+        { id: '2', type: 'sql', content: 'SELECT * FROM df', blockGroup: 'a', sortingKey: 'b' },
+        {
+          id: '3',
+          type: 'visualization',
+          content: '',
+          metadata: { deepnote_variable_name: 'df' },
+          blockGroup: 'a',
+          sortingKey: 'c',
+        },
+        {
+          id: '4',
+          type: 'big-number',
+          content: '',
+          metadata: { deepnote_big_number_value: 'df' },
+          blockGroup: 'a',
+          sortingKey: 'd',
+        },
+      ] as DeepnoteBlock[]
+
+      const result = await getBlockDependencies(mockBlocks)
+
+      expect(result.map(block => [block.id, block.canMutateUsedVariables])).toEqual([
+        ['1', true],
+        ['2', false],
+        ['3', false],
+        ['4', false],
+      ])
+    })
+
+    it('should mark notebook-function blocks as able to change the variables they use', async () => {
+      const mockBlocks = [
+        {
+          id: '1',
+          type: 'notebook-function',
+          content: '',
+          metadata: { function_notebook_inputs: { a: { variable_name: 'df' } } },
+          blockGroup: 'a',
+          sortingKey: 'a',
+        },
+      ] as unknown as DeepnoteBlock[]
+
+      const result = await getBlockDependencies(mockBlocks)
+
+      expect(result).toEqual([
+        expect.objectContaining({ id: '1', usedVariables: ['df'], canMutateUsedVariables: true }),
+      ])
+    })
+
+    it.each([
+      ['a sanitized name', { deepnote_variable_name: 'my df' }, ['my_df']],
+      ['no metadata', undefined, []],
+      ['no variable name', {}, []],
+      ['an empty name', { deepnote_variable_name: '' }, []],
+      ['a whitespace name', { deepnote_variable_name: '   ' }, []],
+      ['a name with no valid characters', { deepnote_variable_name: '123' }, []],
+      ['a non-string name', { deepnote_variable_name: 5 }, []],
+    ])('should read the DataFrame of chart and pivot-table blocks with %s', async (_, metadata, usedVariables) => {
+      const mockBlocks = ['visualization', 'pivot-table'].map((type, index) => ({
+        id: String(index + 1),
+        type,
+        content: '',
+        metadata,
+        blockGroup: 'a',
+        sortingKey: String(index),
+      })) as DeepnoteBlock[]
+
+      const result = await getBlockDependencies(mockBlocks)
+
+      expect(result).toEqual([
+        expect.objectContaining({ id: '1', definedVariables: [], usedVariables, canMutateUsedVariables: false }),
+        expect.objectContaining({ id: '2', definedVariables: [], usedVariables, canMutateUsedVariables: false }),
+      ])
+      expect(result.every(block => block.error === undefined)).toBe(true)
+    })
+
     it('should handle syntax errors in code blocks', async () => {
       const mockBlocks = [
         { id: '1', type: 'code', content: 'a = ', blockGroup: 'a', sortingKey: 'a' },

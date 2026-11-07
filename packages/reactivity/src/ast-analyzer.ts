@@ -18,6 +18,8 @@ const AST_ANALYZER_SUPPORTED_CELL_TYPES_LIST = [
   'sql',
   'button',
   'big-number',
+  'visualization',
+  'pivot-table',
   'notebook-function',
   'input-text',
   'input-textarea',
@@ -38,6 +40,12 @@ export interface BlockContentDepsWithOrder {
   importedModules?: string[]
   importedPackages?: string[]
   linesOfCode?: number
+  /**
+   * Whether the block can change the variables it uses (code and notebook-function blocks, e.g. `df["a"] = 1`).
+   * Missing means true, so dependencies computed by older versions keep their behavior. Callers that cache
+   * dependencies must keep this field, or read-only blocks act as producers again.
+   */
+  canMutateUsedVariables?: boolean
   error?: {
     type: string
     message: string
@@ -55,6 +63,7 @@ const AstAnalyzerItemSchema = z.object({
   importedModules: z.array(z.string()).optional(),
   importedPackages: z.array(z.string()).optional(),
   linesOfCode: z.number().optional(),
+  canMutateUsedVariables: z.boolean().optional(),
   error: z
     .object({
       type: z.string(),
