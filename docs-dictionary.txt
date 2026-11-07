@@ -323,6 +323,14 @@ quarto
 reticulate
 dedent
 dedenting
+urlencode
+vCpus
+elif
+difftool
+textconv
+Tsvg
+gsub
+nullglob
 Metabase
 EMEA
 Dagster
