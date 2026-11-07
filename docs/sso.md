@@ -47,11 +47,12 @@ Deepnote supports directory sync via SCIM. When you sign up for the Enterprise p
 
 Deepnote provides a selection of pre-defined groups that can be used within your directory. When users are assigned to these groups, they are automatically assigned the corresponding role in Deepnote. Users who don’t belong to a group will be assigned the **Viewer** role. All currently supported groups are listed in the template below.
 
-| IdP Group        | Deepnote role |
-| ---------------- | ------------- |
-| Deepnote Viewer  | Viewer        |
-| Deepnote Editors | Editor        |
-| Deepnote Admins  | Admin         |
+| IdP Group                           | Deepnote role   |
+| ----------------------------------- | --------------- |
+| Deepnote Viewer or Deepnote Viewers | Viewer          |
+| Deepnote Restricted Users           | Restricted user |
+| Deepnote Editors                    | Editor          |
+| Deepnote Admins                     | Admin           |
 
 For role assignment to work properly, users must be direct members of the group. This means that **nested groups are not supported**.
 
