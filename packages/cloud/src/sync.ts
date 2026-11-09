@@ -41,7 +41,7 @@ export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
 const MAX_RATE_LIMIT_RETRIES = 5
 const MAX_RATE_LIMIT_WAIT_MS = 60_000
 
-/** Reserved project-file directory for static-site content. */
+/** Reserved project-file directory for data app files. */
 export const PROJECT_STATIC_ROOT = '_deepnote_static'
 
 /**

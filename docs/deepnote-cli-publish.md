@@ -151,8 +151,9 @@ Invalid local paths, conflicting destination paths, `.env` files, or files over 
 directory stop the command before uploads, with exit code `2`. Each local file is read before its
 remote copy is deleted and replaced.
 
-If an upload fails, successful uploads remain in place, the app is not published, and remaining stale
-files are not pruned. The command reports the failures and exits with code `1`. Fix the reported
+If an upload fails, successful uploads remain in place, the app keeps its previous publish state, and
+remaining stale files are not pruned. An app that was already published stays published and serves the
+partly updated files. The command reports the failures and exits with code `1`. Fix the reported
 errors and publish again. Replacement uses a delete followed by an upload, so an overwritten file
 is briefly unavailable.
 

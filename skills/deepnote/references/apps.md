@@ -66,7 +66,7 @@ directory's `index.html`. Other paths serve exact filenames, so link to `about.h
 
 ### Add viewer API access
 
-A published data app always has viewer API access. When it needs notebook inputs or runs, use the token handshake in
+A data app has viewer API access by default. When it needs notebook inputs or runs, use the token handshake in
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app): request a token from the Deepnote shell over `postMessage`, pin
 the shell origin when sending and receiving messages, and send API requests to the returned API
 origin. Keep personal development tokens out of the published build.

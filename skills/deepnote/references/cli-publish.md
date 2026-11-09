@@ -45,7 +45,7 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
 
-A published data app always has viewer API access. If the page runs notebooks, implement and verify
+A data app has viewer API access by default. If the page runs notebooks, implement and verify
 [viewer API access](apps.md#add-viewer-api-access), including token refresh, before publishing. A
 personal token in a local preview has broader permissions than a hosted viewer token.
 
@@ -146,8 +146,9 @@ Authentication and the API origin match `publish`.
 | `2`       | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token             |
 
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
-reported failures and publish again. The app is not published and remaining stale files are not
-pruned after an upload fails.
+reported failures and publish again. After an upload fails, the app keeps its previous publish state
+and remaining stale files are not pruned; an app that was already published serves the partly updated
+files.
 
 For `unpublish`, exit codes are `0` for success, `1` for a request failure (including a project that
 is not a data app), and `2` for invalid arguments or a missing token.

@@ -15,9 +15,9 @@ The HTML page embeds all the JS needed to:
 3. **Parse snapshot YAML** using the `snapshot-reader.iife.js` bundle — except embedded in Deepnote, where the short-lived app token never receives the raw snapshot and the API returns the executed blocks' outputs pre-parsed as `snapshotBlocks`
 4. **Render outputs** (tables, charts, text) in the browser
 
-Embedded mode stays within the static-app token's restricted API surface: read the configured
+Embedded mode stays within the data app viewer token's restricted API surface: read the configured
 notebook, start a detached run, and poll that run. Notebook discovery and run-history enumeration
-are intentionally not available to static-app tokens.
+are intentionally not available to data app viewer tokens.
 
 ### Configuration
 
@@ -46,9 +46,9 @@ The handshake is pinned to `shellOrigin` in both directions: the request is addr
 rather than `*`, and a reply is only believed when it comes from the parent frame on that same
 origin. Set `shellOrigin` if the app is embedded somewhere other than `deepnote.com`.
 
-Publishing the files is not enough for the embedded path. A project needs **API access for static
-apps** enabled, which is a separate opt-in from static file sharing. Without it the shell answers
-the handshake with nothing at all, and the app reports that it could not acquire a token.
+Publish the files to a data app project, which has viewer API access by default. If an editor turns it
+off in Deepnote, the shell answers the handshake with nothing at all, and the app reports that it could
+not acquire a token.
 
 ## Local static preview
 
@@ -76,4 +76,4 @@ DEEPNOTE_TOKEN=... deepnote publish examples/local-runner/cloud-app --project-id
 
 The project must be a data app project (in Deepnote: **Create new → New data app**), with the
 notebook from step 1 in it. The command publishes the app and prints its URL. At that URL, the app acquires a
-static-app viewer token automatically via `postMessage` — no server or manual token configuration.
+data app viewer token automatically via `postMessage` — no server or manual token configuration.
