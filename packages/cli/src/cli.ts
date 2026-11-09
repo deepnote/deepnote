@@ -22,10 +22,10 @@ import { createPublishAction } from './commands/publish'
 import { createRunAction } from './commands/run'
 import { createScheduleAction } from './commands/schedule'
 import { createSplitAction } from './commands/split'
-import { createStaticSiteAccessAction } from './commands/static-site-access'
 import { createStatsAction } from './commands/stats'
 import { createStreamlitPublishAction } from './commands/streamlit-publish'
 import { CONFLICT_MODES, createSyncAction, DEFAULT_SYNC_CONCURRENCY, parseSyncConcurrency } from './commands/sync'
+import { createUnpublishAction } from './commands/unpublish'
 import { createValidateAction } from './commands/validate'
 import { generateCompletionScript } from './completions'
 import { DEEPNOTE_TOKEN_ENV } from './constants'
@@ -596,18 +596,12 @@ ${c.bold('Exit Codes:')}
 
   program
     .command('publish')
-    .description('Publish a local app directory to a Deepnote project')
+    .description('Publish a local build directory as a Deepnote data app')
     .argument('<dir>', 'Directory containing the app files to publish')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .option('--path <prefix>', `Target directory under ${PROJECT_STATIC_ROOT}`, PROJECT_STATIC_ROOT)
-    .addOption(
-      new Option('--api-access <state>', 'Allow the published app to call Deepnote APIs').choices([
-        'enabled',
-        'disabled',
-      ])
-    )
     .option('--prune', 'Delete remote files below --path that are absent locally')
     .option('--sync-root <dir>', 'Sync workspace whose mirror to update (default: search upwards from <dir>)')
     .option('--no-sync-root', 'Publish without looking for or updating a sync workspace')
@@ -615,17 +609,19 @@ ${c.bold('Exit Codes:')}
     .addHelpText('after', () => {
       const c = getChalk()
       return `
-${c.bold('Apps:')}
-  Apps are HTML, CSS, and JavaScript hosted by Deepnote and run in the browser. They can be
-  interactive and call Deepnote APIs. The command uploads a local build directory to
-  ${c.dim('_deepnote_static/')}, replaces matching files, and enables sharing after every upload
-  succeeds. API access is left unchanged unless explicitly set. To serve a Python file already
-  in the project as a Streamlit app, use ${c.dim('deepnote streamlit publish')} instead.
+${c.bold('Data apps:')}
+  A data app is an HTML page hosted by Deepnote and backed by a notebook in the same project.
+  The command publishes to a data app project (in Deepnote: Create new → New data app). It uploads
+  a local build directory to ${c.dim('_deepnote_static/')}, replaces matching files, and publishes
+  the app after every upload succeeds, so people with access to the project can open it. Other
+  project types are refused before anything is uploaded. To take the app down again, use
+  ${c.dim('deepnote unpublish')}. To serve a Python file already in the project as a Streamlit app,
+  use ${c.dim('deepnote streamlit publish')} instead.
 
 ${c.bold('App viewer API access:')}
-  With API access enabled, the embedded app uses a viewer token that expires after
-  15 minutes. It can read notebook inputs and block metadata (no source) and start detached
-  runs in the hosting project or other projects in the same workspace where the viewer has
+  A published data app calls Deepnote with a viewer token that expires after
+  15 minutes. It can read notebook inputs, block metadata (no source) and app data, and start
+  detached runs in the hosting project or other projects in the same workspace where the viewer has
   direct access. Runs in other projects also require execute permission. It can poll the
   viewer's own runs for ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so features
   built against a local preview with a personal token can fail when embedded.
@@ -654,9 +650,6 @@ ${c.bold('Examples:')}
   ${c.dim('# Publish to a custom path prefix')}
   $ deepnote publish ./out --project-id <uuid> --path _deepnote_static/v2
 
-  ${c.dim('# Let the published app call Deepnote APIs')}
-  $ deepnote publish ./dist --project-id <uuid> --api-access enabled
-
   ${c.dim('# Remove remote files that are no longer in the local build')}
   $ deepnote publish ./dist --project-id <uuid> --prune
 
@@ -667,52 +660,39 @@ ${c.bold('Examples:')}
   $ deepnote publish ./dist --project-id <uuid> --no-sync-root
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Files uploaded and app sharing enabled
-  ${c.dim('1')}  Upload, pruning, or settings update failed, or Deepnote holds unsynced changes
-  ${c.dim('2')}  Invalid usage (bad path, directory not found, missing token, bad --sync-root)
+  ${c.dim('0')}  Files uploaded and the app published
+  ${c.dim('1')}  Upload, pruning, or publishing failed, or Deepnote holds unsynced changes
+  ${c.dim('2')}  Invalid usage (not a data app project, bad path, directory not found, missing token,
+     bad --sync-root)
 `
     })
     .action(createPublishAction(program))
 
-  const staticSite = program.command('static-site').description('Manage a published app')
-
-  staticSite
-    .command('access')
-    .description('Change app sharing and viewer API access without changing files')
-    .requiredOption('--project-id <uuid>', 'Deepnote project ID')
+  program
+    .command('unpublish')
+    .description('Unpublish a data app so only project editors can open it')
+    .requiredOption('--project-id <uuid>', 'Deepnote data app project ID')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
-    .addOption(
-      new Option('--sharing <state>', 'Make the app available to project viewers').choices(['enabled', 'disabled'])
-    )
-    .addOption(
-      new Option('--api-access <state>', 'Allow the app to call Deepnote APIs').choices(['enabled', 'disabled'])
-    )
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  Changes access settings only. It does not upload, delete, or otherwise modify files below
-  ${c.dim('_deepnote_static/')}. Disabling sharing also disables viewer API access. Re-enabling
-  sharing later serves the files already stored in the project.
+  Unpublishes a data app project. It does not upload, delete, or otherwise modify files below
+  ${c.dim('_deepnote_static/')}. Project editors can still open the app, and ${c.dim('deepnote publish')}
+  publishes it again.
 
 ${c.bold('Examples:')}
-  ${c.dim('# Stop serving the app without deleting its files')}
-  $ deepnote static-site access --project-id <uuid> --sharing disabled
-
-  ${c.dim('# Share the existing app and allow viewer-scoped API calls')}
-  $ deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
-
-  ${c.dim('# Revoke viewer API access while preserving the current sharing setting')}
-  $ deepnote static-site access --project-id <uuid> --api-access disabled
+  ${c.dim('# Stop serving the app to viewers without deleting its files')}
+  $ deepnote unpublish --project-id <uuid>
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Access settings updated
-  ${c.dim('1')}  Project settings update failed
-  ${c.dim('2')}  Invalid usage (missing token, no setting, or contradictory settings)
+  ${c.dim('0')}  App unpublished
+  ${c.dim('1')}  The update failed, for example because the project is not a data app
+  ${c.dim('2')}  Invalid usage (missing token)
 `
     })
-    .action(createStaticSiteAccessAction(program))
+    .action(createUnpublishAction(program))
 
   const streamlit = program.command('streamlit').description('Manage Streamlit apps')
 

@@ -5,8 +5,7 @@ import {
   getProjectDetail,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
   PROJECT_STATIC_ROOT,
-  type ProjectStaticFilesUpdate,
-  updateProjectStaticFiles,
+  setDataAppPublished,
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
@@ -36,8 +35,6 @@ export interface PublishAppOptions {
   token: string
   /** Project folder to publish into: `_deepnote_static` (the default) or a directory below it. */
   targetPath?: string
-  /** Turns embedded API access on or off; `undefined` leaves the project's setting unchanged. */
-  apiAccess?: boolean
   /**
    * Remove files below `targetPath` that are no longer in `dir`. Files that block an upload are removed
    * first; the rest only when every earlier removal and upload succeeded.
@@ -59,11 +56,11 @@ export type PublishAppEvent =
   | { kind: 'file-removed'; path: string }
   /** A file was uploaded. `path` is relative to `dir`. */
   | { kind: 'file-uploaded'; path: string }
-  /** A removal, an upload or the sharing update failed. `path` is as in {@link PublishAppResult.errors}. */
-  | { kind: 'operation-failed'; operation: 'remove' | 'upload' | 'enable-sharing'; path: string; message: string }
+  /** A removal, an upload or publishing the app failed. `path` is as in {@link PublishAppResult.errors}. */
+  | { kind: 'operation-failed'; operation: 'remove' | 'upload' | 'publish'; path: string; message: string }
   /** A discovered sync folder tracks the project, but its project directory does not exist. */
   | { kind: 'mirror-skipped'; projectDir: string }
-  /** Files were published, but the mirror could not be fully updated. Emitted before the sharing step. */
+  /** Files were uploaded, but the mirror could not be fully updated. Emitted before the app is published. */
   | { kind: 'mirror-incomplete'; syncRoot: string; failures: string[] }
 
 export interface PublishAppResult {
@@ -77,7 +74,7 @@ export interface PublishAppResult {
   pruned: number
   /**
    * Failed operations. `path` is the project path for removals, the path relative to `dir` for uploads,
-   * or `project settings` for the sharing update.
+   * or `project settings` for publishing the app.
    */
   errors: { path: string; message: string }[]
   /** The sync root the publish was mirrored into, when one applied. */
@@ -87,10 +84,8 @@ export interface PublishAppResult {
    * Independent of `errors`.
    */
   mirrorUpdated: boolean
-  /** Set only when every operation succeeded. */
+  /** The published app's URL. Set only when every operation succeeded. */
   appUrl?: string
-  /** The project's API access setting after the publish. Set together with `appUrl`. */
-  apiAccessEnabled?: boolean
 }
 
 /**
@@ -98,8 +93,9 @@ export interface PublishAppResult {
  * the upload limit, colliding paths, or an unusable sync folder. `unreadable-directory`: `dir` or a file in
  * it could not be read.
  * `project-unavailable`: the project could not be loaded.
+ * `not-a-data-app`: the project is not a data app project, so it cannot be published. Nothing was uploaded.
  */
-export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable'
+export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable' | 'not-a-data-app'
 
 /**
  * `code` is set only with reason `invalid-input`, for a sync folder `publishApp` cannot update; see
@@ -318,13 +314,15 @@ async function prepareLocalFiles(
 }
 
 /**
- * Uploads every file below `options.dir` into the project's app folder, then makes sure the app is
- * shared, and records the result in the sync mirror when one applies.
+ * Uploads every file below `options.dir` into a data app project's app folder, then publishes the app
+ * so people with access to the project can open it, and records the result in the sync mirror when one
+ * applies.
  *
  * Progress is reported through `options.onEvent`. Failures of individual files do not throw; they are
- * returned in `result.errors`, and sharing is only enabled when there are none.
+ * returned in `result.errors`, and the app is only published when there are none.
  *
- * @throws {PublishError} invalid input, an unreadable directory, or a project that cannot be loaded.
+ * @throws {PublishError} invalid input, an unreadable directory, a project that cannot be loaded, or a
+ * project that is not a data app.
  * @throws {PublishDivergedError} unless `options.force`, before any file is deleted or uploaded.
  */
 export async function publishApp(options: PublishAppOptions): Promise<PublishAppResult> {
@@ -366,7 +364,16 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
   } catch (error) {
     throw new PublishError('project-unavailable', `Could not load project ${projectId}: ${errorMessage(error)}`)
   }
-  const { files: projectFiles, staticFiles: existingSettings } = project
+  const { files: projectFiles, dataApp } = project
+  if (!dataApp) {
+    throw new PublishError(
+      'not-a-data-app',
+      dataApp === null
+        ? `Project ${projectId} is not a data app project, so it cannot be published. Create a data app in Deepnote ` +
+            '(Create new → New data app) and publish to that project instead.'
+        : `Deepnote did not report data app settings for project ${projectId}. The server may not support publishing data apps yet.`
+    )
+  }
 
   onEvent?.({ kind: 'publishing', fileCount: publishFiles.length, targetPath: targetPrefix, projectId })
 
@@ -448,27 +455,14 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
   }
 
   let appUrl: string | undefined
-  let apiAccessEnabled: boolean | undefined
   if (errors.length === 0) {
     try {
-      let settings = existingSettings
-      if (
-        !settings ||
-        !settings.sharingEnabled ||
-        (options.apiAccess !== undefined && settings.apiAccessEnabled !== options.apiAccess)
-      ) {
-        const update: ProjectStaticFilesUpdate = { sharingEnabled: true }
-        if (options.apiAccess !== undefined) {
-          update.apiAccessEnabled = options.apiAccess
-        }
-        settings = await updateProjectStaticFiles(baseUrl, token, projectId, update)
-      }
+      const settings = await setDataAppPublished(baseUrl, token, projectId, true)
       appUrl = appUrlWithPath(settings.url, targetPrefix)
-      apiAccessEnabled = settings.apiAccessEnabled
     } catch (error) {
       const message = errorMessage(error)
       errors.push({ path: 'project settings', message })
-      onEvent?.({ kind: 'operation-failed', operation: 'enable-sharing', path: 'project settings', message })
+      onEvent?.({ kind: 'operation-failed', operation: 'publish', path: 'project settings', message })
     }
   }
 
@@ -482,6 +476,5 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     syncRoot: mirror?.rootDir,
     mirrorUpdated: mirror !== undefined && mirrorFailures.length === 0 && (uploaded > 0 || pruned > 0),
     appUrl,
-    apiAccessEnabled,
   }
 }

@@ -19,7 +19,7 @@ Use the CLI when you want to:
 - **Convert** between `.ipynb`, `.py`, `.qmd` and `.deepnote`.
 - **Mirror your Deepnote Cloud workspace locally** with [`deepnote sync`](/docs/deepnote-cli-sync)
   and push edits back.
-- **Publish an app or a Streamlit app** to a project with [`deepnote publish`](/docs/deepnote-cli-publish)
+- **Publish a data app or a Streamlit app** to a project with [`deepnote publish`](/docs/deepnote-cli-publish)
   or `deepnote streamlit publish`.
 - **Give AI coding agents the Deepnote skill.** `deepnote install-skills` gives Claude Code, Codex,
   Cursor, Gemini CLI and other agents the `.deepnote` format and CLI reference, so they can write
@@ -54,7 +54,7 @@ automatically, or point it at an interpreter with `--python`.
 ## Authentication
 
 Commands that talk to Deepnote Cloud (`run --cloud`, `schedule`, `sync`, `publish`,
-`static-site access`, `streamlit publish`, `integrations pull`) need an API key. Create one in your workspace under
+`unpublish`, `streamlit publish`, `integrations pull`) need an API key. Create one in your workspace under
 **Settings & members → Security → API keys** (see the [Deepnote API docs](/docs/deepnote-api)) and
 pass it in one of three ways:
 
@@ -89,8 +89,8 @@ Deepnote Cloud and open it in your browser, where you sign in; they need no toke
 | `deepnote open <path>`                                 | Upload a `.deepnote` file to Deepnote Cloud and open it in the browser                         |
 | `deepnote schedule <path>`                             | Create or update a recurring run in Deepnote Cloud                                             |
 | [`deepnote sync [dir]`](/docs/deepnote-cli-sync)       | Mirror your workspace to a local directory and push notebook edits back                        |
-| [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Publish a local build directory as an app hosted by a project                                  |
-| `deepnote static-site access`                          | Enable or disable access to a published app without redeploying                                |
+| [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Publish a local build directory as a data app                                                  |
+| `deepnote unpublish`                                   | Make a data app editor-only again without changing its files                                   |
 | `deepnote streamlit publish <entrypoint>`              | Serve a Python file already in the project as a Streamlit app                                  |
 | `deepnote integrations pull\|add\|edit`                | Manage the local database integrations file used by `run`                                      |
 | `deepnote install-skills`                              | Install the Deepnote skill for Claude Code, Cursor and other AI coding assistants              |
@@ -120,7 +120,7 @@ deepnote schedule report.deepnote --daily --at 09:00
 # Mirror your whole workspace to ./workspace
 deepnote sync ./workspace
 
-# Publish a Vite build to a project
+# Publish a Vite build as a data app
 deepnote publish ./dist --project-id <project-id>
 ```
 

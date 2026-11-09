@@ -73,6 +73,10 @@ To make the app editor-only again, set it to **Unpublished**.
 
 Published apps open only when **Allow static file sharing in projects** is on in **Settings & members → Project settings**.
 
+To publish from code, upload a local build with [`deepnote publish`](/docs/deepnote-cli-publish), or call
+`PATCH /v2/projects/{projectId}` with `{ "dataApp": { "published": true } }` through the
+[Deepnote API](/docs/deepnote-api). Send `false` to unpublish.
+
 ## Limitations
 
 - Data apps can be shared only with people who have access to the project. Sharing with anyone who has the link isn't available.
