@@ -1,6 +1,6 @@
 ---
 title: Deepnote API
-description: Run your notebooks programmatically
+description: Run notebooks, control machines, manage projects and integrations, and build apps on top of Deepnote with the public REST API
 noIndex: false
 noContent: false
 ---
@@ -9,16 +9,82 @@ noContent: false
 The API is available on Team and Enterprise plans.
 </Callout>
 
-The Deepnote API provides you with an endpoint to programmatically execute an existing notebook. This enables various automation use cases from customized scheduling to integrating notebooks deeper into your workflows together with other applications.
+The Deepnote API lets your own code do what you would otherwise do in the editor: run a notebook with
+new inputs and read its outputs, start and stop machines, keep a long-lived session for follow-up
+work, export and import projects, set up integrations, and search the workspace. Use it to put
+notebooks behind a product feature, wire them into a data pipeline, give an AI agent a place to
+compute, or manage a workspace as code.
 
-## Authorization
+Every endpoint, with its parameters and responses, is listed in the
+[API reference](/docs/api-reference). The guides below show how the pieces fit together.
 
-To use the API, first you need to create an API key in your workspace's Settings & members > Security > API keys.
+## What you can build
+
+| Guide                                                     | What it covers                                                                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [Running notebooks](/docs/deepnote-api-runs)              | Run a notebook with inputs, wait for it, read outputs as JSON, list past runs, and manage schedules                                 |
+| [Interactive sessions](/docs/deepnote-api-sessions)       | Keep a notebook's kernel alive between requests and submit follow-up runs or code against the same state                            |
+| [Machines](/docs/deepnote-api-machines)                   | Start, stop and restart a project's machine, change its hardware, and set idle shutdown to control machine time                     |
+| [Projects and integrations](/docs/deepnote-api-workspace) | Export and import projects as `.deepnote` files, create and attach integrations, find where they are used, and search the workspace |
+
+Deepnote also uses this API itself. The [Deepnote CLI](/docs/deepnote-cli) calls it for
+`run --cloud`, `schedule`, `sync` and `publish`, and the [Deepnote MCP server](/docs/deepnote-mcp)
+gives AI agents the same capabilities. If one of those already does what you need, it is usually
+the quicker route.
+
+## Authentication
+
+Workspace admins create API keys under **Settings & members → Security → API keys**. Other members
+create them under **API keys** in their **Account settings**.
 
 ![Screenshot 2022-09-05 at 15.06.57.png](../assets/docs/50a8WERkR5ivtYVpUQO0.webp)
 
-After creating your API key, you can use it to post requests to the Deepnote API. To use it, send it as bearer token in the `Authorization` header of your requests.
+Send the key as a bearer token with every request:
 
+```bash
+export DEEPNOTE_TOKEN="<your-api-key>"
+
+curl https://api.deepnote.com/v2/me \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN"
 ```
-Authorization: Bearer INSERT_API_KEY
-```
+
+`GET /v2/me` returns the key, the user it acts as and its workspace, which is a quick way to check
+that a key works before you build on it.
+
+<Callout status="warning">
+An API key acts with the access of the user who created it, across the whole workspace. Keep it in
+a secret store, never in client-side code or a repository, and revoke it from the same settings
+page if it is exposed.
+</Callout>
+
+## Conventions
+
+- **Base URL:** `https://api.deepnote.com/v2`. Request and response bodies are JSON unless an
+  endpoint says otherwise (project export and import use ZIP archives).
+- **IDs** come from the API itself or from the editor URL. `GET /v2/projects` lists projects
+  (filter with `nameContains`), `GET /v2/projects/{projectId}` lists a project's notebooks,
+  integrations and files, and a `.deepnote` file records its project and notebook ids.
+- **Pagination:** `GET /v2/projects`, `GET /v2/notebooks/{notebookId}/runs` and `GET /v2/audit-logs`
+  take `pageSize` and `pageToken`, and return `pagination.nextPageToken` until `hasMore` is `false`.
+  Other list endpoints are not paginated.
+- **Errors** return `{ "message": "…" }` with a standard status code. `409` means the request
+  conflicts with the current state, for example the project is suspended, a machine is in the wrong
+  state, or the plan does not allow that machine; the message says which. Other plan limits return
+  `403`.
+- **Rate limits** return `429` with a `Retry-After` header giving the seconds to wait.
+
+## Apps that call the API as their viewer
+
+[Data apps](/docs/data-app-projects) and
+[Streamlit apps](/docs/streamlit-app-projects#running-the-notebook-from-the-app) call the API as the
+person viewing them rather than with your key. Deepnote hands the app a short-lived viewer token that
+can read a notebook's inputs, start detached runs, and read that viewer's own runs and their
+[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook).
+
+## Related
+
+- [API reference](/docs/api-reference): every endpoint, parameter and response
+- [Deepnote CLI](/docs/deepnote-cli): the same API from your terminal and CI
+- [Running notebooks in CI](/docs/deepnote-cli-ci)
+- [Deepnote MCP](/docs/deepnote-mcp): connect AI agents to your workspace
+- [Scheduling](/docs/scheduling) and [Run snapshots](/docs/run-snapshots)
