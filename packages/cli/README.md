@@ -578,8 +578,8 @@ deepnote publish ./dist --project-id <uuid>
 | `--token <token>`     | Deepnote API token                                                    | `DEEPNOTE_TOKEN`                            |
 | `--url <url>`         | Deepnote API base URL                                                 | `https://api.deepnote.com`                  |
 
-A published data app calls the Deepnote API with a viewer token that can read notebook inputs, start
-detached runs and poll the viewer's own runs; other endpoints answer `403`.
+A published data app calls the Deepnote API with a viewer token that can read notebook inputs and app
+data, start detached runs and poll the viewer's own runs; other endpoints answer `403`.
 
 Every published file is readable by anyone who can view the app, so the command refuses to publish
 a directory that contains a `.env` or `.env.*` file at any depth (exit code `2`, nothing uploaded).

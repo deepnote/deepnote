@@ -19,8 +19,9 @@ Data apps run in the browser; their notebook runs use project hardware. Streamli
 project hardware. A local server runs on the operator's machine and can send notebook runs
 to Deepnote.
 
-Data app and Streamlit app viewers must sign in and have project access; neither supports public or
-link-only sharing. Apps published from notebook blocks are deprecated; do not build new ones.
+Data app viewers must sign in and have project access; data apps have no public or link-only sharing.
+Streamlit apps follow the project's sharing settings, but only signed-in viewers with project access can
+use their viewer API access. Apps published from notebook blocks are deprecated; do not build new ones.
 
 ## Prepare a Streamlit app
 
@@ -52,7 +53,8 @@ Do not substitute the publisher's personal token.
 ## Prepare a data app
 
 1. Use a data app project. Publishing refuses any other project type, and a `.deepnote` file cannot
-   create one; the user creates it in Deepnote with **Create new → New data app**.
+   create one; the user creates it in Deepnote with **Create new → New data app**. Data app projects
+   are in beta and may not be enabled for the workspace yet.
 2. Build the HTML, CSS, JavaScript, and assets into a dedicated output directory such as `dist`.
    Exclude credentials and files that viewers should not receive.
 3. Use browser-compatible code. A published app has no local `serveStatic` routes or Python
@@ -66,7 +68,7 @@ directory's `index.html`. Other paths serve exact filenames, so link to `about.h
 
 ### Add viewer API access
 
-A data app has viewer API access by default. When it needs notebook inputs or runs, use the token handshake in
+A published data app always has viewer API access. When it needs notebook inputs or runs, use the token handshake in
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app): request a token from the Deepnote shell over `postMessage`, pin
 the shell origin when sending and receiving messages, and send API requests to the returned API
 origin. Keep personal development tokens out of the published build.
@@ -116,7 +118,8 @@ with the viewer API flow before publishing it to Deepnote.
 
 - With a terminal, use the CLI publishing workflow linked above.
 - With only hosted MCP (`https://deepnote.com/mcp`), inspect its advertised tools. Use
-  `update_project` to publish or unpublish a data app. Do not use notebook execution to write app files. Hosted MCP can activate
-  an existing Streamlit entrypoint but cannot upload it; arrange the file upload first.
+  `write_file` to write a data app's files below `_deepnote_static/`, then `update_project` to publish
+  or unpublish it. Do not use notebook execution to write app files. Hosted MCP can also write a
+  Streamlit entrypoint with `write_file` and serve it with `create_streamlit_app`.
 - Use local `@deepnote/mcp` for local `.deepnote` file work. It does not manage hosted apps or
   publish files.

@@ -46,9 +46,8 @@ The handshake is pinned to `shellOrigin` in both directions: the request is addr
 rather than `*`, and a reply is only believed when it comes from the parent frame on that same
 origin. Set `shellOrigin` if the app is embedded somewhere other than `deepnote.com`.
 
-Publish the files to a data app project, which has viewer API access by default. If an editor turns it
-off in Deepnote, the shell answers the handshake with nothing at all, and the app reports that it could
-not acquire a token.
+Publish the files to a data app project. Published data apps always have viewer API access, so the
+shell answers the handshake with a token for every viewer who can open the app.
 
 ## Local static preview
 

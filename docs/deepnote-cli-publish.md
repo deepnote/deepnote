@@ -67,7 +67,8 @@ after all uploads succeed, so people with access to the project can open it. Rem
 the build are retained unless you use `--prune`. Use the URL printed by the command.
 
 The project must be a data app project. For any other project type, the command exits with code `2`
-before uploading anything. Publishing HTML files from a notebook project as a static website is no
+before uploading anything. [Data app projects](/docs/data-app-projects) are in beta and may not be
+enabled for your workspace yet. Publishing HTML files from a notebook project as a static website is no
 longer supported.
 
 <Callout status="warning">
@@ -104,7 +105,8 @@ Data apps have no anonymous or link-only access.
 
 A published data app can read notebook inputs and run the project's notebook as the person viewing
 it. Deepnote hands the page a viewer token that expires after 15 minutes. It can read notebook
-inputs and block metadata (without source), start detached runs in this project or other projects
+inputs and block metadata (without source), read the notebook's
+[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), start detached runs in this project or other projects
 in the workspace where the viewer has direct access, and poll the viewer's own runs for their
 `snapshotBlocks`. Runs in other projects also require execute permission. Every other endpoint
 answers `403`, so features you built against a local preview with a personal token can fail in the

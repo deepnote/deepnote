@@ -15,7 +15,7 @@ import type { RequestOptions } from './projects'
  * Endpoints:
  * - `GET  {baseUrl}/v2/projects`                — list projects, paginated via `pageToken`
  * - `GET  {baseUrl}/v2/projects/{id}`           — project detail, including its file inventory
- * - `PATCH {baseUrl}/v2/projects/{id}`           — update static-file sharing/API-access settings
+ * - `PATCH {baseUrl}/v2/projects/{id}`           — publish or unpublish a data app (`dataApp.published`)
  * - `GET  {baseUrl}/v2/projects/{id}/export`    — the whole project as a ZIP of `.deepnote` documents,
  *                                                 one per notebook
  * - `POST {baseUrl}/v2/projects/{id}/import`    — reconcile a ZIP of `.deepnote` documents (the exact

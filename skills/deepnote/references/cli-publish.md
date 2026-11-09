@@ -45,7 +45,7 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
 
-A data app has viewer API access by default. If the page runs notebooks, implement and verify
+A published data app always has viewer API access. If the page runs notebooks, implement and verify
 [viewer API access](apps.md#add-viewer-api-access), including token refresh, before publishing. A
 personal token in a local preview has broader permissions than a hosted viewer token.
 

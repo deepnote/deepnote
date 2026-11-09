@@ -620,8 +620,8 @@ ${c.bold('Data apps:')}
 
 ${c.bold('App viewer API access:')}
   A published data app calls Deepnote with a viewer token that expires after
-  15 minutes. It can read notebook inputs and block metadata (no source) and start detached
-  runs in the hosting project or other projects in the same workspace where the viewer has
+  15 minutes. It can read notebook inputs, block metadata (no source) and app data, and start
+  detached runs in the hosting project or other projects in the same workspace where the viewer has
   direct access. Runs in other projects also require execute permission. It can poll the
   viewer's own runs for ${c.dim('snapshotBlocks')}. Every other endpoint answers 403, so features
   built against a local preview with a personal token can fail when embedded.
