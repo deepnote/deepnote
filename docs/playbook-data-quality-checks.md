@@ -91,10 +91,11 @@ When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see 
 
 ## Example
 
-The `Data quality checks` notebook in the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) checks freshness,
-duplicates, invalid values and orphaned rows with SQL blocks, then raises an error listing every
-failed check. A **Simulate an issue** input breaks the data on purpose so you can see the run fail,
-and the example includes a GitHub Actions workflow that runs the notebook on every pull request.
+The [Data health app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/data-health) in the Lindquett Software example checks freshness, duplicates,
+invalid values and orphaned rows with SQL blocks. The same notebook fails the run in CI on every pull
+request and after every warehouse load, and the app runs it with failing turned off to tell everyone
+else whether today's numbers can be trusted. A **Simulate an issue** input breaks the data on purpose so
+you can see a check fail.
 
 ## Plan requirements
 

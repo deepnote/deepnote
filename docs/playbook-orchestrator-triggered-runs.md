@@ -137,11 +137,10 @@ API requests are rate limited per minute for each API key, at a level set by the
 
 ## Example
 
-The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) includes a GitHub Actions workflow,
-`ci/after-warehouse-load.yml`, that an upstream pipeline triggers with a `repository_dispatch`
-event when the warehouse load finishes. It runs the `Revenue drop alert` notebook in Deepnote with
-`deepnote run --cloud`, passing the quarter that was just loaded as an input, and fails when the
-run fails.
+The [Account health app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/account-health) in the Lindquett Software example includes a GitHub Actions
+workflow, `ci/after-warehouse-load.yml`, that an upstream pipeline triggers with a `repository_dispatch`
+event when the warehouse load finishes. It runs the data checks in Deepnote first and, only if they
+pass, the churn-risk notebook that alerts customer success.
 
 ## Plan requirements
 

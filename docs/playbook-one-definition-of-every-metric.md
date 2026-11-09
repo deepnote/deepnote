@@ -85,10 +85,10 @@ Version history is kept for 7 days on Free, 30 days on Team and without limit on
 
 ## Example
 
-The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) is a project built this way. Its `Revenue data` module
-exports the governed tables and its `Revenue metrics` module exports ARR, NRR, GRR and pipeline
-coverage as functions. A data app, a scheduled alert, an API endpoint and an AI analyst all import
-them, so every one of them reports the same retention for the same quarter.
+The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) runs five apps on one pair of modules. `Revenue data` exports the
+governed tables and `Revenue metrics` exports ARR, NRR, GRR and pipeline coverage as functions, in a
+[shared metrics project](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/metrics). The revenue dashboard, the renewal pricing desk, the churn-risk
+scores, the data checks and the pricing planner all import them, so no two apps disagree about a number.
 
 ## Plan requirements
 

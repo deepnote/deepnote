@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The notebook this app runs in Deepnote. Matches revenue-review.deepnote; change it if Deepnote assigns another ID. -->
+  <meta name="deepnote-notebook-id" content="5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d01">
+  <title>Revenue review</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .note { border-left: 4px solid var(--fjord); }
+    .note .headline { font-size: 18px; font-weight: 650; line-height: 1.35; }
+    .note ul { margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); }
+    .note .next { margin-top: 10px; font-size: 14px; }
+    .ask { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; }
+    .ask textarea { flex: 1; }
+  </style>
+</head>
+<body>
+<main>
+  <header class="app">
+    <div>
+      <h1>Revenue review</h1>
+      <p class="lede">ARR, retention and pipeline for Lindquett Software, with an analyst note written from the same metric definitions.</p>
+    </div>
+    <div class="controls">
+      <label class="field">Region<select id="region"><option>All</option><option>North America</option><option>EMEA</option><option>APAC</option><option>LATAM</option></select></label>
+      <label class="field">Segment<select id="segment"><option>All</option><option>Enterprise</option><option>Mid-market</option><option>SMB</option></select></label>
+      <label class="field">Quarter<select id="quarter"><option>2025-Q3</option><option>2025-Q4</option><option>2026-Q1</option><option>2026-Q2</option><option selected>2026-Q3</option></select></label>
+    </div>
+  </header>
+
+  <div class="status" id="status"></div>
+
+  <section class="card note" id="note" aria-live="polite">
+    <p class="muted">The analyst note appears here after the run.</p>
+  </section>
+  <form class="ask" id="ask">
+    <textarea id="question" rows="1" placeholder="Ask about this scope, such as: which accounts drove the drop?"></textarea>
+    <button id="ask-button">Ask</button>
+  </form>
+
+  <section class="grid cols-4" id="kpis" style="margin-top:18px"></section>
+
+  <section class="grid cols-2" style="margin-top:14px">
+    <div class="card"><h2>ARR bridge</h2><div id="bridge"></div></div>
+    <div class="card"><h2>Net revenue retention by region</h2><div id="trend"></div></div>
+  </section>
+
+  <section class="card" style="margin-top:14px">
+    <h2>Accounts that moved ARR most</h2>
+    <div class="scroll" id="movers"></div>
+  </section>
+
+  <footer class="app">Synthetic data for Lindquett Software, a fictional company. Every number comes from the shared Revenue metrics module.</footer>
+</main>
+
+<script type="module">
+  import { runNotebook } from './deepnote-app.js'
+  import { h, lines, money, percent, signed, waterfall } from './ui.js'
+
+  const $ = id => document.getElementById(id)
+  const params = new URLSearchParams(location.search)
+  for (const name of ['region', 'segment', 'quarter']) if (params.get(name)) $(name).value = params.get(name)
+  $('question').value = params.get('question') ?? ''
+
+  let generation = 0
+  async function refresh() {
+    const mine = ++generation
+    const inputs = { region: $('region').value, segment: $('segment').value, quarter: $('quarter').value, question: $('question').value.trim() }
+    history.replaceState(null, '', `?${new URLSearchParams({ region: inputs.region, segment: inputs.segment, quarter: inputs.quarter })}`)
+    $('status').replaceChildren(h('span.spinner'), 'Running the revenue notebook and writing the analyst note…')
+    $('ask-button').disabled = true
+    try {
+      const { data, error } = await runNotebook(inputs)
+      if (mine !== generation) return
+      $('status').replaceChildren(data.scope ? `Data through ${data.scope.as_of}` : '')
+      if (data.kpis) render(data)
+      renderNote(data.analyst, error, Boolean(data.kpis))
+    } catch (failure) {
+      if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
+    } finally {
+      if (mine === generation) $('ask-button').disabled = false
+    }
+  }
+
+  function kpi(label, value, delta, good) {
+    return h('div.card.kpi', {}, h('div.label', {}, label), h('div.value', {}, value), h(`div.delta.${good ? 'up' : 'down'}`, {}, delta))
+  }
+
+  function render({ kpis, bridge, nrr_by_region, movers, scope }) {
+    const arrChange = kpis.ending_arr / kpis.prior_ending_arr - 1
+    $('kpis').replaceChildren(
+      kpi('Ending ARR', money(kpis.ending_arr, 2), `${signed(arrChange * 100, '%')} vs ${kpis.prior_quarter}`, arrChange >= 0),
+      kpi('Net revenue retention', percent(kpis.nrr), `${signed((kpis.nrr - kpis.prior_nrr) * 100, ' pts')} vs ${kpis.prior_quarter}`, kpis.nrr >= kpis.prior_nrr),
+      kpi('Gross revenue retention', percent(kpis.grr), `${signed((kpis.grr - kpis.prior_grr) * 100, ' pts')} vs ${kpis.prior_quarter}`, kpis.grr >= kpis.prior_grr),
+      kpi(`Pipeline coverage, ${kpis.next_quarter}`, `${kpis.coverage.toFixed(2)}×`, `${signed(kpis.coverage - kpis.prior_coverage, '×', 2)} vs this quarter`, kpis.coverage >= kpis.prior_coverage)
+    )
+    $('bridge').replaceChildren(waterfall(bridge.map(step => ({ label: step.step.replace(' ARR', ''), value: step.arr }))))
+    const regions = [...new Set(nrr_by_region.map(row => row.region))]
+    $('trend').replaceChildren(lines(
+      regions.map(name => ({ name, points: nrr_by_region.filter(row => row.region === name).map(row => ({ x: row.quarter.replace('20', "'"), y: row.nrr })) })),
+      { highlight: scope.region === 'All' ? undefined : scope.region, format: v => percent(v, 0) }
+    ))
+    $('movers').replaceChildren(h('table', {},
+      h('thead', {}, h('tr', {}, ['Account', 'Region', 'Segment', 'Movement'].map(t => h('th', {}, t)), ['Start ARR', 'End ARR', 'Change'].map(t => h('th.num', {}, t)))),
+      h('tbody', {}, movers.map(row => h('tr', {},
+        h('td', {}, row.account), h('td', {}, row.region), h('td', {}, row.segment),
+        h('td', {}, h(`span.badge.${row.arr_change < 0 ? 'bad' : 'good'}`, {}, row.movement)),
+        h('td.num', {}, money(row.arr_start)), h('td.num', {}, money(row.arr_end)),
+        h(`td.num.${row.arr_change < 0 ? 'down' : 'up'}`, {}, money(row.arr_change))
+      )))
+    ))
+  }
+
+  function renderNote(note, error, haveData) {
+    if (note) {
+      $('note').replaceChildren(
+        h('p.headline', {}, note.headline),
+        h('ul', {}, (note.evidence ?? []).map(item => h('li', {}, item))),
+        note.next_step ? h('p.next', {}, h('strong', {}, 'Next step: '), note.next_step) : null
+      )
+    } else if (error && haveData) {
+      $('note').replaceChildren(h('p.muted', {}, `The analyst note is unavailable: ${error.replace(/\.$/, '')}. The numbers below are complete.`))
+    } else if (error) {
+      $('note').replaceChildren(h('p.error', {}, error))
+    }
+  }
+
+  for (const name of ['region', 'segment', 'quarter']) $(name).addEventListener('change', refresh)
+  $('ask').addEventListener('submit', event => { event.preventDefault(); refresh() })
+  refresh()
+</script>
+</body>
+</html>

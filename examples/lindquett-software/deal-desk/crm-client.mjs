@@ -1,11 +1,12 @@
-// What a CRM, or any backend, does to get a renewal quote from the "Renewal quote" notebook.
+// What a CRM, or any backend, does to get a renewal quote from the deal desk's "Renewal quote" notebook,
+// the same notebook the Renewal deal desk app runs.
 //
-//   node examples/lindquett-software/clients/renewal-quote.mjs ACC-1001 3 --local
-//   DEEPNOTE_TOKEN=... NOTEBOOK_ID=... node examples/lindquett-software/clients/renewal-quote.mjs ACC-1001 3
+//   node examples/lindquett-software/deal-desk/crm-client.mjs ACC-1001 3 --local
+//   DEEPNOTE_TOKEN=... NOTEBOOK_ID=... node examples/lindquett-software/deal-desk/crm-client.mjs ACC-1001 3
 //
 // With --local the notebook runs in a local kernel through `local/run.mjs`. Otherwise it runs in
 // Deepnote through the runs API: start a detached run with the inputs, wait for it, and read the
-// notebook's single `application/json` output from the run's blocks.
+// `quote` from the notebook's `application/json` outputs.
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -13,26 +14,26 @@ import { fileURLToPath } from 'node:url'
 const [accountId = 'ACC-1001', termYears = '1', ...flags] = process.argv.slice(2)
 const inputs = { account_id: accountId, term_years: termYears }
 
-function jsonOutput(blocks) {
+function quoteFrom(blocks) {
   for (const block of blocks) {
     for (const output of block.outputs ?? []) {
-      const data = output.data?.['application/json']
-      if (data) return data
+      const quote = output.data?.['application/json']?.quote
+      if (quote) return quote
     }
   }
-  throw new Error('The notebook returned no JSON output')
+  throw new Error('The notebook returned no quote')
 }
 
 function quoteLocally() {
   const run = join(dirname(fileURLToPath(import.meta.url)), '..', 'local', 'run.mjs')
   const args = Object.entries(inputs).flatMap(([name, value]) => ['--input', `${name}=${value}`])
-  const result = spawnSync(process.execPath, [run, 'Renewal quote', ...args, '-o', 'json'], { encoding: 'utf8' })
+  const result = spawnSync(process.execPath, [run, 'deal-desk', ...args, '-o', 'json'], { encoding: 'utf8' })
   const report = JSON.parse(result.stdout)
   if (!report.success) {
     const error = report.blocks.flatMap(block => block.outputs ?? []).find(output => output.output_type === 'error')
     throw new Error(error ? `${error.ename}: ${error.evalue}` : 'The notebook run failed')
   }
-  return jsonOutput(report.blocks)
+  return quoteFrom(report.blocks)
 }
 
 async function quoteInDeepnote() {
@@ -60,7 +61,7 @@ async function quoteInDeepnote() {
     if (run.status === 'pending' || run.status === 'running') continue
     if (run.status !== 'success') throw new Error(run.error ?? `Run ${runId} ended with status ${run.status}`)
     if (run.snapshotStatus === 'pending') continue
-    return jsonOutput(run.snapshotBlocks ?? [])
+    return quoteFrom(run.snapshotBlocks ?? [])
   }
   throw new Error(`Run ${runId} did not finish within five minutes`)
 }

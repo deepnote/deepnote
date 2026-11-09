@@ -1,18 +1,22 @@
-// Build a local-only copy of one notebook that a local kernel can run end to end.
+// Build a local-only copy of a use case's notebook that a local kernel can run end to end.
 //
-// In Deepnote, a module block asks the Deepnote backend to run another notebook and hands back its
-// exports. A local kernel has no backend to ask, so this script replaces each module block with a
-// code block that runs the module notebook's code in a private namespace and binds the same exports.
-// Everything else, including every block id and all app layout metadata, is copied unchanged. The
-// shipped `.deepnote` file is never modified.
-import { readFileSync, writeFileSync } from 'node:fs'
+// In Deepnote, a module block asks the Deepnote backend to run a module notebook, here one in the shared
+// "Lindquett metrics" project, and hands back its exports. A local kernel has no backend to ask, so this
+// replaces each module block with a code block that runs the module notebook's code in a private
+// namespace and binds the same exports. Everything else, including every block ID, is copied unchanged.
+// The shipped `.deepnote` files are never modified.
+import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 // In a real project: `import { ... } from '@deepnote/blocks'`.
 import { deserializeDeepnoteFile, serializeDeepnoteFile } from '../../../packages/blocks/dist/index.js'
 
-// SQL blocks in this project query data frames. Deepnote Cloud provides that connection; a local
+// SQL blocks in these notebooks query data frames. Deepnote Cloud provides that connection; a local
 // run reads it from `.deepnote.env.yaml` next to the notebook.
-const LOCAL_INTEGRATIONS = `integrations:
+export const LOCAL_INTEGRATIONS = [
+  { id: 'deepnote-dataframe-sql', name: 'DataFrame SQL', type: 'pandas-dataframe', metadata: {} },
+]
+const LOCAL_INTEGRATIONS_YAML = `integrations:
   - id: deepnote-dataframe-sql
     name: DataFrame SQL
     type: pandas-dataframe
@@ -72,22 +76,40 @@ function standInFor(block, modules) {
   }
 }
 
-/**
- * Write a single-notebook project file with its module blocks replaced, plus the
- * `.deepnote.env.yaml` its SQL blocks need, into the directory of `outPath`.
- *
- * @param {string} sourcePath the shipped project file
- * @param {string} outPath where to write the local notebook
- * @param {{ notebook: string, agentModel?: string }} options
- */
-export function buildLocal(sourcePath, outPath, { notebook, agentModel }) {
-  const file = deserializeDeepnoteFile(readFileSync(sourcePath, 'utf8'))
-  const target = file.project.notebooks.find(nb => nb.name === notebook)
-  if (!target) {
-    const names = file.project.notebooks.filter(nb => !nb.isModule).map(nb => `"${nb.name}"`)
-    throw new Error(`No notebook named "${notebook}". Choose one of ${names.join(', ')}.`)
+const exampleRoot = join(dirname(fileURLToPath(import.meta.url)), '..')
+const METRICS_PATH = join(exampleRoot, 'metrics', 'lindquett-metrics.deepnote')
+
+/** The use cases, by folder name, and the notebook file each one ships. */
+export const USE_CASES = {
+  'revenue-review': 'revenue-review.deepnote',
+  'deal-desk': 'deal-desk.deepnote',
+  'account-health': 'account-health.deepnote',
+  'data-health': 'data-health.deepnote',
+  'pricing-planner': 'pricing-baseline.deepnote',
+}
+
+/** Path of a use case's shipped notebook file. Throws, listing the use cases, for an unknown name. */
+export function useCasePath(useCase) {
+  const file = USE_CASES[useCase]
+  if (!file) {
+    throw new Error(`No use case named "${useCase}". Choose one of ${Object.keys(USE_CASES).join(', ')}.`)
   }
-  const modules = new Map(file.project.notebooks.filter(nb => nb.isModule).map(nb => [nb.id, nb]))
+  return join(exampleRoot, useCase, file)
+}
+
+/**
+ * Write a use case's notebook with its module blocks replaced, plus the `.deepnote.env.yaml` its SQL
+ * blocks need, to `<outDir>/<use case>.deepnote`, and return that path.
+ *
+ * @param {string} useCase folder name, such as `deal-desk`
+ * @param {string} outDir directory for the local copy
+ * @param {{ agentModel?: string }} [options]
+ */
+export function buildLocal(useCase, outDir, { agentModel } = {}) {
+  const file = deserializeDeepnoteFile(readFileSync(useCasePath(useCase), 'utf8'))
+  const [target] = file.project.notebooks
+  const metrics = deserializeDeepnoteFile(readFileSync(METRICS_PATH, 'utf8'))
+  const modules = new Map(metrics.project.notebooks.filter(nb => nb.isModule).map(nb => [nb.id, nb]))
 
   const blocks = target.blocks.map(block => {
     if (block.type === 'notebook-function') return standInFor(block, modules)
@@ -98,7 +120,25 @@ export function buildLocal(sourcePath, outPath, { notebook, agentModel }) {
   })
 
   const local = { ...file, project: { ...file.project, notebooks: [{ ...target, blocks }] } }
+  mkdirSync(outDir, { recursive: true })
+  const outPath = join(outDir, `${useCase}.deepnote`)
   writeFileSync(outPath, serializeDeepnoteFile(local))
-  writeFileSync(join(dirname(outPath), '.deepnote.env.yaml'), LOCAL_INTEGRATIONS)
-  return { notebookId: target.id, projectId: file.project.id, projectName: file.project.name }
+  writeFileSync(join(outDir, '.deepnote.env.yaml'), LOCAL_INTEGRATIONS_YAML)
+  return outPath
+}
+
+/**
+ * Assemble the directory `deepnote publish` uploads for a use case's data app: its `app/` page plus the
+ * shared client, helpers and styles. The local preview serves the same directory, so what you try is
+ * what you publish.
+ *
+ * @returns {string} the directory
+ */
+export function buildSite(useCase, outDir) {
+  useCasePath(useCase)
+  const site = join(outDir, 'site')
+  rmSync(site, { recursive: true, force: true })
+  cpSync(join(exampleRoot, useCase, 'app'), site, { recursive: true })
+  cpSync(join(exampleRoot, 'shared'), site, { recursive: true })
+  return site
 }

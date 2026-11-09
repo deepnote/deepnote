@@ -1,0 +1,229 @@
+metadata:
+  createdAt: 2026-11-09T09:00:00.000Z
+  modifiedAt: 2026-11-09T09:00:00.000Z
+project:
+  id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4c03
+  name: Account health watch
+  notebooks:
+    - blocks:
+        - id: 29da1463a32f3b684d6b40a455bb9fd0
+          blockGroup: 8ca91be8cce71989079d31d408d25631
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Account health
+
+
+            Scores every paying account for churn risk from 0 to 100 and keeps the reasons. Scheduled every
+
+            weekday after the warehouse load, it posts the accounts that crossed the threshold to Slack, each
+
+            linking to its page in the Account health app. The app runs the same notebook with **Post to Slack**
+
+            off.
+
+
+            Set `SLACK_WEBHOOK_URL` and `ACCOUNT_HEALTH_URL` (the app link) as environment variables.
+          metadata: {}
+        - id: ebfc0685a682a688fdf8a58693a71f1a
+          blockGroup: a7f3557158f7d25ce08d3c2b770e23dc
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: region
+            deepnote_input_label: Region
+            deepnote_variable_value: All
+            deepnote_variable_default_value: All
+            deepnote_variable_options:
+              - All
+              - North America
+              - EMEA
+              - APAC
+              - LATAM
+            deepnote_variable_custom_options:
+              - All
+              - North America
+              - EMEA
+              - APAC
+              - LATAM
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 39c88a7adda7b4eb2357c6c955f992fe
+          blockGroup: dc44095bbee1a06c2ec04f3ba0d61632
+          sortingKey: "000002"
+          type: input-slider
+          content: ""
+          metadata:
+            deepnote_variable_name: risk_threshold
+            deepnote_input_label: At risk from score
+            deepnote_variable_value: "60"
+            deepnote_variable_default_value: "60"
+            deepnote_slider_min_value: 30
+            deepnote_slider_max_value: 90
+            deepnote_slider_step: 5
+        - id: 688d384f42d27bf62d78e6c77a04138e
+          blockGroup: 9422f2dd03fbb48accc3a4677553c24f
+          sortingKey: "000003"
+          type: input-checkbox
+          content: ""
+          metadata:
+            deepnote_variable_name: notify
+            deepnote_input_label: Post newly at-risk accounts to Slack
+            deepnote_variable_value: true
+            deepnote_variable_default_value: true
+        - id: 450a1406577e5615845a71e56ccdcb56
+          blockGroup: 268273d22012a4c3a55319901d963bc8
+          sortingKey: "000004"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              accounts:
+                enabled: true
+                variable_name: accounts
+              mrr:
+                enabled: true
+                variable_name: mrr
+        - id: c9ee10acf89a3ee1859052319b073035
+          blockGroup: 5f2ea4a7f90875538e42f588a5f99215
+          sortingKey: "000005"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b02
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              retention:
+                enabled: true
+                variable_name: retention
+        - id: 19f0ca00a44d316d6170c0f68a6e2ff2
+          blockGroup: a5cb7048f794e8ae442b7a6b8a24a3ff
+          sortingKey: "000006"
+          type: code
+          content: >-
+            import pandas as pd
+
+
+            # A 0-100 churn-risk score per paying account, with the reasons behind it. Revenue and retention
+
+            # come from the governed modules, so a score never disagrees with the revenue review.
+
+            def score_accounts(month):
+                arr = lambda m: mrr[mrr["month"] == m].set_index("account_id")["mrr"] * 12
+                now = arr(month)
+                change_3m = (now / arr(month - pd.DateOffset(months=3)).reindex(now.index) - 1).fillna(0)
+                change_12m = (now / arr(month - pd.DateOffset(months=12)).reindex(now.index) - 1).fillna(0)
+                quarter = f"{month.year}-Q{month.quarter}"
+                book = accounts.set_index("account_id").loc[now.index]
+                peer_grr = {
+                    (r, s): retention(mrr, quarter, r, s)["grr"]
+                    for r, s in book[["region", "segment"]].drop_duplicates().itertuples(index=False)
+                }
+                rows = []
+                for account_id, a in book.iterrows():
+                    grr = peer_grr[(a["region"], a["segment"])]
+                    signals = [
+                        (35 * min(max(-change_3m[account_id], 0) / 0.3, 1), f"ARR {change_3m[account_id]:+.0%} in 3 months"),
+                        (25 * min(max(-change_12m[account_id], 0) / 0.4, 1), f"ARR {change_12m[account_id]:+.0%} in 12 months"),
+                        (25 * min(max(0.95 - grr, 0) / 0.15, 1), f"{a['region']} {a['segment']} peers keep {grr:.0%} of revenue"),
+                        (15 if a["price_plan"] == "2026 price list" and a["segment"] != "Enterprise" else 0,
+                         "Moved to the 2026 price list"),
+                    ]
+                    rows.append({
+                        "account_id": account_id, "account": a["account"], "region": a["region"], "segment": a["segment"],
+                        "industry": a["industry"], "price_plan": a["price_plan"], "arr": round(float(now[account_id]), 0),
+                        "change_3m": round(float(change_3m[account_id]), 3), "change_12m": round(float(change_12m[account_id]), 3),
+                        "peer_grr": round(float(grr), 3),
+                        "score": round(sum(points for points, _ in signals)),
+                        "drivers": [reason for points, reason in sorted(signals, reverse=True) if points >= 5],
+                    })
+                return pd.DataFrame(rows)
+
+            as_of = mrr["month"].max()
+
+            scores = score_accounts(as_of)
+
+            last_month = score_accounts(as_of - pd.DateOffset(months=1)).set_index("account_id")["score"]
+
+            scores["previous_score"] = scores["account_id"].map(last_month).fillna(0).astype(int)
+
+            in_scope = scores if region == "All" else scores[scores["region"] == region]
+
+            at_risk = in_scope[in_scope["score"] >= int(risk_threshold)]
+
+            newly_at_risk = at_risk[at_risk["previous_score"] < int(risk_threshold)].sort_values("arr", ascending=False)
+
+            at_risk.sort_values(["score", "arr"], ascending=False).head(10)
+          metadata: {}
+        - id: f226f2d9ecf9079014dfba12d8bf4c3e
+          blockGroup: 7111656095056215db4a30f7b91613aa
+          sortingKey: "000007"
+          type: code
+          content: >-
+            import json
+
+            import os
+
+            import urllib.request
+
+
+            # Post the accounts that crossed the threshold since last month, each linking to its page in the app.
+
+            app_url = os.environ.get("ACCOUNT_HEALTH_URL", "").rstrip("/")
+
+            message = None
+
+            if not newly_at_risk.empty:
+                lines = [f"*{len(newly_at_risk)} accounts crossed churn-risk score {risk_threshold}* (as of {as_of:%B %Y})"]
+                for a in newly_at_risk.head(8).itertuples():
+                    name = f"<{app_url}/?account={a.account_id}|{a.account}>" if app_url else a.account
+                    lines.append(f"• {name}, {a.region} {a.segment}, ${a.arr / 1e3:,.0f}K ARR: score {a.score} ({a.drivers[0]})")
+                if app_url:
+                    lines.append(f"<{app_url}/?region={region}|Open account health>")
+                message = "\n".join(lines)
+
+            if message and notify:
+                webhook = os.environ.get("SLACK_WEBHOOK_URL")
+                if webhook:
+                    request = urllib.request.Request(
+                        webhook, data=json.dumps({"text": message}).encode(), headers={"Content-Type": "application/json"}
+                    )
+                    urllib.request.urlopen(request, timeout=10)
+                    print("Sent to Slack:")
+                else:
+                    print("SLACK_WEBHOOK_URL is not set, so this message was not sent:")
+                print(message)
+            elif not message:
+                print(f"No account crossed score {risk_threshold} since last month.")
+          metadata: {}
+        - id: 0d2b965864b6c1dbdf967bc2f6d91b3e
+          blockGroup: d529337a96aa5a95b7a7a784a48ad6b4
+          sortingKey: "000008"
+          type: code
+          content: >-
+            from IPython.display import display
+
+
+            display({"application/json": {
+                "as_of": f"{as_of:%Y-%m}",
+                "region": region,
+                "threshold": int(risk_threshold),
+                "summary": {
+                    "accounts": len(in_scope),
+                    "at_risk": len(at_risk),
+                    "at_risk_arr": round(float(at_risk["arr"].sum()), 0),
+                    "newly_at_risk": len(newly_at_risk),
+                },
+                "accounts": in_scope.sort_values(["score", "arr"], ascending=False).head(250).to_dict("records"),
+                "newly_at_risk": newly_at_risk["account_id"].tolist(),
+                "message": message,
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d03
+      name: Account health
+version: 1.0.0

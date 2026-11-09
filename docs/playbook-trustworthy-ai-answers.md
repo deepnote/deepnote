@@ -80,10 +80,10 @@ Database integrations that use per-user OAuth, such as [Snowflake OAuth](/docs/s
 
 ## Example
 
-In the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software), the `Revenue review` app ends with an agent block
-that answers the viewer's own question. Its prompt tells it to use the functions from the
-`Revenue metrics` module instead of writing its own definitions, and a hidden guide block lists the
-tables and functions it can use, so its answer matches the KPIs above it.
+In the [Revenue review app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/revenue-review) of the Lindquett Software example, an agent block writes
+the analyst note at the top of the dashboard. Its prompt tells it to use the functions from the
+`Revenue metrics` module instead of writing its own definitions, and a guide block lists the tables and
+functions it can use, so the note quotes the same numbers as the charts below it.
 
 ## Plan requirements
 

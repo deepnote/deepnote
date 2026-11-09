@@ -113,13 +113,14 @@ OPENAI_API_KEY=sk-... deepnote run my-project.deepnote --prompt "Analyze the dat
 
 See [demo-agent-block.deepnote](./demo-agent-block.deepnote) for an example with MCP server configuration.
 
-### A company's analytics project
+### A company's data apps
 
-[lindquett-software](./lindquett-software/) is the analytics project of a fictional SaaS company: a
-data app with an AI analyst, a scheduled revenue alert, data quality checks for CI and an API
-endpoint, all calculating revenue from the same two modules. Each notebook is the worked example
-for one of the [Deepnote playbooks](https://deepnote.com/docs). Preview the app with
-`pnpm example:lindquett`.
+[lindquett-software](./lindquett-software/) is five tools a fictional SaaS company runs on Deepnote,
+each a notebook with an app on top: a revenue review with an AI-written analyst note, a renewal deal
+desk the CRM also calls, churn-risk scores that alert customer success, a data health page and a
+Streamlit pricing planner. All five read revenue from the same two modules, and each is the worked
+example for one or more of the [Deepnote playbooks](https://deepnote.com/docs). Run all five locally
+with `pnpm example:lindquett`.
 
 ## What's next?
 
@@ -129,6 +130,6 @@ You can have a look at the other examples in this folder:
 - `2_blocks.deepnote` - Examples of different block types
 - `3_integrations.deepnote` - Example with database integrations
 - `demo-agent-block.deepnote` - agent block with MCP server support
-- `lindquett-software/` - one company's analytics project: app, alert, quality checks and API endpoint sharing the same metric modules
+- `lindquett-software/` - five data apps for one fictional company, from local notebook to published app, sharing the same metric modules
 
 For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.

@@ -1,5 +1,5 @@
-# Run the "Data quality checks" notebook on every pull request and fail the check when a data
-# quality check fails. Copy this file to .github/workflows/ to use it.
+# Run the data health checks on every pull request and fail the check when one fails. Copy this file
+# to .github/workflows/ to use it. The Data health app shows the same checks to everyone else.
 #
 # This version runs the example from a checkout of the deepnote/deepnote repository, where
 # local/run.mjs replaces the notebook's module blocks so it can run on the CI runner. In your own
@@ -41,7 +41,7 @@ jobs:
 
       - name: Run the data quality checks
         run: |
-          node examples/lindquett-software/local/run.mjs "Data quality checks" \
+          node examples/lindquett-software/local/run.mjs data-health \
             --python "$(command -v python)" \
             --startup-timeout 60 --block-timeout 300 \
             -o json > data-quality.json

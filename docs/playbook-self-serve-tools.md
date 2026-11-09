@@ -87,10 +87,10 @@ A data app can't serve files from viewers' runs. Ask the agent to add a download
 
 ## Example
 
-The `Revenue review` app in the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) is a self-serve tool for
-revenue questions: region, segment and quarter filters, KPIs, charts and tables, and a question box
-for anything the filters don't answer. Its layout is stored in the `.deepnote` file, and the example
-can be previewed locally before it's imported.
+The [Renewal deal desk](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/deal-desk) in the Lindquett Software example is a self-serve tool for
+account managers: pick an account and a term, and get the renewal price the pricing rules allow, with a
+plain-language reason for each part of it. The pricing rules stay in one reviewed notebook, and the
+app's page runs that notebook with the account manager's choices.
 
 ## Plan requirements
 

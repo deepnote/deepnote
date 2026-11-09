@@ -44,6 +44,13 @@ Then:
 | How long results last         | Each viewer's latest results, for your plan's run retention (1, 30 or 365 days) | What the app keeps in session state or its cache                                |
 | Publishing                    | Unpublished until an editor sets it to **Published**                            | Available to everyone with access as soon as it runs                            |
 
+## Example
+
+The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) has both kinds. Four tools are data apps, HTML pages that run
+their notebook for each viewer. The [pricing scenario planner](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/pricing-planner) is a Streamlit app:
+a scheduled notebook writes the pricing baseline once a day, and the app models price changes on it
+with no notebook run per slider move.
+
 ## Plan requirements
 
 - **Data app projects, Streamlit app projects and embedded blocks:** all plans.

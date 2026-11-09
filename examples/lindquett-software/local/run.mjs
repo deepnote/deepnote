@@ -1,29 +1,25 @@
-// Run one notebook of the Lindquett Software project locally with `deepnote run`.
+// Run one use case's notebook locally with `deepnote run`.
 //
-//   node examples/lindquett-software/local/run.mjs "Data quality checks" --input simulate_issue="Late load"
+//   node examples/lindquett-software/local/run.mjs data-health --input simulate_issue="Late load"
 //
-// Everything after the notebook name is passed to `deepnote run`, and its exit code is kept, so this
-// works in CI. In Deepnote Cloud, use `deepnote run lindquett.deepnote --cloud --notebook "<name>"`
-// instead: module blocks run there as they are.
+// Everything after the use case is passed to `deepnote run`, and its exit code is kept, so this works
+// in CI. Use cases: revenue-review, deal-desk, account-health, data-health, pricing-planner. In
+// Deepnote, module blocks run as they are; see the README for pushing a notebook there.
 import { spawnSync } from 'node:child_process'
-import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildLocal } from './build.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const [notebook, ...runArgs] = process.argv.slice(2)
-if (!notebook) {
-  process.stderr.write('Usage: run.mjs "<notebook name>" [deepnote run options]\n')
+const [useCase, ...runArgs] = process.argv.slice(2)
+if (!useCase) {
+  process.stderr.write('Usage: run.mjs <use case> [deepnote run options]\n')
   process.exit(2)
 }
 
-const buildDir = join(here, 'build')
-mkdirSync(buildDir, { recursive: true })
-const slug = notebook.toLowerCase().replace(/[^a-z0-9]+/g, '-')
-const notebookPath = join(buildDir, `${slug}.deepnote`)
+let notebookPath
 try {
-  buildLocal(join(here, '..', 'lindquett.deepnote'), notebookPath, { notebook })
+  notebookPath = buildLocal(useCase, join(here, 'build', useCase))
 } catch (error) {
   process.stderr.write(`${error.message}\n`)
   process.exit(2)

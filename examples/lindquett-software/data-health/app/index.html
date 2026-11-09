@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The notebook this app runs in Deepnote. Matches data-health.deepnote; change it if Deepnote assigns another ID. -->
+  <meta name="deepnote-notebook-id" content="5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d04">
+  <title>Data health</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .verdict { display: flex; gap: 18px; align-items: center; padding: 22px; border-radius: var(--radius); }
+    .verdict.pass { background: var(--good-soft); color: var(--good); }
+    .verdict.fail { background: var(--bad-soft); color: var(--bad); }
+    .verdict .mark { font-size: 34px; font-weight: 800; line-height: 1; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: currentColor; }
+    .verdict .mark span { color: var(--card); }
+    .verdict h2 { font-size: 22px; margin: 0; color: inherit; }
+    .verdict p { color: var(--ink-2); margin-top: 4px; }
+    .table-card .name { font-weight: 650; }
+    .check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .check:last-child { border-bottom: 0; }
+    .check .detail { grid-column: 2; font-size: 13px; color: var(--ink-3); }
+    .demo { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+<main>
+  <header class="app">
+    <div>
+      <h1>Data health</h1>
+      <p class="lede">Can you trust today's numbers? The same checks that gate every pull request and every warehouse load, shown for everyone who reads Lindquett's dashboards.</p>
+    </div>
+    <div class="controls demo">
+      <label class="field">Simulate an issue (demo)<select id="simulate"><option>None</option><option>Late load</option><option>Duplicate rows</option><option>Negative MRR</option></select></label>
+      <button class="quiet" id="recheck">Check again</button>
+    </div>
+  </header>
+
+  <div class="status" id="status"></div>
+  <section id="verdict" style="margin-top:10px"></section>
+  <section class="grid cols-3" id="tables" style="margin-top:14px"></section>
+  <section class="card" style="margin-top:14px"><h2>Checks</h2><div id="checks"></div></section>
+
+  <footer class="app">Synthetic data for Lindquett Software, a fictional company. The checks live in one notebook, run by CI, by the warehouse-load trigger and by this page.</footer>
+</main>
+
+<script type="module">
+  import { runNotebook } from './deepnote-app.js'
+  import { h } from './ui.js'
+
+  const $ = id => document.getElementById(id)
+  const monthName = ym => new Date(`${ym}-01T00:00:00`).toLocaleString('en', { month: 'long', year: 'numeric' })
+  let generation = 0
+
+  async function check() {
+    const mine = ++generation
+    $('status').replaceChildren(h('span.spinner'), 'Running the data checks…')
+    $('recheck').disabled = true
+    try {
+      // The page shows failures instead of failing the run, which is what CI and the schedule do.
+      const { data, error } = await runNotebook({ simulate_issue: $('simulate').value, fail_on_issue: false })
+      if (mine !== generation) return
+      if (error) throw new Error(error)
+      $('status').replaceChildren(`Checked ${new Date().toLocaleTimeString()}`)
+      render(data)
+    } catch (failure) {
+      if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
+    } finally {
+      if (mine === generation) $('recheck').disabled = false
+    }
+  }
+
+  function render({ status, checks, tables, last_good_month, expected_month }) {
+    const failed = checks.filter(c => c.status === 'fail')
+    $('verdict').replaceChildren(h(`div.verdict.${status}`, {},
+      h('div.mark', { 'aria-hidden': 'true' }, h('span', {}, status === 'pass' ? '✓' : '!')),
+      h('div', {},
+        h('h2', {}, status === 'pass' ? 'Numbers are safe to use' : 'Hold off on revenue numbers'),
+        h('p', {}, status === 'pass'
+          ? `Revenue is loaded through ${monthName(expected_month)} and all ${checks.length} checks pass.`
+          : `${failed.length} of ${checks.length} checks fail. ${last_good_month ? `Reports are reliable through ${monthName(last_good_month)}.` : ''}`))
+    ))
+    $('tables').replaceChildren(...tables.map(t => h('div.card.table-card', {},
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px' } }, h('span.name', {}, t.table), h(`span.badge.${t.status === 'pass' ? 'good' : 'bad'}`, {}, t.status === 'pass' ? 'Healthy' : 'Failing')),
+      h('p.muted.small', {}, t.description),
+      h('p', { style: { marginTop: '10px' } }, `${t.rows.toLocaleString()} rows, latest ${t.latest}`)
+    )))
+    $('checks').replaceChildren(...checks.map(c => h('div.check', {},
+      h(`span.badge.${c.status === 'pass' ? 'good' : 'bad'}`, {}, c.status === 'pass' ? 'Pass' : 'Fail'),
+      h('span', {}, c.check, h('span.muted.small', {}, `  ${c.table}`)),
+      h('span.detail', {}, c.detail)
+    )))
+  }
+
+  $('recheck').addEventListener('click', check)
+  $('simulate').addEventListener('change', check)
+  check()
+</script>
+</body>
+</html>

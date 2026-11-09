@@ -1,0 +1,363 @@
+/* Lindquett internal tools: one look for every data app. System fonts only, so a published app loads
+   nothing from outside the project. */
+:root {
+  --ink: #1b2230;
+  --ink-2: #4a5468;
+  --ink-3: #7c869a;
+  --paper: #f4f6f9;
+  --card: #ffffff;
+  --line: #dfe4ec;
+  --fjord: #2f6fde;
+  --fjord-soft: #e6effd;
+  --good: #23885b;
+  --good-soft: #e3f4ec;
+  --warn: #b7700f;
+  --warn-soft: #fbf0dd;
+  --bad: #c93c34;
+  --bad-soft: #fbe6e4;
+  --radius: 10px;
+  --shadow: 0 1px 2px rgba(27, 34, 48, 0.06), 0 4px 16px rgba(27, 34, 48, 0.04);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8ecf3;
+    --ink-2: #b4bccb;
+    --ink-3: #8790a3;
+    --paper: #12161e;
+    --card: #1a202b;
+    --line: #2a3242;
+    --fjord: #6ea0ff;
+    --fjord-soft: #1d2b45;
+    --good: #4cc48b;
+    --good-soft: #17322a;
+    --warn: #e6a23c;
+    --warn-soft: #36290f;
+    --bad: #f0726a;
+    --bad-soft: #3a1d1c;
+    --shadow: none;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font:
+    15px / 1.5 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Inter,
+    Roboto,
+    "Helvetica Neue",
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 20px 64px;
+}
+h1 {
+  font-size: 26px;
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+p {
+  margin: 0;
+}
+.lede {
+  color: var(--ink-2);
+  margin-top: 6px;
+  max-width: 62ch;
+}
+.muted {
+  color: var(--ink-3);
+}
+.small {
+  font-size: 13px;
+}
+
+header.app {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+label.field {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+select,
+input[type="text"],
+input[type="search"],
+textarea {
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  min-height: 36px;
+}
+textarea {
+  resize: vertical;
+  min-height: 40px;
+  width: 100%;
+}
+input[type="range"] {
+  accent-color: var(--fjord);
+}
+button {
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-height: 36px;
+  border: 1px solid var(--fjord);
+  background: var(--fjord);
+  color: #fff;
+}
+button.quiet {
+  background: var(--card);
+  color: var(--ink);
+  border-color: var(--line);
+  font-weight: 500;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+:focus-visible {
+  outline: 2px solid var(--fjord);
+  outline-offset: 2px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+.grid {
+  display: grid;
+  gap: 14px;
+}
+.cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.stack {
+  display: grid;
+  gap: 14px;
+}
+@media (max-width: 860px) {
+  .cols-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cols-2,
+  .cols-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi .label {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.kpi .value {
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin-top: 2px;
+}
+.kpi .delta {
+  font-size: 13px;
+  margin-top: 2px;
+}
+.up {
+  color: var(--good);
+}
+.down {
+  color: var(--bad);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.badge.good {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.badge.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.badge.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.badge.info {
+  background: var(--fjord-soft);
+  color: var(--fjord);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+}
+td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+td.num,
+th.num {
+  text-align: right;
+}
+tr:last-child td {
+  border-bottom: 0;
+}
+.scroll {
+  overflow-x: auto;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ink-3);
+  min-height: 20px;
+}
+.spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  border-top-color: var(--fjord);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+.error {
+  color: var(--bad);
+}
+.notice {
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 14px;
+}
+
+.chart {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.chart .bar.total {
+  fill: var(--ink-3);
+}
+.chart .bar.up {
+  fill: var(--good);
+}
+.chart .bar.down {
+  fill: var(--bad);
+}
+.chart text {
+  fill: var(--ink-2);
+  font-size: 12px;
+}
+.chart .value {
+  text-anchor: middle;
+  font-weight: 600;
+  fill: var(--ink);
+}
+.chart .label {
+  text-anchor: middle;
+}
+.chart .grid {
+  stroke: var(--line);
+}
+.chart .axis {
+  fill: var(--ink-3);
+  font-size: 11px;
+}
+.chart .series polyline {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.chart .series circle {
+  fill: var(--ink-3);
+}
+.chart .series .end {
+  fill: var(--ink-3);
+}
+.chart .series.on polyline {
+  stroke: var(--fjord);
+  stroke-width: 3;
+}
+.chart .series.on circle {
+  fill: var(--fjord);
+}
+.chart .series.on .end {
+  fill: var(--ink);
+  font-weight: 600;
+}
+
+footer.app {
+  margin-top: 28px;
+  font-size: 13px;
+  color: var(--ink-3);
+}

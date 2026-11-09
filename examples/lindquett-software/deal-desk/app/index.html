@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The notebook this app runs in Deepnote. Matches deal-desk.deepnote; change it if Deepnote assigns another ID. -->
+  <meta name="deepnote-notebook-id" content="5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d02">
+  <title>Renewal deal desk</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .desk { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+    @media (max-width: 860px) { .desk { grid-template-columns: 1fr; } }
+    .book { max-height: 560px; overflow-y: auto; margin-top: 10px; display: grid; gap: 2px; }
+    .book button { all: unset; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 10px; border-radius: 8px; }
+    .book button:hover, .book button:focus-visible { background: var(--paper); }
+    .book button[aria-pressed="true"] { background: var(--fjord-soft); }
+    .book .sub { grid-column: 1 / -1; font-size: 12px; color: var(--ink-3); }
+    .terms { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .terms button { border: 0; border-radius: 0; background: var(--card); color: var(--ink); font-weight: 500; }
+    .terms button[aria-pressed="true"] { background: var(--fjord); color: #fff; }
+    .price { font-size: 44px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+    .reasons { margin: 14px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .reasons li { padding: 10px 12px; background: var(--paper); border-radius: 8px; }
+    .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .facts div { font-size: 13px; color: var(--ink-2); }
+    .facts strong { display: block; font-size: 17px; color: var(--ink); }
+  </style>
+</head>
+<body>
+<main>
+  <header class="app">
+    <div>
+      <h1>Renewal deal desk</h1>
+      <p class="lede">Pick an account and a term to get the renewal price the pricing rules allow, and why. The CRM gets the same answer from the same notebook.</p>
+    </div>
+  </header>
+
+  <div class="desk">
+    <section class="card">
+      <label class="field">Account<input type="search" id="search" placeholder="Search by name or ID"></label>
+      <div class="book" id="book" role="list"><p class="muted small">Loading the renewal book…</p></div>
+    </section>
+
+    <section class="stack">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+          <div class="terms" role="group" aria-label="Term">
+            <button data-term="1" aria-pressed="true">1 year</button><button data-term="2" aria-pressed="false">2 years</button><button data-term="3" aria-pressed="false">3 years</button>
+          </div>
+          <div class="status" id="status"></div>
+        </div>
+        <div id="quote" style="margin-top:18px"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="app">Synthetic data for Lindquett Software, a fictional company. Pricing rules live in the Renewal quote notebook, reviewed like code.</footer>
+</main>
+
+<script type="module">
+  import { runNotebook } from './deepnote-app.js'
+  import { h, money, percent, signed } from './ui.js'
+
+  const $ = id => document.getElementById(id)
+  const params = new URLSearchParams(location.search)
+  const state = { accountId: params.get('account') ?? 'ACC-1003', term: params.get('term') ?? '1', book: [] }
+  let generation = 0
+
+  async function quote() {
+    const mine = ++generation
+    history.replaceState(null, '', `?account=${state.accountId}&term=${state.term}`)
+    $('status').replaceChildren(h('span.spinner'), 'Pricing…')
+    renderBook()
+    try {
+      const { data, error } = await runNotebook({ account_id: state.accountId, term_years: state.term })
+      if (mine !== generation) return
+      if (data.accounts) { state.book = data.accounts; renderBook() }
+      $('status').replaceChildren(data.as_of ? `Revenue as of ${data.as_of}` : '')
+      if (data.quote && !error) renderQuote(data.quote)
+      else $('quote').replaceChildren(h('p.error', {}, error ?? 'The notebook returned no quote.'))
+    } catch (failure) {
+      if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
+    }
+  }
+
+  function renderBook() {
+    if (!state.book.length) return
+    const term = $('search').value.trim().toLowerCase()
+    const shown = state.book.filter(a => !term || a.account.toLowerCase().includes(term) || a.account_id.toLowerCase().includes(term)).slice(0, 80)
+    $('book').replaceChildren(...shown.map(a => h('button', {
+      role: 'listitem',
+      'aria-pressed': String(a.account_id === state.accountId),
+      onclick: () => { state.accountId = a.account_id; quote() },
+    }, h('span', {}, a.account), h('span.muted', {}, money(a.arr)), h('span.sub', {}, `${a.account_id}, ${a.region}, ${a.segment}`))))
+  }
+
+  function renderQuote(q) {
+    const change = q.proposed_arr / q.current_arr - 1
+    const tone = { Low: 'good', Medium: 'warn', High: 'bad' }[q.risk]
+    $('quote').replaceChildren(
+      h('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
+        h('h2', { style: { margin: 0 } }, q.account), h(`span.badge.${tone}`, {}, `${q.risk} churn risk`)),
+      h('p.muted', { style: { marginTop: '4px' } }, `${q.account_id}, ${q.region} ${q.segment}, ${q.price_plan} price list`),
+      h('div', { style: { marginTop: '18px' } }, h('div.muted.small', {}, `Proposed ARR, ${q.term_years}-year term`), h('div.price', {}, money(q.proposed_arr, 2)),
+        h(`div.${change >= 0 ? 'up' : 'down'}`, {}, `${signed(change * 100, '%')} on today's ${money(q.current_arr, 2)}`)),
+      h('ul.reasons', {}, q.reasons.map(reason => h('li', {}, reason))),
+      h('div.facts', {},
+        h('div', {}, 'ARR over 12 months', h('strong', {}, signed(q.arr_change_12m * 100, '%', 0))),
+        h('div', {}, 'Peer gross retention', h('strong', {}, percent(q.peer_grr, 0))),
+        h('div', {}, 'Uplift and term discount', h('strong', {}, `+${percent(q.uplift, 0)}${q.term_discount ? `, −${percent(q.term_discount, 0)}` : ', none'}`)))
+    )
+  }
+
+  const pressTerm = () =>
+    document.querySelectorAll('[data-term]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.term === state.term)))
+  document.querySelectorAll('[data-term]').forEach(button => button.addEventListener('click', () => {
+    state.term = button.dataset.term
+    pressTerm()
+    quote()
+  }))
+  pressTerm()
+  quote()
+  $('search').addEventListener('input', renderBook)
+</script>
+</body>
+</html>

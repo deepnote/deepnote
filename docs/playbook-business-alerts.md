@@ -87,11 +87,10 @@ This works well for a small team, but has three limits:
 
 ## Example
 
-The `Revenue drop alert` notebook in the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) follows both options.
-It checks each region's net revenue retention against the prior quarter with the same metric module
-as the company's dashboard, lists the accounts behind a drop with a SQL block, and posts to a Slack
-webhook. A checkbox input switches it to raising an error for schedule notifications instead. Run
-it locally to see the message it would send.
+The [Account health app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/account-health) in the Lindquett Software example scores every account for
+churn risk with the reasons behind the score. After each warehouse load, its notebook posts the accounts
+that crossed the threshold to Slack, and each one links to that account's page in the app. Viewers who
+open the app run the same notebook with posting turned off.
 
 ## Plan requirements
 
