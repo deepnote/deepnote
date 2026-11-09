@@ -1,9 +1,10 @@
 import type { ChalkInstance } from 'chalk'
 
-export function embeddedApiAccessNote(c: ChalkInstance): string {
+/** What a published data app may do with the viewer token it calls Deepnote with. */
+export function dataAppApiAccessNote(c: ChalkInstance): string {
   return [
     c.yellow(
-      `${c.bold('Note:')} embedded apps call Deepnote with a viewer-scoped token that expires after 15 minutes — never your personal token.`
+      `${c.bold('Note:')} data apps call Deepnote with a viewer-scoped token that expires after 15 minutes — never your personal token.`
     ),
     c.dim(
       '  It can read notebook inputs and metadata (no source), start detached runs, and poll the viewer’s own runs.'

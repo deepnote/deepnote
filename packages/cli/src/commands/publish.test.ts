@@ -9,19 +9,23 @@ vi.mock('@deepnote/cloud', async importOriginal => {
     ...actual,
     deleteProjectFile: vi.fn(),
     getProjectDetail: vi.fn(),
-    updateProjectStaticFiles: vi.fn(),
+    setDataAppPublished: vi.fn(),
     uploadProjectFile: vi.fn(),
   }
 })
 
-import { deleteProjectFile, getProjectDetail, updateProjectStaticFiles, uploadProjectFile } from '@deepnote/cloud'
+import { deleteProjectFile, getProjectDetail, setDataAppPublished, uploadProjectFile } from '@deepnote/cloud'
 import { createProgram } from '../cli'
 import { getChalk } from '../output'
-import { embeddedApiAccessNote } from '../utils/static-site-api-access'
+import { dataAppApiAccessNote } from '../utils/data-app-api-access'
 
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
-const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
+const mockedSetPublished = vi.mocked(setDataAppPublished)
+
+const APP_URL = 'https://static-p1.example.com/'
+/** An unpublished data app, as a freshly created data app project reports itself. */
+const DATA_APP = { published: false, url: APP_URL }
 const mockedUpload = vi.mocked(uploadProjectFile)
 
 let tempDir: string
@@ -30,12 +34,8 @@ beforeEach(async () => {
   process.exitCode = undefined
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-test-'))
   mockedDelete.mockReset().mockResolvedValue(false)
-  mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
-  mockedUpdateProject.mockReset().mockResolvedValue({
-    sharingEnabled: true,
-    apiAccessEnabled: false,
-    url: 'https://static-p1.example.com/',
-  })
+  mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp: DATA_APP })
+  mockedSetPublished.mockReset().mockResolvedValue({ published: true, url: APP_URL })
   mockedUpload.mockReset().mockImplementation(async (_base, _token, _projectId, path) => ({ path }))
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
@@ -69,7 +69,7 @@ describe('deepnote publish', () => {
     expect(mockedGetProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1')
   })
 
-  it('replaces every file and enables sharing only after all uploads finish', async () => {
+  it('replaces every file and publishes the app only after all uploads finish', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), '<h1>hello</h1>')
     await fs.mkdir(join(tempDir, 'css'))
     await fs.writeFile(join(tempDir, 'css', 'style.css'), 'body {}')
@@ -90,10 +90,8 @@ describe('deepnote publish', () => {
       '_deepnote_static/css/style.css',
       '_deepnote_static/index.html',
     ])
-    expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', {
-      sharingEnabled: true,
-    })
-    expect(mockedUpdateProject.mock.invocationCallOrder[0]).toBeGreaterThan(
+    expect(mockedSetPublished).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', true)
+    expect(mockedSetPublished.mock.invocationCallOrder[0]).toBeGreaterThan(
       Math.max(...mockedUpload.mock.invocationCallOrder)
     )
   })
@@ -107,11 +105,7 @@ describe('deepnote publish', () => {
     ['javascript:alert(1)', 'javascript%3Aalert(1)'],
   ])('publishes below the app file root at %s using an encoded canonical URL', async (suffix, encodedSuffix) => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-    mockedUpdateProject.mockResolvedValue({
-      sharingEnabled: true,
-      apiAccessEnabled: false,
-      url: 'https://apps.example.test/static-files/p1/',
-    })
+    mockedSetPublished.mockResolvedValue({ published: true, url: 'https://apps.example.test/static-files/p1/' })
     const logged: string[] = []
     const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
 
@@ -122,23 +116,19 @@ describe('deepnote publish', () => {
     expect(logged.join('\n')).toContain(`https://apps.example.test/static-files/p1/${encodedSuffix}/`)
   })
 
-  it('skips the project update when the existing app settings already match', async () => {
+  it('skips publishing when the data app is already published', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',
       name: 'Project',
       files: [],
-      staticFiles: {
-        sharingEnabled: true,
-        apiAccessEnabled: false,
-        url: 'https://static-p1.example.com/',
-      },
+      dataApp: { published: true, url: APP_URL },
     })
 
     await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
     expect(mockedUpload).toHaveBeenCalledOnce()
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
     expect(process.exitCode).toBeUndefined()
   })
 
@@ -201,54 +191,54 @@ describe('deepnote publish', () => {
     expect(mockedUpload).not.toHaveBeenCalled()
   })
 
-  it.each([
-    ['enabled', true],
-    ['disabled', false],
-  ] as const)(
-    'sets API access to %s when explicitly requested and notes the embedded token only when enabled',
-    async (state, enabled) => {
-      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-      mockedUpdateProject.mockResolvedValue({
-        sharingEnabled: true,
-        apiAccessEnabled: enabled,
-        url: 'https://static-p1.example.com/',
-      })
-      const logged: string[] = []
-      const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
-
-      await run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', state)
-      spy.mockRestore()
-
-      expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', {
-        sharingEnabled: true,
-        apiAccessEnabled: enabled,
-      })
-      const output = logged.join('\n')
-      expect(output).toContain(`API access: ${state}`)
-      expect(output.includes(embeddedApiAccessNote(getChalk()))).toBe(enabled)
-    }
-  )
-
-  it('notes the embedded token when stored settings already have API access enabled', async () => {
+  it('prints the app URL and what the viewer token can do', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-    mockedGetProject.mockResolvedValue({
-      id: 'p1',
-      name: 'Project',
-      files: [],
-      staticFiles: {
-        sharingEnabled: true,
-        apiAccessEnabled: true,
-        url: 'https://static-p1.example.com/',
-      },
-    })
     const logged: string[] = []
     const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
 
     await run(tempDir, '--project-id', 'p1', '--token', 'tok')
     spy.mockRestore()
 
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
-    expect(logged.join('\n')).toContain(embeddedApiAccessNote(getChalk()))
+    const output = logged.join('\n')
+    expect(output).toContain('Published the app')
+    expect(output).toContain(APP_URL)
+    expect(output).toContain(dataAppApiAccessNote(getChalk()))
+    expect(output).not.toContain('API access:')
+  })
+
+  it.each([
+    ['not a data app', null],
+    ['on a server without data app settings', undefined],
+  ])('exits with code 2 without uploading when the project is %s', async (_label, dataApp) => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp })
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    const stderr = captureStderr()
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderr.join('')).toContain('data app')
+    expect(mockedUpload).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
+  })
+
+  it('rejects the removed --api-access option', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    captureStderr()
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '--api-access', 'enabled')).rejects.toThrow(
+      'exit'
+    )
+
+    expect(exitSpy).toHaveBeenCalled()
+    expect(mockedGetProject).not.toHaveBeenCalled()
   })
 
   it('prunes only stale files below the selected target', async () => {
@@ -256,6 +246,7 @@ describe('deepnote publish', () => {
     mockedGetProject.mockResolvedValue({
       id: 'p1',
       name: 'Project',
+      dataApp: DATA_APP,
       files: [
         { path: '_deepnote_static/index.html', size: 1, updatedAt: '2026-01-01' },
         { path: '_deepnote_static/old.js', size: 1, updatedAt: '2026-01-01' },
@@ -269,7 +260,7 @@ describe('deepnote publish', () => {
       '_deepnote_static/index.html',
       '_deepnote_static/old.js',
     ])
-    expect(mockedUpdateProject).toHaveBeenCalledOnce()
+    expect(mockedSetPublished).toHaveBeenCalledOnce()
   })
 
   it('removes stale file ancestors before uploading when pruning', async () => {
@@ -278,6 +269,7 @@ describe('deepnote publish', () => {
     mockedGetProject.mockResolvedValue({
       id: 'p1',
       name: 'Project',
+      dataApp: DATA_APP,
       files: [
         { path: '_deepnote_static/assets', size: 1, updatedAt: '2026-01-01' },
         { path: '_deepnote_static/old.js', size: 1, updatedAt: '2026-01-01' },
@@ -299,6 +291,7 @@ describe('deepnote publish', () => {
     mockedGetProject.mockResolvedValue({
       id: 'p1',
       name: 'Project',
+      dataApp: DATA_APP,
       files: [{ path: '_deepnote_static/assets', size: 1, updatedAt: '2026-01-01' }],
     })
 
@@ -311,11 +304,12 @@ describe('deepnote publish', () => {
     expect(mockedDelete.mock.invocationCallOrder[0]).toBeLessThan(mockedUpload.mock.invocationCallOrder[0])
   })
 
-  it('does not prune or enable sharing after an upload fails', async () => {
+  it('does not prune or publish the app after an upload fails', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',
       name: 'Project',
+      dataApp: DATA_APP,
       files: [{ path: '_deepnote_static/old.js', size: 1, updatedAt: '2026-01-01' }],
     })
     mockedUpload.mockRejectedValue(new Error('upload failed'))
@@ -324,16 +318,17 @@ describe('deepnote publish', () => {
 
     expect(mockedDelete).toHaveBeenCalledTimes(1)
     expect(mockedDelete).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', '_deepnote_static/index.html')
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('index.html — upload failed'))
     expect(process.exitCode).toBe(1)
   })
 
-  it('does not enable sharing when pruning fails', async () => {
+  it('does not publish the app when pruning fails', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',
       name: 'Project',
+      dataApp: DATA_APP,
       files: [{ path: '_deepnote_static/old.js', size: 1, updatedAt: '2026-01-01' }],
     })
     mockedDelete.mockResolvedValueOnce(false).mockRejectedValueOnce(new Error('delete failed'))
@@ -342,7 +337,7 @@ describe('deepnote publish', () => {
 
     expect(mockedUpload).toHaveBeenCalledOnce()
     expect(mockedDelete).toHaveBeenCalledTimes(2)
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
   })
 
@@ -359,13 +354,13 @@ describe('deepnote publish', () => {
       'p1',
       '_deepnote_static/index-1.html'
     )
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
   })
 
-  it('fails if sharing cannot be enabled after upload', async () => {
+  it('fails if the app cannot be published after upload', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-    mockedUpdateProject.mockRejectedValue(new Error('sharing denied'))
+    mockedSetPublished.mockRejectedValue(new Error('Static file sharing is disabled for this workspace'))
 
     await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
@@ -380,7 +375,7 @@ describe('deepnote publish', () => {
     await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
     expect(mockedUpload).not.toHaveBeenCalled()
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
   })
 
@@ -401,7 +396,7 @@ describe('deepnote publish', () => {
     expect(mockedUpload).toHaveBeenCalledOnce()
     expect(mockedDelete).toHaveBeenCalledOnce()
     expect(mockedDelete.mock.calls[0]?.[3]).toBe('_deepnote_static/good.html')
-    expect(mockedUpdateProject).not.toHaveBeenCalled()
+    expect(mockedSetPublished).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
   })
 
@@ -524,6 +519,7 @@ describe('deepnote publish', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/index.html', size: 9, updatedAt: '2026-01-05T00:00:00.000Z' }],
       })
 
@@ -532,7 +528,7 @@ describe('deepnote publish', () => {
       expect(process.exitCode).toBe(1)
       expect(mockedUpload).not.toHaveBeenCalled()
       expect(mockedDelete).not.toHaveBeenCalled()
-      expect(mockedUpdateProject).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('_deepnote_static/index.html'))
     })
 
@@ -544,6 +540,7 @@ describe('deepnote publish', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/index.html', size: 9, updatedAt: '2026-01-05T00:00:00.000Z' }],
       })
 
@@ -562,6 +559,7 @@ describe('deepnote publish', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/index.html', size: 9, updatedAt: '2026-01-05T00:00:00.000Z' }],
       })
 
@@ -586,6 +584,7 @@ describe('deepnote publish', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/old.js', size: 1, updatedAt: '2026-01-01T00:00:00.000Z' }],
       })
 
@@ -718,7 +717,7 @@ describe('deepnote publish', () => {
       await run(buildDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
       expect(mockedUpload).toHaveBeenCalledOnce()
-      expect(mockedUpdateProject).toHaveBeenCalledOnce()
+      expect(mockedSetPublished).toHaveBeenCalledOnce()
       expect(process.exitCode).toBeUndefined()
       expect(console.error).toHaveBeenCalledWith(expect.stringContaining('deepnote sync --all-files'))
     })
