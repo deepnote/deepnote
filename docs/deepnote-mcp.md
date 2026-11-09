@@ -136,6 +136,48 @@ Deleting a file with `delete_file` can't be undone in Deepnote, since project fi
 
 The examples below assume you have created a workspace API key under **Settings & members > Security > API keys**.
 
+### Deepnote plugin for Claude Code and Codex
+
+The quickest way to set up a coding agent is the [Deepnote plugin](https://github.com/deepnote/agent-plugins).
+It connects the agent to the Deepnote MCP server and also installs skills: instructions that teach the
+agent how to work with Deepnote well: how to read and edit notebooks, run them and debug failed runs,
+inspect integrations, link to what it changed, and build [data apps](/docs/data-app-projects) and
+[Streamlit apps](/docs/streamlit-app-projects).
+
+**Claude Code:**
+
+```text
+/plugin marketplace add deepnote/agent-plugins
+/plugin install deepnote@deepnote
+```
+
+Then run `/mcp`, choose the Deepnote server and sign in in the browser.
+
+**Codex:**
+
+```bash
+codex plugin marketplace add deepnote/agent-plugins
+codex plugin add deepnote@deepnote
+codex mcp login deepnote
+```
+
+To use an API key instead of signing in, set `DEEPNOTE_MCP_TOKEN` in the environment Codex starts
+from and restart Codex.
+
+With the plugin installed, the agent can also preview a [data app](/docs/data-app-projects) on your
+machine against the notebook's real data before it uploads the page to Deepnote (this needs Node.js
+18 or later). Try
+prompts like:
+
+- `Search my Deepnote workspace for customer retention notebooks.`
+- `Run this Deepnote notebook with customer_name set to Acme and summarize the results.`
+- `Show me where this Deepnote integration is used.`
+- `Run this notebook on a machine with at least 32 GB of memory.`
+- `Build a data app that shows weekly sign-ups by country.`
+
+The plugin's
+[README](https://github.com/deepnote/agent-plugins#troubleshooting) covers troubleshooting.
+
 ### Connecting Claude Code / Claude Cowork to Deepnote via UI
 
 **Add it as a custom connector in the UI**

@@ -142,8 +142,12 @@ The CLI is built for scripts and AI agents.
 deepnote lint my-project.deepnote -o json || exit 1
 ```
 
+To run notebooks in GitHub Actions or another CI system, on the runner or in Deepnote Cloud, see
+[Running notebooks in CI with the Deepnote CLI](/docs/deepnote-cli-ci).
+
 ## Related
 
+- [Running notebooks in CI with the Deepnote CLI](/docs/deepnote-cli-ci)
 - [Syncing a workspace with the Deepnote CLI](/docs/deepnote-cli-sync)
 - [Publishing apps and Streamlit apps with the Deepnote CLI](/docs/deepnote-cli-publish)
 - [Deepnote file format](/docs/deepnote-format) — what is inside a `.deepnote` file
