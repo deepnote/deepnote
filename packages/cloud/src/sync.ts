@@ -15,7 +15,7 @@ import type { RequestOptions } from './projects'
  * Endpoints:
  * - `GET  {baseUrl}/v2/projects`                — list projects, paginated via `pageToken`
  * - `GET  {baseUrl}/v2/projects/{id}`           — project detail, including its file inventory
- * - `PATCH {baseUrl}/v2/projects/{id}`           — update static-file sharing/API-access settings
+ * - `PATCH {baseUrl}/v2/projects/{id}`           — publish or unpublish a data app (`dataApp.published`)
  * - `GET  {baseUrl}/v2/projects/{id}/export`    — the whole project as a ZIP of `.deepnote` documents,
  *                                                 one per notebook
  * - `POST {baseUrl}/v2/projects/{id}/import`    — reconcile a ZIP of `.deepnote` documents (the exact
@@ -41,7 +41,7 @@ export const MAX_BUFFERED_PROJECT_FILE_BYTES = 100 * 1024 * 1024
 const MAX_RATE_LIMIT_RETRIES = 5
 const MAX_RATE_LIMIT_WAIT_MS = 60_000
 
-/** Reserved project-file directory for static-site content. */
+/** Reserved project-file directory for data app files. */
 export const PROJECT_STATIC_ROOT = '_deepnote_static'
 
 /**
@@ -97,10 +97,9 @@ const projectFileEntrySchema = z
   })
   .passthrough()
 
-const projectStaticFilesSettingsSchema = z
+const projectDataAppSettingsSchema = z
   .object({
-    sharingEnabled: z.boolean(),
-    apiAccessEnabled: z.boolean(),
+    published: z.boolean(),
     url: z.string().url(),
   })
   .passthrough()
@@ -109,15 +108,16 @@ const projectDetailSchema = z
   .object({
     project: syncProjectSchema.extend({
       files: z.array(projectFileEntrySchema),
-      /** Optional so sync remains compatible with servers deployed before this field existed. */
-      staticFiles: projectStaticFilesSettingsSchema.optional(),
+      /** `null` for projects that are not data apps. Optional so sync keeps working against servers
+       * deployed before this field existed. */
+      dataApp: projectDataAppSettingsSchema.nullable().optional(),
     }),
   })
   .passthrough()
 
-const updateProjectStaticFilesResponseSchema = z
+const updateProjectDataAppResponseSchema = z
   .object({
-    project: syncProjectSchema.extend({ staticFiles: projectStaticFilesSettingsSchema }),
+    project: syncProjectSchema.extend({ dataApp: projectDataAppSettingsSchema.nullable() }),
   })
   .passthrough()
 
@@ -181,24 +181,18 @@ export interface ProjectFileEntry {
   updatedAt: string
 }
 
-/** Static website settings and the canonical, server-generated public URL for a project. */
-export interface ProjectStaticFilesSettings {
-  sharingEnabled: boolean
-  apiAccessEnabled: boolean
+/** A data app project's publishing state and the server-generated app URL. */
+export interface ProjectDataAppSettings {
+  /** Whether people with access to the project can open the app. Editors can always open it. */
+  published: boolean
   url: string
 }
-
-/** Fields accepted by `PATCH /v2/projects/{id}` for the project's static website. */
-export type ProjectStaticFilesUpdate =
-  | { sharingEnabled: true; apiAccessEnabled?: boolean }
-  | { sharingEnabled: false; apiAccessEnabled?: false }
-  | { sharingEnabled?: never; apiAccessEnabled: boolean }
 
 export interface ProjectDetail extends SyncProject {
   /** Recursive file inventory (files only, no directories, no contents). */
   files: ProjectFileEntry[]
-  /** Absent only when talking to a server version from before static website settings were exposed. */
-  staticFiles?: ProjectStaticFilesSettings
+  /** `null` when the project is not a data app; absent only on servers from before data app settings were exposed. */
+  dataApp?: ProjectDataAppSettings | null
 }
 
 /**
@@ -386,35 +380,32 @@ export async function getProjectDetail(
 }
 
 /**
- * Update a project's static website settings (`PATCH {baseUrl}/v2/projects/{id}`). The API requires
- * at least one field. Enabling API access also requires sharing to already be enabled or enabled in
- * the same request; disabling sharing disables API access server-side. Contradictory settings throw
- * before a request is sent.
+ * Publish or unpublish a data app project (`PATCH {baseUrl}/v2/projects/{id}` with `{ dataApp: { published } }`).
+ * Only `data_app` projects can be published; the API answers 400 for any other project type, and 403
+ * when publishing while **Allow static file sharing in projects** is off for the workspace.
  */
-export async function updateProjectStaticFiles(
+export async function setDataAppPublished(
   baseUrl: string,
   token: string,
   projectId: string,
-  update: ProjectStaticFilesUpdate,
+  published: boolean,
   options: RequestOptions = {}
-): Promise<ProjectStaticFilesSettings> {
-  const uncheckedUpdate = update as { sharingEnabled?: boolean; apiAccessEnabled?: boolean }
-  if (uncheckedUpdate.sharingEnabled === false && uncheckedUpdate.apiAccessEnabled === true) {
-    throw new TypeError('API access cannot be enabled while static file sharing is disabled.')
-  }
-
+): Promise<ProjectDataAppSettings> {
   const response = await requestOk(
     `${trimTrailingSlash(baseUrl)}/v2/projects/${encodeURIComponent(projectId)}`,
     {
       method: 'PATCH',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ staticFiles: update }),
+      body: JSON.stringify({ dataApp: { published } }),
     },
     options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
     'Failed to update Deepnote project'
   )
-  const parsed = await parseJsonResponse(response, updateProjectStaticFilesResponseSchema, 'update project')
-  return parsed.project.staticFiles
+  const parsed = await parseJsonResponse(response, updateProjectDataAppResponseSchema, 'update project')
+  if (!parsed.project.dataApp) {
+    throw new Error(`Project ${projectId} is not a data app.`)
+  }
+  return parsed.project.dataApp
 }
 
 /**
