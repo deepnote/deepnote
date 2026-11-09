@@ -35,7 +35,7 @@ Private outputs can't be turned off. Turning them on also clears the project's e
 
 Your editor reloads after the change. Anyone else with the project open sees **This project now runs privately. Reload to continue.** the next time they run a block. The notebook status bar shows a **Private outputs** icon in every project that runs privately.
 
-A duplicate of the project also runs privately.
+A duplicate of the project also runs privately, unless you uncheck **Keep outputs private** in the duplicate dialog.
 
 ## What's shared and what's personal
 
