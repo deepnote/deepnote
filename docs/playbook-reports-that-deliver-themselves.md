@@ -70,6 +70,12 @@ Snapshots are kept for 30 days on Team and 365 days on Enterprise. To keep editi
 - **Outside the workspace:** embedded blocks are visible to anyone with the link, so embed only what may be shared that widely. A data app can be shared only with people invited to its project.
 - **Each reader's own data:** a scheduled edition runs as the schedule's owner with their access, and everyone who reads the notebook or its embedded blocks sees that edition. With per-user OAuth integrations (Enterprise), a data app runs with each reader's own account instead. A module block queries its own project's integrations, so check those too: one that uses shared credentials returns the same data to every reader.
 
+## Example
+
+The `Revenue review` app in the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) is a quarterly revenue report
+built on metric modules. Scheduled with **Show last run results** on, it opens on the latest numbers
+and an AI-written answer to its default question.
+
 ## Plan requirements
 
 - **Embedded blocks and data app projects:** all plans.

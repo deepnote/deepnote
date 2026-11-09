@@ -4,7 +4,7 @@ metadata:
 version: 1.0.0
 project:
   id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b00
-  name: Quarterly revenue review
+  name: Lindquett Software analytics
   notebooks:
   - id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b03
     name: Revenue review
@@ -26,7 +26,7 @@ project:
       type: markdown
       content: |-
         ARR, retention and pipeline from the governed **Revenue metrics** module. Pick a scope, then ask
-        the analyst anything below. *Synthetic data for a fictional company, as of 30 September 2026.*
+        the analyst anything below. *Synthetic data for Lindquett Software, a fictional company, as of 30 September 2026.*
       metadata:
         deepnote_app_block_visible: true
         deepnote_app_block_order: 1
@@ -574,6 +574,542 @@ project:
         deepnote_app_block_order: 16
         deepnote_app_is_code_hidden: false
         deepnote_app_is_output_hidden: false
+  - id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b04
+    name: Revenue drop alert
+    executionMode: block
+    blocks:
+    - id: c3d6b072b36b4fe331c78d45de3f98a8
+      blockGroup: 47feb0fecdb3519ea19f71141c554018
+      sortingKey: a000
+      type: markdown
+      content: |-
+        # Revenue drop alert
+
+        Scheduled every weekday morning. When a region's net revenue retention falls by more than the
+        threshold against the prior quarter, it posts the numbers and the accounts behind them to Slack,
+        with a link to the revenue review app. The retention numbers come from the same **Revenue metrics**
+        module as the app, so the alert and the dashboard never disagree.
+
+        - Set `SLACK_WEBHOOK_URL` (and optionally `REVENUE_REVIEW_URL`) as environment variables. Without a
+          webhook the message is printed instead.
+        - Turn on **Fail the run when alerting** to use schedule notifications instead of a webhook: the run
+          fails, and Deepnote notifies the schedule's subscribers.
+
+        See the [business alerts playbook](https://deepnote.com/docs/playbook-business-alerts).
+      metadata: {}
+    - id: b5455cd26b856a9f0b5c82e46f940cc4
+      blockGroup: 6d30d136faacd9133ab6f45e7e4e4779
+      sortingKey: a001
+      type: input-select
+      content: ''
+      metadata:
+        deepnote_variable_name: quarter
+        deepnote_input_label: Quarter
+        deepnote_variable_value: 2026-Q3
+        deepnote_variable_default_value: 2026-Q3
+        deepnote_variable_options:
+        - 2025-Q1
+        - 2025-Q2
+        - 2025-Q3
+        - 2025-Q4
+        - 2026-Q1
+        - 2026-Q2
+        - 2026-Q3
+        deepnote_variable_custom_options:
+        - 2025-Q1
+        - 2025-Q2
+        - 2025-Q3
+        - 2025-Q4
+        - 2026-Q1
+        - 2026-Q2
+        - 2026-Q3
+        deepnote_variable_select_type: from-options
+        deepnote_allow_multiple_values: false
+    - id: 2de3f9221ffd4dd4fee6edc0245be1e5
+      blockGroup: 9117d7040fad52f944cf828ff5087ac3
+      sortingKey: a002
+      type: input-slider
+      content: ''
+      metadata:
+        deepnote_variable_name: nrr_drop_points
+        deepnote_input_label: Alert when NRR drops by more than (points)
+        deepnote_variable_value: '5'
+        deepnote_slider_min_value: 1
+        deepnote_slider_max_value: 20
+        deepnote_slider_step: 1
+        deepnote_variable_default_value: '5'
+    - id: be7fb571f1a761721030b5b19c99f8d6
+      blockGroup: 4ed9ff5675dd425eb9b5345adc483b90
+      sortingKey: a003
+      type: input-checkbox
+      content: ''
+      metadata:
+        deepnote_variable_name: fail_on_alert
+        deepnote_input_label: Fail the run when alerting
+        deepnote_variable_value: false
+        deepnote_variable_default_value: false
+    - id: 9b579d892a7760bdc80b11dc64a53a8d
+      blockGroup: 5cfceffd3fff226e06e9f3ce67b54456
+      sortingKey: a004
+      type: notebook-function
+      content: ''
+      metadata:
+        function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+        function_notebook_inputs: {}
+        function_notebook_export_mappings:
+          accounts:
+            enabled: true
+            variable_name: accounts
+          mrr:
+            enabled: true
+            variable_name: mrr
+    - id: db4984bddc36f5390773383186f2b3a6
+      blockGroup: b407fa4abac76a65aac65e43908ccc39
+      sortingKey: a005
+      type: notebook-function
+      content: ''
+      metadata:
+        function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b02
+        function_notebook_inputs: {}
+        function_notebook_export_mappings:
+          retention:
+            enabled: true
+            variable_name: retention
+          arr_bridge:
+            enabled: true
+            variable_name: arr_bridge
+    - id: dc353329a9014aa5f95415129f2719c7
+      blockGroup: 0b77b3320e8868fcb10739e0e466179b
+      sortingKey: a006
+      type: code
+      content: |-
+        import pandas as pd
+
+        _q = pd.Period(quarter.replace("-", ""), freq="Q")
+        prior_quarter = f"{(_q - 1).year}-Q{(_q - 1).quarter}"
+        quarter_start = str((_q.asfreq("M", "start") - 1).to_timestamp().date())
+        quarter_end = str(_q.asfreq("M", "end").to_timestamp().date())
+        regions = sorted(accounts["region"].unique())
+      metadata: {}
+    - id: 3dc1836e1fea51625ba50b71020d744e
+      blockGroup: 8e0eb32768c95ed9264334117b1092be
+      sortingKey: a007
+      type: code
+      content: |-
+        # Retention per region from the governed metric functions, this quarter against the last.
+        rows = []
+        for region_name in regions:
+            now, before = retention(mrr, quarter, region_name), retention(mrr, prior_quarter, region_name)
+            bridge = arr_bridge(mrr, quarter, region_name).set_index("step")["arr"]
+            rows.append({
+                "region": region_name,
+                "nrr": now["nrr"],
+                "prior_nrr": before["nrr"],
+                "change_points": round((now["nrr"] - before["nrr"]) * 100, 1),
+                "ending_arr": bridge["Ending ARR"],
+                "churned_arr": -bridge["Churn"],
+            })
+        regional = pd.DataFrame(rows)
+        alerting = regional[regional["change_points"] <= -float(nrr_drop_points)]
+        regional
+      metadata: {}
+    - id: 7fd2842e73ae5b599125ae59dd4dde0c
+      blockGroup: 4340aa304c64d614e1f8c14d7fc6c5f8
+      sortingKey: a008
+      type: sql
+      content: |-
+        -- Accounts in the alerting regions that paid at the start of the quarter and lost ARR by its end
+        select
+            s.account,
+            s.region,
+            s.segment,
+            round(s.mrr * 12) as start_arr,
+            round(coalesce(e.mrr, 0) * 12) as end_arr,
+            round((coalesce(e.mrr, 0) - s.mrr) * 12) as arr_change
+        from mrr as s
+        left join mrr as e
+            on e.account_id = s.account_id and e.month = cast({{ quarter_end }} as timestamp)
+        where s.month = cast({{ quarter_start }} as timestamp)
+          and s.region in (select region from alerting)
+          and coalesce(e.mrr, 0) < s.mrr
+        order by arr_change
+        limit 5
+      metadata:
+        sql_integration_id: deepnote-dataframe-sql
+        deepnote_variable_name: lost_accounts
+        deepnote_return_variable_type: dataframe
+    - id: 3534f274884bfac3e36e97d5c737dd5e
+      blockGroup: bdde318448034167a01c7f2babdaf109
+      sortingKey: a009
+      type: code
+      content: |-
+        import json
+        import os
+        import urllib.request
+
+        def _pct(value):
+            return f"{value * 100:.1f}%"
+
+        if alerting.empty:
+            message = None
+            print(f"No region's NRR fell by more than {nrr_drop_points} points in {quarter}.")
+        else:
+            lines = [f"*Revenue alert for {quarter}*"]
+            for row in alerting.itertuples():
+                lines.append(
+                    f"• *{row.region}*: NRR {_pct(row.nrr)}, down {abs(row.change_points)} points from {_pct(row.prior_nrr)}; "
+                    f"${row.churned_arr / 1e6:.2f}M ARR churned this quarter"
+                )
+            if not lost_accounts.empty:
+                lines.append("Largest losses: " + ", ".join(
+                    f"{a.account} (${abs(a.arr_change) / 1e3:,.0f}K)" for a in lost_accounts.itertuples()
+                ))
+            if os.environ.get("REVENUE_REVIEW_URL"):
+                lines.append(f"<{os.environ['REVENUE_REVIEW_URL']}?quarter={quarter}&__run=true|Open the revenue review>")
+            message = "\n".join(lines)
+            webhook = os.environ.get("SLACK_WEBHOOK_URL")
+            if webhook:
+                request = urllib.request.Request(
+                    webhook, data=json.dumps({"text": message}).encode(), headers={"Content-Type": "application/json"}
+                )
+                urllib.request.urlopen(request, timeout=10)
+                print("Sent to Slack:")
+            else:
+                print("SLACK_WEBHOOK_URL is not set, so this message was not sent:")
+            print(message)
+      metadata: {}
+    - id: 91a47f247e1e4937233f84a8ec315a78
+      blockGroup: dbc60ce215a448fc4248a8237dc3c258
+      sortingKey: a010
+      type: code
+      content: |-
+        from IPython.display import display
+
+        display({"application/json": {
+            "quarter": quarter,
+            "alerting_regions": alerting["region"].tolist(),
+            "message": message,
+        }}, raw=True)
+
+        if message and fail_on_alert:
+            raise RuntimeError(message)
+      metadata: {}
+  - id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b05
+    name: Data quality checks
+    executionMode: block
+    blocks:
+    - id: 9ce5129590d51c151acd3c9e879a18b1
+      blockGroup: 050f501cfd89c33a2f96077eeed6ff38
+      sortingKey: a000
+      type: markdown
+      content: |-
+        # Data quality checks
+
+        The checks behind every number in this project, written once. The same notebook runs in CI on each
+        pull request (`deepnote run` exits with code 1 when a check fails) and on a daily schedule in
+        Deepnote, where a failed run notifies the schedule's subscribers.
+
+        Pick an issue under **Simulate an issue** to see a check fail. See the
+        [data quality playbook](https://deepnote.com/docs/playbook-data-quality-checks).
+      metadata: {}
+    - id: d115ae274bb1260fc9620dcbe7a81b4d
+      blockGroup: 387d72e2c8f1bc71b5c855193389592a
+      sortingKey: a001
+      type: input-select
+      content: ''
+      metadata:
+        deepnote_variable_name: simulate_issue
+        deepnote_input_label: Simulate an issue
+        deepnote_variable_value: None
+        deepnote_variable_default_value: None
+        deepnote_variable_options:
+        - None
+        - Late load
+        - Duplicate rows
+        - Negative MRR
+        deepnote_variable_custom_options:
+        - None
+        - Late load
+        - Duplicate rows
+        - Negative MRR
+        deepnote_variable_select_type: from-options
+        deepnote_allow_multiple_values: false
+    - id: a421efba4f8da3d612c460c73f75c83d
+      blockGroup: cc9b6017f7e0cd058fbd4904116f1c3e
+      sortingKey: a002
+      type: input-text
+      content: ''
+      metadata:
+        deepnote_variable_name: expected_month
+        deepnote_input_label: Latest month that should be loaded
+        deepnote_variable_value: 2026-09
+        deepnote_variable_default_value: 2026-09
+    - id: 49f8712c8206ff46d26db1415bca49e5
+      blockGroup: 6e48be39397f0a357de7c328e4814956
+      sortingKey: a003
+      type: notebook-function
+      content: ''
+      metadata:
+        function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+        function_notebook_inputs: {}
+        function_notebook_export_mappings:
+          accounts:
+            enabled: true
+            variable_name: accounts
+          mrr:
+            enabled: true
+            variable_name: mrr
+          opportunities:
+            enabled: true
+            variable_name: opportunities
+    - id: 7fbe2406a2b332bf8cca8131d6a46f2b
+      blockGroup: 86cadbf72fe7c4f195b33f49a9aea80b
+      sortingKey: a004
+      type: code
+      content: |-
+        import pandas as pd
+
+        # Damage a copy of the data on purpose, to show what a failing check looks like.
+        mrr = mrr.copy()
+        if simulate_issue == "Late load":
+            mrr = mrr[mrr["month"] < mrr["month"].max()]
+        elif simulate_issue == "Duplicate rows":
+            mrr = pd.concat([mrr, mrr.sample(25, random_state=1)])
+        elif simulate_issue == "Negative MRR":
+            mrr.loc[mrr.sample(10, random_state=1).index, "mrr"] *= -1
+      metadata: {}
+    - id: 7d9c585709145213bdd5a8bc81bfc8e9
+      blockGroup: 1c0cdf80d82292385c67fcafe2501b30
+      sortingKey: a005
+      type: sql
+      content: |-
+        -- One row per account and month
+        select account_id, month, count(*) as rows
+        from mrr
+        group by account_id, month
+        having count(*) > 1
+      metadata:
+        sql_integration_id: deepnote-dataframe-sql
+        deepnote_variable_name: duplicate_rows
+        deepnote_return_variable_type: dataframe
+    - id: 820135785f291591b0075aca27f5adfd
+      blockGroup: 6d6677410f3c98366d46e3c770dffcb1
+      sortingKey: a006
+      type: sql
+      content: |-
+        -- MRR is a positive amount; churned accounts have no row, never a zero or negative one
+        select account_id, account, month, mrr
+        from mrr
+        where mrr is null or mrr <= 0
+      metadata:
+        sql_integration_id: deepnote-dataframe-sql
+        deepnote_variable_name: invalid_mrr
+        deepnote_return_variable_type: dataframe
+    - id: a6cace76cffdc79c3600175a24284779
+      blockGroup: 192a9c9dd6e02ae9fc0f5ead41c63db5
+      sortingKey: a007
+      type: sql
+      content: |-
+        -- Every revenue row belongs to a known account
+        select distinct m.account_id
+        from mrr as m
+        left join accounts as a on a.account_id = m.account_id
+        where a.account_id is null
+      metadata:
+        sql_integration_id: deepnote-dataframe-sql
+        deepnote_variable_name: orphan_rows
+        deepnote_return_variable_type: dataframe
+    - id: a7d420e1779ea13a0a93c02924d83123
+      blockGroup: 891dbd7f13e33fa6dc5d0f7d96caca0a
+      sortingKey: a008
+      type: sql
+      content: |-
+        -- Pipeline amounts and targets are positive and probabilities are between 0 and 1
+        select opportunity_id, quarter, amount, probability, target
+        from opportunities
+        where amount <= 0 or target <= 0 or probability not between 0 and 1
+      metadata:
+        sql_integration_id: deepnote-dataframe-sql
+        deepnote_variable_name: invalid_opportunities
+        deepnote_return_variable_type: dataframe
+    - id: 10023ec4c1e27b7f5fd53b033c65354b
+      blockGroup: f7b9470afe8209d80e98a95f37997a09
+      sortingKey: a009
+      type: code
+      content: |-
+        latest_month = mrr["month"].max().strftime("%Y-%m")
+        checks = pd.DataFrame([
+            ("Revenue loaded through the expected month", int(latest_month < expected_month),
+             f"latest month is {latest_month}"),
+            ("One row per account and month", len(duplicate_rows), f"{len(duplicate_rows)} duplicate account-months"),
+            ("MRR is positive", len(invalid_mrr), f"{len(invalid_mrr)} rows with zero, negative or missing MRR"),
+            ("Every row has a known account", len(orphan_rows), f"{len(orphan_rows)} unknown account ids"),
+            ("Pipeline values are valid", len(invalid_opportunities), f"{len(invalid_opportunities)} invalid opportunities"),
+        ], columns=["check", "failures", "detail"])
+        checks["status"] = checks["failures"].map(lambda n: "pass" if n == 0 else "fail")
+        checks
+      metadata: {}
+    - id: b477cba4c006f0a54e1a250127fc2070
+      blockGroup: e409405528e4529988c6f43b34ef24d1
+      sortingKey: a010
+      type: code
+      content: |-
+        failed = checks[checks["status"] == "fail"]
+        if not failed.empty:
+            raise AssertionError(
+                f"{len(failed)} data quality check(s) failed: " + "; ".join(f"{c.check} ({c.detail})" for c in failed.itertuples())
+            )
+        print(f"All {len(checks)} checks passed.")
+      metadata: {}
+  - id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b06
+    name: Renewal quote
+    executionMode: block
+    blocks:
+    - id: 1a5417ea724b28ec34c5ddbbe934074a
+      blockGroup: f5da54a9c76e76e55e193c6b609b2f42
+      sortingKey: a000
+      type: markdown
+      content: |-
+        # Renewal quote
+
+        An endpoint for the CRM: given an account and a term, it returns a renewal price and a churn-risk
+        tier as one JSON object. Sales sees the quote in the CRM, and the pricing rules stay in this
+        reviewed notebook instead of a second copy in a service.
+
+        Call it with the runs API, passing `account_id` and `term_years` as inputs, and read the
+        `application/json` output. See the
+        [notebook as a backend playbook](https://deepnote.com/docs/playbook-notebook-as-a-backend).
+      metadata: {}
+    - id: 5447532b2e6aeee198255c3ed0f9b37f
+      blockGroup: 353081f923e4d6352b48c6cf9d0f1c4e
+      sortingKey: a001
+      type: input-text
+      content: ''
+      metadata:
+        deepnote_variable_name: account_id
+        deepnote_input_label: Account ID
+        deepnote_variable_value: ACC-1001
+        deepnote_variable_default_value: ACC-1001
+    - id: a6e5cb6d4f323445c1baf09579fae6e3
+      blockGroup: c106c9e6fdcbac1cd4426bdd4afe0517
+      sortingKey: a002
+      type: input-select
+      content: ''
+      metadata:
+        deepnote_variable_name: term_years
+        deepnote_input_label: Term (years)
+        deepnote_variable_value: '1'
+        deepnote_variable_default_value: '1'
+        deepnote_variable_options:
+        - '1'
+        - '2'
+        - '3'
+        deepnote_variable_custom_options:
+        - '1'
+        - '2'
+        - '3'
+        deepnote_variable_select_type: from-options
+        deepnote_allow_multiple_values: false
+    - id: a68b16c591d1df3e659953081d969f09
+      blockGroup: b3b574704cf6209a1c14a901ca16174e
+      sortingKey: a003
+      type: notebook-function
+      content: ''
+      metadata:
+        function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+        function_notebook_inputs: {}
+        function_notebook_export_mappings:
+          accounts:
+            enabled: true
+            variable_name: accounts
+          mrr:
+            enabled: true
+            variable_name: mrr
+    - id: 7b3d40a0b300a842c73f12807e2d34ca
+      blockGroup: ae4993dc9b5d969d1920b128f9892e99
+      sortingKey: a004
+      type: notebook-function
+      content: ''
+      metadata:
+        function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b02
+        function_notebook_inputs: {}
+        function_notebook_export_mappings:
+          retention:
+            enabled: true
+            variable_name: retention
+    - id: b08ba3cf941030e93de040ef99f57f76
+      blockGroup: 732d2c8a7476975bc914727efa6be56b
+      sortingKey: a005
+      type: markdown
+      content: |-
+        **Pricing rules**
+
+        - Accounts still on the legacy price list move to the 2026 price list at renewal: +8%. Accounts
+          already on it get the standard +3%.
+        - Multi-year terms are discounted: 4% for two years, 7% for three.
+        - High-risk accounts keep their current price, so the renewal conversation is about value, not price.
+        - Risk is **High** when the account's ARR fell more than 15% in a year or its peer group (same
+          region and segment) has gross revenue retention below 85%; **Medium** when either is declining
+          or below 92%.
+      metadata: {}
+    - id: 6c99d0a805f5455ae9c47b7e89408b1b
+      blockGroup: b590250b4cc9b13ba7caec6273579039
+      sortingKey: a006
+      type: code
+      content: |-
+        import pandas as pd
+
+        account = accounts[accounts["account_id"] == account_id.strip()]
+        if account.empty:
+            raise ValueError(f"Unknown account_id {account_id!r}")
+        account = account.iloc[0]
+        history = mrr[mrr["account_id"] == account["account_id"]].set_index("month")["mrr"]
+        latest_month = mrr["month"].max()
+        if history.empty or history.index.max() < latest_month:
+            raise ValueError(f"{account['account']} ({account['account_id']}) has no revenue in {latest_month:%B %Y}")
+
+        current_arr = float(history.iloc[-1] * 12)
+        year_ago = latest_month - pd.DateOffset(months=12)
+        arr_year_ago = float(history.get(year_ago, history.iloc[0]) * 12)
+        arr_trend = current_arr / arr_year_ago - 1
+
+        latest_quarter = f"{latest_month.year}-Q{latest_month.quarter}"
+        peer_grr = retention(mrr, latest_quarter, account["region"], account["segment"])["grr"]
+
+        if arr_trend < -0.15 or peer_grr < 0.85:
+            risk = "High"
+        elif arr_trend < 0 or peer_grr < 0.92:
+            risk = "Medium"
+        else:
+            risk = "Low"
+
+        uplift = 0.0 if risk == "High" else (0.08 if account["price_plan"] == "Legacy" else 0.03)
+        term_discount = {"1": 0.0, "2": 0.04, "3": 0.07}[str(term_years)]
+        proposed_arr = round(current_arr * (1 + uplift) * (1 - term_discount), -2)
+      metadata: {}
+    - id: f7fa93759228f967d9ee9a08d8b49df3
+      blockGroup: 89d3822be791c95149b5079522f55e97
+      sortingKey: a007
+      type: code
+      content: |-
+        from IPython.display import display
+
+        display({"application/json": {
+            "account_id": account["account_id"],
+            "account": account["account"],
+            "region": account["region"],
+            "segment": account["segment"],
+            "price_plan": account["price_plan"],
+            "current_arr": round(current_arr, 2),
+            "arr_change_12m": round(arr_trend, 3),
+            "peer_grr": round(peer_grr, 3),
+            "risk": risk,
+            "term_years": int(term_years),
+            "uplift": uplift,
+            "term_discount": term_discount,
+            "proposed_arr": proposed_arr,
+        }}, raw=True)
+      metadata: {}
   - id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
     name: Revenue data
     executionMode: block
@@ -605,7 +1141,7 @@ project:
         import numpy as np
         import pandas as pd
 
-        # Synthetic, deterministic revenue data for a fictional B2B SaaS company ("Lumen Analytics").
+        # Synthetic, deterministic revenue data for a fictional B2B SaaS company, Lindquett Software.
         AS_OF = pd.Period("2026-09", "M")
         MONTHS = pd.period_range("2024-01", AS_OF, freq="M")
         rng = np.random.default_rng(20260930)
@@ -726,7 +1262,7 @@ project:
                             stage, prob = stages[rng.integers(0, len(stages))]
                             rows.append(dict(quarter=str(q).replace("Q", "-Q"), region=region, segment=segment,
                                              opportunity_id=f"OPP-{q}-{region[:2].upper()}{segment[:1]}{j:03d}",
-                                             stage=stage, probability=prob, amount=round(amount, -2), target=target))
+                                             stage=stage, probability=prob, amount=max(round(amount, -2), 500.0), target=target))
             return pd.DataFrame(rows)
       metadata: {}
     - id: 24c041949a86f1f84f536390d8cf5d73

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Revenue review preview</title>
+    <title>Revenue review app</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
@@ -349,7 +349,7 @@
         }
         const own = outputsOf(block.id)
         const err = own.find(o => o.output_type === 'error')
-        if (err) { const e = el('div', 'error'); e.append(el('code', null, err.evalue)); if (!state.config.agent.keySet) e.append(el('div', null, `Add ${state.config.agent.keyVar} to examples/revenue-review-app/preview/.env and restart the preview.`)); body.append(e) }
+        if (err) { const e = el('div', 'error'); e.append(el('code', null, err.evalue)); if (!state.config.agent.keySet) e.append(el('div', null, `Add ${state.config.agent.keyVar} to examples/lindquett-software/local/.env and restart the preview.`)); body.append(e) }
         const final = joinText(own.find(o => o.output_type === 'stream')?.text).trim()
         if (final) { const a = el('div', 'answer'); a.append(markdown(final)); body.append(a) }
         if (!added.length && !final && !err) body.append(el('div', 'empty', 'No answer yet. Press Run.'))

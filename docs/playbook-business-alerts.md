@@ -85,6 +85,14 @@ This works well for a small team, but has three limits:
 - The webhook URL or bot token is a secret. Keep it in an environment variables integration, which stores it encrypted, rather than in a code block.
 - The scheduled run executes as the schedule's owner. If they leave the workspace, the schedule pauses until someone else saves it and becomes its owner. A paused alert is silent, and the pause doesn't trigger a failure notification: the pause email goes only to the owner and, unless the project is private, the workspace admins. Agree who takes the schedule over before its owner leaves, and have the admins watch for pause emails.
 
+## Example
+
+The `Revenue drop alert` notebook in the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) follows both options.
+It checks each region's net revenue retention against the prior quarter with the same metric module
+as the company's dashboard, lists the accounts behind a drop with a SQL block, and posts to a Slack
+webhook. A checkbox input switches it to raising an error for schedule notifications instead. Run
+it locally to see the message it would send.
+
 ## Plan requirements
 
 - **Scheduling:** Pro, Team and Enterprise. Hourly and custom cron schedules need Team or Enterprise.

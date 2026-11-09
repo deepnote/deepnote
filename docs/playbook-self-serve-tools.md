@@ -85,6 +85,13 @@ A data app can't serve files from viewers' runs. Ask the agent to add a download
 - **Watch usage.** Viewers' runs appear as detached runs in the notebook's [usage insights](/docs/app-and-notebook-analytics), under **All**. A tool nobody has run in a month is a candidate for retirement.
 - **Change it safely.** Changes go live as soon as the agent saves them. For larger changes, set the app to **Unpublished** while you work, so only editors can open it.
 
+## Example
+
+The `Revenue review` app in the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) is a self-serve tool for
+revenue questions: region, segment and quarter filters, KPIs, charts and tables, and a question box
+for anything the filters don't answer. Its layout is stored in the `.deepnote` file, and the example
+can be previewed locally before it's imported.
+
 ## Plan requirements
 
 - **Data app projects and input blocks:** all plans.

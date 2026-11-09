@@ -83,6 +83,13 @@ With the setup above:
 
 Version history is kept for 7 days on Free, 30 days on Team and without limit on Enterprise.
 
+## Example
+
+The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) is a project built this way. Its `Revenue data` module
+exports the governed tables and its `Revenue metrics` module exports ARR, NRR, GRR and pipeline
+coverage as functions. A data app, a scheduled alert, an API endpoint and an AI analyst all import
+them, so every one of them reports the same retention for the same quarter.
+
 ## Plan requirements
 
 - **Modules:** all plans.

@@ -135,6 +135,14 @@ Scheduled runs can also notify Slack channels or email recipients on success, on
 
 API requests are rate limited per minute for each API key, at a level set by the workspace's plan. Starting runs and polling them are counted separately. Polling every 15 seconds uses 4 requests a minute per run, so if many runs are in progress at once and you start getting `429` responses, poll less often or spread the runs across keys. The helper waits and retries when starting or polling a run is rate limited, and keeps polling through network errors. It never retries a start request that timed out, because that run may already have started.
 
+## Example
+
+The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) includes a GitHub Actions workflow,
+`ci/after-warehouse-load.yml`, that an upstream pipeline triggers with a `repository_dispatch`
+event when the warehouse load finishes. It runs the `Revenue drop alert` notebook in Deepnote with
+`deepnote run --cloud`, passing the quarter that was just loaded as an input, and fails when the
+run fails.
+
 ## Plan requirements
 
 - **API keys:** Team and Enterprise.

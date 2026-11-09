@@ -78,6 +78,13 @@ So you don't need separate permissions for AI. Restricting a project in Deepnote
 
 Database integrations that use per-user OAuth, such as [Snowflake OAuth](/docs/snowflake-oauth) or [BigQuery with Google OAuth](/docs/bigquery-oauth), go one step further: each person, and the AI acting for them, can query only the tables their own credentials allow.
 
+## Example
+
+In the [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software), the `Revenue review` app ends with an agent block
+that answers the viewer's own question. Its prompt tells it to use the functions from the
+`Revenue metrics` module instead of writing its own definitions, and a hidden guide block lists the
+tables and functions it can use, so its answer matches the KPIs above it.
+
 ## Plan requirements
 
 - **Deepnote Agent:** available on all plans, with a request limit on Free and monthly AI credits on paid plans.

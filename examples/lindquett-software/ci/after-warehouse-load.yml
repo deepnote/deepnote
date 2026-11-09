@@ -1,0 +1,49 @@
+# Run the "Revenue drop alert" notebook in Deepnote as soon as the warehouse load that feeds it
+# finishes, instead of at a fixed time. Copy this file to .github/workflows/ to use it.
+#
+# The pipeline that loads the warehouse (Airflow, Dagster, dbt Cloud or a script) triggers this
+# workflow when it succeeds:
+#
+#   curl -X POST https://api.github.com/repos/<owner>/<repo>/dispatches \
+#     -H "Authorization: Bearer $GITHUB_TOKEN" \
+#     -d '{"event_type": "warehouse-loaded", "client_payload": {"quarter": "2026-Q3"}}'
+#
+# The notebook runs in Deepnote Cloud, where its module blocks and integrations work, and a failed
+# run fails this workflow. The first cloud run creates the project in Deepnote; mark its two module
+# notebooks as modules there once (see the example's README). See
+# https://deepnote.com/docs/playbook-orchestrator-triggered-runs
+name: Revenue drop alert
+
+on:
+  repository_dispatch:
+    types: [warehouse-loaded]
+  workflow_dispatch:
+    inputs:
+      quarter:
+        description: Quarter to check, such as 2026-Q3
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: deepnote # holds the DEEPNOTE_TOKEN secret
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Run the alert in Deepnote Cloud
+        env:
+          DEEPNOTE_TOKEN: ${{ secrets.DEEPNOTE_TOKEN }}
+          QUARTER: ${{ github.event.client_payload.quarter || inputs.quarter }}
+        run: |
+          npx @deepnote/cli run examples/lindquett-software/lindquett.deepnote --cloud \
+            --notebook "Revenue drop alert" \
+            --input "quarter=$QUARTER" \
+            --storage-mode readonly --timeout 1200 -o json
