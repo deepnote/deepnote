@@ -457,7 +457,7 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
   let appUrl: string | undefined
   if (errors.length === 0) {
     try {
-      const settings = dataApp.published ? dataApp : await setDataAppPublished(baseUrl, token, projectId, true)
+      const settings = await setDataAppPublished(baseUrl, token, projectId, true)
       appUrl = appUrlWithPath(settings.url, targetPrefix)
     } catch (error) {
       const message = errorMessage(error)

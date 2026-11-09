@@ -721,7 +721,7 @@ describe('publishApp', () => {
       expect(result.appUrl).toBe(SETTINGS_URL)
     })
 
-    it('leaves an already published data app alone', async () => {
+    it('publishes an already published data app again', async () => {
       const dir = join(tempDir, 'site')
       await writeFiles(dir, { 'index.html': 'hi' })
       mockedGetProject.mockResolvedValue({
@@ -733,8 +733,8 @@ describe('publishApp', () => {
 
       const result = await publish({ dir }).attempt
 
-      expect(mockedSetPublished).not.toHaveBeenCalled()
-      expect(result.appUrl).toBe('https://apps.example.com/p1/')
+      expect(mockedSetPublished).toHaveBeenCalledOnce()
+      expect(result.appUrl).toBe(SETTINGS_URL)
     })
 
     it('does not publish the app when an upload failed', async () => {

@@ -116,7 +116,7 @@ describe('deepnote publish', () => {
     expect(logged.join('\n')).toContain(`https://apps.example.test/static-files/p1/${encodedSuffix}/`)
   })
 
-  it('skips publishing when the data app is already published', async () => {
+  it('publishes again when the data app is already published', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     mockedGetProject.mockResolvedValue({
       id: 'p1',
@@ -128,7 +128,7 @@ describe('deepnote publish', () => {
     await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
     expect(mockedUpload).toHaveBeenCalledOnce()
-    expect(mockedSetPublished).not.toHaveBeenCalled()
+    expect(mockedSetPublished).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'p1', true)
     expect(process.exitCode).toBeUndefined()
   })
 
