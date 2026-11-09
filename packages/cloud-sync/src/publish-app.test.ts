@@ -7,6 +7,7 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   const actual = await importOriginal<typeof import('@deepnote/cloud')>()
   return {
     ...actual,
+    createDataAppProject: vi.fn(),
     deleteProjectFile: vi.fn(),
     getProjectDetail: vi.fn(),
     setDataAppPublished: vi.fn(),
@@ -15,6 +16,7 @@ vi.mock('@deepnote/cloud', async importOriginal => {
 })
 
 import {
+  createDataAppProject,
   deleteProjectFile,
   getProjectDetail,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
@@ -23,6 +25,7 @@ import {
 } from '@deepnote/cloud'
 import { type PublishAppEvent, type PublishAppOptions, PublishDivergedError, PublishError, publishApp } from './index'
 
+const mockedCreate = vi.mocked(createDataAppProject)
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
 const mockedSetPublished = vi.mocked(setDataAppPublished)
@@ -36,6 +39,7 @@ let tempDir: string
 
 beforeEach(async () => {
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-app-test-'))
+  mockedCreate.mockReset().mockResolvedValue({ id: 'new-p', name: 'Deal desk' })
   mockedDelete.mockReset().mockResolvedValue(false)
   mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp: DATA_APP })
   mockedSetPublished.mockReset().mockResolvedValue({ published: true, url: SETTINGS_URL })
@@ -138,6 +142,7 @@ describe('publishApp', () => {
       )
       expect(result).toEqual({
         projectId: 'p1',
+        created: false,
         targetPath: '_deepnote_static',
         totalFiles: 2,
         uploaded: 1,
@@ -687,6 +692,92 @@ describe('publishApp', () => {
         reason: 'unreadable-directory',
         message: `Could not read ${dir}: EACCES: permission denied`,
       })
+    })
+  })
+
+  describe('creating a data app project', () => {
+    it('creates the project after validating the build, then publishes to it', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const { events, attempt } = publish({ dir, projectId: undefined, create: { name: 'Deal desk', folderId: 'f1' } })
+      const result = await attempt
+
+      expect(mockedCreate).toHaveBeenCalledWith('https://api.example.com', 'tok', { name: 'Deal desk', folderId: 'f1' })
+      expect(mockedGetProject).toHaveBeenCalledWith('https://api.example.com', 'tok', 'new-p')
+      expect(mockedUpload.mock.calls[0]?.slice(2, 4)).toEqual(['new-p', '_deepnote_static/index.html'])
+      expect(mockedSetPublished).toHaveBeenCalledWith('https://api.example.com', 'tok', 'new-p', true)
+      expect(events.slice(0, 2).map(event => event.kind)).toEqual(['project-created', 'publishing'])
+      expect(events[0]).toEqual({ kind: 'project-created', projectId: 'new-p', name: 'Deal desk' })
+      expect(result).toMatchObject({ projectId: 'new-p', created: true, errors: [] })
+    })
+
+    it('reports created: false when publishing to an existing project', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const result = await publish({ dir }).attempt
+
+      expect(result.created).toBe(false)
+      expect(mockedCreate).not.toHaveBeenCalled()
+    })
+
+    it('creates nothing when the build directory is invalid', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', '.env': 'SECRET=1' })
+
+      const error = await rejection(publish({ dir, projectId: undefined, create: { name: 'Deal desk' } }).attempt)
+
+      expect(error).toMatchObject({ reason: 'invalid-input' })
+      expect(mockedCreate).not.toHaveBeenCalled()
+    })
+
+    it('does not update a sync workspace that encloses the build directory', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+
+      const result = await publish({ dir: buildDir, projectId: undefined, create: { name: 'Deal desk' } }).attempt
+
+      expect(result.syncRoot).toBeUndefined()
+      expect(result.mirrorUpdated).toBe(false)
+      expect(await readManifestFiles(root)).toBeUndefined()
+    })
+
+    it.each([
+      ['both a project ID and create', { projectId: 'p1', create: { name: 'Deal desk' } }, 'not both'],
+      ['neither a project ID nor create', { projectId: undefined }, 'not both'],
+      ['a blank name', { projectId: undefined, create: { name: ' ' } }, 'needs a name'],
+      [
+        'create with an explicit sync root',
+        { projectId: undefined, create: { name: 'Deal desk' }, syncRoot: '/ws' },
+        'sync root',
+      ],
+    ])('refuses %s before any remote call', async (_label, target, message) => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const error = await rejection(publish({ dir, ...target }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({ reason: 'invalid-input', message: expect.stringContaining(message) })
+      expect(mockedCreate).not.toHaveBeenCalled()
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('fails with project-unavailable and uploads nothing when creation fails', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+      mockedCreate.mockRejectedValue(new Error('Data apps are not available in this workspace'))
+
+      const { events, attempt } = publish({ dir, projectId: undefined, create: { name: 'Deal desk' } })
+      const error = await rejection(attempt)
+
+      expect(error).toMatchObject({
+        reason: 'project-unavailable',
+        message: 'Could not create data app project "Deal desk": Data apps are not available in this workspace',
+      })
+      expect(events).toEqual([])
+      expect(mockedUpload).not.toHaveBeenCalled()
     })
   })
 

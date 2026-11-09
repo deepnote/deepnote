@@ -11,9 +11,10 @@ If the workflow is undecided, start with [Build and publish apps and Streamlit a
 
 ## Before publishing
 
-1. Confirm the target project ID and the files to publish. Neither command creates projects.
-   `publish` needs a data app project (in Deepnote: **Create new → New data app**) and refuses any
-   other project type with exit code 2 before uploading.
+1. Confirm the target project and the files to publish. `publish` needs a data app project and
+   refuses any other project type with exit code 2 before uploading. For a first publish, pass
+   `--create <name>` instead of `--project-id` and it creates one; otherwise the user creates it in
+   Deepnote (**Create new → New data app**). `streamlit publish` never creates projects.
 2. Set `DEEPNOTE_TOKEN` in the environment or in a `.env` file in the current directory, or pass
    `--token`. Use `--url` only to override the default API origin, `https://api.deepnote.com`.
    Keep the token out of app files.
@@ -26,7 +27,14 @@ If the workflow is undecided, start with [Build and publish apps and Streamlit a
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
+
+# First publish: create the data app project
+deepnote publish ./dist --create "Revenue review"
 ```
+
+`--create` validates the build before creating anything and prints the new project ID. Record it and
+use `--project-id` from then on; every `--create` makes another project. It never updates a sync
+workspace and refuses `--sync-root`.
 
 Matching files under `_deepnote_static` are replaced. Files absent from the local build are retained,
 and the app is published after uploads succeed, so people with project access can open it. Use the
@@ -106,7 +114,9 @@ publish again and use the returned URL, which may change.
 
 | Option                | Use                                                             |
 | --------------------- | --------------------------------------------------------------- |
-| `--project-id <uuid>` | Required target project                                         |
+| `--project-id <uuid>` | Target data app project; required unless `--create` is used     |
+| `--create <name>`     | Create a data app project with this name and publish to it      |
+| `--folder-id <uuid>`  | Folder for the project made by `--create`; default is the root  |
 | `--path <prefix>`     | Target directory at or below `_deepnote_static`                 |
 | `--prune`             | Delete remote files absent from the local build                 |
 | `--sync-root <dir>`   | Use this sync workspace; default searches upward from the build |

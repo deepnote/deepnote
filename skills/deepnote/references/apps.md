@@ -53,8 +53,9 @@ Do not substitute the publisher's personal token.
 ## Prepare a data app
 
 1. Use a data app project. Publishing refuses any other project type, and a `.deepnote` file cannot
-   create one; the user creates it in Deepnote with **Create new → New data app**. Data app projects
-   are in beta and may not be enabled for the workspace yet.
+   create one. Create it on the first publish with `deepnote publish <dir> --create <name>`, or have
+   the user create it in Deepnote with **Create new → New data app**. Data app projects are in beta
+   and may not be enabled for the workspace yet.
 2. Build the HTML, CSS, JavaScript, and assets into a dedicated output directory such as `dist`.
    Exclude credentials and files that viewers should not receive.
 3. Use browser-compatible code. A published app has no local `serveStatic` routes or Python

@@ -598,7 +598,9 @@ ${c.bold('Exit Codes:')}
     .command('publish')
     .description('Publish a local build directory as a Deepnote data app')
     .argument('<dir>', 'Directory containing the app files to publish')
-    .requiredOption('--project-id <uuid>', 'Deepnote project ID to publish to')
+    .option('--project-id <uuid>', 'Data app project to publish to')
+    .option('--create <name>', 'Create a new data app project with this name and publish to it')
+    .option('--folder-id <uuid>', 'Workspace folder for the project made by --create (default: workspace root)')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
     .option('--path <prefix>', `Target directory under ${PROJECT_STATIC_ROOT}`, PROJECT_STATIC_ROOT)
@@ -611,8 +613,9 @@ ${c.bold('Exit Codes:')}
       return `
 ${c.bold('Data apps:')}
   A data app is an HTML page hosted by Deepnote and backed by a notebook in the same project.
-  The command publishes to a data app project (in Deepnote: Create new → New data app). It uploads
-  a local build directory to ${c.dim('_deepnote_static/')}, replaces matching files, and publishes
+  The command publishes to an existing data app project (${c.dim('--project-id')}), or creates one first
+  (${c.dim('--create <name>')}). It checks the local build before creating anything, uploads it to
+  ${c.dim('_deepnote_static/')}, replaces matching files, and publishes
   the app after every upload succeeds, so people with access to the project can open it. Other
   project types are refused before anything is uploaded. To take the app down again, use
   ${c.dim('deepnote unpublish')}. To serve a Python file already in the project as a Streamlit app,
@@ -644,6 +647,9 @@ ${c.bold('Examples:')}
   ${c.dim('# Publish a build directory to a project')}
   $ deepnote publish ./dist --project-id 0f1e2d3c-4b5a-6789-abcd-ef0123456789
 
+  ${c.dim('# First publish: create the data app project, then reuse the printed project ID')}
+  $ deepnote publish ./dist --create "Revenue review"
+
   ${c.dim('# Publish with an explicit token')}
   $ deepnote publish ./build --project-id <uuid> --token <token>
 
@@ -661,9 +667,9 @@ ${c.bold('Examples:')}
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Files uploaded and the app published
-  ${c.dim('1')}  Upload, pruning, or publishing failed, or Deepnote holds unsynced changes
-  ${c.dim('2')}  Invalid usage (not a data app project, bad path, directory not found, missing token,
-     bad --sync-root)
+  ${c.dim('1')}  Project creation, upload, pruning, or publishing failed, or Deepnote holds unsynced changes
+  ${c.dim('2')}  Invalid usage (neither or both of --project-id and --create, not a data app project,
+     bad path, directory not found, missing token, bad --sync-root)
 `
     })
     .action(createPublishAction(program))
