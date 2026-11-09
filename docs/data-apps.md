@@ -5,6 +5,10 @@ noIndex: false
 noContent: false
 ---
 
+<Callout status="warning">
+Apps published from notebook blocks are deprecated. To build a new app, use a [data app project](/docs/data-app-projects), a custom HTML page backed by a notebook, or a [Streamlit app project](/docs/streamlit-app-projects). [Choosing how to build an app](/docs/playbook-choosing-an-app-type) compares them. This page describes block apps for people who still maintain one.
+</Callout>
+
 ![Airbnb pricing app with maps and a borough price summary](../assets/docs/data-apps/airbnb-pricing-app.webp)
 
 ### How to create an app
