@@ -121,6 +121,12 @@ const updateProjectDataAppResponseSchema = z
   })
   .passthrough()
 
+const createDataAppProjectResponseSchema = z
+  .object({
+    project: z.object({ id: z.string().min(1), name: z.string() }).passthrough(),
+  })
+  .passthrough()
+
 const importedNotebookSchema = z
   .object({
     id: z.string(),
@@ -377,6 +383,44 @@ export async function getProjectDetail(
   )
   const parsed = await parseJsonResponse(response, projectDetailSchema, 'fetch project')
   return parsed.project
+}
+
+/** A data app project created by {@link createDataAppProject}. */
+export interface CreatedDataAppProject {
+  id: string
+  name: string
+}
+
+/**
+ * Create an empty data app project (`POST {baseUrl}/v2/projects` with `projectType: 'data_app'`), at the
+ * workspace root or in `folderId`. Deepnote seeds it with a notebook; the app itself is unpublished
+ * until {@link setDataAppPublished} publishes it.
+ */
+export async function createDataAppProject(
+  baseUrl: string,
+  token: string,
+  project: { name: string; folderId?: string },
+  options: RequestOptions = {}
+): Promise<CreatedDataAppProject> {
+  if (!project.name.trim()) {
+    throw new TypeError('A data app project needs a name.')
+  }
+  const response = await requestOk(
+    `${trimTrailingSlash(baseUrl)}/v2/projects`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: project.name.trim(),
+        projectType: 'data_app',
+        ...(project.folderId === undefined ? {} : { folderId: project.folderId }),
+      }),
+    },
+    options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+    'Failed to create Deepnote project'
+  )
+  const parsed = await parseJsonResponse(response, createDataAppProjectResponseSchema, 'create project')
+  return { id: parsed.project.id, name: parsed.project.name }
 }
 
 /**

@@ -552,7 +552,7 @@ deepnote open my-project.deepnote -o json
 
 ### `publish <dir>`
 
-Publish a data app to an existing [data app project](https://deepnote.com/docs/data-app-projects). A
+Publish a data app to a [data app project](https://deepnote.com/docs/data-app-projects). A
 **data app** is an HTML page, with its CSS, JavaScript, and assets, hosted by Deepnote and backed by the
 project's notebook; it can call the Deepnote API as its viewer. To serve a Python file already in the
 project as a Streamlit app, use [`streamlit publish`](#streamlit-publish-entrypoint).
@@ -563,13 +563,21 @@ before anything is uploaded.
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
+
+# First publish: create the data app project, then reuse the printed project ID
+deepnote publish ./dist --create "Revenue review"
 ```
+
+`--create` checks the build directory before creating the project, prints the new project's ID, and
+doesn't update a sync workspace.
 
 **Options:**
 
 | Option                | Description                                                           | Default                                     |
 | --------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
-| `--project-id <uuid>` | Project to publish to (required)                                      |                                             |
+| `--project-id <uuid>` | Data app project to publish to; required unless `--create` is used    |                                             |
+| `--create <name>`     | Create a data app project with this name and publish to it            |                                             |
+| `--folder-id <uuid>`  | Workspace folder for the project made by `--create`                   | workspace root                              |
 | `--path <prefix>`     | Target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
 | `--prune`             | Delete remote files below `--path` that are absent locally            | `false`                                     |
 | `--sync-root <dir>`   | Sync workspace whose mirror to update                                 | search upwards from the published directory |

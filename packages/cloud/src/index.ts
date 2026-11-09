@@ -88,6 +88,8 @@ export {
   waitForStreamlitApp,
 } from './streamlit-apps'
 export {
+  type CreatedDataAppProject,
+  createDataAppProject,
   deleteProjectFile,
   downloadProjectFile,
   type ExportedNotebookFile,

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import { basename, join, posix, relative, sep } from 'node:path'
 import {
+  createDataAppProject,
   deleteProjectFile,
   getProjectDetail,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
@@ -30,7 +31,14 @@ export interface PublishAppOptions {
    * 100 MiB upload limit, are refused.
    */
   dir: string
-  projectId: string
+  /** The data app project to publish to. Pass exactly one of `projectId` and `create`. */
+  projectId?: string
+  /**
+   * Create a new data app project, at the workspace root or in `folderId`, and publish to it. The project
+   * is created only after the local files pass validation. A new project is not in any sync workspace, so
+   * the sync mirror is not updated; an explicit `syncRoot` is refused.
+   */
+  create?: { name: string; folderId?: string }
   baseUrl: string
   token: string
   /** Project folder to publish into: `_deepnote_static` (the default) or a directory below it. */
@@ -50,6 +58,8 @@ export interface PublishAppOptions {
 
 /** Progress reported through {@link PublishAppOptions.onEvent}. */
 export type PublishAppEvent =
+  /** `create` made a new data app project. Emitted before `publishing`. */
+  | { kind: 'project-created'; projectId: string; name: string }
   /** The project loaded; nothing has been deleted or uploaded yet. */
   | { kind: 'publishing'; fileCount: number; targetPath: string; projectId: string }
   /** A project file was deleted by `prune`. `path` is the project path. */
@@ -65,6 +75,8 @@ export type PublishAppEvent =
 
 export interface PublishAppResult {
   projectId: string
+  /** Whether `create` made the project in this call. */
+  created: boolean
   /** The normalized target folder. */
   targetPath: string
   /** Files found in `dir`. */
@@ -92,7 +104,7 @@ export interface PublishAppResult {
  * `invalid-input`: a bad `targetPath`, a missing, empty or non-directory `dir`, a `.env` file, a file over
  * the upload limit, colliding paths, or an unusable sync folder. `unreadable-directory`: `dir` or a file in
  * it could not be read.
- * `project-unavailable`: the project could not be loaded.
+ * `project-unavailable`: the project could not be created or loaded.
  * `not-a-data-app`: the project is not a data app project, so it cannot be published. Nothing was uploaded.
  */
 export type PublishErrorReason = 'invalid-input' | 'unreadable-directory' | 'project-unavailable' | 'not-a-data-app'
@@ -326,23 +338,53 @@ async function prepareLocalFiles(
  * @throws {PublishDivergedError} unless `options.force`, before any file is deleted or uploaded.
  */
 export async function publishApp(options: PublishAppOptions): Promise<PublishAppResult> {
-  const { dir, projectId, baseUrl, token, onEvent } = options
+  const { dir, baseUrl, token, onEvent, create } = options
+  if ((options.projectId === undefined) === (create === undefined)) {
+    throw new PublishError('invalid-input', 'Pass either a project ID or a name for a new data app project, not both.')
+  }
+  if (create !== undefined && !create.name.trim()) {
+    throw new PublishError('invalid-input', 'A new data app project needs a name.')
+  }
+  if (create !== undefined && typeof options.syncRoot === 'string') {
+    throw new PublishError(
+      'invalid-input',
+      'A new data app project is not in any sync workspace, so it cannot be published with a sync root.'
+    )
+  }
   const { targetPrefix, publishFiles } = await prepareLocalFiles(dir, options.targetPath ?? PROJECT_STATIC_ROOT)
 
   // Invalid local configuration must fail before remote work starts.
   let mirror: PublishMirror | undefined
-  try {
-    mirror = await resolvePublishMirror({
-      syncRoot: options.syncRoot,
-      publishDir: dir,
-      projectId,
-      onMirrorSkipped: projectDir => onEvent?.({ kind: 'mirror-skipped', projectDir }),
-    })
-  } catch (error) {
-    if (error instanceof PublishMirrorError) {
-      throw new PublishError('invalid-input', error.message, error.code)
+  if (options.projectId !== undefined) {
+    try {
+      mirror = await resolvePublishMirror({
+        syncRoot: options.syncRoot,
+        publishDir: dir,
+        projectId: options.projectId,
+        onMirrorSkipped: projectDir => onEvent?.({ kind: 'mirror-skipped', projectDir }),
+      })
+    } catch (error) {
+      if (error instanceof PublishMirrorError) {
+        throw new PublishError('invalid-input', error.message, error.code)
+      }
+      throw error
     }
-    throw error
+  }
+
+  let projectId: string
+  if (create !== undefined) {
+    try {
+      const created = await createDataAppProject(baseUrl, token, create)
+      projectId = created.id
+      onEvent?.({ kind: 'project-created', projectId, name: created.name })
+    } catch (error) {
+      throw new PublishError(
+        'project-unavailable',
+        `Could not create data app project "${create.name}": ${errorMessage(error)}`
+      )
+    }
+  } else {
+    projectId = options.projectId as string
   }
 
   const mirrorFailures: string[] = []
@@ -468,6 +510,7 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
 
   return {
     projectId,
+    created: create !== undefined,
     targetPath: targetPrefix,
     totalFiles: publishFiles.length,
     uploaded,
