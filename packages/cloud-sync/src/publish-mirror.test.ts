@@ -216,7 +216,9 @@ describe('resolvePublishMirror', () => {
 
 describe('pending upload bookkeeping', () => {
   async function resolveMirror(): Promise<PublishMirror> {
-    const mirror = await resolvePublishMirror({ syncRoot: undefined, publishDir: tempDir, projectId: 'p1' })
+    const publishDir = path.join(tempDir, 'dist')
+    await fs.mkdir(publishDir)
+    const mirror = await resolvePublishMirror({ syncRoot: undefined, publishDir, projectId: 'p1' })
     if (!mirror) {
       throw new Error('expected a mirror')
     }
