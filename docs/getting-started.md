@@ -33,7 +33,7 @@ Deepnote is a workspace for data analysis with Python, SQL, and no-code tools. C
 
 ### Launch
 
-- [**Publish:**](https://deepnote.com/docs/data-apps) Turn notebooks into dashboards or data apps, or use the [Streamlit integration](https://deepnote.com/docs/streamlit).
+- [**Publish:**](https://deepnote.com/docs/data-app-projects) Build a data app backed by a notebook, or a [Streamlit app project](https://deepnote.com/docs/streamlit-app-projects).
 - **Add inputs:** Let viewers filter data and test different values.
 - **Share:** Control who can open your apps.
 
