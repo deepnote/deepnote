@@ -37,7 +37,7 @@ Use [Deepnote AI](https://deepnote.com/docs/deepnote-ai) to generate, explain, o
 
 ### 3. Publish a data app
 
-Arrange and publish selected notebook blocks as a dashboard, report, or interactive app. Browse the [Deepnote Explore gallery](https://deepnote.com/explore) for examples.
+Describe a dashboard or tool, and Deepnote Agent builds it as a [data app project](/docs/data-app-projects) backed by your notebook, or as a [Streamlit app project](/docs/streamlit-app-projects). Apps published from notebook blocks are deprecated. Browse the [Deepnote Explore gallery](https://deepnote.com/explore) for examples.
 
 ![App.png](../assets/docs/eKZQkqZ3THqjoKFjgTTF.webp)
 

@@ -6,7 +6,7 @@ noContent: false
 ---
 
 <Callout status="warning">
-Apps published from notebook blocks are deprecated. To build a new app, use a [data app project](/docs/data-app-projects), a custom HTML page backed by a notebook, or a [Streamlit app project](/docs/streamlit-app-projects). [Choosing how to build an app](/docs/playbook-choosing-an-app-type) compares them. This page describes block apps for people who still maintain one.
+Apps published from notebook blocks are deprecated. To build a new app, use a [data app project](/docs/data-app-projects), a custom HTML page backed by a notebook, or a [Streamlit app project](/docs/streamlit-app-projects). [Choosing how to build an app](/docs/playbook-choosing-an-app-type) compares them. Neither can be embedded in another site or shared with anyone who has the link; to put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks). This page describes block apps for people who still maintain one.
 </Callout>
 
 ![Airbnb pricing app with maps and a borough price summary](../assets/docs/data-apps/airbnb-pricing-app.webp)
