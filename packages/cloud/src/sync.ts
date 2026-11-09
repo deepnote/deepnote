@@ -411,7 +411,7 @@ export async function createDataAppProject(
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: project.name,
+        name: project.name.trim(),
         projectType: 'data_app',
         ...(project.folderId === undefined ? {} : { folderId: project.folderId }),
       }),

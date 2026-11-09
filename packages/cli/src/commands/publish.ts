@@ -13,7 +13,7 @@ import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, log, error as logError, warn } from '../output'
+import { debug, getChalk, log, error as logError, output, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { dataAppApiAccessNote } from '../utils/data-app-api-access'
 import { type CliFlag, cliFlagFor } from '../utils/option-hint'
@@ -177,12 +177,13 @@ export function createPublishAction(program: Command) {
       } else if (result.appUrl !== undefined) {
         log(`${c.green('✓')} Published the app`)
         log(`\n${c.bold('App URL:')} ${c.underline(result.appUrl)}`)
-        if (result.created) {
-          log(`${c.bold('Project ID:')} ${result.projectId}`)
-          log(c.dim(`  Publish updates with --project-id ${result.projectId}; --create makes another project.`))
-        }
         log(`\n${dataAppApiAccessNote(c)}`)
       }
+    }
+
+    if (result.created) {
+      output(`${c.bold('Project ID:')} ${result.projectId}`)
+      log(c.dim(`  Publish updates with --project-id ${result.projectId}; --create makes another project.`))
     }
 
     if (result.errors.length > 0) {

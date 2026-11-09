@@ -253,6 +253,19 @@ describe('deepnote publish', () => {
     expect(process.exitCode).toBeUndefined()
   })
 
+  it('prints the created project ID in quiet mode and when publishing fails', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedSetPublished.mockRejectedValue(new Error('Static file sharing is disabled for this workspace'))
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--create', 'Deal desk', '--token', 'tok', '-q')
+    spy.mockRestore()
+
+    expect(logged.join('\n')).toContain('Project ID: new-p')
+    expect(process.exitCode).toBe(1)
+  })
+
   it('does not print a project ID when publishing to an existing project', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
     const logged: string[] = []
