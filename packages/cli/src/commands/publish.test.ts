@@ -7,6 +7,7 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   const actual = await importOriginal<typeof import('@deepnote/cloud')>()
   return {
     ...actual,
+    createDataAppProject: vi.fn(),
     deleteProjectFile: vi.fn(),
     getProjectDetail: vi.fn(),
     setDataAppPublished: vi.fn(),
@@ -14,11 +15,18 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   }
 })
 
-import { deleteProjectFile, getProjectDetail, setDataAppPublished, uploadProjectFile } from '@deepnote/cloud'
+import {
+  createDataAppProject,
+  deleteProjectFile,
+  getProjectDetail,
+  setDataAppPublished,
+  uploadProjectFile,
+} from '@deepnote/cloud'
 import { createProgram } from '../cli'
 import { getChalk } from '../output'
 import { dataAppApiAccessNote } from '../utils/data-app-api-access'
 
+const mockedCreate = vi.mocked(createDataAppProject)
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
 const mockedSetPublished = vi.mocked(setDataAppPublished)
@@ -33,6 +41,7 @@ let tempDir: string
 beforeEach(async () => {
   process.exitCode = undefined
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-test-'))
+  mockedCreate.mockReset().mockResolvedValue({ id: 'new-p', name: 'Deal desk' })
   mockedDelete.mockReset().mockResolvedValue(false)
   mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp: DATA_APP })
   mockedSetPublished.mockReset().mockResolvedValue({ published: true, url: APP_URL })
@@ -224,6 +233,87 @@ describe('deepnote publish', () => {
     expect(mockedUpload).not.toHaveBeenCalled()
     expect(mockedDelete).not.toHaveBeenCalled()
     expect(mockedSetPublished).not.toHaveBeenCalled()
+  })
+
+  it('creates a data app project with --create and prints its ID for later publishes', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--create', 'Deal desk', '--folder-id', 'f1', '--token', 'tok')
+    spy.mockRestore()
+
+    expect(mockedCreate).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', { name: 'Deal desk', folderId: 'f1' })
+    expect(mockedUpload.mock.calls[0]?.[2]).toBe('new-p')
+    expect(mockedSetPublished).toHaveBeenCalledWith('https://api.deepnote.com', 'tok', 'new-p', true)
+    const output = logged.join('\n')
+    expect(output).toContain('Created data app project')
+    expect(output).toContain('Project ID: new-p')
+    expect(output).toContain('--project-id new-p')
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('does not print a project ID when publishing to an existing project', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok')
+    spy.mockRestore()
+
+    expect(mockedCreate).not.toHaveBeenCalled()
+    expect(logged.join('\n')).not.toContain('Project ID:')
+  })
+
+  it.each([
+    ['neither --project-id nor --create', [], 'Pass either --project-id or --create'],
+    [
+      'both --project-id and --create',
+      ['--project-id', 'p1', '--create', 'Deal desk'],
+      'Pass either --project-id or --create',
+    ],
+    [
+      '--folder-id without --create',
+      ['--project-id', 'p1', '--folder-id', 'f1'],
+      '--folder-id only applies with --create',
+    ],
+  ])('exits with code 2 for %s', async (_label, args, message) => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    const stderr = captureStderr()
+
+    await expect(run(tempDir, ...args, '--token', 'tok')).rejects.toThrow('exit')
+
+    expect(exitSpy).toHaveBeenCalledWith(2)
+    expect(stderr.join('')).toContain(message)
+    expect(mockedCreate).not.toHaveBeenCalled()
+    expect(mockedGetProject).not.toHaveBeenCalled()
+  })
+
+  it('suggests --create when the project is not a data app', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp: null })
+    vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit')
+    })
+    const stderr = captureStderr()
+
+    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')).rejects.toThrow('exit')
+
+    expect(stderr.join('')).toContain('pass --create <name>')
+  })
+
+  it('exits with code 1 when the data app project cannot be created', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedCreate.mockRejectedValue(new Error('Data apps are not available in this workspace'))
+
+    await run(tempDir, '--create', 'Deal desk', '--token', 'tok', '-q')
+
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Could not create data app project "Deal desk"'))
+    expect(mockedUpload).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
   })
 
   it('rejects the removed --api-access option', async () => {

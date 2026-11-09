@@ -19,7 +19,9 @@ import { dataAppApiAccessNote } from '../utils/data-app-api-access'
 import { type CliFlag, cliFlagFor } from '../utils/option-hint'
 
 interface PublishOptions {
-  projectId: string
+  projectId?: string
+  create?: string
+  folderId?: string
   token?: string
   url: string
   path: string
@@ -35,6 +37,9 @@ const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<Publish
 }
 
 function publishErrorSuffix(error: unknown): string {
+  if (error instanceof PublishError && error.reason === 'not-a-data-app') {
+    return ' Or pass --create <name> to create a data app project and publish to it.'
+  }
   if (!(error instanceof PublishError) || !error.code || !error.hint) {
     return ''
   }
@@ -54,9 +59,24 @@ export function createPublishAction(program: Command) {
       return
     }
 
+    if ((options.projectId === undefined) === (options.create === undefined)) {
+      program.error(c.red('Pass either --project-id or --create <name>.'), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+    if (options.folderId !== undefined && options.create === undefined) {
+      program.error(c.red('--folder-id only applies with --create.'), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
     let targetPath = options.path
     const renderEvent = (event: PublishAppEvent) => {
       switch (event.kind) {
+        case 'project-created': {
+          if (!options.quiet) {
+            log(`${c.green('✓')} Created data app project ${c.bold(event.name)} ${c.dim(event.projectId)}`)
+          }
+          return
+        }
         case 'publishing': {
           targetPath = event.targetPath
           if (!options.quiet) {
@@ -105,7 +125,9 @@ export function createPublishAction(program: Command) {
     try {
       result = await publishApp({
         dir,
-        projectId: options.projectId,
+        ...(options.create === undefined
+          ? { projectId: options.projectId }
+          : { create: { name: options.create, folderId: options.folderId } }),
         baseUrl: options.url,
         token,
         targetPath: options.path,
@@ -155,6 +177,10 @@ export function createPublishAction(program: Command) {
       } else if (result.appUrl !== undefined) {
         log(`${c.green('✓')} Published the app`)
         log(`\n${c.bold('App URL:')} ${c.underline(result.appUrl)}`)
+        if (result.created) {
+          log(`${c.bold('Project ID:')} ${result.projectId}`)
+          log(c.dim(`  Publish updates with --project-id ${result.projectId}; --create makes another project.`))
+        }
         log(`\n${dataAppApiAccessNote(c)}`)
       }
     }

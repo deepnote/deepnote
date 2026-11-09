@@ -2,6 +2,7 @@ import { ApiError } from '@deepnote/database-integrations'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  createDataAppProject,
   deleteProjectFile,
   downloadProjectFile,
   exportProject,
@@ -200,6 +201,65 @@ describe('getProjectDetail', () => {
     await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).rejects.toMatchObject({
       statusCode: 502,
       message: expect.stringContaining('Invalid Deepnote response for fetch project'),
+    })
+  })
+})
+
+describe('createDataAppProject', () => {
+  it('POSTs a data_app project at the workspace root', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ project: { id: 'p9', name: 'Deal desk', projectType: 'data_app' } }))
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk' })).resolves.toEqual({
+      id: 'p9',
+      name: 'Deal desk',
+    })
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(String(url)).toBe(`${BASE_URL}/v2/projects`)
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Deal desk', projectType: 'data_app' }),
+    })
+  })
+
+  it('creates the project in a folder', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ project: { id: 'p9', name: 'Deal desk' } }))
+
+    await createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk', folderId: 'f1' })
+
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({
+      body: JSON.stringify({ name: 'Deal desk', projectType: 'data_app', folderId: 'f1' }),
+    })
+  })
+
+  it('refuses a blank name before making a request', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: '  ' })).rejects.toThrow('needs a name')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('surfaces the API error, such as data apps not being enabled for the workspace', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ message: 'Data apps are not available in this workspace' }, { ok: false, status: 403 })
+    )
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk' })).rejects.toMatchObject({
+      statusCode: 403,
+    })
+  })
+
+  it('rejects a response without the new project ID', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { name: 'Deal desk' } }))
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk' })).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for create project'),
     })
   })
 })

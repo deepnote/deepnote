@@ -22,8 +22,9 @@ To have Deepnote Agent build the page for you instead, see [Data app projects](/
 
 ## Prerequisites
 
-- An existing Deepnote project and its ID. `deepnote publish` needs a data app project: in Deepnote,
-  click **Create new** and choose **New data app**.
+- For `deepnote publish`, a data app project. Create it as you publish with `--create <name>`, or in
+  Deepnote: click **Create new** and choose **New data app**. `deepnote streamlit publish` needs an
+  existing project and its ID.
 - The Deepnote CLI: install with `npm install -g @deepnote/cli` or use `npx @deepnote/cli`.
 - An API token with access to the project.
 
@@ -61,6 +62,18 @@ of HTML files:
 ```bash
 deepnote publish ./dist --project-id <project-id>
 ```
+
+For the first publish, `--create` makes the data app project for you, at the workspace root or in the
+folder given by `--folder-id`:
+
+```bash
+deepnote publish ./dist --create "Revenue review"
+```
+
+The build directory is checked before anything is created, so a `.env` file or a bad path leaves no
+empty project behind. The command prints the new project's ID; pass it as `--project-id` for later
+publishes, since each `--create` makes another project. A new project isn't in a sync workspace, so
+`--create` doesn't update one, and `--sync-root` is refused with it.
 
 The command uploads files below `_deepnote_static`, replaces matching files, and publishes the app
 after all uploads succeed, so people with access to the project can open it. Remote files absent from
@@ -198,17 +211,19 @@ to check its status again.
 
 `deepnote publish <dir>`:
 
-| Option              | Description                                            | Default                                |
-| ------------------- | ------------------------------------------------------ | -------------------------------------- |
-| `--project-id <id>` | Target project (required)                              |                                        |
-| `--path <prefix>`   | Target directory at or below `_deepnote_static`        | `_deepnote_static`                     |
-| `--prune`           | Delete remote files absent from the build              | `false`                                |
-| `--sync-root <dir>` | Sync workspace to update                               | search upward from the build directory |
-| `--no-sync-root`    | Skip sync workspace discovery and updates              | `false`                                |
-| `--force`           | Overwrite changes not pulled into the workspace        | `false`                                |
-| `--token <token>`   | API token                                              | `DEEPNOTE_TOKEN`                       |
-| `--url <url>`       | API origin                                             | `https://api.deepnote.com`             |
-| `-q, --quiet`       | Suppress progress and results; errors remain on stderr | `false`                                |
+| Option              | Description                                                 | Default                                |
+| ------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| `--project-id <id>` | Target data app project; required unless `--create` is used |                                        |
+| `--create <name>`   | Create a data app project with this name and publish to it  |                                        |
+| `--folder-id <id>`  | Workspace folder for the project made by `--create`         | workspace root                         |
+| `--path <prefix>`   | Target directory at or below `_deepnote_static`             | `_deepnote_static`                     |
+| `--prune`           | Delete remote files absent from the build                   | `false`                                |
+| `--sync-root <dir>` | Sync workspace to update                                    | search upward from the build directory |
+| `--no-sync-root`    | Skip sync workspace discovery and updates                   | `false`                                |
+| `--force`           | Overwrite changes not pulled into the workspace             | `false`                                |
+| `--token <token>`   | API token                                                   | `DEEPNOTE_TOKEN`                       |
+| `--url <url>`       | API origin                                                  | `https://api.deepnote.com`             |
+| `-q, --quiet`       | Suppress progress and results; errors remain on stderr      | `false`                                |
 
 `deepnote streamlit publish <entrypoint>`:
 
