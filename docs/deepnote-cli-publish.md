@@ -156,8 +156,9 @@ remote copy is deleted and replaced.
 If an upload fails, successful uploads remain in place, the app keeps its previous publish state, and
 remaining stale files are not pruned. An app that was already published stays published and serves the
 partly updated files. The command reports the failures and exits with code `1`. Fix the reported
-errors and publish again. Replacement uses a delete followed by an upload, so an overwritten file
-is briefly unavailable.
+errors and publish again. Replacement deletes the remote file before uploading the new one, so a file
+whose upload fails is missing until a later publish succeeds. If that file is `index.html`, the
+published app doesn't load until then.
 
 ## Streamlit apps
 

@@ -148,7 +148,9 @@ Authentication and the API origin match `publish`.
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. After an upload fails, the app keeps its previous publish state
 and remaining stale files are not pruned; an app that was already published serves the partly updated
-files.
+files. Replacement deletes the remote file before uploading the new one, so a file whose upload failed
+is missing until a later publish succeeds; a missing `index.html` stops the app from loading. Retry
+promptly.
 
 For `unpublish`, exit codes are `0` for success, `1` for a request failure (including a project that
 is not a data app), and `2` for invalid arguments or a missing token.

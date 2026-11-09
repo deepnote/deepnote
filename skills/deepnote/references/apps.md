@@ -119,7 +119,8 @@ with the viewer API flow before publishing it to Deepnote.
 - With a terminal, use the CLI publishing workflow linked above.
 - With only hosted MCP (`https://deepnote.com/mcp`), inspect its advertised tools. Use
   `write_file` to write a data app's files below `_deepnote_static/`, then `update_project` to publish
-  or unpublish it. Do not use notebook execution to write app files. Hosted MCP can also write a
+  or unpublish it. Set `overwrite` when replacing an existing file, and check the returned path:
+  without it, Deepnote writes a uniquely named copy and the app keeps serving the old file. Do not use notebook execution to write app files. Hosted MCP can also write a
   Streamlit entrypoint with `write_file` and serve it with `create_streamlit_app`.
 - Use local `@deepnote/mcp` for local `.deepnote` file work. It does not manage hosted apps or
   publish files.
