@@ -100,6 +100,12 @@ Use plain strings for text, date, file, slider, and single-select inputs; use `t
 JSON arrays of strings for multi-select inputs and absolute date ranges. Unknown input names and invalid values are
 rejected before execution.
 
+A local run whose executing blocks include a SQL block against a `big-query` + `google-oauth`
+integration fails before the kernel starts unless `deepnote integrations auth <id>` has already been
+run — no partial execution. `--dry-run` only checks that a credential is stored and its client
+fingerprint matches; it never contacts Google or writes to the token store. `--cloud` is unaffected,
+since it authenticates BigQuery server-side.
+
 ## Run in Deepnote Cloud (`--cloud`)
 
 By default `run` executes locally against a Python kernel. With `--cloud` it instead triggers a
@@ -189,3 +195,5 @@ and custom endpoints.
 Cloud ignores local provider keys and endpoints; see [Cloud model support](blocks-agent.md#sharing-notebooks-with-cloud).
 
 **Exit codes:** 0 = success, 1 = runtime error, 2 = invalid usage.
+
+**CI:** Runs on the runner need `deepnote-toolkit[server]` installed for the Python the CLI picks (the CLI does not install it); bound them with `--startup-timeout` and `--block-timeout`. `--cloud` runs need only Node and `DEEPNOTE_TOKEN`, with no Python or toolkit on the runner, and are bounded by `--timeout` (default 600s), which only limits how long the CLI waits: a run still going when it expires keeps executing in Deepnote; `--startup-timeout` and `--block-timeout` are ignored there. Use `-o json` either way. Give `DEEPNOTE_TOKEN` to `--cloud` steps only on trusted events (protected-branch push, schedule, manual dispatch), never to jobs that run pull-request code. Full guide: https://deepnote.com/docs/deepnote-cli-ci

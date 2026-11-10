@@ -13,17 +13,18 @@ import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { ExitCode } from '../exit-codes'
-import { debug, getChalk, log, error as logError, warn } from '../output'
+import { debug, getChalk, log, error as logError, output, warn } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
+import { dataAppApiAccessNote } from '../utils/data-app-api-access'
 import { type CliFlag, cliFlagFor } from '../utils/option-hint'
-import { embeddedApiAccessNote } from '../utils/static-site-api-access'
 
 interface PublishOptions {
-  projectId: string
+  projectId?: string
+  create?: string
+  folderId?: string
   token?: string
   url: string
   path: string
-  apiAccess?: 'enabled' | 'disabled'
   prune: boolean
   quiet: boolean
   syncRoot: SyncRootOption
@@ -36,6 +37,9 @@ const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<Publish
 }
 
 function publishErrorSuffix(error: unknown): string {
+  if (error instanceof PublishError && error.reason === 'not-a-data-app') {
+    return ' Or pass --create <name> to create a data app project and publish to it.'
+  }
   if (!(error instanceof PublishError) || !error.code || !error.hint) {
     return ''
   }
@@ -55,9 +59,24 @@ export function createPublishAction(program: Command) {
       return
     }
 
+    if ((options.projectId === undefined) === (options.create === undefined)) {
+      program.error(c.red('Pass either --project-id or --create <name>.'), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+    if (options.folderId !== undefined && options.create === undefined) {
+      program.error(c.red('--folder-id only applies with --create.'), { exitCode: ExitCode.InvalidUsage })
+      return
+    }
+
     let targetPath = options.path
     const renderEvent = (event: PublishAppEvent) => {
       switch (event.kind) {
+        case 'project-created': {
+          if (!options.quiet) {
+            log(`${c.green('✓')} Created data app project ${c.bold(event.name)} ${c.dim(event.projectId)}`)
+          }
+          return
+        }
         case 'publishing': {
           targetPath = event.targetPath
           if (!options.quiet) {
@@ -83,7 +102,7 @@ export function createPublishAction(program: Command) {
           const label = {
             remove: `remove ${event.path}`,
             upload: event.path,
-            'enable-sharing': 'enable app sharing',
+            publish: 'publish the app',
           }[event.operation]
           logError(`  ✗ ${label} — ${event.message}`)
           return
@@ -106,11 +125,12 @@ export function createPublishAction(program: Command) {
     try {
       result = await publishApp({
         dir,
-        projectId: options.projectId,
+        ...(options.create === undefined
+          ? { projectId: options.projectId }
+          : { create: { name: options.create, folderId: options.folderId } }),
         baseUrl: options.url,
         token,
         targetPath: options.path,
-        apiAccess: options.apiAccess === undefined ? undefined : options.apiAccess === 'enabled',
         prune: options.prune,
         force: options.force,
         syncRoot: options.syncRoot,
@@ -132,7 +152,9 @@ export function createPublishAction(program: Command) {
         return
       }
       const exitCode =
-        error instanceof PublishError && error.reason === 'invalid-input' ? ExitCode.InvalidUsage : ExitCode.Error
+        error instanceof PublishError && (error.reason === 'invalid-input' || error.reason === 'not-a-data-app')
+          ? ExitCode.InvalidUsage
+          : ExitCode.Error
       program.error(message, { exitCode })
       return
     }
@@ -153,12 +175,15 @@ export function createPublishAction(program: Command) {
       if (result.errors.length > 0) {
         log(`${c.red('✗')} Publish failed with ${result.errors.length} error${result.errors.length === 1 ? '' : 's'}`)
       } else if (result.appUrl !== undefined) {
+        log(`${c.green('✓')} Published the app`)
         log(`\n${c.bold('App URL:')} ${c.underline(result.appUrl)}`)
-        log(`${c.dim(`API access: ${result.apiAccessEnabled ? 'enabled' : 'disabled'}`)}`)
-        if (result.apiAccessEnabled) {
-          log(`\n${embeddedApiAccessNote(c)}`)
-        }
+        log(`\n${dataAppApiAccessNote(c)}`)
       }
+    }
+
+    if (result.created) {
+      output(`${c.bold('Project ID:')} ${result.projectId}`)
+      log(c.dim(`  Publish updates with --project-id ${result.projectId}; --create makes another project.`))
     }
 
     if (result.errors.length > 0) {

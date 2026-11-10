@@ -1,6 +1,7 @@
 import { convertToEnvironmentVariableName } from '@deepnote/blocks'
 import type { DatabaseIntegrationConfig, SqlIntegrationConfig } from './database-integration-config'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
+import { isFederatedAuthSecretField } from './secret-field-paths'
 import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import {
@@ -35,7 +36,7 @@ export function getEnvironmentVariablesForIntegrations(
     const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata)
       .filter(([key]) => {
         // Filter out caCertificateText - we only provide the path, not the cert text
-        return key !== 'caCertificateText'
+        return key !== 'caCertificateText' && !isFederatedAuthSecretField(integration.type, integration.metadata, key)
       })
       .map(([key, rawValue]) => {
         const name = `${namePrefix}_${key.toUpperCase()}`
@@ -626,6 +627,22 @@ const getBigQuerySqlAlchemyInput = (
       'Failed to parse bigquery service account, returning empty environment variable.',
       { cause: error instanceof Error ? error : new Error(String(error)) }
     )
+  }
+}
+
+/**
+ * @returns sql alchemy input for a BigQuery integration authenticated via Google OAuth, given an
+ * access token minted by the caller. `user_supplied_client=true` tells the runtime to build its
+ * BigQuery client from `access_token` / `project` instead of a service account.
+ */
+export function getBigQueryOAuthSqlAlchemyInput(
+  metadata: Extract<DatabaseIntegrationMetadataByType['big-query'], { authMethod: 'google-oauth' }>,
+  accessToken: string
+): SqlAlchemyInput {
+  return {
+    url: 'bigquery://?user_supplied_client=true',
+    params: { access_token: accessToken, project: metadata.project },
+    param_style: 'pyformat',
   }
 }
 

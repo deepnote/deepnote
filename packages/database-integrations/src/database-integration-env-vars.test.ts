@@ -1,7 +1,9 @@
 import { createPythonCode, type SqlBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
+import type { DatabaseIntegrationConfig } from './database-integration-config'
 import {
   BigQueryServiceAccountParseError,
+  getBigQueryOAuthSqlAlchemyInput,
   getEnvironmentVariablesForIntegrations,
   getSqlEnvVarName,
   SpannerServiceAccountParseError,
@@ -2882,6 +2884,61 @@ describe('Database integration env variables', () => {
       })
     })
 
+    describe('federated auth secret fields', () => {
+      it.each<DatabaseIntegrationConfig>([
+        {
+          type: 'big-query',
+          id: 'my-oauth',
+          name: 'My OAuth Connection',
+          metadata: {
+            authMethod: 'google-oauth',
+            project: 'my-project',
+            clientId: 'my-client-id',
+            clientSecret: 'my-client-secret',
+          },
+        },
+        {
+          type: 'snowflake',
+          id: 'my-oauth',
+          name: 'My OAuth Connection',
+          metadata: {
+            authMethod: 'okta',
+            accountName: 'my-account',
+            clientId: 'my-client-id',
+            clientSecret: 'my-client-secret',
+            oktaSubdomain: 'my-subdomain',
+            identityProvider: 'my-identity-provider',
+            authorizationServer: 'my-authorization-server',
+            dbtServiceToken: 'my-dbt-token',
+          },
+        },
+        {
+          type: 'trino',
+          id: 'my-oauth',
+          name: 'My OAuth Connection',
+          metadata: {
+            authMethod: 'trino-oauth',
+            host: 'my-host',
+            database: 'my-database',
+            clientId: 'my-client-id',
+            clientSecret: 'my-client-secret',
+            authUrl: 'https://example.com/auth',
+            tokenUrl: 'https://example.com/token',
+          },
+        },
+      ])('should omit secret fields but keep clientId of a federated $type integration', integration => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations([integration], {
+          projectRootDirectory: '/path/to/project',
+        })
+        expect(errors).toHaveLength(0)
+
+        const names = envVars.map(envVar => envVar.name)
+        expect(names).not.toContain('MY_OAUTH_CONNECTION_CLIENTSECRET')
+        expect(names).not.toContain('MY_OAUTH_CONNECTION_DBTSERVICETOKEN')
+        expect(envVars).toContainEqual({ name: 'MY_OAUTH_CONNECTION_CLIENTID', value: 'my-client-id' })
+      })
+    })
+
     describe('edge cases with integration names', () => {
       it('should prefix metadata env vars with _ when the name starts with a number', () => {
         const { envVars, errors } = getEnvironmentVariablesForIntegrations(
@@ -3011,6 +3068,29 @@ describe('Database integration env variables', () => {
 
         const sqlAlchemyInput = getSqlAlchemyInputVar(envVars, 'my-unknown')
         expect(sqlAlchemyInput).toBeUndefined()
+      })
+    })
+  })
+
+  describe('getBigQueryOAuthSqlAlchemyInput', () => {
+    it('returns a SQL Alchemy input built from the access token and project, not from the OAuth client', () => {
+      const result = getBigQueryOAuthSqlAlchemyInput(
+        {
+          authMethod: 'google-oauth',
+          project: 'my-gcp-project',
+          clientId: 'my-client-id',
+          clientSecret: 'my-client-secret',
+        },
+        'ya29.a0-fake-access-token'
+      )
+
+      expect(result).toStrictEqual({
+        url: 'bigquery://?user_supplied_client=true',
+        params: {
+          access_token: 'ya29.a0-fake-access-token',
+          project: 'my-gcp-project',
+        },
+        param_style: 'pyformat',
       })
     })
   })

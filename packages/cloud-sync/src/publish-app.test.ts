@@ -7,18 +7,20 @@ vi.mock('@deepnote/cloud', async importOriginal => {
   const actual = await importOriginal<typeof import('@deepnote/cloud')>()
   return {
     ...actual,
+    createDataAppProject: vi.fn(),
     deleteProjectFile: vi.fn(),
     getProjectDetail: vi.fn(),
-    updateProjectStaticFiles: vi.fn(),
+    setDataAppPublished: vi.fn(),
     uploadProjectFile: vi.fn(),
   }
 })
 
 import {
+  createDataAppProject,
   deleteProjectFile,
   getProjectDetail,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
-  updateProjectStaticFiles,
+  setDataAppPublished,
   uploadProjectFile,
 } from '@deepnote/cloud'
 import {
@@ -31,22 +33,24 @@ import {
   uploadWorkingFile,
 } from './index'
 
+const mockedCreate = vi.mocked(createDataAppProject)
 const mockedDelete = vi.mocked(deleteProjectFile)
 const mockedGetProject = vi.mocked(getProjectDetail)
-const mockedUpdateProject = vi.mocked(updateProjectStaticFiles)
+const mockedSetPublished = vi.mocked(setDataAppPublished)
 const mockedUpload = vi.mocked(uploadProjectFile)
 
 const SETTINGS_URL = 'https://static-p1.example.com/'
+/** An unpublished data app, as a freshly created data app project reports itself. */
+const DATA_APP = { published: false, url: SETTINGS_URL }
 
 let tempDir: string
 
 beforeEach(async () => {
   tempDir = await fs.mkdtemp(join(os.tmpdir(), 'publish-app-test-'))
+  mockedCreate.mockReset().mockResolvedValue({ id: 'new-p', name: 'Deal desk' })
   mockedDelete.mockReset().mockResolvedValue(false)
-  mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
-  mockedUpdateProject
-    .mockReset()
-    .mockResolvedValue({ sharingEnabled: true, apiAccessEnabled: false, url: SETTINGS_URL })
+  mockedGetProject.mockReset().mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp: DATA_APP })
+  mockedSetPublished.mockReset().mockResolvedValue({ published: true, url: SETTINGS_URL })
   mockedUpload.mockReset().mockImplementation(async (_base, _token, _projectId, path, content) => ({
     path,
     size: content.length,
@@ -122,6 +126,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/docs', size: 1, updatedAt: '2026-01-01T00:00:00.000Z' }],
       })
       mockedUpload.mockImplementation(async (_base, _token, _projectId, path, content) => {
@@ -145,6 +150,7 @@ describe('publishApp', () => {
       )
       expect(result).toEqual({
         projectId: 'p1',
+        created: false,
         targetPath: '_deepnote_static',
         totalFiles: 2,
         uploaded: 1,
@@ -154,7 +160,7 @@ describe('publishApp', () => {
         mirrorUpdated: true,
       })
       expect(result.appUrl).toBeUndefined()
-      expect(mockedUpdateProject).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
       expect(await readManifestFiles(root)).toEqual({
         '_deepnote_static/docs/index.html': {
           size: 3,
@@ -170,6 +176,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [
           { path: '_deepnote_static/old.html', size: 1, updatedAt: '2026-01-01T00:00:00.000Z' },
           { path: 'notes.md', size: 1, updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -197,6 +204,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/old.html', size: 1, updatedAt: '2026-01-01T00:00:00.000Z' }],
       })
       if (uploadError) {
@@ -215,6 +223,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/old.html', size: 1, updatedAt: '2026-01-01T00:00:00.000Z' }],
       })
       mockedDelete.mockImplementation(async (_base, _token, _projectId, path) => {
@@ -237,17 +246,17 @@ describe('publishApp', () => {
       expect(result.pruned).toBe(0)
     })
 
-    it('reports a sharing failure and returns no app URL', async () => {
+    it('reports a publishing failure and returns no app URL', async () => {
       const { buildDir } = await writeWorkspace()
       await writeFiles(buildDir, { 'index.html': 'hi' })
-      mockedUpdateProject.mockRejectedValue(new Error('not allowed'))
+      mockedSetPublished.mockRejectedValue(new Error('not allowed'))
 
       const { events, attempt } = publish({ dir: buildDir })
       const result = await attempt
 
       expect(events.at(-1)).toEqual({
         kind: 'operation-failed',
-        operation: 'enable-sharing',
+        operation: 'publish',
         path: 'project settings',
         message: 'not allowed',
       })
@@ -298,7 +307,7 @@ describe('publishApp', () => {
       await writeFiles(dir, { 'index.html': 'hi', 'big.bin': 'small' })
       mockedGetProject.mockImplementation(async () => {
         await fs.truncate(join(dir, 'big.bin'), MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
-        return { id: 'p1', name: 'Project', files: [] }
+        return { id: 'p1', name: 'Project', files: [], dataApp: DATA_APP }
       })
 
       const { events, attempt } = publish({ dir })
@@ -312,7 +321,7 @@ describe('publishApp', () => {
   })
 
   describe('sync mirror', () => {
-    it('reports an incomplete mirror before enabling sharing, without failing the publish', async () => {
+    it('reports an incomplete mirror before publishing the app, without failing the publish', async () => {
       const { buildDir } = await writeWorkspace()
       await writeFiles(buildDir, { 'a.html': 'a', 'b.html': 'b' })
       const outside = join(tempDir, 'outside')
@@ -324,7 +333,7 @@ describe('publishApp', () => {
         dir: buildDir,
         onEvent: event => {
           if (event.kind === 'mirror-incomplete') {
-            settingsCallsAtMirrorEvent.push(mockedUpdateProject.mock.calls.length)
+            settingsCallsAtMirrorEvent.push(mockedSetPublished.mock.calls.length)
           }
         },
       })
@@ -337,14 +346,14 @@ describe('publishApp', () => {
         last?.kind === 'mirror-incomplete' && last.failures.map(failure => failure.split(' — ')[0]).sort()
       ).toEqual(['a.html', 'b.html'])
       expect(settingsCallsAtMirrorEvent).toEqual([0])
-      expect(mockedUpdateProject).toHaveBeenCalledOnce()
+      expect(mockedSetPublished).toHaveBeenCalledOnce()
       expect(result.errors).toEqual([])
       expect(result.mirrorUpdated).toBe(false)
       expect(result.appUrl).toBe(SETTINGS_URL)
       expect(await fs.readdir(outside)).toEqual([])
     })
 
-    it('reports a failed manifest save as an incomplete mirror, before enabling sharing', async () => {
+    it('reports a failed manifest save as an incomplete mirror, before publishing the app', async () => {
       const { root, buildDir } = await writeWorkspace()
       await writeFiles(buildDir, { 'a.html': 'a' })
       const manifestPath = join(root, '.deepnote-sync.json')
@@ -359,7 +368,7 @@ describe('publishApp', () => {
         dir: buildDir,
         onEvent: event => {
           if (event.kind === 'mirror-incomplete') {
-            settingsCallsAtMirrorEvent.push(mockedUpdateProject.mock.calls.length)
+            settingsCallsAtMirrorEvent.push(mockedSetPublished.mock.calls.length)
           }
         },
       })
@@ -371,7 +380,7 @@ describe('publishApp', () => {
         failures: [expect.stringMatching(/^\.deepnote-sync\.json — /)],
       })
       expect(settingsCallsAtMirrorEvent).toEqual([0])
-      expect(mockedUpdateProject).toHaveBeenCalledOnce()
+      expect(mockedSetPublished).toHaveBeenCalledOnce()
       expect(result.mirrorUpdated).toBe(false)
       expect(result.errors).toEqual([])
     })
@@ -387,6 +396,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [
           { path: '_deepnote_static/b.html', size: 3, updatedAt: '2026-01-05T00:00:00.000Z' },
           { path: '_deepnote_static/a.html', size: 9, updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -406,7 +416,7 @@ describe('publishApp', () => {
       })
       expect(mockedDelete).not.toHaveBeenCalled()
       expect(mockedUpload).not.toHaveBeenCalled()
-      expect(mockedUpdateProject).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
       expect(events.map(event => event.kind)).toEqual(['publishing'])
     })
 
@@ -420,6 +430,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [
           { path: '_deepnote_static/z.html', size: 9, updatedAt: '2026-01-01T00:00:00.000Z' },
           { path: '_deepnote_static/a.html', size: 9, updatedAt: '2026-01-01T00:00:00.000Z' },
@@ -446,6 +457,7 @@ describe('publishApp', () => {
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
+        dataApp: DATA_APP,
         files: [{ path: '_deepnote_static/index.html', size: 3, updatedAt: '2026-01-05T00:00:00.000Z' }],
       })
 
@@ -579,7 +591,7 @@ describe('publishApp', () => {
       expect(mockedGetProject).not.toHaveBeenCalled()
       expect(mockedDelete).not.toHaveBeenCalled()
       expect(mockedUpload).not.toHaveBeenCalled()
-      expect(mockedUpdateProject).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
     })
 
     it('refuses files over the upload limit before any API call', async () => {
@@ -598,7 +610,7 @@ describe('publishApp', () => {
       expect(mockedGetProject).not.toHaveBeenCalled()
       expect(mockedDelete).not.toHaveBeenCalled()
       expect(mockedUpload).not.toHaveBeenCalled()
-      expect(mockedUpdateProject).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
     })
 
     it.each([
@@ -691,6 +703,92 @@ describe('publishApp', () => {
     })
   })
 
+  describe('creating a data app project', () => {
+    it('creates the project after validating the build, then publishes to it', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const { events, attempt } = publish({ dir, projectId: undefined, create: { name: 'Deal desk', folderId: 'f1' } })
+      const result = await attempt
+
+      expect(mockedCreate).toHaveBeenCalledWith('https://api.example.com', 'tok', { name: 'Deal desk', folderId: 'f1' })
+      expect(mockedGetProject).toHaveBeenCalledWith('https://api.example.com', 'tok', 'new-p')
+      expect(mockedUpload.mock.calls[0]?.slice(2, 4)).toEqual(['new-p', '_deepnote_static/index.html'])
+      expect(mockedSetPublished).toHaveBeenCalledWith('https://api.example.com', 'tok', 'new-p', true)
+      expect(events.slice(0, 2).map(event => event.kind)).toEqual(['project-created', 'publishing'])
+      expect(events[0]).toEqual({ kind: 'project-created', projectId: 'new-p', name: 'Deal desk' })
+      expect(result).toMatchObject({ projectId: 'new-p', created: true, errors: [] })
+    })
+
+    it('reports created: false when publishing to an existing project', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const result = await publish({ dir }).attempt
+
+      expect(result.created).toBe(false)
+      expect(mockedCreate).not.toHaveBeenCalled()
+    })
+
+    it('creates nothing when the build directory is invalid', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi', '.env': 'SECRET=1' })
+
+      const error = await rejection(publish({ dir, projectId: undefined, create: { name: 'Deal desk' } }).attempt)
+
+      expect(error).toMatchObject({ reason: 'invalid-input' })
+      expect(mockedCreate).not.toHaveBeenCalled()
+    })
+
+    it('does not update a sync workspace that encloses the build directory', async () => {
+      const { root, buildDir } = await writeWorkspace()
+      await writeFiles(buildDir, { 'index.html': 'hi' })
+
+      const result = await publish({ dir: buildDir, projectId: undefined, create: { name: 'Deal desk' } }).attempt
+
+      expect(result.syncRoot).toBeUndefined()
+      expect(result.mirrorUpdated).toBe(false)
+      expect(await readManifestFiles(root)).toBeUndefined()
+    })
+
+    it.each([
+      ['both a project ID and create', { projectId: 'p1', create: { name: 'Deal desk' } }, 'not both'],
+      ['neither a project ID nor create', { projectId: undefined }, 'not both'],
+      ['a blank name', { projectId: undefined, create: { name: ' ' } }, 'needs a name'],
+      [
+        'create with an explicit sync root',
+        { projectId: undefined, create: { name: 'Deal desk' }, syncRoot: '/ws' },
+        'sync root',
+      ],
+    ])('refuses %s before any remote call', async (_label, target, message) => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const error = await rejection(publish({ dir, ...target }).attempt)
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({ reason: 'invalid-input', message: expect.stringContaining(message) })
+      expect(mockedCreate).not.toHaveBeenCalled()
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+
+    it('fails with project-unavailable and uploads nothing when creation fails', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+      mockedCreate.mockRejectedValue(new Error('Data apps are not available in this workspace'))
+
+      const { events, attempt } = publish({ dir, projectId: undefined, create: { name: 'Deal desk' } })
+      const error = await rejection(attempt)
+
+      expect(error).toMatchObject({
+        reason: 'project-unavailable',
+        message: 'Could not create data app project "Deal desk": Data apps are not available in this workspace',
+      })
+      expect(events).toEqual([])
+      expect(mockedUpload).not.toHaveBeenCalled()
+    })
+  })
+
   describe('project', () => {
     it('reports a project that cannot be loaded', async () => {
       const dir = join(tempDir, 'site')
@@ -709,59 +807,63 @@ describe('publishApp', () => {
       expect(mockedUpload).not.toHaveBeenCalled()
     })
 
-    it('leaves sharing alone when apiAccess is undefined and sharing is already on', async () => {
+    it('publishes an unpublished data app after the upload', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const result = await publish({ dir }).attempt
+
+      expect(mockedSetPublished).toHaveBeenCalledWith('https://api.example.com', 'tok', 'p1', true)
+      expect(mockedSetPublished.mock.invocationCallOrder[0]).toBeGreaterThan(
+        mockedUpload.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY
+      )
+      expect(result.appUrl).toBe(SETTINGS_URL)
+    })
+
+    it('publishes an already published data app again', async () => {
       const dir = join(tempDir, 'site')
       await writeFiles(dir, { 'index.html': 'hi' })
       mockedGetProject.mockResolvedValue({
         id: 'p1',
         name: 'Project',
         files: [],
-        staticFiles: { sharingEnabled: true, apiAccessEnabled: true, url: 'https://apps.example.com/p1/' },
+        dataApp: { published: true, url: 'https://apps.example.com/p1/' },
       })
 
       const result = await publish({ dir }).attempt
 
-      expect(mockedUpdateProject).not.toHaveBeenCalled()
-      expect(result.apiAccessEnabled).toBe(true)
-      expect(result.appUrl).toBe('https://apps.example.com/p1/')
+      expect(mockedSetPublished).toHaveBeenCalledOnce()
+      expect(result.appUrl).toBe(SETTINGS_URL)
+    })
+
+    it('does not publish the app when an upload failed', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+      mockedUpload.mockRejectedValue(new Error('quota exceeded'))
+
+      const result = await publish({ dir }).attempt
+
+      expect(mockedSetPublished).not.toHaveBeenCalled()
+      expect(result.appUrl).toBeUndefined()
     })
 
     it.each([
-      [true, false],
-      [false, true],
-    ])('sets API access to %s when the project has %s', async (requested, existing) => {
+      ['not a data app', null, 'is not a data app project'],
+      ['from a server without data app settings', undefined, 'did not report data app settings'],
+    ])('refuses a project that is %s before uploading anything', async (_label, dataApp, message) => {
       const dir = join(tempDir, 'site')
       await writeFiles(dir, { 'index.html': 'hi' })
-      mockedGetProject.mockResolvedValue({
-        id: 'p1',
-        name: 'Project',
-        files: [],
-        staticFiles: { sharingEnabled: true, apiAccessEnabled: existing, url: SETTINGS_URL },
-      })
-      mockedUpdateProject.mockResolvedValue({ sharingEnabled: true, apiAccessEnabled: requested, url: SETTINGS_URL })
+      mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp })
 
-      const result = await publish({ dir, apiAccess: requested }).attempt
+      const { events, attempt } = publish({ dir })
+      const error = await rejection(attempt)
 
-      expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.example.com', 'tok', 'p1', {
-        sharingEnabled: true,
-        apiAccessEnabled: requested,
-      })
-      expect(result.apiAccessEnabled).toBe(requested)
-    })
-
-    it('enables sharing when the project has it off', async () => {
-      const dir = join(tempDir, 'site')
-      await writeFiles(dir, { 'index.html': 'hi' })
-      mockedGetProject.mockResolvedValue({
-        id: 'p1',
-        name: 'Project',
-        files: [],
-        staticFiles: { sharingEnabled: false, apiAccessEnabled: false, url: SETTINGS_URL },
-      })
-
-      await publish({ dir }).attempt
-
-      expect(mockedUpdateProject).toHaveBeenCalledWith('https://api.example.com', 'tok', 'p1', { sharingEnabled: true })
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({ reason: 'not-a-data-app', message: expect.stringContaining(message) })
+      expect(events).toEqual([])
+      expect(mockedUpload).not.toHaveBeenCalled()
+      expect(mockedDelete).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
     })
 
     it('returns an app URL for a nested target path', async () => {

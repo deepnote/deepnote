@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/local-runner",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "description": "Run a .deepnote notebook with edited inputs against a local Python backend, and serve it to a static page.",
   "keywords": [
     "deepnote",

@@ -52,11 +52,11 @@ deepnote convert notebook.ipynb
 # Schedule recurring runs in Deepnote Cloud
 deepnote schedule report.deepnote --daily --at 09:00
 
-# Publish an app to an existing Deepnote project
+# Publish a build directory as a data app
 deepnote publish ./dist --project-id <uuid>
 
-# Stop serving it later without deleting its files
-deepnote static-site access --project-id <uuid> --sharing disabled
+# Make it editor-only again without deleting its files
+deepnote unpublish --project-id <uuid>
 
 # Serve a file already in the project as a Streamlit app
 deepnote streamlit publish apps/dashboard.py --project-id <uuid>
@@ -552,34 +552,44 @@ deepnote open my-project.deepnote -o json
 
 ### `publish <dir>`
 
-Publish an app to an existing Deepnote project. An **app** is HTML, CSS, and JavaScript hosted by
-Deepnote and run in the browser; it can be interactive and call the Deepnote API. To serve a Python
-file already in the project as a Streamlit app, use [`streamlit publish`](#streamlit-publish-entrypoint).
+Publish a data app to a [data app project](https://deepnote.com/docs/data-app-projects). A
+**data app** is an HTML page, with its CSS, JavaScript, and assets, hosted by Deepnote and backed by the
+project's notebook; it can call the Deepnote API as its viewer. To serve a Python file already in the
+project as a Streamlit app, use [`streamlit publish`](#streamlit-publish-entrypoint).
 
-The command uploads a local build directory and enables app sharing after every upload succeeds.
+The command uploads a local build directory and publishes the app after every upload succeeds, so
+people with access to the project can open it. Other project types are refused with exit code `2`
+before anything is uploaded.
 
 ```bash
 deepnote publish ./dist --project-id <uuid>
+
+# First publish: create the data app project, then reuse the printed project ID
+deepnote publish ./dist --create "Revenue review"
 ```
+
+`--create` checks the build directory before creating the project, prints the new project's ID, and
+doesn't update a sync workspace.
 
 **Options:**
 
-| Option                           | Description                                                           | Default                                     |
-| -------------------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
-| `--project-id <uuid>`            | Project to publish to (required)                                      |                                             |
-| `--path <prefix>`                | Target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
-| `--api-access enabled\|disabled` | Explicitly enable or disable API access for the published app         | unchanged                                   |
-| `--prune`                        | Delete remote files below `--path` that are absent locally            | `false`                                     |
-| `--sync-root <dir>`              | Sync workspace whose mirror to update                                 | search upwards from the published directory |
-| `--no-sync-root`                 | Publish without looking for or updating a sync workspace              | `false`                                     |
-| `--force`                        | Publish even when Deepnote holds changes the workspace has not synced | `false`                                     |
-| `--token <token>`                | Deepnote API token                                                    | `DEEPNOTE_TOKEN`                            |
-| `--url <url>`                    | Deepnote API base URL                                                 | `https://api.deepnote.com`                  |
+| Option                | Description                                                           | Default                                     |
+| --------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `--project-id <uuid>` | Data app project to publish to; required unless `--create` is used    |                                             |
+| `--create <name>`     | Create a data app project with this name and publish to it            |                                             |
+| `--folder-id <uuid>`  | Workspace folder for the project made by `--create`                   | workspace root                              |
+| `--path <prefix>`     | Target directory at or below `_deepnote_static`                       | `_deepnote_static`                          |
+| `--prune`             | Delete remote files below `--path` that are absent locally            | `false`                                     |
+| `--sync-root <dir>`   | Sync workspace whose mirror to update                                 | search upwards from the published directory |
+| `--no-sync-root`      | Publish without looking for or updating a sync workspace              | `false`                                     |
+| `--force`             | Publish even when Deepnote holds changes the workspace has not synced | `false`                                     |
+| `--token <token>`     | Deepnote API token                                                    | `DEEPNOTE_TOKEN`                            |
+| `--url <url>`         | Deepnote API base URL                                                 | `https://api.deepnote.com`                  |
 
-Use `--api-access enabled` only when an app needs to read notebook inputs or start runs through
-the Deepnote API.
+A published data app calls the Deepnote API with a viewer token that can read notebook inputs and app
+data, start detached runs and poll the viewer's own runs; other endpoints answer `403`.
 
-Every published file is readable by anyone who can view the site, so the command refuses to publish
+Every published file is readable by anyone who can view the app, so the command refuses to publish
 a directory that contains a `.env` or `.env.*` file at any depth (exit code `2`, nothing uploaded).
 Publish a clean build output directory, not a project root.
 
@@ -599,9 +609,6 @@ files absent from Deepnote.
 **Examples:**
 
 ```bash
-# Publish an app with viewer API access
-deepnote publish ./dist --project-id <uuid> --api-access enabled
-
 # Remove files left behind by an older build
 deepnote publish ./dist --project-id <uuid> --prune
 
@@ -612,25 +619,16 @@ deepnote publish ./dist --project-id <uuid> --path _deepnote_static/v2
 deepnote publish ./dist --project-id <uuid> --no-sync-root
 ```
 
-### `static-site access`
+### `unpublish`
 
-Change access to an already-published app without uploading or deleting files. At least one
-of `--sharing` and `--api-access` is required.
+Make a published data app editor-only again without uploading or deleting files. `deepnote publish`
+publishes it again.
 
 ```bash
-# Stop serving the app; its files remain stored
-deepnote static-site access --project-id <uuid> --sharing disabled
-
-# Serve the stored files again and allow viewer-scoped Deepnote API calls
-deepnote static-site access --project-id <uuid> --sharing enabled --api-access enabled
-
-# Revoke viewer API access without changing the current sharing setting
-deepnote static-site access --project-id <uuid> --api-access disabled
+deepnote unpublish --project-id <uuid>
 ```
 
-Disabling sharing also disables viewer API access. Re-enabling sharing later serves the same stored
-files at the canonical URL. Use `--token` or `DEEPNOTE_TOKEN` for authentication and `--url` to
-select a non-default API origin.
+Use `--token` or `DEEPNOTE_TOKEN` for authentication and `--url` to select a non-default API origin.
 
 ### `streamlit publish <entrypoint>`
 
@@ -916,7 +914,30 @@ deepnote integrations edit <integration-id>
 | `--file <path>`     | Path to integrations file               | `.deepnote.env.yaml` |
 | `--env-file <path>` | Path to `.env` file for storing secrets | `.env`               |
 
-Like `integrations pull`, both commands fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
+### `integrations auth [id]`
+
+Authenticate a `big-query` integration configured with `authMethod: google-oauth` so `deepnote run` can execute SQL blocks against it locally — the only integration type and auth method this command supports; anything else is rejected. Without `[id]`, it picks the sole matching integration automatically, prompts with a picker when there are several, and errors when there are none. If `[id]` is not found in the local integrations file, it is resolved from the Deepnote API instead, using `--token` or `DEEPNOTE_TOKEN`.
+
+Opens a browser to Deepnote's OAuth consent screen and completes the token exchange locally; the URL is always printed too, so you can open it yourself if the browser does not open automatically on this machine. Requires a browser and a signed-in Deepnote session. On success, the refresh token is stored under `~/.deepnote/federated-auth-tokens/` — one file per integration, mode `0600` in a `0700` directory on POSIX. On Windows the file mode is not enforced; confidentiality instead relies on the `%USERPROFILE%` ACL. The stored credential is keyed by integration id only, machine-wide: authenticating once satisfies every local project that references the same id with the same `clientId`/`clientSecret`/`project`, and re-authenticating replaces it everywhere. `deepnote run` rejects the credential in a project whose values differ; bring them back in line (for example with `deepnote integrations pull`) rather than re-authenticating from that project.
+
+```bash
+deepnote integrations auth
+deepnote integrations auth <integration-id>
+```
+
+**Options:**
+
+| Option              | Description                                    | Default                    |
+| ------------------- | ---------------------------------------------- | -------------------------- |
+| `--file <path>`     | Path to integrations file                      | `.deepnote.env.yaml`       |
+| `--env-file <path>` | Path to `.env` file                            | `.env`                     |
+| `--domain <domain>` | Deepnote domain                                | `deepnote.com`             |
+| `--url <url>`       | API base URL                                   | `https://api.deepnote.com` |
+| `--token <token>`   | Bearer token (or use `DEEPNOTE_TOKEN` env var) |                            |
+
+The flow is interactive only — there is no headless or CI path; use service-account authentication for CI instead. It affects local runs only: `deepnote run --cloud` authenticates BigQuery with the workspace's own server-side credentials and never reads this token store. `deepnote run --dry-run` reports whether a credential is stored and matches the configured `clientId`/`clientSecret`/`project`, without contacting Google or writing anything. Once a run starts, the access token minted from the stored refresh token is fixed for the kernel's lifetime (about an hour). Over SSH or another remote session, the browser and the CLI's loopback listener end up on different machines, so the post-consent redirect has nowhere to land — there is no built-in port tunneling.
+
+`integrations pull`, `integrations add`, `integrations edit`, and `integrations auth` all fail with exit code 2 and leave all files untouched if the integrations file contains invalid YAML.
 
 ### `completion <shell>`
 
@@ -1001,8 +1022,8 @@ These options work with all commands:
   the local `.deepnote` file, or the current directory when only `--notebook-id` is given
 - `schedule`: next to the `.deepnote` file
 - `sync`: the sync root
-- `publish`, `streamlit publish` and `static-site access`: the current directory
-- `integrations pull`: the file given by `--env-file` (default `.env`)
+- `publish`, `unpublish` and `streamlit publish`: the current directory
+- `integrations pull` and `integrations auth`: the file given by `--env-file` (default `.env`)
 
 `--token` wins over everything, and a value already set in the shell wins over `.env`.
 

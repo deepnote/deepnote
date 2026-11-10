@@ -50,9 +50,9 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `list_projects`: List workspace projects, optionally filtered by name.
 - `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` accepts.
 - `create_folder`: Create a workspace folder, optionally inside another folder.
-- `get_project`: Get a project's metadata, notebooks, attached integrations, files, static website settings, and environment.
+- `get_project`: Get a project's metadata, notebooks, attached integrations, files, data app settings, and environment.
 - `create_project`: Create a new project, optionally inside a folder and on a chosen environment.
-- `update_project`: Move a project to another folder or to the workspace root, change its environment, its static website sharing and viewer API access, and whether its Streamlit apps may call the Deepnote API as their viewers. Changing the environment restarts a running machine.
+- `update_project`: Publish or unpublish a data app, move a project to another folder or to the workspace root, or change its environment. Changing the environment restarts a running machine.
 - `delete_project`: Move a project and all its notebooks to the workspace trash.
 
 ### Notebooks and blocks
@@ -93,12 +93,12 @@ The server exposes the following tools. Read-only tools never modify your worksp
 
 These tools manage the machine behind the editor, live-mode runs, and hosted Streamlit apps. Detached runs start machines of their own, so an agent doesn't need to start the project's machine before calling `create_run`.
 
-### Apps and static sites
+### Apps
 
 - `create_streamlit_app`: Serve a project file as a [Streamlit app](/docs/streamlit) and return its URL.
 - `list_streamlit_apps`: List a project's Streamlit apps with the file each one runs and its URL.
 - `get_streamlit_app_status`: Check whether a Streamlit app is running, starting, or unavailable.
-- `publish_static_site`: Publish a small HTML, CSS, and JavaScript site from the project's `_deepnote_static/` folder and share it as an app. For larger sites, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
+- `create_data_app_token`: Mint a short-lived viewer token for a data app project, to preview its page locally against the same API. To upload a data app's files, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
 
 <Callout status="warning">
 Creating a Streamlit app with `create_streamlit_app` restarts the project machine and interrupts anyone working in the project.
@@ -135,6 +135,48 @@ Deleting a file with `delete_file` can't be undone in Deepnote, since project fi
 ## Connecting a client
 
 The examples below assume you have created a workspace API key under **Settings & members > Security > API keys**.
+
+### Deepnote plugin for Claude Code and Codex
+
+The quickest way to set up a coding agent is the [Deepnote plugin](https://github.com/deepnote/agent-plugins).
+It connects the agent to the Deepnote MCP server and also installs skills: instructions that teach the
+agent how to work with Deepnote well: how to read and edit notebooks, run them and debug failed runs,
+inspect integrations, link to what it changed, and build [data apps](/docs/data-app-projects) and
+[Streamlit apps](/docs/streamlit-app-projects).
+
+**Claude Code:**
+
+```text
+/plugin marketplace add deepnote/agent-plugins
+/plugin install deepnote@deepnote
+```
+
+Then run `/mcp`, choose the Deepnote server and sign in in the browser.
+
+**Codex:**
+
+```bash
+codex plugin marketplace add deepnote/agent-plugins
+codex plugin add deepnote@deepnote
+codex mcp login deepnote
+```
+
+To use an API key instead of signing in, set `DEEPNOTE_MCP_TOKEN` in the environment Codex starts
+from and restart Codex.
+
+With the plugin installed, the agent can also preview a [data app](/docs/data-app-projects) on your
+machine against the notebook's real data before it uploads the page to Deepnote (this needs Node.js
+18 or later). Try
+prompts like:
+
+- `Search my Deepnote workspace for customer retention notebooks.`
+- `Run this Deepnote notebook with customer_name set to Acme and summarize the results.`
+- `Show me where this Deepnote integration is used.`
+- `Run this notebook on a machine with at least 32 GB of memory.`
+- `Build a data app that shows weekly sign-ups by country.`
+
+The plugin's
+[README](https://github.com/deepnote/agent-plugins#troubleshooting) covers troubleshooting.
 
 ### Connecting Claude Code / Claude Cowork to Deepnote via UI
 

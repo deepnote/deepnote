@@ -1,6 +1,6 @@
 {
   "name": "@deepnote/cloud-sync",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Sync and publish local folders with Deepnote Cloud (Node.js)",
   "keywords": [
     "deepnote",
@@ -43,6 +43,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@deepnote/cloud-mock": "workspace:*",
     "fflate": "^0.8.3"
   },
   "engines": {

@@ -2,14 +2,14 @@ import { ApiError } from '@deepnote/database-integrations'
 import { unzipSync, zipSync } from 'fflate'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  createDataAppProject,
   deleteProjectFile,
   downloadProjectFile,
   exportProject,
   getProjectDetail,
   importProject,
   listAllProjects,
-  type ProjectStaticFilesUpdate,
-  updateProjectStaticFiles,
+  setDataAppPublished,
   uploadProjectFile,
 } from './sync'
 
@@ -154,11 +154,7 @@ describe('getProjectDetail', () => {
           name: 'One',
           folder: null,
           files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
-          staticFiles: {
-            sharingEnabled: true,
-            apiAccessEnabled: false,
-            url: 'https://static-p1.example.com/',
-          },
+          dataApp: { published: true, url: 'https://deepnote.example.com/apps/One-p1/' },
         },
       })
     )
@@ -169,16 +165,20 @@ describe('getProjectDetail', () => {
       expect.objectContaining({
         id: 'p1',
         files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
-        staticFiles: {
-          sharingEnabled: true,
-          apiAccessEnabled: false,
-          url: 'https://static-p1.example.com/',
-        },
+        dataApp: { published: true, url: 'https://deepnote.example.com/apps/One-p1/' },
       })
     )
   })
 
-  it('accepts an older response without static website settings', async () => {
+  it('returns null data app settings for a project that is not a data app', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ project: { id: 'p1', name: 'One', files: [], dataApp: null } })
+    )
+
+    await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).resolves.toMatchObject({ id: 'p1', dataApp: null })
+  })
+
+  it('accepts an older response without data app settings', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { id: 'p1', name: 'One', files: [] } }))
 
     await expect(getProjectDetail(BASE_URL, TOKEN, 'p1')).resolves.toMatchObject({ id: 'p1', files: [] })
@@ -205,52 +205,115 @@ describe('getProjectDetail', () => {
   })
 })
 
-describe('updateProjectStaticFiles', () => {
-  it('PATCHes the nested settings and returns the canonical static website settings', async () => {
-    const staticFiles = {
-      sharingEnabled: true,
-      apiAccessEnabled: true,
-      url: 'https://static-p1.example.com/',
-    }
-    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response({
-        project: { id: 'p1', name: 'One', staticFiles },
-      })
+describe('createDataAppProject', () => {
+  it('POSTs a data_app project at the workspace root', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ project: { id: 'p9', name: 'Deal desk', projectType: 'data_app' } }))
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk' })).resolves.toEqual({
+      id: 'p9',
+      name: 'Deal desk',
+    })
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(String(url)).toBe(`${BASE_URL}/v2/projects`)
+    expect(init).toMatchObject({
+      method: 'POST',
+      headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Deal desk', projectType: 'data_app' }),
+    })
+  })
+
+  it('creates the project in a folder', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ project: { id: 'p9', name: 'Deal desk' } }))
+
+    await createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk', folderId: 'f1' })
+
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({
+      body: JSON.stringify({ name: 'Deal desk', projectType: 'data_app', folderId: 'f1' }),
+    })
+  })
+
+  it('refuses a blank name before making a request', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch')
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: '  ' })).rejects.toThrow('needs a name')
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('surfaces the API error, such as data apps not being enabled for the workspace', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ message: 'Data apps are not available in this workspace' }, { ok: false, status: 403 })
     )
 
-    await expect(
-      updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', { sharingEnabled: true, apiAccessEnabled: true })
-    ).resolves.toEqual(staticFiles)
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk' })).rejects.toMatchObject({
+      statusCode: 403,
+    })
+  })
+
+  it('rejects a response without the new project ID', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ project: { name: 'Deal desk' } }))
+
+    await expect(createDataAppProject(BASE_URL, TOKEN, { name: 'Deal desk' })).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for create project'),
+    })
+  })
+})
+
+describe('setDataAppPublished', () => {
+  it('PATCHes dataApp.published and returns the data app settings', async () => {
+    const dataApp = { published: true, url: 'https://deepnote.example.com/apps/One-p1/' }
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ project: { id: 'p1', name: 'One', dataApp } }))
+
+    await expect(setDataAppPublished(BASE_URL, TOKEN, 'p1', true)).resolves.toEqual(dataApp)
 
     const [url, init] = fetchSpy.mock.calls[0]
     expect(String(url)).toBe(`${BASE_URL}/v2/projects/p1`)
     expect(init).toMatchObject({
       method: 'PATCH',
       headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ staticFiles: { sharingEnabled: true, apiAccessEnabled: true } }),
+      body: JSON.stringify({ dataApp: { published: true } }),
     })
   })
 
-  it('rejects a response without the canonical URL', async () => {
-    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-      response({ project: { id: 'p1', name: 'One', staticFiles: { sharingEnabled: true, apiAccessEnabled: false } } })
+  it('sends published: false to unpublish', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({
+        project: {
+          id: 'p1',
+          name: 'One',
+          dataApp: { published: false, url: 'https://deepnote.example.com/apps/One-p1/' },
+        },
+      })
     )
 
-    await expect(updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', { sharingEnabled: true })).rejects.toMatchObject({
+    await expect(setDataAppPublished(BASE_URL, TOKEN, 'p1', false)).resolves.toMatchObject({ published: false })
+    expect(fetchSpy.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ dataApp: { published: false } }) })
+  })
+
+  it('surfaces the API error for a project that is not a data app', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ message: 'Only data apps can be published.' }, { ok: false, status: 400 })
+    )
+
+    await expect(setDataAppPublished(BASE_URL, TOKEN, 'p1', true)).rejects.toMatchObject({ statusCode: 400 })
+  })
+
+  it('rejects a response without the app URL', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ project: { id: 'p1', name: 'One', dataApp: { published: true } } })
+    )
+
+    await expect(setDataAppPublished(BASE_URL, TOKEN, 'p1', true)).rejects.toMatchObject({
       statusCode: 502,
       message: expect.stringContaining('Invalid Deepnote response for update project'),
     })
-  })
-
-  it('rejects contradictory static website settings before making a request', async () => {
-    const fetchSpy = vi.spyOn(global, 'fetch')
-    // @ts-expect-error API access cannot be enabled while sharing is disabled.
-    const update: ProjectStaticFilesUpdate = { sharingEnabled: false, apiAccessEnabled: true }
-
-    await expect(updateProjectStaticFiles(BASE_URL, TOKEN, 'p1', update)).rejects.toThrow(
-      'API access cannot be enabled while static file sharing is disabled.'
-    )
-    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
 

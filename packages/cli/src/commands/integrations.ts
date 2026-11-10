@@ -16,7 +16,7 @@ import {
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
-import { type Document, isSeq } from 'yaml'
+import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
 import { ExitCode } from '../exit-codes'
 import { debug, log, output } from '../output'
 import { MissingTokenError, resolveToken } from '../utils/auth'
@@ -80,6 +80,29 @@ export async function readIntegrationsDocument(filePath: string): Promise<Docume
     }
     throw error
   }
+}
+
+/**
+ * Find the YAML map node for an integration by its ID in the document's integrations sequence.
+ * Matches case-insensitively.
+ */
+export function findIntegrationMapById(doc: Document, targetId: string): YAMLMap | null {
+  const integrations = doc.get('integrations')
+  if (!isSeq(integrations)) {
+    return null
+  }
+
+  const wanted = targetId.toLowerCase()
+  for (const item of integrations.items) {
+    if (!isMap(item)) {
+      continue
+    }
+    const id = item.get('id')
+    if (typeof id === 'string' && id.toLowerCase() === wanted) {
+      return item
+    }
+  }
+  return null
 }
 
 /**

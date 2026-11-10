@@ -6,6 +6,7 @@ export {
 export {
   BigQueryServiceAccountParseError,
   type EnvVar,
+  getBigQueryOAuthSqlAlchemyInput,
   getEnvironmentVariablesForIntegrations,
   getSqlAlchemyInput,
   getSqlEnvVarName,
@@ -29,6 +30,7 @@ export {
 export * from './loading'
 export {
   getSecretFieldPaths,
+  isFederatedAuthSecretField,
   type MetadataKey,
 } from './secret-field-paths'
 export { getSnowflakeFederatedAuthSqlAlchemyInput } from './snowflake-integration-env-vars'

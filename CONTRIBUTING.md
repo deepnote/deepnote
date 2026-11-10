@@ -15,6 +15,7 @@ deepnote/
 │   ├── blocks/                # @deepnote/blocks - Block types, schemas, and Python code generation
 │   ├── cli/                   # @deepnote/cli - CLI for running Deepnote projects locally and on Deepnote Cloud
 │   ├── cloud/                 # @deepnote/cloud - Client for the Deepnote Cloud runs API
+│   ├── cloud-mock/            # @deepnote/cloud-mock - Local Deepnote Cloud API mock for tests
 │   ├── cloud-sync/            # @deepnote/cloud-sync - Sync and publish local folders with Deepnote Cloud
 │   ├── convert/               # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
 │   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
@@ -142,6 +143,8 @@ Biome is available as a first-party extension in your favorite editors.
 ### Publishing a new version
 
 This repository supports publishing multiple packages independently. Each package release must use a **package-scoped tag** in the format `@deepnote/package-name@version` (e.g., `@deepnote/blocks@1.2.0`).
+
+When releasing new versions, maintainers using Claude Code can run the [`/bump-package-versions`](.claude/skills/bump-package-versions/SKILL.md) skill. It picks each package's bump from what merged since that package's last release tag and opens the version-bump PR (steps 1–3 below); releases are still created as in step 4.
 
 To publish a new version of a package (using `@deepnote/blocks` as an example):
 

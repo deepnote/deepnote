@@ -1,14 +1,24 @@
 import { type DatabaseIntegrationConfig, getEnvironmentVariablesForIntegrations } from '@deepnote/database-integrations'
+import {
+  IntegrationAuthenticationError,
+  resolveFederatedSqlEnvVars,
+} from '../federated-auth/resolve-bigquery-sql-env-vars'
 import { debug } from '../output'
 
 /**
- * Generate environment variables for the given integrations and inject them into process.env.
- * Returns the list of injected env var names (useful for testing/debugging).
+ * Injects integration env vars into process.env and returns their names: the static ones for all
+ * `integrations`, and a `SQL_<ID>` with a freshly minted access token for federated
+ * BigQuery integrations listed in `sqlIntegrationIds`. With `refreshFederatedTokens: false` (dry run),
+ * their stored credential is only checked.
+ *
+ * Throws the first federated error, preferring `IntegrationAuthenticationError`.
  */
-export function injectIntegrationEnvVars(
+export async function injectIntegrationEnvVarsAndCheckCredentials(
   integrations: DatabaseIntegrationConfig[],
-  workingDirectory: string
-): string[] {
+  workingDirectory: string,
+  sqlIntegrationIds: string[],
+  options: { refreshFederatedTokens: boolean }
+): Promise<string[]> {
   if (integrations.length === 0) {
     return []
   }
@@ -27,7 +37,21 @@ export function injectIntegrationEnvVars(
     process.env[name] = value
   }
 
-  debug(`Injected ${envVars.length} environment variables for integrations`)
+  const { envVars: federatedEnvVars, errors: federatedErrors } = await resolveFederatedSqlEnvVars(
+    integrations,
+    sqlIntegrationIds,
+    { refresh: options.refreshFederatedTokens }
+  )
+  for (const { name, value } of federatedEnvVars) {
+    process.env[name] = value
+  }
 
-  return envVars.map(v => v.name)
+  const injected = [...envVars, ...federatedEnvVars].map(v => v.name)
+  debug(`Injected ${injected.length} environment variables for integrations`)
+
+  if (federatedErrors.length > 0) {
+    throw federatedErrors.find(error => error instanceof IntegrationAuthenticationError) ?? federatedErrors[0]
+  }
+
+  return injected
 }
