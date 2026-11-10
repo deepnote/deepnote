@@ -6,15 +6,18 @@ import { setTimeout } from 'node:timers/promises'
 import { deserializeDeepnoteFile } from '@deepnote/blocks'
 import {
   createDataAppProject,
+  createStreamlitApp,
   deleteProjectFile,
   downloadProjectFile,
   exportProject,
   getProjectDetail,
   getRun,
+  getStreamlitAppStatus,
   getWorkspace,
   type ImportProjectOptions,
   importProject,
   listAllProjects,
+  listStreamlitApps,
   setDataAppPublished,
   uploadProjectFile,
 } from '@deepnote/cloud'
@@ -736,6 +739,85 @@ describe('startMockDeepnoteCloud', () => {
     await expect(deleteProjectFile(cloud.url, TOKEN, ALPHA_ID, '../main.deepnote')).rejects.toMatchObject({
       statusCode: 400,
       message: 'path must not contain directory traversal',
+    })
+  })
+
+  it('serves a working file as one Streamlit app per project and path, lists apps by project and reports them running', async () => {
+    await seedProject(ALPHA_ID, { '.files/apps/dashboard.py': 'import streamlit' })
+    await seedProject(BETA_ID, { '.files/apps/dashboard.py': 'import streamlit' })
+
+    const app = await createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: '/apps/./dashboard.py' })
+    const betaApp = await createStreamlitApp(cloud.url, TOKEN, { projectId: BETA_ID, entrypoint: 'apps/dashboard.py' })
+
+    expect(app).toEqual({
+      id: expect.any(String),
+      projectId: ALPHA_ID,
+      entrypoint: 'apps/dashboard.py',
+      url: `${cloud.url}/streamlit-apps/${app.id}`,
+      createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+    })
+    expect(betaApp.id).not.toBe(app.id)
+    await expect(
+      createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: 'apps/dashboard.py' })
+    ).rejects.toMatchObject({ statusCode: 409, message: 'A Streamlit app already exists for this file' })
+    expect(await listStreamlitApps(cloud.url, TOKEN, ALPHA_ID)).toEqual([app])
+    expect(await getStreamlitAppStatus(cloud.url, TOKEN, app.id)).toBe('running')
+  })
+
+  it('deletes the Streamlit app a deleted file served, and only that app', async () => {
+    await seedProject(ALPHA_ID, {
+      '.files/apps/dashboard.py': 'import streamlit',
+      '.files/apps/admin.py': 'import streamlit',
+    })
+    await seedProject(BETA_ID, { '.files/apps/admin.py': 'import streamlit' })
+    const app = await createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: 'apps/dashboard.py' })
+    const betaApp = await createStreamlitApp(cloud.url, TOKEN, { projectId: BETA_ID, entrypoint: 'apps/admin.py' })
+    const adminApp = await createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: 'apps/admin.py' })
+
+    await deleteProjectFile(cloud.url, TOKEN, ALPHA_ID, 'apps/admin.py')
+
+    expect(await listStreamlitApps(cloud.url, TOKEN, ALPHA_ID)).toEqual([app])
+    expect(await listStreamlitApps(cloud.url, TOKEN, BETA_ID)).toEqual([betaApp])
+    await expect(getStreamlitAppStatus(cloud.url, TOKEN, adminApp.id)).rejects.toMatchObject({ statusCode: 404 })
+  })
+
+  it('rejects a Streamlit app for a missing entrypoint or an unknown project with 404 and a directory with 400', async () => {
+    await seedProject(ALPHA_ID, { '.files/apps/dashboard.py': 'import streamlit' })
+
+    await expect(
+      createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: 'apps/missing.py' })
+    ).rejects.toMatchObject({ statusCode: 404, message: 'Entrypoint file not found' })
+    await expect(
+      createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: 'apps' })
+    ).rejects.toMatchObject({ statusCode: 400, message: 'Entrypoint path is not a file' })
+    await expect(
+      createStreamlitApp(cloud.url, TOKEN, { projectId: BETA_ID, entrypoint: 'apps/dashboard.py' })
+    ).rejects.toMatchObject({ statusCode: 404, message: 'Project not found' })
+    await expect(listStreamlitApps(cloud.url, TOKEN, BETA_ID)).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'Project not found',
+    })
+    expect(await listStreamlitApps(cloud.url, TOKEN, ALPHA_ID)).toEqual([])
+  })
+
+  it('rejects a malformed Streamlit app request with 400 and the status of an unknown app with 404', async () => {
+    await expect(
+      createStreamlitApp(cloud.url, TOKEN, { projectId: 'not-a-uuid', entrypoint: 'app.py' })
+    ).rejects.toMatchObject({ statusCode: 400, message: 'projectId invalid uuid' })
+    await expect(
+      createStreamlitApp(cloud.url, TOKEN, { projectId: ALPHA_ID, entrypoint: '../app.py' })
+    ).rejects.toMatchObject({ statusCode: 400, message: 'path must not contain directory traversal' })
+    await expect(listStreamlitApps(cloud.url, TOKEN, 'not-a-uuid')).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'projectId invalid uuid',
+    })
+    await expect(getStreamlitAppStatus(cloud.url, TOKEN, 'not-a-uuid')).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'streamlitAppId invalid uuid',
+    })
+    await expect(getStreamlitAppStatus(cloud.url, TOKEN, BETA_ID)).rejects.toMatchObject({
+      statusCode: 404,
+      message: 'Streamlit app not found',
     })
   })
 
