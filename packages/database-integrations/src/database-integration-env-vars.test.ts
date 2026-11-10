@@ -1,5 +1,6 @@
 import { createPythonCode, type SqlBlock } from '@deepnote/blocks'
 import { describe, expect, it } from 'vitest'
+import type { DatabaseIntegrationConfig } from './database-integration-config'
 import {
   BigQueryServiceAccountParseError,
   getBigQueryOAuthSqlAlchemyInput,
@@ -2880,6 +2881,61 @@ describe('Database integration env variables', () => {
           name: 'MY_BIGQUERY_CONNECTION_SERVICE_ACCOUNT',
           value: '{}',
         })
+      })
+    })
+
+    describe('federated auth secret fields', () => {
+      it.each<DatabaseIntegrationConfig>([
+        {
+          type: 'big-query',
+          id: 'my-oauth',
+          name: 'My OAuth Connection',
+          metadata: {
+            authMethod: 'google-oauth',
+            project: 'my-project',
+            clientId: 'my-client-id',
+            clientSecret: 'my-client-secret',
+          },
+        },
+        {
+          type: 'snowflake',
+          id: 'my-oauth',
+          name: 'My OAuth Connection',
+          metadata: {
+            authMethod: 'okta',
+            accountName: 'my-account',
+            clientId: 'my-client-id',
+            clientSecret: 'my-client-secret',
+            oktaSubdomain: 'my-subdomain',
+            identityProvider: 'my-identity-provider',
+            authorizationServer: 'my-authorization-server',
+            dbtServiceToken: 'my-dbt-token',
+          },
+        },
+        {
+          type: 'trino',
+          id: 'my-oauth',
+          name: 'My OAuth Connection',
+          metadata: {
+            authMethod: 'trino-oauth',
+            host: 'my-host',
+            database: 'my-database',
+            clientId: 'my-client-id',
+            clientSecret: 'my-client-secret',
+            authUrl: 'https://example.com/auth',
+            tokenUrl: 'https://example.com/token',
+          },
+        },
+      ])('should omit secret fields but keep clientId of a federated $type integration', integration => {
+        const { envVars, errors } = getEnvironmentVariablesForIntegrations([integration], {
+          projectRootDirectory: '/path/to/project',
+        })
+        expect(errors).toHaveLength(0)
+
+        const names = envVars.map(envVar => envVar.name)
+        expect(names).not.toContain('MY_OAUTH_CONNECTION_CLIENTSECRET')
+        expect(names).not.toContain('MY_OAUTH_CONNECTION_DBTSERVICETOKEN')
+        expect(envVars).toContainEqual({ name: 'MY_OAUTH_CONNECTION_CLIENTID', value: 'my-client-id' })
       })
     })
 
