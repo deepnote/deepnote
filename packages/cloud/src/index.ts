@@ -88,6 +88,8 @@ export {
   waitForStreamlitApp,
 } from './streamlit-apps'
 export {
+  type CreatedDataAppProject,
+  createDataAppProject,
   deleteProjectFile,
   downloadProjectFile,
   type ExportedNotebookFile,
@@ -100,15 +102,14 @@ export {
   listAllProjects,
   MAX_BUFFERED_PROJECT_FILE_BYTES,
   PROJECT_STATIC_ROOT,
+  type ProjectDataAppSettings,
   type ProjectDetail,
   type ProjectFileEntry,
   type ProjectFileTransferOptions,
   type ProjectFolder,
   type ProjectFolderPathSegment,
-  type ProjectStaticFilesSettings,
-  type ProjectStaticFilesUpdate,
   type SyncProject,
+  setDataAppPublished,
   type UploadedFile,
-  updateProjectStaticFiles,
   uploadProjectFile,
 } from './sync'

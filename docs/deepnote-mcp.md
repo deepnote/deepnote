@@ -50,9 +50,9 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `list_projects`: List workspace projects, optionally filtered by name.
 - `list_folders`: List workspace folders and how they nest, so an agent can turn a folder name or path into the folder ID that `create_project` accepts.
 - `create_folder`: Create a workspace folder, optionally inside another folder.
-- `get_project`: Get a project's metadata, notebooks, attached integrations, files, static website settings, and environment.
+- `get_project`: Get a project's metadata, notebooks, attached integrations, files, data app settings, and environment.
 - `create_project`: Create a new project, optionally inside a folder and on a chosen environment.
-- `update_project`: Move a project to another folder or to the workspace root, change its environment, its static website sharing and viewer API access, and whether its Streamlit apps may call the Deepnote API as their viewers. Changing the environment restarts a running machine.
+- `update_project`: Publish or unpublish a data app, move a project to another folder or to the workspace root, or change its environment. Changing the environment restarts a running machine.
 - `delete_project`: Move a project and all its notebooks to the workspace trash.
 
 ### Notebooks and blocks
@@ -93,12 +93,12 @@ The server exposes the following tools. Read-only tools never modify your worksp
 
 These tools manage the machine behind the editor, live-mode runs, and hosted Streamlit apps. Detached runs start machines of their own, so an agent doesn't need to start the project's machine before calling `create_run`.
 
-### Apps and static sites
+### Apps
 
 - `create_streamlit_app`: Serve a project file as a [Streamlit app](/docs/streamlit) and return its URL.
 - `list_streamlit_apps`: List a project's Streamlit apps with the file each one runs and its URL.
 - `get_streamlit_app_status`: Check whether a Streamlit app is running, starting, or unavailable.
-- `publish_static_site`: Publish a small HTML, CSS, and JavaScript site from the project's `_deepnote_static/` folder and share it as an app. For larger sites, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
+- `create_data_app_token`: Mint a short-lived viewer token for a data app project, to preview its page locally against the same API. To upload a data app's files, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
 
 <Callout status="warning">
 Creating a Streamlit app with `create_streamlit_app` restarts the project machine and interrupts anyone working in the project.

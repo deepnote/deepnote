@@ -1,28 +1,30 @@
 ---
-title: Publishing apps and Streamlit apps with the Deepnote CLI
-description: Publish HTML, CSS, and JavaScript as an app with deepnote publish, or a Python entrypoint already in the project as a Streamlit app with deepnote streamlit publish
+title: Publishing data apps and Streamlit apps with the Deepnote CLI
+description: Publish an HTML, CSS, and JavaScript build as a data app with deepnote publish, or a Python entrypoint already in the project as a Streamlit app with deepnote streamlit publish
 noIndex: false
 noContent: false
 ---
 
-The Deepnote CLI publishes apps and Streamlit apps to an existing Deepnote project:
+The Deepnote CLI publishes data apps and Streamlit apps to an existing Deepnote project:
 
-- **App:** HTML, CSS, JavaScript, and assets hosted by Deepnote and run in the browser.
+- **Data app:** an HTML page, with its CSS, JavaScript, and assets, hosted by a
+  [data app project](/docs/data-app-projects) and backed by the project's notebook.
 - **Streamlit app:** a Python UI that runs on the project's hardware.
 
 Choose the command that matches your source:
 
 | App type      | Source                                                 | Command                                                                  |
 | ------------- | ------------------------------------------------------ | ------------------------------------------------------------------------ |
-| App           | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                      |
+| Data app      | A local directory of HTML, CSS, JavaScript, and assets | `deepnote publish ./dist --project-id <project-id>`                      |
 | Streamlit app | A Python entrypoint already in the project's Files     | `deepnote streamlit publish apps/dashboard.py --project-id <project-id>` |
 
-To build an app from a notebook by chatting with Deepnote Agent instead, see
-[Data app projects](/docs/data-app-projects).
+To have Deepnote Agent build the page for you instead, see [Data app projects](/docs/data-app-projects).
 
 ## Prerequisites
 
-- An existing Deepnote project and its ID.
+- For `deepnote publish`, a data app project. Create it as you publish with `--create <name>`, or in
+  Deepnote: click **Create new** and choose **New data app**. `deepnote streamlit publish` needs an
+  existing project and its ID.
 - The Deepnote CLI: install with `npm install -g @deepnote/cli` or use `npx @deepnote/cli`.
 - An API token with access to the project.
 
@@ -39,7 +41,8 @@ deepnote publish ./dist --project-id <project-id>
 
 Prefer `DEEPNOTE_TOKEN` to keep the token out of command history and process arguments.
 In CI, expose it from the provider's secret store. Keep tokens out of the build directory and revoke
-any exposed token from the settings page. Without a token, all three commands exit with code `2`.
+any exposed token from the settings page. Without a token, all three commands (`publish`, `unpublish` and
+`streamlit publish`) exit with code `2`.
 
 ## Finding a project ID
 
@@ -51,7 +54,7 @@ https://deepnote.com/workspace/<workspace_name>-<workspace_id>/project/<project_
 
 Inside a running notebook, the ID is also available as `DEEPNOTE_PROJECT_ID`.
 
-## Apps
+## Data apps
 
 Publish a dedicated build directory, such as a Vite build, a Next.js HTML export, or a directory
 of HTML files:
@@ -60,9 +63,26 @@ of HTML files:
 deepnote publish ./dist --project-id <project-id>
 ```
 
-The command uploads files below `_deepnote_static`, replaces matching files, and enables sharing
-after all uploads succeed. Remote files absent from the build are retained unless you use `--prune`.
-Use the URL printed by the command.
+For the first publish, `--create` makes the data app project for you, at the workspace root or in the
+folder given by `--folder-id`:
+
+```bash
+deepnote publish ./dist --create "Revenue review"
+```
+
+The build directory is checked before anything is created, so a `.env` file or a bad path leaves no
+empty project behind. The command prints the new project's ID; pass it as `--project-id` for later
+publishes, since each `--create` makes another project. A new project isn't in a sync workspace, so
+`--create` doesn't update one, and `--sync-root` is refused with it.
+
+The command uploads files below `_deepnote_static`, replaces matching files, and publishes the app
+after all uploads succeed, so people with access to the project can open it. Remote files absent from
+the build are retained unless you use `--prune`. Use the URL printed by the command.
+
+The project must be a data app project. For any other project type, the command exits with code `2`
+before uploading anything. [Data app projects](/docs/data-app-projects) are in beta and may not be
+enabled for your workspace yet. Publishing HTML files from a notebook project as a static website is no
+longer supported.
 
 <Callout status="warning">
 Every file in the build directory can be served to viewers, including dotfiles and source maps.
@@ -84,14 +104,28 @@ The target must be `_deepnote_static` or a directory below it. The printed URL i
 with special characters encoded. Deepnote serves `index.html` for directory URLs; other URLs must
 match the filename, such as `about.html`.
 
-### Who can view an app
+### Who can view a data app
 
 Viewers must be signed in, have an active Deepnote account, and have project access. Workspace
 members, project collaborators (including app users), and user groups can receive that access.
-Sharing also requires the workspace to allow app file sharing and a plan that supports the feature.
-These permissions are checked on every request.
+Project editors can always open the app; everyone else can open it once it is published.
+Publishing also requires **Allow static file sharing in projects** in the workspace settings. These
+permissions are checked on every request.
 
-Apps have no anonymous or link-only access.
+Data apps have no anonymous or link-only access.
+
+### Calling the API as the viewer
+
+A published data app can read notebook inputs and run the project's notebook as the person viewing
+it. Deepnote hands the page a viewer token that expires after 15 minutes. It can read notebook
+inputs and block metadata (without source), read the notebook's
+[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), start detached runs in this project or other projects
+in the workspace where the viewer has direct access, and poll the viewer's own runs for their
+`snapshotBlocks`. Runs in other projects also require execute permission. Every other endpoint
+answers `403`, so features you built against a local preview with a personal token can fail in the
+published app. See the
+[cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
+for the token handshake.
 
 ### Remove files from an earlier build
 
@@ -117,17 +151,14 @@ publish stops before writing. Pull and reconcile the changes with `deepnote sync
 or use `--force` to overwrite them. This check requires a recorded server `updatedAt`; files
 without that baseline are not protected by it.
 
-### Change access without republishing
-
-Use the `static-site access` command to change an app's settings without changing its files:
+### Unpublish a data app
 
 ```bash
-# Stop serving the app
-deepnote static-site access --project-id <project-id> --sharing disabled
-
-# Serve the retained files again
-deepnote static-site access --project-id <project-id> --sharing enabled
+deepnote unpublish --project-id <project-id>
 ```
+
+`unpublish` makes the app editor-only again without changing its files. Run `deepnote publish` to
+publish it again.
 
 ### Recover from a failed publish
 
@@ -135,10 +166,12 @@ Invalid local paths, conflicting destination paths, `.env` files, or files over 
 directory stop the command before uploads, with exit code `2`. Each local file is read before its
 remote copy is deleted and replaced.
 
-If an upload fails, successful uploads remain in place, sharing is not changed, and remaining stale
-files are not pruned. The command reports the failures and exits with code `1`. Fix the reported
-errors and publish again. Replacement uses a delete followed by an upload, so an overwritten file
-is briefly unavailable.
+If an upload fails, successful uploads remain in place, the app keeps its previous publish state, and
+remaining stale files are not pruned. An app that was already published stays published and serves the
+partly updated files. The command reports the failures and exits with code `1`. Fix the reported
+errors and publish again. Replacement deletes the remote file before uploading the new one, so a file
+whose upload fails is missing until a later publish succeeds. If that file is `index.html`, the
+published app doesn't load until then.
 
 ## Streamlit apps
 
@@ -178,17 +211,19 @@ to check its status again.
 
 `deepnote publish <dir>`:
 
-| Option              | Description                                            | Default                                |
-| ------------------- | ------------------------------------------------------ | -------------------------------------- |
-| `--project-id <id>` | Target project (required)                              |                                        |
-| `--path <prefix>`   | Target directory at or below `_deepnote_static`        | `_deepnote_static`                     |
-| `--prune`           | Delete remote files absent from the build              | `false`                                |
-| `--sync-root <dir>` | Sync workspace to update                               | search upward from the build directory |
-| `--no-sync-root`    | Skip sync workspace discovery and updates              | `false`                                |
-| `--force`           | Overwrite changes not pulled into the workspace        | `false`                                |
-| `--token <token>`   | API token                                              | `DEEPNOTE_TOKEN`                       |
-| `--url <url>`       | API origin                                             | `https://api.deepnote.com`             |
-| `-q, --quiet`       | Suppress progress and results; errors remain on stderr | `false`                                |
+| Option              | Description                                                 | Default                                |
+| ------------------- | ----------------------------------------------------------- | -------------------------------------- |
+| `--project-id <id>` | Target data app project; required unless `--create` is used |                                        |
+| `--create <name>`   | Create a data app project with this name and publish to it  |                                        |
+| `--folder-id <id>`  | Workspace folder for the project made by `--create`         | workspace root                         |
+| `--path <prefix>`   | Target directory at or below `_deepnote_static`             | `_deepnote_static`                     |
+| `--prune`           | Delete remote files absent from the build                   | `false`                                |
+| `--sync-root <dir>` | Sync workspace to update                                    | search upward from the build directory |
+| `--no-sync-root`    | Skip sync workspace discovery and updates                   | `false`                                |
+| `--force`           | Overwrite changes not pulled into the workspace             | `false`                                |
+| `--token <token>`   | API token                                                   | `DEEPNOTE_TOKEN`                       |
+| `--url <url>`       | API origin                                                  | `https://api.deepnote.com`             |
+| `-q, --quiet`       | Suppress progress and results; errors remain on stderr      | `false`                                |
 
 `deepnote streamlit publish <entrypoint>`:
 
@@ -202,17 +237,17 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                   | `deepnote streamlit publish`                   |
-| ---- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `0`  | Files uploaded and sharing enabled                                                                                   | App running, or created/found with `--no-wait` |
-| `1`  | A request, upload, prune, or settings update failed; or unsynced remote changes                                      | A request failed or startup timed out          |
-| `2`  | Invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
+| Code | `deepnote publish`                                                                                                                           | `deepnote streamlit publish`                   |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `0`  | Files uploaded and the app published                                                                                                         | App running, or created/found with `--no-wait` |
+| `1`  | A request, upload, prune, or publishing failed; or unsynced remote changes                                                                   | A request failed or startup timed out          |
+| `2`  | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token             |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.
 
-For `static-site access`, exit codes are `0` for success, `1` for a request failure, and `2` for
-invalid arguments, a missing token, or missing/contradictory settings.
+For `unpublish`, exit codes are `0` for success, `1` for a request failure (including a project that
+is not a data app), and `2` for invalid arguments or a missing token.
 
 ## Related
 
@@ -221,4 +256,4 @@ invalid arguments, a missing token, or missing/contradictory settings.
   directory and push notebook edits back
 - [Deepnote file sync](/docs/deepnote-file-sync) — the in-product feature that keeps a project synced
   with a `.deepnote` file in a Git repository
-- [Data app projects](/docs/data-app-projects) — building interactive apps on Deepnote
+- [Data app projects](/docs/data-app-projects) — building data apps with Deepnote Agent
