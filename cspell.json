@@ -9,7 +9,8 @@
     "coverage/**",
     "*.min.js",
     "*.min.css",
-    "**/__marimo__/**"
+    "**/__marimo__/**",
+    "packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts"
   ],
   "language": "en",
   "dictionaries": ["docs"],
