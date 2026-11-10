@@ -1,5 +1,6 @@
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
 import type { DatabaseIntegrationType } from './database-integration-types'
+import { isFederatedAuthMethod } from './sql-integration-auth-methods'
 
 /**
  * Extract all possible keys from a type, including all variants of a union.
@@ -80,4 +81,18 @@ const SECRET_PATHS: { [K in DatabaseIntegrationType]: readonly MetadataKey<K>[] 
  */
 export function getSecretFieldPaths(type: DatabaseIntegrationType): readonly string[] {
   return SECRET_PATHS[type] ?? []
+}
+
+/**
+ * Whether `key` is a secret field of an integration whose `metadata.authMethod` is federated.
+ * Such integrations authenticate each user with their own identity, so the value never needs
+ * to reach notebook code.
+ */
+export function isFederatedAuthSecretField(
+  type: DatabaseIntegrationType,
+  metadata: Readonly<Record<string, unknown>>,
+  key: string
+): boolean {
+  const { authMethod } = metadata
+  return typeof authMethod === 'string' && isFederatedAuthMethod(authMethod) && getSecretFieldPaths(type).includes(key)
 }
