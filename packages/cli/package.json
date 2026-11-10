@@ -65,6 +65,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@deepnote/cloud-mock": "workspace:*",
     "@inquirer/testing": "^3.1.1",
     "json-schema-to-typescript": "^15.0.4",
     "tsx": "^4.23.12"
