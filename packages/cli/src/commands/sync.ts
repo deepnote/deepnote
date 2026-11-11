@@ -80,8 +80,8 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
       const summary = conflict.files.map(file => `${file.path} (${file.reason})`).join(', ')
       return {
         question:
-          `Working files of "${conflict.projectName}" changed in Deepnote, and their local copies differ from ` +
-          `Deepnote's: ${summary}. Replace your local copies with the Deepnote versions?`,
+          `Local working files of "${conflict.projectName}" differ from their Deepnote versions: ${summary}. ` +
+          'Replace your local copies with the Deepnote versions?',
         overrideLabel: 'Replace the local copies with the Deepnote versions (discards local changes)',
       }
     }
@@ -119,7 +119,7 @@ function promptForConflict(conflict: SyncConflict): Promise<SyncConflictDecision
   return select({
     message: question,
     choices: [
-      { name: 'Skip this project for now', value: 'skip' as const },
+      { name: 'Skip for now', value: 'skip' as const },
       { name: overrideLabel, value: 'override' as const },
     ],
   })

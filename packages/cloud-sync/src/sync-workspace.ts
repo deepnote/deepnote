@@ -95,9 +95,9 @@ export type SyncConflict =
       }[]
     }
   /**
-   * With `allFiles`, working files to download changed in Deepnote, and their local copies differ from
-   * the Deepnote versions and from the last sync, were never synced, or were synced before local edits
-   * were tracked. One conflict per project lists all of them.
+   * With `allFiles`, the local copies of working files to download differ from the Deepnote versions
+   * and either differ from the last sync, were never synced, or were synced before local edits were
+   * tracked. One conflict per project lists all of them.
    * `override` replaces the local copies with the Deepnote versions.
    */
   | {

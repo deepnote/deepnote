@@ -167,7 +167,7 @@ describe('deepnote sync conflict policy', () => {
         ],
       },
       question:
-        'Working files of "Alpha" changed in Deepnote, and their local copies differ from Deepnote\'s: ' +
+        'Local working files of "Alpha" differ from their Deepnote versions: ' +
         '_deepnote_static/index.html (edited locally), data.csv (exists locally but was never synced). ' +
         'Replace your local copies with the Deepnote versions?',
       overrideLabel: 'Replace the local copies with the Deepnote versions (discards local changes)',
@@ -189,7 +189,7 @@ describe('deepnote sync conflict policy', () => {
   ] satisfies { conflict: SyncConflict; question: string; overrideLabel: string; answer: 'skip' | 'override' }[]
 
   it.each(conflictCases)(
-    'asks about $conflict.kind on a terminal with the question and labels it always used',
+    'asks about $conflict.kind on a terminal with its question and choices',
     async ({ conflict, question, overrideLabel, answer }) => {
       setTty(true, true)
       mockedSelect.mockResolvedValueOnce(answer)
@@ -202,7 +202,7 @@ describe('deepnote sync conflict policy', () => {
       expect(mockedSelect).toHaveBeenCalledWith({
         message: question,
         choices: [
-          { name: 'Skip this project for now', value: 'skip' },
+          { name: 'Skip for now', value: 'skip' },
           { name: overrideLabel, value: 'override' },
         ],
       })
