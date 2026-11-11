@@ -41,8 +41,8 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
     html, body, [class*="css"], .stApp { font-family: 'DM Sans', system-ui, sans-serif; }
-    .block-container { padding-top: 0; max-width: 1120px; }
-    .lq-title { background: #0b3d2e; color: #fff; margin: 0 -1rem 1.5rem; padding: 36px 48px 40px; border-radius: 0 0 12px 12px; }
+    .block-container { padding-top: 2rem; max-width: 1120px; }
+    .lq-title { background: #0b3d2e; color: #fff; margin: 1rem -1rem 1.5rem; padding: 36px 48px 40px; border-radius: 0 0 12px 12px; }
     .lq-title .meta { font-size: 14px; color: rgba(255,255,255,0.78); }
     .lq-title h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 44px; line-height: 1.05; margin: 12px 0 10px; color: #fff; }
     .lq-title p { font-size: 17px; line-height: 1.5; max-width: 64ch; color: rgba(255,255,255,0.86); margin: 0; }
