@@ -1316,7 +1316,8 @@ describe('syncWorkspace', () => {
         detail: 'Deepnote stored "data/input.csv" at unexpected path "data/input-20260810-120000.csv"',
       }),
     ])
-    expect(cloud.deletedPaths).toEqual(['p1:data/input.csv', 'p1:data/input-20260810-120000.csv'])
+    // Only the stray copy is removed; the replacement overwrote in place, so nothing else was deleted.
+    expect(cloud.deletedPaths).toEqual(['p1:data/input-20260810-120000.csv'])
     expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['data/input.csv'])
   })
 
@@ -2033,10 +2034,10 @@ describe('syncWorkspace', () => {
     }
 
     /** Wraps the installed cloud fetch so `hold` can see each request and pause it on a promise. */
-    function holdRequests(hold: (url: URL) => unknown): void {
+    function holdRequests(hold: (url: URL, init?: RequestInit) => unknown): void {
       const inner = vi.mocked(fetch).getMockImplementation() as typeof fetch
       vi.mocked(fetch).mockImplementation(async (url, init) => {
-        await hold(new URL(String(url)))
+        await hold(new URL(String(url)), init)
         return inner(url, init)
       })
     }
@@ -2439,21 +2440,24 @@ describe('syncWorkspace', () => {
       await fs.mkdir(path.join(tempDir, 'B', '.files'), { recursive: true })
       await fs.writeFile(path.join(tempDir, 'B', '.files', 'one.csv'), 'a', 'utf-8')
       await fs.writeFile(path.join(tempDir, 'B', '.files', 'two.csv'), 'b', 'utf-8')
-      const deleteSent = deferred()
+      const uploadSent = deferred()
       const policyRejected = deferred()
-      holdRequests(url => {
-        const isDeleteOfOne =
+      holdRequests((url, init) => {
+        const form = init?.body
+        const isUploadOfOne =
           url.pathname === '/v2/files' &&
-          url.searchParams.get('projectId') === 'p-B' &&
-          url.searchParams.get('path') === 'one.csv'
-        if (!isDeleteOfOne) return
-        deleteSent.resolve()
+          init?.method === 'POST' &&
+          form instanceof FormData &&
+          form.get('projectId') === 'p-B' &&
+          form.get('path') === 'one.csv'
+        if (!isUploadOfOne) return
+        uploadSent.resolve()
         return policyRejected.promise
       })
       const policyError = new Error('policy failed')
       const onConflict = vi.fn(async (_conflict: SyncConflict) => {
-        await deleteSent.promise
-        // B's delete is released from `setImmediate`, after the rejection below has settled.
+        await uploadSent.promise
+        // B's upload is released from `setImmediate`, after the rejection below has settled.
         setImmediate(policyRejected.resolve)
         throw policyError
       })
@@ -2463,7 +2467,8 @@ describe('syncWorkspace', () => {
       ).rejects.toBe(policyError)
 
       expect(onConflict).toHaveBeenCalledTimes(1)
-      expect(installed.deletedPaths).toEqual(['p-B:one.csv'])
+      // The replacement overwrote in place, so nothing was deleted; the started upload finished and no other began.
+      expect(installed.deletedPaths).toEqual([])
       expect(installed.uploadedPaths).toEqual(['p-B:one.csv'])
       const record = (await loadSyncManifest(tempDir)).projects['p-B']
       expect(Object.keys(record.files ?? {})).toEqual(['one.csv'])
