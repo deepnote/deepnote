@@ -72,10 +72,12 @@ Snapshots are kept for 30 days on Team and 365 days on Enterprise. To keep editi
 
 ## Example
 
-The [Revenue review app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/revenue-review) in the Lindquett Software example is a quarterly revenue
-report built on metric modules. Scheduled every Monday, it opens on fresh numbers and an analyst note an
-agent block wrote from the same definitions, and its filters live in the URL, so a link can open the
-report on one region and quarter.
+The [Revenue review](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/revenue-review) in the Lindquett Software example is a revenue report built on
+metric modules, in both forms this playbook describes. Its notebook is the edition: schedule it every
+Monday with success notifications, and each run is a snapshot that holds the numbers and the analyst
+note an agent block wrote from the same definitions. Its data app is the "own slice" page: every reader
+runs the same notebook for their region, segment and quarter, and the filters live in the URL, so a
+link opens the report on one scope.
 
 ## Plan requirements
 
