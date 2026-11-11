@@ -67,8 +67,10 @@ The same loop, with a coding agent that has the Deepnote skill (`deepnote instal
    deepnote publish examples/lindquett-software/local/build/deal-desk/site --create "Renewal deal desk"
    ```
 
-   `--create` makes the data app project and prints its ID; use `--project-id` from then on. Put the
-   notebook in that project, and check that `<meta name="deepnote-notebook-id">` in the page names it.
+   `--create` makes the data app project and prints its ID; use `--project-id` from then on. A data
+   app project holds exactly one notebook, so open it in Deepnote and replace that notebook's blocks
+   with `deal-desk.deepnote`. Then set `<meta name="deepnote-notebook-id">` in `app/index.html` to
+   that notebook's ID and publish again.
 
 `shared/deepnote-app.js` is what makes one page work in both places: locally it calls the launcher's
 `/api/run`, and inside Deepnote it gets a short-lived viewer token from the Deepnote shell and runs the
