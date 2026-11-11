@@ -215,25 +215,67 @@ describe('deepnote publish', () => {
     expect(output).not.toContain('API access:')
   })
 
-  it.each([
-    ['not a data app', null],
-    ['on a server without data app settings', undefined],
-  ])('exits with code 2 without uploading when the project is %s', async (_label, dataApp) => {
+  it('exits with code 1 without uploading when the server reports no data app settings', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')
-    mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp })
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('exit')
-    })
-    const stderr = captureStderr()
+    mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
 
-    await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')).rejects.toThrow('exit')
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')
 
-    expect(exitSpy).toHaveBeenCalledWith(2)
-    expect(stderr.join('')).toContain('data app')
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('did not report data app settings'))
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining('--create'))
     expect(mockedUpload).not.toHaveBeenCalled()
-    expect(mockedDelete).not.toHaveBeenCalled()
-    expect(mockedSetPublished).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
   })
+
+  it('names the project --create made when publishing to it then fails', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedGetProject.mockResolvedValue({ id: 'new-p', name: 'Deal desk', files: [] })
+
+    await run(tempDir, '--create', 'Deal desk', '--token', 'tok', '-q')
+
+    const printed = vi.mocked(console.error).mock.calls.flat().join('\n')
+    expect(printed).toContain('The data app project new-p was created; publish to it with --project-id new-p.')
+    expect(printed).not.toContain('pass --create')
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('prints the data app notebook ID after publishing', async () => {
+    await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [],
+      notebooks: [{ id: 'nb-1', name: 'Project' }],
+      dataApp: DATA_APP,
+    })
+    const logged: string[] = []
+    const spy = vi.spyOn(console, 'log').mockImplementation(message => logged.push(String(message)))
+
+    await run(tempDir, '--project-id', 'p1', '--token', 'tok')
+    spy.mockRestore()
+
+    expect(logged.join('\n')).toContain('Notebook ID: nb-1')
+  })
+
+  it.each([['not a data app', null]])(
+    'exits with code 2 without uploading when the project is %s',
+    async (_label, dataApp) => {
+      await fs.writeFile(join(tempDir, 'index.html'), 'hi')
+      mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp })
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('exit')
+      })
+      const stderr = captureStderr()
+
+      await expect(run(tempDir, '--project-id', 'p1', '--token', 'tok', '-q')).rejects.toThrow('exit')
+
+      expect(exitSpy).toHaveBeenCalledWith(2)
+      expect(stderr.join('')).toContain('data app')
+      expect(mockedUpload).not.toHaveBeenCalled()
+      expect(mockedDelete).not.toHaveBeenCalled()
+      expect(mockedSetPublished).not.toHaveBeenCalled()
+    }
+  )
 
   it('creates a data app project with --create and prints its ID for later publishes', async () => {
     await fs.writeFile(join(tempDir, 'index.html'), 'hi')

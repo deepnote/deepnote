@@ -108,6 +108,8 @@ const projectDetailSchema = z
   .object({
     project: syncProjectSchema.extend({
       files: z.array(projectFileEntrySchema),
+      /** Optional so a response without notebooks still parses; sync reads notebooks from the export. */
+      notebooks: z.array(z.object({ id: z.string(), name: z.string() }).passthrough()).optional(),
       /** `null` for projects that are not data apps. Optional so sync keeps working against servers
        * deployed before this field existed. */
       dataApp: projectDataAppSettingsSchema.nullable().optional(),
@@ -197,6 +199,8 @@ export interface ProjectDataAppSettings {
 export interface ProjectDetail extends SyncProject {
   /** Recursive file inventory (files only, no directories, no contents). */
   files: ProjectFileEntry[]
+  /** The project's notebooks. A data app project has exactly one: the notebook its page runs. */
+  notebooks?: { id: string; name: string }[]
   /** `null` when the project is not a data app; absent only on servers from before data app settings were exposed. */
   dataApp?: ProjectDataAppSettings | null
 }

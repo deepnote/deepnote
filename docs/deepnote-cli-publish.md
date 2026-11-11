@@ -73,7 +73,17 @@ deepnote publish ./dist --create "Revenue review"
 The build directory is checked before anything is created, so a `.env` file or a bad path leaves no
 empty project behind. The command prints the new project's ID; pass it as `--project-id` for later
 publishes, since each `--create` makes another project. A new project isn't in a sync workspace, so
-`--create` doesn't update one, and `--sync-root` is refused with it.
+`--create` doesn't update one, and `--sync-root` is refused with it. If publishing fails after
+`--create` made the project, the error names it, so you can retry with `--project-id` instead of
+creating another.
+
+A data app project has exactly one notebook, and the command prints its ID after publishing. A page
+that runs the notebook through the API names this ID, so set it in the page before you publish. To
+replace that notebook's blocks with a local `.deepnote` file, push it to that ID:
+
+```bash
+deepnote run app.deepnote --cloud --notebook-id <notebook-id> --push --yes
+```
 
 The command uploads files below `_deepnote_static`, replaces matching files, and publishes the app
 after all uploads succeed, so people with access to the project can open it. Remote files absent from

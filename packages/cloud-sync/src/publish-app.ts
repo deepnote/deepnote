@@ -98,6 +98,8 @@ export interface PublishAppResult {
   mirrorUpdated: boolean
   /** The published app's URL. Set only when every operation succeeded. */
   appUrl?: string
+  /** The data app's notebook, which the page names when it starts runs. Set when the project has exactly one. */
+  notebookId?: string
 }
 
 /**
@@ -407,15 +409,22 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     throw new PublishError('project-unavailable', `Could not load project ${projectId}: ${errorMessage(error)}`)
   }
   const { files: projectFiles, dataApp } = project
-  if (!dataApp) {
+  if (dataApp === undefined) {
+    // A server problem, not a wrong project: retrying with another project won't help.
     throw new PublishError(
-      'not-a-data-app',
-      dataApp === null
-        ? `Project ${projectId} is not a data app project, so it cannot be published. Create a data app in Deepnote ` +
-            '(Create new → New data app) and publish to that project instead.'
-        : `Deepnote did not report data app settings for project ${projectId}. The server may not support publishing data apps yet.`
+      'project-unavailable',
+      `Deepnote did not report data app settings for project ${projectId}. The server may not support publishing data apps yet.`
     )
   }
+  if (dataApp === null) {
+    throw new PublishError(
+      'not-a-data-app',
+      `Project ${projectId} is not a data app project, so it cannot be published. Create a data app in Deepnote ` +
+        '(Create new → New data app) and publish to that project instead.'
+    )
+  }
+  // The notebook the page runs. Pages name it when they start runs, and it only exists once the project does.
+  const notebookId = project.notebooks?.length === 1 ? project.notebooks[0]?.id : undefined
 
   onEvent?.({ kind: 'publishing', fileCount: publishFiles.length, targetPath: targetPrefix, projectId })
 
@@ -519,5 +528,6 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     syncRoot: mirror?.rootDir,
     mirrorUpdated: mirror !== undefined && mirrorFailures.length === 0 && (uploaded > 0 || pruned > 0),
     appUrl,
+    notebookId,
   }
 }

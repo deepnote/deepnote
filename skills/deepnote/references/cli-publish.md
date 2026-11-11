@@ -34,7 +34,14 @@ deepnote publish ./dist --create "Revenue review"
 
 `--create` validates the build before creating anything and prints the new project ID. Record it and
 use `--project-id` from then on; every `--create` makes another project. It never updates a sync
-workspace and refuses `--sync-root`.
+workspace and refuses `--sync-root`. If a publish fails after `--create`, the error names the
+created project; retry with `--project-id` rather than creating another.
+
+A data app project has exactly one notebook, and `publish` prints its ID. A page that starts runs
+must name it. Put a local notebook into the project with
+`deepnote run <file> --cloud --notebook-id <id> --push --yes`; the project cannot hold a second
+notebook. Module blocks must name the module notebooks' IDs in Deepnote, which can differ from the IDs
+in the file the modules were imported from.
 
 Matching files under `_deepnote_static` are replaced. Files absent from the local build are retained,
 and the app is published after uploads succeed, so people with project access can open it. Use the

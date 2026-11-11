@@ -840,9 +840,9 @@ describe('publishApp', () => {
     })
 
     it.each([
-      ['not a data app', null, 'is not a data app project'],
-      ['from a server without data app settings', undefined, 'did not report data app settings'],
-    ])('refuses a project that is %s before uploading anything', async (_label, dataApp, message) => {
+      ['not a data app', null, 'not-a-data-app', 'is not a data app project'],
+      ['from a server without data app settings', undefined, 'project-unavailable', 'did not report data app settings'],
+    ])('refuses a project that is %s before uploading anything', async (_label, dataApp, reason, message) => {
       const dir = join(tempDir, 'site')
       await writeFiles(dir, { 'index.html': 'hi' })
       mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [], dataApp })
@@ -851,11 +851,36 @@ describe('publishApp', () => {
       const error = await rejection(attempt)
 
       expect(error).toBeInstanceOf(PublishError)
-      expect(error).toMatchObject({ reason: 'not-a-data-app', message: expect.stringContaining(message) })
+      expect(error).toMatchObject({ reason, message: expect.stringContaining(message) })
       expect(events).toEqual([])
       expect(mockedUpload).not.toHaveBeenCalled()
       expect(mockedDelete).not.toHaveBeenCalled()
       expect(mockedSetPublished).not.toHaveBeenCalled()
+    })
+
+    it('reports the data app notebook, which the page names when it starts runs', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+      mockedGetProject.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [],
+        notebooks: [{ id: 'nb-1', name: 'Project' }],
+        dataApp: DATA_APP,
+      })
+
+      const result = await publish({ dir }).attempt
+
+      expect(result.notebookId).toBe('nb-1')
+    })
+
+    it('reports no notebook when the project does not have exactly one', async () => {
+      const dir = join(tempDir, 'site')
+      await writeFiles(dir, { 'index.html': 'hi' })
+
+      const result = await publish({ dir }).attempt
+
+      expect(result.notebookId).toBeUndefined()
     })
 
     it('returns an app URL for a nested target path', async () => {
