@@ -77,8 +77,6 @@ To publish from code, upload a local build with [`deepnote publish`](/docs/deepn
 `PATCH /v2/projects/{projectId}` with `{ "dataApp": { "published": true } }` through the
 [Deepnote API](/docs/deepnote-api). Send `false` to unpublish.
 
-### Embedding a public app
+### Sharing an app publicly
 
-If your workspace allows public apps, publish your app and open **Share**. Under **Anyone with a link to this app**, choose **View** or **Execute**, then click **Copy embed code**. Paste the iframe code into your website's HTML. For tools that accept a URL, use **Copy link to app** instead.
-
-Visitors can use the embedded app without a Deepnote account. The compact top bar shows the Deepnote logo, the app name, and a **Sign up** link that opens in a new tab.
+If your workspace allows public apps, publish your app and open **Share**. Under **Anyone with a link to this app**, choose **View** to share the latest results from the app's editors or **Execute** to also let visitors run the app with their own inputs. Click **Copy link to app** to share it with anyone, including people without a Deepnote account.
