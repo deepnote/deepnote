@@ -81,4 +81,4 @@ To publish from code, upload a local build with [`deepnote publish`](/docs/deepn
 
 If your workspace allows public apps, publish your app and open **Share**. Under **Anyone with a link to this app**, choose **View** or **Execute**, then click **Copy embed code**. Paste the iframe code into your website's HTML. For tools that accept a URL, use **Copy link to app** instead.
 
-Visitors can use the embedded app without a Deepnote account. The embed includes the Deepnote top bar.
+Visitors can use the embedded app without a Deepnote account. The compact top bar shows the Deepnote logo, the app name, and a **Sign up** link that opens in a new tab.
