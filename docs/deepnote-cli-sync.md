@@ -142,6 +142,12 @@ notebook, and skipped files are reported as `N file(s) kept from Deepnote`. This
 sync is not the only writer of a project's files: [`deepnote publish`](/docs/deepnote-cli-publish)
 deploys into the static root, and anyone editing the project in Deepnote can change files too.
 
+Downloads are checked the same way in the other direction. Before replacing a local copy, sync checks
+whether you edited it since the last sync. An edited copy, or a local file that was never synced,
+goes through the same `--on-conflict` choice: overriding replaces it with the Deepnote version, and
+skipping keeps your copy, reports it as `N local file(s) kept`, and asks again on the next sync. A
+local copy that already matches the Deepnote version is recorded as synced without asking.
+
 <Callout status="info">
 These transfers are buffered in memory, so working-directory files larger than 100 MiB are rejected.
 Use another transfer method for larger data files.
@@ -169,9 +175,11 @@ two commands share one rule:
 
 - **[`deepnote publish`](/docs/deepnote-cli-publish) writes it.** That is the deploy command, and the
   only one that should author those files. Its source of truth is your local build directory.
-- **`deepnote sync` mirrors it and never silently overwrites it.** The per-file check described above
-  applies to the static root too, so a site someone republished after your last sync is surfaced as
-  a conflict instead of being reverted to your older local copy.
+- **`deepnote sync` mirrors it and never silently overwrites it.** The per-file checks described
+  above apply to the static root too, in both directions. A site someone republished after your last
+  sync is surfaced as a conflict instead of being reverted to your older local copy. Local edits in
+  `.files/_deepnote_static/` are surfaced as a conflict instead of being replaced by the republished
+  site.
 - **A publish inside a synced workspace keeps the mirror in step.** Publishing updates the local
   mirror and `.deepnote-sync.json` for you, so the next sync does not see the deploy as drift and
   re-download the whole site.

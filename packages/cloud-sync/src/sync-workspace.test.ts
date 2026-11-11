@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -1167,11 +1168,18 @@ describe('syncWorkspace', () => {
       expect(kept.projects).toEqual([expect.objectContaining({ filesSkipped: 1 })])
       expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
 
-      // With the retry dropped, the next run is an ordinary pull: the cloud copy comes down.
+      // With the retry dropped, the next run is an ordinary pull. The local copy already matches the
+      // cloud copy, so it becomes the new baseline without a conflict.
       const recovered = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true, onConflict: 'skip' })
 
-      expect(recovered.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesDownloaded: 1 })])
-      expect(recovered.projects[0].filesSkipped).toBeUndefined()
+      expect(recovered.projects).toEqual([
+        { projectId: 'p1', name: 'Alpha', path: 'Alpha', action: 'unchanged', filesDownloaded: 0 },
+      ])
+      expect((await loadSyncManifest(tempDir)).projects.p1?.files?.['report.csv']).toEqual({
+        size: 4,
+        updatedAt: '2026-01-09T00:00:00.000Z',
+        hash: createHash('sha256').update('mine').digest('hex'),
+      })
       expect(cloud.uploadedPaths.length).toEqual(uploadsBefore)
     })
 
