@@ -618,6 +618,12 @@ export interface UploadedFile {
 export interface ProjectFileTransferOptions extends RequestOptions {
   /** Optional lower buffered-byte ceiling for this transfer. The hard limit is 100 MiB. */
   maxBytes?: number
+  /**
+   * Replace the file at `path` if one exists, instead of letting the server store the upload at a
+   * unique path beside it. The file never disappears, so anything bound to its path, such as a
+   * Streamlit app serving it, stays in place.
+   */
+  overwrite?: boolean
 }
 
 function projectFileTooLarge(filePath: string, maxBytes: number): ApiError {
@@ -677,10 +683,11 @@ async function readProjectFileBytes(response: Response, filePath: string, maxByt
 /**
  * Upload a working-directory file (`POST {baseUrl}/v2/files`, multipart).
  *
- * **The server generates a *unique* path when `path` already exists — it does not overwrite.** To
- * replace a file, {@link deleteProjectFile} it first (last-write-wins; there is no content-hash or
- * staleness check on the files surface). Buffered uploads are limited to 100 MiB. Returns the stored
- * file's inventory fields.
+ * **Without `options.overwrite`, the server generates a *unique* path when `path` already exists.**
+ * To replace a file, pass `overwrite: true` (last-write-wins; there is no content-hash or staleness
+ * check on the files surface). Deleting first and then uploading also replaces it, but leaves a gap
+ * with no file and drops anything bound to the path, such as a Streamlit app's registration.
+ * Buffered uploads are limited to 100 MiB. Returns the stored file's inventory fields.
  */
 export async function uploadProjectFile(
   baseUrl: string,
@@ -697,6 +704,9 @@ export async function uploadProjectFile(
   const form = new FormData()
   form.set('projectId', projectId)
   form.set('path', filePath)
+  if (options.overwrite) {
+    form.set('overwrite', 'true')
+  }
   // A basename is enough; the destination is `path`. Copy into a fresh ArrayBuffer so the Blob is
   // backed by exactly these bytes regardless of the view's offset into a larger buffer.
   const buffer = new Uint8Array(bytes).buffer
@@ -715,8 +725,8 @@ export async function uploadProjectFile(
 /**
  * Delete a working-directory file (`DELETE {baseUrl}/v2/files?projectId=&path=`).
  *
- * Returns `true` when the file was deleted, `false` when it did not exist (a 404 is not an error for
- * the overwrite-by-delete-then-upload pattern). Other non-2xx responses throw {@link ApiError}.
+ * Returns `true` when the file was deleted, `false` when it did not exist (a 404 is not an error
+ * when the caller only needs the file gone). Other non-2xx responses throw {@link ApiError}.
  */
 export async function deleteProjectFile(
   baseUrl: string,

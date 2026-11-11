@@ -831,11 +831,10 @@ async function uploadProjectFiles(
         commitPending()
         await persistManifest()
       }
-      // Checked again after the save above, but not between delete and upload: a started
-      // replacement must finish, or the cloud copy is gone with nothing in its place.
+      // Checked again after the save above. The upload overwrites in place, so cancelling before it
+      // leaves the cloud copy as it was.
       throwIfCancelled(ctx)
-      await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, relPath)
-      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes)
+      const stored = await uploadProjectFile(ctx.baseUrl, ctx.token, project.id, relPath, bytes, { overwrite: true })
       if (stored.path !== relPath) {
         await deleteProjectFile(ctx.baseUrl, ctx.token, project.id, stored.path)
         throw new Error(`Deepnote stored "${relPath}" at unexpected path "${stored.path}"`)

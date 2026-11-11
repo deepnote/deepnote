@@ -174,14 +174,13 @@ publish it again.
 
 Invalid local paths, conflicting destination paths, `.env` files, or files over 100 MiB in the build
 directory stop the command before uploads, with exit code `2`. Each local file is read before its
-remote copy is deleted and replaced.
+remote copy is replaced.
 
 If an upload fails, successful uploads remain in place, the app keeps its previous publish state, and
 remaining stale files are not pruned. An app that was already published stays published and serves the
 partly updated files. The command reports the failures and exits with code `1`. Fix the reported
-errors and publish again. Replacement deletes the remote file before uploading the new one, so a file
-whose upload fails is missing until a later publish succeeds. If that file is `index.html`, the
-published app doesn't load until then.
+errors and publish again. Replacement overwrites the remote file in place, so a file whose upload
+fails keeps its previous version and the app keeps loading.
 
 ## Streamlit apps
 
@@ -205,8 +204,9 @@ for that app too: `unavailable` can be a temporary state during a restart.
 Use `--no-wait` to return after creation or lookup without checking readiness.
 
 Deleting the entrypoint can remove its app registration, but some apps created in the UI retain it.
-Sync replaces changed files by deleting and uploading them. After syncing an edited entrypoint,
-publish again and use the returned URL; it may change. Creating a replacement app restarts the machine.
+Sync overwrites changed files in place, so an edited entrypoint keeps its app and URL. Deleting the
+entrypoint, or deleting and re-uploading it, removes the app; publishing again then creates a new
+app with a new URL. Creating a replacement app restarts the machine.
 
 If the app calls the public API, the project owner must enable Streamlit app API access and the
 viewer must be signed in with direct project access. Streamlit viewer API access is limited to the

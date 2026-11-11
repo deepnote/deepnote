@@ -180,10 +180,15 @@ describe('publishApp', () => {
 
       expect(events.map(event => event.kind)).toEqual(['publishing', 'file-uploaded', 'file-removed'])
       expect(events[2]).toEqual({ kind: 'file-removed', path: '_deepnote_static/old.html' })
-      expect(mockedDelete.mock.calls.map(call => call[3])).toEqual([
+      expect(mockedDelete.mock.calls.map(call => call[3])).toEqual(['_deepnote_static/old.html'])
+      expect(mockedUpload).toHaveBeenCalledWith(
+        'https://api.example.com',
+        'tok',
+        'p1',
         '_deepnote_static/index.html',
-        '_deepnote_static/old.html',
-      ])
+        expect.anything(),
+        { overwrite: true }
+      )
       expect(result.pruned).toBe(1)
     })
 
@@ -306,7 +311,7 @@ describe('publishApp', () => {
       const result = await attempt
 
       const message = 'File "big.bin" exceeds the 100 MiB upload limit.'
-      expect(mockedDelete.mock.calls.map(call => call[3])).toEqual(['_deepnote_static/index.html'])
+      expect(mockedDelete).not.toHaveBeenCalled()
       expect(result.errors).toEqual([{ path: 'big.bin', message }])
       expect(events).toContainEqual({ kind: 'operation-failed', operation: 'upload', path: 'big.bin', message })
     })

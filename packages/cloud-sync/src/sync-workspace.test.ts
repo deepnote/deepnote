@@ -105,7 +105,7 @@ interface CloudProject {
   importConflict?: 'always' | 'unless-forced'
   /** A final-contract import error to surface to sync unchanged. */
   importError?: { status: number; message: string }
-  /** A file-upload error to surface after the replacement delete. */
+  /** A file-upload error to surface for the replacement upload. */
   fileUploadError?: { status: number; message: string }
   /** The actual path returned by a successful file upload. */
   fileUploadPath?: string
@@ -784,7 +784,7 @@ describe('syncWorkspace', () => {
     expect((await loadSyncManifest(tempDir)).projects.p1?.contentHash).toBe(baselineHash)
   })
 
-  it('uploads changed local files on push with --all-files (delete-then-upload overwrite)', async () => {
+  it('uploads changed local files on push with --all-files, overwriting in place', async () => {
     const projects: CloudProject[] = [
       {
         id: 'p1',
@@ -810,7 +810,7 @@ describe('syncWorkspace', () => {
 
     expect(result.projects).toEqual([expect.objectContaining({ action: 'pushed', filesUploaded: 1 })])
     expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv'])
-    expect(cloud.deletedPaths).toEqual(['p1:data/input.csv'])
+    expect(cloud.deletedPaths).toEqual([])
   })
 
   it('re-uploads a same-size local file edit on push (change detected by content hash, not size)', async () => {
@@ -1279,7 +1279,8 @@ describe('syncWorkspace', () => {
     const retried = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true, prune: true })
 
     expect(retried.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesUploaded: 1 })])
-    expect(cloud.deletedPaths).toEqual(['p1:data/input.csv', 'p1:data/input.csv'])
+    // Replacements overwrite in place: the failed upload left the cloud copy as it was, and nothing was deleted.
+    expect(cloud.deletedPaths).toEqual([])
     expect(cloud.uploadedPaths).toEqual(['p1:data/input.csv', 'p1:data/input.csv'])
     expect(await fs.readFile(path.join(tempDir, 'Alpha', '.files', 'data', 'input.csv'), 'utf-8')).toBe('x,y')
     expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()

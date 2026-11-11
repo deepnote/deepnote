@@ -467,14 +467,13 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
 
   for (const { localPath, relativePath, destination } of publishFiles) {
     try {
-      // Read before deleting the remote copy so an unreadable or oversized local file leaves the live file
-      // intact. The size is checked again because the file may have grown since the preflight.
+      // The size is checked again because the file may have grown since the preflight. The upload
+      // overwrites in place, so a failed replacement leaves the live file as it was.
       const content = await fs.readFile(localPath)
       if (content.byteLength > MAX_BUFFERED_PROJECT_FILE_BYTES) {
         throw new Error(`File "${relativePath}" exceeds the ${UPLOAD_LIMIT} upload limit.`)
       }
-      await deleteProjectFile(baseUrl, token, projectId, destination)
-      const stored = await uploadProjectFile(baseUrl, token, projectId, destination, content)
+      const stored = await uploadProjectFile(baseUrl, token, projectId, destination, content, { overwrite: true })
       if (stored.path !== destination) {
         await deleteProjectFile(baseUrl, token, projectId, stored.path).catch(() => undefined)
         throw new Error(`Deepnote stored the file at "${stored.path}" instead of "${destination}"`)
