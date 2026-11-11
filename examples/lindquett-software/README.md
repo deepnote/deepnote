@@ -56,19 +56,21 @@ The same loop, with a coding agent that has the Deepnote skill (`deepnote instal
    for `account_id` and `term_years` with the rules in the Pricing rules block. Load accounts and
    revenue with module blocks from the Lindquett metrics project. End with one `application/json`
    output holding the quote and a plain-language reason for each part of the price."_ Run it with
-   `node local/run.mjs deal-desk` and review the change with `git diff`.
+   `node examples/lindquett-software/local/run.mjs deal-desk` and review the change with `git diff`.
 2. **Build the page.** Ask for `deal-desk/app/index.html`: _"An account picker on the left and the
    quote on the right. Run the notebook with `runNotebook` from `deepnote-app.js` when the account or
    term changes."_ Try it at http://127.0.0.1:4749, against the same notebook.
 3. **Ship it.** Push the notebook to Deepnote and publish the page into a data app project:
 
    ```bash
-   node examples/lindquett-software/local/serve.mjs   # also writes local/build/deal-desk/site
+   node examples/lindquett-software/local/serve.mjs   # builds local/build/deal-desk/site; stop it after
    deepnote publish examples/lindquett-software/local/build/deal-desk/site --create "Renewal deal desk"
    ```
 
-   `--create` makes the data app project and prints its ID; use `--project-id` from then on. Put the
-   notebook in that project, and check that `<meta name="deepnote-notebook-id">` in the page names it.
+   Pull the new project with [`deepnote sync`](https://deepnote.com/docs/deepnote-cli-sync), replace the
+   blocks of its only notebook with those of `deal-desk.deepnote`, and push with `deepnote sync`. Set
+   `deepnote-notebook-id` in `app/index.html` to that notebook's `id`, then rebuild and publish with
+   `--project-id`.
 
 `shared/deepnote-app.js` is what makes one page work in both places: locally it calls the launcher's
 `/api/run`, and inside Deepnote it gets a short-lived viewer token from the Deepnote shell and runs the

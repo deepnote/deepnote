@@ -79,7 +79,6 @@ project:
             deepnote_variable_value: 2026-Q3
             deepnote_variable_default_value: 2026-Q3
             deepnote_variable_options:
-              - 2025-Q1
               - 2025-Q2
               - 2025-Q3
               - 2025-Q4
@@ -87,7 +86,6 @@ project:
               - 2026-Q2
               - 2026-Q3
             deepnote_variable_custom_options:
-              - 2025-Q1
               - 2025-Q2
               - 2025-Q3
               - 2025-Q4

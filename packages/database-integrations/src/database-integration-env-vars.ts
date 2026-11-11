@@ -1,6 +1,7 @@
 import { convertToEnvironmentVariableName } from '@deepnote/blocks'
 import type { DatabaseIntegrationConfig, SqlIntegrationConfig } from './database-integration-config'
 import type { DatabaseIntegrationMetadataByType } from './database-integration-metadata-schemas'
+import { isFederatedAuthSecretField } from './secret-field-paths'
 import { getSnowflakeSqlAlchemyInput } from './snowflake-integration-env-vars'
 import type { SqlAlchemyInput } from './sql-alchemy-types'
 import {
@@ -35,7 +36,7 @@ export function getEnvironmentVariablesForIntegrations(
     const envVarsForThisIntegration: Array<EnvVar> = Object.entries(integration.metadata)
       .filter(([key]) => {
         // Filter out caCertificateText - we only provide the path, not the cert text
-        return key !== 'caCertificateText'
+        return key !== 'caCertificateText' && !isFederatedAuthSecretField(integration.type, integration.metadata, key)
       })
       .map(([key, rawValue]) => {
         const name = `${namePrefix}_${key.toUpperCase()}`
