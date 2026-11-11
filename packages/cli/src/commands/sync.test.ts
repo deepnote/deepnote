@@ -156,6 +156,24 @@ describe('deepnote sync conflict policy', () => {
       answer: 'skip',
     },
     {
+      conflict: {
+        kind: 'local-working-files-changed',
+        projectId: 'p1',
+        projectName: 'Alpha',
+        projectDir: 'Team/Alpha',
+        files: [
+          { path: '_deepnote_static/index.html', reason: 'edited locally' },
+          { path: 'data.csv', reason: 'exists locally but was never synced' },
+        ],
+      },
+      question:
+        'Local working files of "Alpha" differ from their Deepnote versions: ' +
+        '_deepnote_static/index.html (edited locally), data.csv (exists locally but was never synced). ' +
+        'Replace your local copies with the Deepnote versions?',
+      overrideLabel: 'Replace the local copies with the Deepnote versions (discards local changes)',
+      answer: 'override',
+    },
+    {
       conflict: { kind: 'changed-on-both-sides', projectId: 'p1', projectName: 'Alpha', projectDir: 'Team/Alpha' },
       question: '"Alpha" changed both locally and in Deepnote. Overwrite the local files with the cloud version?',
       overrideLabel: 'Overwrite the local files with the cloud version (discards local changes)',
@@ -171,7 +189,7 @@ describe('deepnote sync conflict policy', () => {
   ] satisfies { conflict: SyncConflict; question: string; overrideLabel: string; answer: 'skip' | 'override' }[]
 
   it.each(conflictCases)(
-    'asks about $conflict.kind on a terminal with the question and labels it always used',
+    'asks about $conflict.kind on a terminal with its question and choices',
     async ({ conflict, question, overrideLabel, answer }) => {
       setTty(true, true)
       mockedSelect.mockResolvedValueOnce(answer)
@@ -184,7 +202,7 @@ describe('deepnote sync conflict policy', () => {
       expect(mockedSelect).toHaveBeenCalledWith({
         message: question,
         choices: [
-          { name: 'Skip this project for now', value: 'skip' },
+          { name: 'Skip for now', value: 'skip' },
           { name: overrideLabel, value: 'override' },
         ],
       })
@@ -533,6 +551,21 @@ describe('deepnote sync result handling', () => {
       '2 pulled, 1 pushed, 3 unchanged, 1 skipped, 1 failed, 4 file(s) downloaded, 2 file(s) uploaded, 1 file(s) kept from Deepnote',
     ])
     expect(process.exitCode).toBe(1)
+  })
+
+  it('counts local copies a pull kept apart from Deepnote copies a push kept', async () => {
+    mockedSyncWorkspace.mockResolvedValue(
+      resultOf({
+        projects: [
+          { projectId: 'p1', name: 'A', path: 'A', action: 'unchanged', filesDownloaded: 0, localFilesKept: 2 },
+          { projectId: 'p2', name: 'B', path: 'B', action: 'pushed', filesUploaded: 0, filesSkipped: 1 },
+        ],
+      })
+    )
+
+    await sync()
+
+    expect(logged).toEqual(['', '0 pulled, 1 pushed, 1 unchanged, 1 file(s) kept from Deepnote, 2 local file(s) kept'])
   })
 
   it('prints the dry-run prefix and the untracked-files line, and leaves the exit code alone on success', async () => {

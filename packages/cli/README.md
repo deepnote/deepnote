@@ -771,6 +771,11 @@ notebook; skipped files are reported as `N file(s) kept from Deepnote`. Files sy
 `updatedAt` was recorded have no baseline to compare and are still overwritten; they become
 verifiable after the next pull.
 
+Downloads are checked in the other direction. A pull does not replace a local copy that was edited
+since the last sync, or a local file that was never synced, without the same `--on-conflict` choice;
+skipped files are reported as `N local file(s) kept`, and the next sync asks again. A local copy that
+already matches the Deepnote version is recorded as synced without asking.
+
 If a push changes `project.name`, the current run finishes in the existing local directory. The next
 sync sees the new cloud name and moves the tracked directory through the normal cloud-rename path.
 Renaming the local directory itself does not rename the cloud project. The full import contract is in

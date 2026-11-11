@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { exportProject, importProject } from '@deepnote/cloud'
 import { type MockCloudRequest, type MockDeepnoteCloud, startMockDeepnoteCloud } from '@deepnote/cloud-mock'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { loadSyncManifest, SYNC_MANIFEST_FILENAME, saveSyncManifest } from './sync-manifest'
 import { canonicalProjectHash, type SyncConflict, type SyncConflictDecision, syncWorkspace } from './sync-workspace'
 
 const TOKEN = 'test-token'
@@ -26,6 +28,8 @@ function alphaNotebook(notebookId: string, notebookName: string): string {
   ].join('\n')
 }
 
+const sha256Hex = (content: string) => createHash('sha256').update(content).digest('hex')
+
 const MAIN = alphaNotebook('nb-main', 'Main')
 const MAIN_EDITED_LOCALLY = alphaNotebook('nb-main', 'Edited locally')
 const MAIN_EDITED_IN_CLOUD = alphaNotebook('nb-main', 'Edited in Deepnote')
@@ -35,10 +39,12 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
   let onCloudRequest: ((request: MockCloudRequest) => Promise<void>) | undefined
   let rootDir: string
   let conflicts: SyncConflict[]
+  let warnings: string[]
 
   beforeEach(async () => {
     onCloudRequest = undefined
     conflicts = []
+    warnings = []
     cloud = await startMockDeepnoteCloud({ onRequest: request => onCloudRequest?.(request) })
     rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-cloud-mock-'))
   })
@@ -56,17 +62,38 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
     await fs.writeFile(absolutePath, content)
   }
 
-  function sync({ allFiles, decision = 'skip' }: { allFiles?: boolean; decision?: SyncConflictDecision } = {}) {
+  function sync({
+    allFiles,
+    decision = 'skip',
+    dryRun,
+    prune,
+  }: {
+    allFiles?: boolean
+    decision?: SyncConflictDecision
+    dryRun?: boolean
+    prune?: boolean
+  } = {}) {
     return syncWorkspace({
       rootDir,
       baseUrl: cloud.url,
       token: TOKEN,
       allFiles,
+      dryRun,
+      prune,
       onConflict: async conflict => {
         conflicts.push(conflict)
         return decision
       },
+      onEvent: event => {
+        if (event.kind === 'warning') {
+          warnings.push(event.message)
+        }
+      },
     })
+  }
+
+  async function fileRecord(filePath: string) {
+    return (await loadSyncManifest(rootDir)).projects[ALPHA_ID]?.files?.[filePath]
   }
 
   it('pulls a cloud project byte for byte, then reports it unchanged', async () => {
@@ -156,5 +183,172 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
     ])
     expect(await fs.readFile(cloudPath('.files', 'data.csv'), 'utf-8')).toBe('a,b\n3,4\n5,6\n')
     expect(await fs.readdir(cloudPath('.files'))).toEqual(['data.csv'])
+  })
+
+  describe('working files edited locally and changed in Deepnote', () => {
+    async function setUpSameSizeLocalEdit(): Promise<void> {
+      await writeFile(cloudPath('main.deepnote'), MAIN)
+      await writeFile(cloudPath('.files', 'edited.csv'), 'a\n')
+      await writeFile(cloudPath('.files', 'clean.csv'), 'b\n')
+      await sync({ allFiles: true })
+      await writeFile(localPath('.files', 'edited.csv'), 'm\n')
+      await writeFile(cloudPath('.files', 'edited.csv'), 'theirs\n')
+      await writeFile(cloudPath('.files', 'clean.csv'), 'theirs too\n')
+    }
+
+    const editedLocally: SyncConflict = {
+      kind: 'local-working-files-changed',
+      projectId: ALPHA_ID,
+      projectName: 'Alpha',
+      projectDir: 'Alpha',
+      files: [{ path: 'edited.csv', reason: 'edited locally' }],
+    }
+
+    it('asks once about the edited copy, keeps it on skip, and asks again on the next sync', async () => {
+      await setUpSameSizeLocalEdit()
+      const baseline = await fileRecord('edited.csv')
+
+      const result = await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([editedLocally])
+      expect(result.projects).toEqual([
+        expect.objectContaining({ action: 'unchanged', filesDownloaded: 1, localFilesKept: 1 }),
+      ])
+      expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('m\n')
+      expect(await fs.readFile(localPath('.files', 'clean.csv'), 'utf-8')).toBe('theirs too\n')
+      expect(await fileRecord('edited.csv')).toEqual(baseline)
+      expect(warnings).toEqual([
+        'Kept the local copy of 1 file in "Alpha": edited.csv (edited locally). ' +
+          'To take the Deepnote versions, sync again and choose to replace your local copies.',
+      ])
+
+      await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([editedLocally, editedLocally])
+      expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('m\n')
+    })
+
+    it('replaces the edited copy with the Deepnote version on override and records its hash', async () => {
+      await setUpSameSizeLocalEdit()
+
+      const result = await sync({ allFiles: true, decision: 'override' })
+
+      expect(conflicts).toEqual([editedLocally])
+      expect(result.projects).toEqual([expect.objectContaining({ action: 'unchanged', filesDownloaded: 2 })])
+      expect(result.projects[0].localFilesKept).toBeUndefined()
+      expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('theirs\n')
+      expect((await fileRecord('edited.csv'))?.hash).toBe(sha256Hex('theirs\n'))
+      expect(warnings).toEqual([])
+    })
+
+    it('keeps the skipped local copy on a sync that prunes', async () => {
+      await setUpSameSizeLocalEdit()
+
+      await sync({ allFiles: true, prune: true })
+
+      expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('m\n')
+    })
+
+    it('skips the conflict without asking in a dry run and writes nothing', async () => {
+      await setUpSameSizeLocalEdit()
+      const manifestBefore = await fs.readFile(path.join(rootDir, SYNC_MANIFEST_FILENAME), 'utf-8')
+
+      const result = await sync({ allFiles: true, decision: 'override', dryRun: true })
+
+      expect(conflicts).toEqual([])
+      expect(result.projects).toEqual([
+        expect.objectContaining({ action: 'unchanged', filesDownloaded: 1, localFilesKept: 1 }),
+      ])
+      expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('m\n')
+      expect(await fs.readFile(localPath('.files', 'clean.csv'), 'utf-8')).toBe('b\n')
+      expect(await fs.readFile(path.join(rootDir, SYNC_MANIFEST_FILENAME), 'utf-8')).toBe(manifestBefore)
+    })
+
+    it('asks about a local file that was never synced at a path Deepnote has', async () => {
+      await writeFile(cloudPath('main.deepnote'), MAIN)
+      await writeFile(cloudPath('.files', 'data.csv'), 'theirs\n')
+      await sync()
+      await writeFile(localPath('.files', 'data.csv'), 'mine\n')
+
+      await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([
+        { ...editedLocally, files: [{ path: 'data.csv', reason: 'exists locally but was never synced' }] },
+      ])
+      expect(await fs.readFile(localPath('.files', 'data.csv'), 'utf-8')).toBe('mine\n')
+      expect(await fileRecord('data.csv')).toBeUndefined()
+    })
+
+    it('asks about a never-synced local file of the same size as the Deepnote copy but different content', async () => {
+      await writeFile(cloudPath('main.deepnote'), MAIN)
+      await writeFile(cloudPath('.files', 'data.csv'), 'theirs\n')
+      await sync()
+      await writeFile(localPath('.files', 'data.csv'), 'mine!!\n')
+
+      await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([
+        { ...editedLocally, files: [{ path: 'data.csv', reason: 'exists locally but was never synced' }] },
+      ])
+      expect(await fs.readFile(localPath('.files', 'data.csv'), 'utf-8')).toBe('mine!!\n')
+    })
+
+    it('records a local copy that already matches Deepnote as the new baseline without asking or writing', async () => {
+      await writeFile(cloudPath('main.deepnote'), MAIN)
+      await writeFile(cloudPath('.files', 'data.csv'), 'a\n')
+      await sync({ allFiles: true })
+      await writeFile(cloudPath('.files', 'data.csv'), 'theirs\n')
+      await writeFile(localPath('.files', 'data.csv'), 'theirs\n')
+      const writtenAt = new Date('2026-01-01T00:00:00.000Z')
+      await fs.utimes(localPath('.files', 'data.csv'), writtenAt, writtenAt)
+
+      const result = await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([])
+      expect(result.projects).toEqual([
+        { projectId: ALPHA_ID, name: 'Alpha', path: 'Alpha', action: 'unchanged', filesDownloaded: 0 },
+      ])
+      expect(await fileRecord('data.csv')).toEqual(expect.objectContaining({ size: 7, hash: sha256Hex('theirs\n') }))
+      expect((await fs.stat(localPath('.files', 'data.csv'))).mtime).toEqual(writtenAt)
+    })
+
+    it('adopts unchanged local files without asking after the manifest is deleted', async () => {
+      await writeFile(cloudPath('main.deepnote'), MAIN)
+      await writeFile(cloudPath('.files', 'data.csv'), 'a\n')
+      await sync({ allFiles: true })
+      await fs.rm(path.join(rootDir, SYNC_MANIFEST_FILENAME))
+
+      const result = await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([])
+      expect(result.projects).toEqual([
+        { projectId: ALPHA_ID, name: 'Alpha', path: 'Alpha', action: 'unchanged', filesDownloaded: 0 },
+      ])
+      expect((await fileRecord('data.csv'))?.hash).toBe(sha256Hex('a\n'))
+    })
+
+    it('asks about a copy whose record predates content hashes, even when it is unedited', async () => {
+      await writeFile(cloudPath('main.deepnote'), MAIN)
+      await writeFile(cloudPath('.files', 'data.csv'), 'a\n')
+      await sync({ allFiles: true })
+      const manifest = await loadSyncManifest(rootDir)
+      const record = manifest.projects[ALPHA_ID]?.files?.['data.csv']
+      if (!record) {
+        throw new Error('expected a manifest record for data.csv')
+      }
+      delete record.hash
+      await saveSyncManifest(rootDir, manifest)
+      await writeFile(cloudPath('.files', 'data.csv'), 'theirs\n')
+
+      await sync({ allFiles: true })
+
+      expect(conflicts).toEqual([
+        {
+          ...editedLocally,
+          files: [{ path: 'data.csv', reason: 'may have been edited locally; synced before local edits were tracked' }],
+        },
+      ])
+      expect(await fs.readFile(localPath('.files', 'data.csv'), 'utf-8')).toBe('a\n')
+    })
   })
 })

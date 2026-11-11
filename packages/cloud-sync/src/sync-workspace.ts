@@ -45,7 +45,7 @@ import { isSafeRelativeFilePath, type PlannedProjectPaths, pathsOverlap, planPro
  * `POST /v2/projects/{id}/import` (see `@deepnote/cloud` and the project-import contract doc), with
  * `baseModifiedAt` + `baseContentHash` for lost-update protection — a concurrent cloud edit is
  * rejected (409) and resolved by the conflict policy as override-or-skip, never a silent overwrite.
- * `allFiles` also applies the same conflict policy to working-directory files.
+ * `allFiles` also applies the same conflict policy to working-directory files, in both directions.
  *
  * Git is deliberately out of scope: sync writes ordinary files and the user runs git themselves.
  */
@@ -57,7 +57,7 @@ export type SyncConflictDecision = 'skip' | 'override'
 
 /**
  * A situation sync will not settle on its own. `skip` leaves the affected project, or for
- * `working-files-changed` the listed files, as they are and reports it.
+ * `working-files-changed` and `local-working-files-changed` the listed files, as they are and reports it.
  */
 export type SyncConflict =
   /**
@@ -91,6 +91,29 @@ export type SyncConflict =
          */
         path: string
         /** Why the file conflicts, e.g. `changed in Deepnote`. */
+        reason: string
+      }[]
+    }
+  /**
+   * With `allFiles`, the local copies of working files to download differ from the Deepnote versions
+   * and either differ from the last sync, were never synced, or were synced before local edits were
+   * tracked. One conflict per project lists all of them.
+   * `override` replaces the local copies with the Deepnote versions.
+   */
+  | {
+      kind: 'local-working-files-changed'
+      projectId: string
+      projectName: string
+      /** The project's local directory: a POSIX path relative to `rootDir`, e.g. `Analytics/Sales report`. */
+      projectDir: string
+      files: {
+        /**
+         * The working file's project-relative POSIX path: its path in Deepnote, and locally relative to
+         * `<rootDir>/<projectDir>/.files`, never prefixed with `projectDir`, e.g.
+         * `_deepnote_static/index.html`.
+         */
+        path: string
+        /** Why the file conflicts, e.g. `edited locally`. */
         reason: string
       }[]
     }
@@ -170,7 +193,10 @@ export interface WorkspaceSyncOptions {
   baseUrl: string
   /** API token. Used as given; it is never looked up in the environment or in `.env` files. */
   token: string
-  /** Also sync each project's working-directory files. */
+  /**
+   * Also sync each project's working-directory files. Their conflicts are `working-files-changed` on
+   * upload and `local-working-files-changed` on download.
+   */
   allFiles?: boolean
   /** When pushing, delete cloud notebooks that have no local file. */
   deleteMissingNotebooks?: boolean
@@ -213,6 +239,8 @@ export interface ProjectSyncOutcome {
   filesUploaded?: number
   /** Number of working-directory files skipped after cloud conflicts. */
   filesSkipped?: number
+  /** Number of local working-file copies kept after a `local-working-files-changed` conflict (`allFiles` pull only). */
+  localFilesKept?: number
 }
 
 export interface WorkspaceSyncResult {
@@ -510,6 +538,49 @@ async function moveTrackedProjectDir(
   return note
 }
 
+async function describeLocalFileEdit(
+  absolutePath: string,
+  baseline: ManifestFileRecord | undefined
+): Promise<string | undefined> {
+  if (!(await pathExists(absolutePath))) {
+    return undefined
+  }
+  if (baseline === undefined) {
+    return 'exists locally but was never synced'
+  }
+  if (baseline.hash === undefined) {
+    return 'may have been edited locally; synced before local edits were tracked'
+  }
+  // Comparing sizes first bounds the read: every recorded size passed the buffered transfer limit.
+  if ((await fs.stat(absolutePath)).size !== baseline.size) {
+    return 'edited locally'
+  }
+  return sha256(await fs.readFile(absolutePath)) === baseline.hash ? undefined : 'edited locally'
+}
+
+/** The local copy's hash when it is byte-identical to Deepnote's copy, so it can become the baseline
+ * without a write. A size difference settles it without downloading. */
+async function hashIfSameAsDeepnote(
+  ctx: SyncContext,
+  projectId: string,
+  entry: ProjectFileEntry,
+  absolutePath: string
+): Promise<string | undefined> {
+  if ((await fs.stat(absolutePath)).size !== entry.size) {
+    return undefined
+  }
+  const localHash = sha256(await fs.readFile(absolutePath))
+  throwIfCancelled(ctx)
+  const remoteHash = sha256(await downloadProjectFile(ctx.baseUrl, ctx.token, projectId, entry.path))
+  return localHash === remoteHash ? localHash : undefined
+}
+
+interface PlannedFileDownload {
+  entry: ProjectFileEntry
+  absolutePath: string
+  conflict?: string
+}
+
 /** Download changed working-directory files for one project (`--all-files`). Incremental: a file
  * whose inventory `size`/`updatedAt` match the manifest and which exists locally is skipped. */
 async function syncProjectFiles(
@@ -517,13 +588,14 @@ async function syncProjectFiles(
   project: SyncProject,
   plan: PlannedProjectPaths,
   record: ManifestProjectRecord
-): Promise<number> {
+): Promise<{ downloaded: number; kept: number }> {
   await assertNoSymbolicLinkAncestors(ctx.rootDir, plan.filesDir)
   const detail = await getProjectDetail(ctx.baseUrl, ctx.token, project.id)
   const previous = record.files ?? {}
   const next: Record<string, ManifestFileRecord> = {}
   let downloaded = 0
 
+  const planned: PlannedFileDownload[] = []
   for (const entry of detail.files) {
     if (!isSafeRelativeFilePath(entry.path)) {
       emit(ctx, { kind: 'warning', message: `Skipping file with unsafe path in "${project.name}": ${entry.path}` })
@@ -539,12 +611,57 @@ async function syncProjectFiles(
       prev.updatedAt === entry.updatedAt &&
       (await pathExists(absolutePath))
     if (unchanged) {
-      // Preserve the record (including its `hash`, which push relies on to spot same-size edits).
+      // Preserve the record (including its `hash`, which push and pull rely on to spot local edits).
       next[entry.path] = prev
       continue
     }
 
     assertBufferedProjectFileSize(entry.path, entry.size)
+    const conflict = await describeLocalFileEdit(absolutePath, prev)
+    if (conflict !== undefined) {
+      // A copy that already matches Deepnote's (an interrupted pull or push, a deleted manifest) only
+      // lacks its baseline: record it instead of asking, or `skip` would keep the stale record forever.
+      const hash = await hashIfSameAsDeepnote(ctx, project.id, entry, absolutePath)
+      if (hash !== undefined) {
+        next[entry.path] = { size: entry.size, updatedAt: entry.updatedAt, hash }
+        continue
+      }
+    }
+    planned.push({ entry, absolutePath, ...(conflict ? { conflict } : {}) })
+  }
+
+  const conflicted = planned.filter((file): file is Required<PlannedFileDownload> => file.conflict !== undefined)
+  let overrideConflicts = false
+  if (conflicted.length > 0) {
+    const summary = conflicted.map(file => `${file.entry.path} (${file.conflict})`).join(', ')
+    overrideConflicts =
+      (await resolveConflict(ctx, {
+        kind: 'local-working-files-changed',
+        projectId: project.id,
+        projectName: project.name,
+        projectDir: plan.projectDir,
+        files: conflicted.map(file => ({ path: file.entry.path, reason: file.conflict })),
+      })) === 'override'
+    if (!overrideConflicts) {
+      emit(ctx, {
+        kind: 'warning',
+        message:
+          `Kept the local copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
+          `"${project.name}": ${summary}. To take the Deepnote versions, sync again and choose to replace ` +
+          'your local copies.',
+      })
+    }
+  }
+
+  for (const { entry, absolutePath, conflict } of planned) {
+    if (conflict !== undefined && !overrideConflicts) {
+      // The old record makes the next sync ask again and keeps `prune` from deleting the kept copy.
+      const prev = previous[entry.path]
+      if (prev !== undefined) {
+        next[entry.path] = prev
+      }
+      continue
+    }
 
     const base = { size: entry.size, updatedAt: entry.updatedAt }
     if (!ctx.dryRun) {
@@ -600,7 +717,7 @@ async function syncProjectFiles(
   }
 
   record.files = next
-  return downloaded
+  return { downloaded, kept: overrideConflicts ? 0 : conflicted.length }
 }
 
 /** The result of attempting to push one project. */
@@ -794,8 +911,8 @@ async function uploadProjectFiles(
         kind: 'warning',
         message:
           `Kept the Deepnote copy of ${conflicted.length} file${conflicted.length === 1 ? '' : 's'} in ` +
-          `"${project.name}": ${summary}. To accept the Deepnote versions, pull — this replaces your ` +
-          'local copies. To keep yours, push again and choose to overwrite.',
+          `"${project.name}": ${summary}. To accept the Deepnote versions, pull and choose to replace ` +
+          'your local copies. To keep yours, push again and choose to overwrite.',
       })
     }
   }
@@ -811,7 +928,8 @@ async function uploadProjectFiles(
   for (const { relPath, conflict } of planned) {
     if (conflict !== undefined && !overrideConflicts) {
       // A kept re-created cloud copy is no longer ours to finish replacing. Dropping the retry turns
-      // the path back into an ordinary diverged file: pull brings the cloud copy down, push asks again.
+      // the path back into an ordinary diverged file: pull brings the cloud copy down (asking first when
+      // the local copy differs), push asks again.
       if (!ctx.dryRun && pending.delete(relPath)) {
         commitPending()
         await persistManifest()
@@ -984,7 +1102,11 @@ async function syncOneProject(
             outcome.filesSkipped = upload.skipped
           }
         } else {
-          outcome.filesDownloaded = await syncProjectFiles(ctx, project, plan, currentRecord)
+          const download = await syncProjectFiles(ctx, project, plan, currentRecord)
+          outcome.filesDownloaded = download.downloaded
+          if (download.kept > 0) {
+            outcome.localFilesKept = download.kept
+          }
         }
         manifestProjects[project.id] = currentRecord
       }
