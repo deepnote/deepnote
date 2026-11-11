@@ -11,7 +11,7 @@ Data app projects are in beta. This is an early version, so expect it to change,
 
 A data app project is a web app you build by chatting with [Deepnote Agent](/docs/deepnote-agent). Describe what you need, such as a sales dashboard, a data explorer, or an interactive tool, and the agent builds the app and connects it to a notebook that queries and prepares the data. Refine it in chat and share it with your team.
 
-Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). Neither can be embedded in another site or shared with anyone who has the link; to put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
+Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). To put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
 
 ## Creating a data app
 
@@ -77,6 +77,8 @@ To publish from code, upload a local build with [`deepnote publish`](/docs/deepn
 `PATCH /v2/projects/{projectId}` with `{ "dataApp": { "published": true } }` through the
 [Deepnote API](/docs/deepnote-api). Send `false` to unpublish.
 
-## Limitations
+### Embedding a public app
 
-- Data apps can be shared only with people who have access to the project. Sharing with anyone who has the link isn't available.
+If your workspace allows public apps, publish your app and open **Share**. Under **Anyone with a link to this app**, choose **View** or **Execute**, then click **Copy embed code**. Paste the iframe code into your website's HTML. For tools that accept a URL, use **Copy link to app** instead.
+
+Visitors can use the embedded app without a Deepnote account. The embed includes the Deepnote top bar.
