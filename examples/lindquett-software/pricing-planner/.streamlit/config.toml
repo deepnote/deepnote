@@ -5,7 +5,6 @@ primaryColor = "#f2b134"
 backgroundColor = "#fafaf7"
 secondaryBackgroundColor = "#ffffff"
 textColor = "#14231e"
-font = "sans-serif"
 
 [browser]
 gatherUsageStats = false
