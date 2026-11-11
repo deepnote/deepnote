@@ -8,56 +8,53 @@
   <title>Account health</title>
   <link rel="stylesheet" href="app.css">
   <style>
-    .layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 16px; align-items: start; margin-top: 14px; }
-    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
-    .row { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: 4px 14px; align-items: center; padding: 10px 12px; border-radius: 8px; width: 100%; }
-    .row:hover, .row:focus-visible { background: var(--paper); }
-    .row[aria-current="true"] { background: var(--fjord-soft); }
-    .score { font-size: 20px; font-weight: 700; text-align: center; border-radius: 8px; padding: 4px 0; }
-    .score.bad { background: var(--bad-soft); color: var(--bad); }
-    .score.warn { background: var(--warn-soft); color: var(--warn); }
-    .score.good { background: var(--good-soft); color: var(--good); }
-    .row .why { grid-column: 2 / -1; font-size: 13px; color: var(--ink-3); }
-    .detail { position: sticky; top: 16px; }
-    .detail dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 14px 0 0; font-size: 14px; }
-    .detail dt { color: var(--ink-3); }
-    .detail ol { padding-left: 18px; margin: 12px 0 0; }
-    .slider { display: flex; align-items: center; gap: 8px; }
+    .risk-list { max-height: 640px; overflow-y: auto; }
+    .detail ol { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
   </style>
 </head>
 <body>
-<main>
-  <header class="app">
-    <div>
-      <h1>Account health</h1>
-      <p class="lede">Churn-risk scores for every paying account, with the reasons. Customer success gets the accounts that cross the threshold in Slack, each linking here.</p>
-    </div>
-    <div class="controls">
-      <label class="field">Region<select id="region"><option>All</option><option>North America</option><option>EMEA</option><option>APAC</option><option>LATAM</option></select></label>
-      <label class="field">At risk from score<span class="slider"><input type="range" id="threshold" min="30" max="90" step="5" value="60"><output id="threshold-value">60</output></span></label>
-    </div>
-  </header>
-
-  <div class="status" id="status"></div>
-  <section class="grid cols-4" id="summary" style="margin-top:10px"></section>
-
-  <div class="layout">
-    <section class="card">
-      <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
-        <h2 style="margin:0">Highest risk first</h2>
-        <input type="search" id="search" placeholder="Find an account" aria-label="Find an account">
+<header class="title">
+  <div class="inner">
+    <div class="meta">
+      <span>Lindquett Software · Account health · <span id="as-of">loading</span></span>
+      <div class="controls">
+        <label>Region <select id="region"><option>All</option><option>North America</option><option>EMEA</option><option>APAC</option><option>LATAM</option></select></label>
+        <label>At risk from score <input type="range" id="threshold" min="30" max="90" step="5" value="60"><output id="threshold-value">60</output></label>
       </div>
-      <div id="list" style="margin-top:10px"></div>
-    </section>
-    <aside class="card detail" id="detail"><p class="muted">Pick an account to see why it scored what it did.</p></aside>
+    </div>
+    <h1 id="title">Account health</h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="figures" id="figures"></div>
+    <div class="status" id="status"></div>
   </div>
+</header>
 
-  <footer class="app">Synthetic data for Lindquett Software, a fictional company. Revenue and peer retention come from the shared Revenue metrics module.</footer>
+<main class="story">
+  <section class="chapter">
+    <div class="no">01</div>
+    <div class="body">
+      <h2 id="new-line">Crossed the line this month</h2>
+      <div id="new"></div>
+      <p class="caption" id="new-caption"></p>
+    </div>
+  </section>
+  <section class="chapter">
+    <div class="no">02</div>
+    <div class="split">
+      <div class="body">
+        <h2 id="risk-line">Highest risk first</h2>
+        <input class="plain" id="search" type="search" placeholder="Find an account" aria-label="Find an account" style="max-width: 320px">
+        <div class="list risk-list" id="list"></div>
+      </div>
+      <aside class="analyst quiet detail" id="detail"><div class="kicker">Why it scored this</div><p class="muted">Pick an account.</p></aside>
+    </div>
+  </section>
 </main>
+<footer class="story"><div class="rule">Synthetic data for Lindquett Software, a fictional company. Scores, reasons and every sentence on this page come from the Account health notebook, which also posts to Slack after each warehouse load.</div></footer>
 
 <script type="module">
   import { runNotebook } from './deepnote-app.js'
-  import { h, money, percent, signed } from './ui.js'
+  import { h, money, percent, ranked, signed } from './ui.js'
 
   const $ = id => document.getElementById(id)
   const params = new URLSearchParams(location.search)
@@ -65,13 +62,12 @@
   if (params.get('region')) $('region').value = params.get('region')
   if (params.get('threshold')) $('threshold').value = params.get('threshold')
   $('threshold-value').textContent = $('threshold').value
-
   const tone = (score, threshold) => (score >= threshold ? 'bad' : score >= threshold - 15 ? 'warn' : 'good')
   let generation = 0
 
   async function refresh() {
     const mine = ++generation
-    // The app never posts to Slack: that is the scheduled run's job.
+    // The page never posts to Slack: that is the scheduled run's job.
     const inputs = { region: $('region').value, risk_threshold: $('threshold').value, notify: false }
     $('status').replaceChildren(h('span.spinner'), 'Scoring accounts…')
     try {
@@ -79,52 +75,63 @@
       if (mine !== generation) return
       if (error) throw new Error(error)
       state.data = data
-      $('status').replaceChildren(`Scored with revenue through ${data.as_of}`)
+      $('status').replaceChildren()
       render()
     } catch (failure) {
       if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
     }
   }
 
+  const figure = (value, label, plain = false) => h('div.figure', {}, h(`div.value${plain ? '.plain' : ''}`, {}, value), h('div.label', {}, label))
+
   function render() {
-    const { summary, accounts, newly_at_risk, threshold } = state.data
+    const { summary, accounts, newly_at_risk, threshold, region, as_of } = state.data
     const fresh = new Set(newly_at_risk)
-    $('summary').replaceChildren(
-      h('div.card.kpi', {}, h('div.label', {}, 'Accounts scored'), h('div.value', {}, summary.accounts.toLocaleString())),
-      h('div.card.kpi', {}, h('div.label', {}, `At risk (score ${threshold}+)`), h('div.value', {}, String(summary.at_risk))),
-      h('div.card.kpi', {}, h('div.label', {}, 'ARR at risk'), h('div.value', {}, money(summary.at_risk_arr, 2))),
-      h('div.card.kpi', {}, h('div.label', {}, 'Crossed the threshold this month'), h('div.value.down', {}, String(summary.newly_at_risk)))
+    const scope = region === 'All' ? 'the company' : region
+    $('as-of').textContent = `revenue through ${as_of}`
+    $('title').textContent = `${summary.at_risk} accounts in ${scope} are at risk of churning`
+    $('standfirst').textContent = `${money(summary.at_risk_arr, 2)} of ARR sits with accounts scoring ${threshold} or more. ${summary.newly_at_risk} of them crossed that line since last month.`
+    $('figures').replaceChildren(
+      figure(String(summary.at_risk), `at risk, score ${threshold}+`),
+      figure(money(summary.at_risk_arr, 2), 'ARR at risk'),
+      figure(String(summary.newly_at_risk), 'crossed the line this month', true),
+      figure(summary.accounts.toLocaleString(), 'accounts scored', true)
     )
+
+    const newest = accounts.filter(a => fresh.has(a.account_id)).sort((a, b) => b.arr - a.arr)
+    $('new-line').textContent = newest.length
+      ? `${newest.length} account${newest.length > 1 ? 's' : ''} crossed score ${threshold} since last month, ${money(newest.reduce((s, a) => s + a.arr, 0), 2)} of ARR`
+      : `No account crossed score ${threshold} since last month`
+    $('new').replaceChildren(newest.length ? ranked(newest.slice(0, 8).map(a => ({ name: `${a.account} (${a.score})`, value: a.arr }))) : h('p.muted', {}, 'Nothing to show.'))
+    $('new-caption').textContent = newest.length ? `ARR of each account that crossed the threshold, with its score in brackets. The scheduled run posts these to Slack.` : ''
+
     const term = $('search').value.trim().toLowerCase()
     const shown = accounts.filter(a => !term || a.account.toLowerCase().includes(term) || a.account_id.toLowerCase().includes(term)).slice(0, 60)
-    $('list').replaceChildren(...shown.map(a => h('button.row', {
+    const top = accounts[0]
+    $('risk-line').textContent = top ? `${top.account} scores highest at ${top.score}; ${top.drivers[0] ? top.drivers[0].charAt(0).toLowerCase() + top.drivers[0].slice(1) : 'no single driver'}` : 'No accounts in scope'
+    $('list').replaceChildren(...shown.map(a => h('button', {
       'aria-current': String(a.account_id === state.selected),
       onclick: () => { state.selected = a.account_id; history.replaceState(null, '', `?account=${a.account_id}`); render() },
     },
       h(`div.score.${tone(a.score, threshold)}`, {}, String(a.score)),
-      h('div', {}, h('strong', {}, a.account), ' ', fresh.has(a.account_id) ? h('span.badge.bad', {}, 'New this month') : null,
-        h('div.muted.small', {}, `${a.region}, ${a.segment}, ${a.price_plan}`)),
-      h('div', { style: { textAlign: 'right' } }, money(a.arr), h(`div.small.${a.change_3m < 0 ? 'down' : 'up'}`, {}, `${signed(a.change_3m * 100, '%', 0)} in 3 months`)),
-      h('div.why', {}, a.drivers.slice(0, 2).join('; ') || 'No risk signals')
+      h('div', {}, h('strong', {}, a.account), ' ', fresh.has(a.account_id) ? h('span.badge.bad', {}, 'New this month') : null, h('div.muted.small', {}, `${a.region}, ${a.segment}, ${a.price_plan}`)),
+      h('div', { style: { textAlign: 'right' } }, money(a.arr), h(`div.small.${a.change_3m < 0 ? 'down' : 'up'}`, {}, `${signed(a.change_3m * 100, '%', 0)} in 3 months`))
     )))
-    renderDetail(accounts.find(a => a.account_id === state.selected), fresh, threshold)
+    renderDetail(accounts.find(a => a.account_id === state.selected) ?? accounts[0], fresh, threshold)
   }
 
   function renderDetail(a, fresh, threshold) {
     if (!a) return
+    $('detail').className = `analyst detail${a.score >= threshold ? '' : ' quiet'}`
     $('detail').replaceChildren(
-      h('div', { style: { display: 'flex', gap: '12px', alignItems: 'center' } }, h(`div.score.${tone(a.score, threshold)}`, { style: { width: '56px' } }, String(a.score)),
-        h('div', {}, h('h2', { style: { margin: 0 } }, a.account), h('div.muted.small', {}, a.account_id))),
-      fresh.has(a.account_id) ? h('p.notice', { style: { marginTop: '12px' } }, `Crossed ${threshold} this month, up from ${a.previous_score}.`) : null,
-      h('dl', {},
+      h('div.kicker', {}, 'Why it scored this'),
+      h('p.headline', {}, `${a.account}: ${a.score} of 100${fresh.has(a.account_id) ? `, up from ${a.previous_score} last month` : ''}`),
+      a.drivers.length ? h('ol', {}, a.drivers.map(d => h('li', {}, d))) : h('p', {}, 'No risk signals.'),
+      h('dl.facts', { style: { marginTop: '12px' } },
         h('dt', {}, 'ARR'), h('dd', {}, money(a.arr)),
-        h('dt', {}, 'Last 3 months'), h('dd', {}, signed(a.change_3m * 100, '%', 0)),
-        h('dt', {}, 'Last 12 months'), h('dd', {}, signed(a.change_12m * 100, '%', 0)),
-        h('dt', {}, 'Peer retention'), h('dd', {}, `${percent(a.peer_grr, 0)} gross, ${a.region} ${a.segment}`),
-        h('dt', {}, 'Plan'), h('dd', {}, a.price_plan),
-        h('dt', {}, 'Industry'), h('dd', {}, a.industry)),
-      h('h2', { style: { marginTop: '16px' } }, 'Why it scored this'),
-      a.drivers.length ? h('ol', {}, a.drivers.map(d => h('li', {}, d))) : h('p.muted', {}, 'No risk signals.')
+        h('dt', {}, '12 months'), h('dd', {}, signed(a.change_12m * 100, '%', 0)),
+        h('dt', {}, 'Peer retention'), h('dd', {}, `${percent(a.peer_grr, 0)} gross`),
+        h('dt', {}, 'Industry'), h('dd', {}, a.industry))
     )
   }
 

@@ -8,40 +8,49 @@
   <title>Data health</title>
   <link rel="stylesheet" href="app.css">
   <style>
-    .verdict { display: flex; gap: 18px; align-items: center; padding: 22px; border-radius: var(--radius); }
-    .verdict.pass { background: var(--good-soft); color: var(--good); }
-    .verdict.fail { background: var(--bad-soft); color: var(--bad); }
-    .verdict .mark { font-size: 34px; font-weight: 800; line-height: 1; width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: currentColor; }
-    .verdict .mark span { color: var(--card); }
-    .verdict h2 { font-size: 22px; margin: 0; color: inherit; }
-    .verdict p { color: var(--ink-2); margin-top: 4px; }
-    .table-card .name { font-weight: 650; }
-    .check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    header.title.failing { background: var(--loss); }
+    header.title.failing .figure .value { color: #fff; }
+    .check { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
     .check:last-child { border-bottom: 0; }
-    .check .detail { grid-column: 2; font-size: 13px; color: var(--ink-3); }
-    .demo { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+    .check .detail { grid-column: 2; font-size: 13px; color: var(--ink-2); }
+    .table-card .name { font-family: var(--serif); font-size: 22px; }
   </style>
 </head>
 <body>
-<main>
-  <header class="app">
-    <div>
-      <h1>Data health</h1>
-      <p class="lede">Can you trust today's numbers? The same checks that gate every pull request and every warehouse load, shown for everyone who reads Lindquett's dashboards.</p>
+<header class="title" id="header">
+  <div class="inner">
+    <div class="meta">
+      <span>Lindquett Software · Data health · <span id="checked">loading</span></span>
+      <div class="controls">
+        <label>Simulate an issue <select id="simulate"><option>None</option><option>Late load</option><option>Duplicate rows</option><option>Negative MRR</option></select></label>
+        <button class="pill" id="recheck">Check again</button>
+      </div>
     </div>
-    <div class="controls demo">
-      <label class="field">Simulate an issue (demo)<select id="simulate"><option>None</option><option>Late load</option><option>Duplicate rows</option><option>Negative MRR</option></select></label>
-      <button class="quiet" id="recheck">Check again</button>
+    <h1 id="title">Data health</h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="figures" id="figures"></div>
+    <div class="status" id="status"></div>
+  </div>
+</header>
+
+<main class="story">
+  <section class="chapter">
+    <div class="no">01</div>
+    <div class="body">
+      <h2 id="tables-line">The tables</h2>
+      <div class="cards cols-3" id="tables"></div>
     </div>
-  </header>
-
-  <div class="status" id="status"></div>
-  <section id="verdict" style="margin-top:10px"></section>
-  <section class="grid cols-3" id="tables" style="margin-top:14px"></section>
-  <section class="card" style="margin-top:14px"><h2>Checks</h2><div id="checks"></div></section>
-
-  <footer class="app">Synthetic data for Lindquett Software, a fictional company. The checks live in one notebook, run by CI, by the warehouse-load trigger and by this page.</footer>
+  </section>
+  <section class="chapter">
+    <div class="no">02</div>
+    <div class="body">
+      <h2 id="checks-line">The checks</h2>
+      <div class="card" id="checks"></div>
+      <p class="caption">The same checks fail the run in CI on every pull request and after every warehouse load. This page runs them with failing turned off, to show the result.</p>
+    </div>
+  </section>
 </main>
+<footer class="story"><div class="rule">Synthetic data for Lindquett Software, a fictional company. Every sentence on this page comes from the Data health notebook's results.</div></footer>
 
 <script type="module">
   import { runNotebook } from './deepnote-app.js'
@@ -56,11 +65,11 @@
     $('status').replaceChildren(h('span.spinner'), 'Running the data checks…')
     $('recheck').disabled = true
     try {
-      // The page shows failures instead of failing the run, which is what CI and the schedule do.
       const { data, error } = await runNotebook({ simulate_issue: $('simulate').value, fail_on_issue: false })
       if (mine !== generation) return
       if (error) throw new Error(error)
-      $('status').replaceChildren(`Checked ${new Date().toLocaleTimeString()}`)
+      $('status').replaceChildren()
+      $('checked').textContent = `checked ${new Date().toLocaleTimeString()}`
       render(data)
     } catch (failure) {
       if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
@@ -69,21 +78,34 @@
     }
   }
 
-  function render({ status, checks, tables, last_good_month, expected_month }) {
+  const figure = (value, label, plain = false) => h('div.figure', {}, h(`div.value${plain ? '.plain' : ''}`, {}, value), h('div.label', {}, label))
+
+  function render({ status, checks, tables, last_good_month, expected_month, simulated_issue }) {
     const failed = checks.filter(c => c.status === 'fail')
-    $('verdict').replaceChildren(h(`div.verdict.${status}`, {},
-      h('div.mark', { 'aria-hidden': 'true' }, h('span', {}, status === 'pass' ? '✓' : '!')),
-      h('div', {},
-        h('h2', {}, status === 'pass' ? 'Numbers are safe to use' : 'Hold off on revenue numbers'),
-        h('p', {}, status === 'pass'
-          ? `Revenue is loaded through ${monthName(expected_month)} and all ${checks.length} checks pass.`
-          : `${failed.length} of ${checks.length} checks fail. ${last_good_month ? `Reports are reliable through ${monthName(last_good_month)}.` : ''}`))
-    ))
+    const failingTables = tables.filter(t => t.status === 'fail')
+    const pass = status === 'pass'
+    $('header').className = `title${pass ? '' : ' failing'}`
+    $('title').textContent = pass ? 'Numbers are safe to use' : 'Hold off on revenue numbers'
+    $('standfirst').textContent = pass
+      ? `Revenue is loaded through ${monthName(expected_month)} and all ${checks.length} checks pass.`
+      : `${failed.length} of ${checks.length} checks fail${failingTables.length ? ` on ${failingTables.map(t => t.table).join(' and ')}` : ''}. ${last_good_month ? `Reports are reliable through ${monthName(last_good_month)}.` : 'No month passes every check.'}${simulated_issue ? ` This is a simulated ${simulated_issue.toLowerCase()}.` : ''}`
+    $('figures').replaceChildren(
+      figure(`${checks.length - failed.length}/${checks.length}`, 'checks passing'),
+      figure(`${tables.length - failingTables.length}/${tables.length}`, 'tables healthy'),
+      figure(last_good_month ? monthName(last_good_month).replace(' 20', " '") : '—', 'last fully checked month', true),
+      figure(tables.find(t => t.table === 'mrr')?.latest ?? '—', 'latest revenue month loaded', true)
+    )
+
+    $('tables-line').textContent = failingTables.length
+      ? `${failingTables.map(t => t.table).join(' and ')} ${failingTables.length > 1 ? 'have' : 'has'} a problem; the other ${tables.length - failingTables.length} are healthy`
+      : `All ${tables.length} tables are healthy, ${tables.reduce((s, t) => s + t.rows, 0).toLocaleString()} rows between them`
     $('tables').replaceChildren(...tables.map(t => h('div.card.table-card', {},
-      h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px' } }, h('span.name', {}, t.table), h(`span.badge.${t.status === 'pass' ? 'good' : 'bad'}`, {}, t.status === 'pass' ? 'Healthy' : 'Failing')),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '8px' } }, h('span.name', {}, t.table), h(`span.badge.${t.status === 'pass' ? 'good' : 'bad'}`, {}, t.status === 'pass' ? 'Healthy' : 'Failing')),
       h('p.muted.small', {}, t.description),
       h('p', { style: { marginTop: '10px' } }, `${t.rows.toLocaleString()} rows, latest ${t.latest}`)
     )))
+
+    $('checks-line').textContent = failed.length ? `${failed.length} check${failed.length > 1 ? 's' : ''} failing: ${failed.map(c => c.check.toLowerCase()).join('; ')}` : `All ${checks.length} checks pass`
     $('checks').replaceChildren(...checks.map(c => h('div.check', {},
       h(`span.badge.${c.status === 'pass' ? 'good' : 'bad'}`, {}, c.status === 'pass' ? 'Pass' : 'Fail'),
       h('span', {}, c.check, h('span.muted.small', {}, `  ${c.table}`)),

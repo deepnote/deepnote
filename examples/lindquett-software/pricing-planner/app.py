@@ -31,10 +31,25 @@ def calibrated_sensitivity(frame):
     return float(((moved[both] - legacy[both]) / 8).mean()) if len(both) else 0.0
 
 
-st.title("Pricing scenario planner")
-st.caption(
-    f"Lindquett Software · baseline as of {baseline['as_of']} from the governed revenue modules · "
-    "synthetic data for a fictional company"
+# The same title block as Lindquett's data apps: forest green, serif title, mustard figures.
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');
+    html, body, [class*="css"], .stApp { font-family: 'DM Sans', system-ui, sans-serif; }
+    .block-container { padding-top: 0; max-width: 1120px; }
+    .lq-title { background: #0b3d2e; color: #fff; margin: 0 -1rem 1.5rem; padding: 36px 48px 40px; border-radius: 0 0 12px 12px; }
+    .lq-title .meta { font-size: 14px; color: rgba(255,255,255,0.78); }
+    .lq-title h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 44px; line-height: 1.05; margin: 12px 0 10px; color: #fff; }
+    .lq-title p { font-size: 17px; line-height: 1.5; max-width: 64ch; color: rgba(255,255,255,0.86); margin: 0; }
+    .lq-figures { display: flex; flex-wrap: wrap; gap: 12px 48px; margin-top: 18px; }
+    .lq-figure .v { font-family: 'DM Serif Display', Georgia, serif; font-size: 44px; line-height: 1; color: #f2b134; }
+    .lq-figure .l { font-size: 13px; color: rgba(255,255,255,0.78); margin-top: 6px; }
+    h2, h3 { font-family: 'DM Serif Display', Georgia, serif !important; font-weight: 400 !important; }
+    [data-testid="stMetric"] { background: #fff; border: 1px solid #dce0d9; border-radius: 8px; padding: 14px 16px; }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
 with st.sidebar:
@@ -74,13 +89,23 @@ scenario = project(groups, lambda g: increases[g.segment] if g.price_plan == "Le
 total = lambda frame: frame.groupby("month")["arr"].sum()
 end_current, end_scenario = total(current).iloc[-1], total(scenario).iloc[-1]
 
-a, b, c = st.columns(3)
-a.metric("ARR today", f"${groups['arr'].sum() / 1e6:,.1f}M")
-b.metric(f"ARR in {months} months, prices unchanged", f"${end_current / 1e6:,.1f}M")
-c.metric(
-    f"ARR in {months} months, with the increase",
-    f"${end_scenario / 1e6:,.1f}M",
-    f"{(end_scenario - end_current) / 1e6:+,.2f}M vs unchanged",
+difference = end_scenario - end_current
+raised = [segment for segment, pct in increases.items() if pct > 0]
+verb = "adds" if difference >= 0 else "costs"
+st.markdown(
+    f"""
+    <div class="lq-title">
+      <div class="meta">Lindquett Software · Pricing scenario planner · baseline as of {baseline['as_of']}</div>
+      <h1>{"A " + ", ".join(f"{increases[s]}% {s}" for s in raised) + " increase " + verb + f" ${abs(difference) / 1e6:,.2f}M of ARR in {months} months" if raised else "Prices unchanged: nothing to compare yet"}</h1>
+      <p>{"Legacy accounts renew at the higher price; churn rises by " + f"{sensitivity * 100:.3f}" + " points a month for each 1% of increase, the rate accounts already moved to the 2026 list have shown." if raised else "Move the sliders to raise the price legacy accounts pay at renewal, and see what it does to ARR after churn."}</p>
+      <div class="lq-figures">
+        <div class="lq-figure"><div class="v">${end_scenario / 1e6:,.1f}M</div><div class="l">ARR in {months} months with the increase</div></div>
+        <div class="lq-figure"><div class="v">${end_current / 1e6:,.1f}M</div><div class="l">ARR in {months} months, prices unchanged</div></div>
+        <div class="lq-figure"><div class="v">${groups['arr'].sum() / 1e6:,.1f}M</div><div class="l">ARR today</div></div>
+      </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 lines = pd.concat([
@@ -91,7 +116,7 @@ st.altair_chart(
     alt.Chart(lines).mark_line(strokeWidth=3).encode(
         x=alt.X("month:Q", title="Months from today"),
         y=alt.Y("ARR:Q", title="ARR ($)", scale=alt.Scale(zero=False), axis=alt.Axis(format="$,.2s")),
-        color=alt.Color("Scenario:N", scale=alt.Scale(range=["#8a94a6", "#2f6fde"])),
+        color=alt.Color("Scenario:N", scale=alt.Scale(range=["#b8b2a7", "#0b3d2e"])),
         tooltip=["Scenario", "month", alt.Tooltip("ARR:Q", format="$,.0f")],
     ),
     width="stretch",

@@ -204,28 +204,103 @@ project:
             from IPython.display import display
 
 
-            # The app's data: one JSON output the page reads, locally and in Deepnote.
+            # The app's data: one JSON output the page reads, locally and in Deepnote. Every sentence the page
+
+            # shows is built here from the numbers, so the page never carries copy about a particular quarter.
+
+            # The agent block below rewrites `story` with its own reading of the same numbers when it runs.
 
             def _records(frame):
                 return frame.round(4).to_dict("records")
 
+            def _money(value):
+                value = abs(value)
+                return f"${value / 1e6:.2f}M" if value >= 1e6 else f"${value / 1e3:,.0f}K"
+
+            scope_name = region if region != "All" else "the company"
+
+            ending_arr = float(bridge["arr"].iloc[-1])
+
+            prior_ending_arr = float(prior_bridge["arr"].iloc[-1])
+
+            arr_change = ending_arr - prior_ending_arr
+
+            nrr_change_points = (current["nrr"] - previous["nrr"]) * 100
+
+
+            steps = bridge.set_index("step")["arr"]
+
+            biggest = max(["New", "Expansion", "Contraction", "Churn"], key=lambda step: abs(float(steps[step])))
+
+            biggest_name = {"New": "new business", "Expansion": "expansion", "Contraction": "contraction", "Churn":
+            "churn"}[biggest]
+
+
+            _latest = nrr_by_region[nrr_by_region["quarter"] == quarter].set_index("region")["nrr"]
+
+            _prior = nrr_by_region[nrr_by_region["quarter"] == prior_quarter].set_index("region")["nrr"]
+
+            region_moves = ((_latest - _prior.reindex(_latest.index)) * 100).dropna()
+
+            moved = region_moves[region_moves.abs() > 2]
+
+            fell, rose = moved[moved < 0], moved[moved > 0]
+
+            if len(moved) == 0:
+                regions_line = f"No region moved more than two points against {prior_quarter}"
+            elif len(fell) == 1 and len(rose) >= 1:
+                regions_line = f"Only {fell.index[0]} fell against {prior_quarter}; {len(rose)} other region{'s' if len(rose) > 1 else ''} rose"
+            elif len(rose) == 1 and len(fell) >= 1:
+                regions_line = f"Only {rose.index[0]} rose against {prior_quarter}; {len(fell)} other region{'s' if len(fell) > 1 else ''} fell"
+            elif len(moved) == 1:
+                regions_line = f"Only {moved.index[0]} moved more than two points against {prior_quarter}"
+            else:
+                regions_line = f"{len(moved)} of {len(region_moves)} regions moved more than two points against {prior_quarter}"
+
+            losses = movers[movers["arr_change"] < 0].sort_values("arr_change")
+
+            lost_total = float(-(steps["Contraction"] + steps["Churn"]))
+
+            top_losses = losses.head(3)
+
+            loss_share = float(-top_losses["arr_change"].sum() / lost_total) if lost_total else 0.0
+
+            accounts_line = (
+                f"{len(top_losses)} accounts explain {loss_share:.0%} of the lost ARR" if len(top_losses) else "No account lost ARR this quarter"
+            )
+
+
+            story = {
+                "title": f"Where {scope_name}'s revenue went in {quarter}",
+                "standfirst": (
+                    f"Net revenue retention {'fell' if nrr_change_points < 0 else 'rose'} {abs(nrr_change_points):.1f} points to "
+                    f"{current['nrr']:.1%} in {quarter}. {accounts_line.replace('accounts explain', 'accounts make up')}."
+                ),
+                "bridge": f"ARR {'fell' if arr_change < 0 else 'rose'} by {_money(arr_change)}, and {biggest_name} did most of it",
+                "regions": regions_line,
+                "accounts": accounts_line,
+                "analyst": None,
+            }
+
+
             display({"application/json": {
-                "scope": {"region": region, "segment": segment, "quarter": quarter, "as_of": f"{mrr['month'].max():%Y-%m}"},
+                "scope": {"region": region, "segment": segment, "quarter": quarter, "prior_quarter": prior_quarter, "as_of": f"{mrr['month'].max():%Y-%m}"},
                 "kpis": {
-                    "ending_arr": round(float(bridge["arr"].iloc[-1]), 2),
-                    "prior_ending_arr": round(float(prior_bridge["arr"].iloc[-1]), 2),
+                    "ending_arr": round(ending_arr, 2),
+                    "prior_ending_arr": round(prior_ending_arr, 2),
                     "nrr": round(float(current["nrr"]), 4),
                     "prior_nrr": round(float(previous["nrr"]), 4),
                     "grr": round(float(current["grr"]), 4),
                     "prior_grr": round(float(previous["grr"]), 4),
+                    "churned_arr": round(float(-steps["Churn"]), 2),
                     "coverage": round(float(coverage_next["coverage"]), 2),
                     "prior_coverage": round(float(coverage_this["coverage"]), 2),
                     "next_quarter": next_quarter,
-                    "prior_quarter": prior_quarter,
                 },
+                "story": story,
                 "bridge": _records(bridge),
-                "movements": _records(movements),
                 "nrr_by_region": _records(nrr_by_region),
+                "region_moves": {name: round(float(points), 1) for name, points in region_moves.items()},
                 "movers": _records(movers),
             }}, raw=True)
           metadata: {}
@@ -269,12 +344,16 @@ project:
           sortingKey: "000010"
           type: agent
           content: >-
-            You write the analyst note at the top of the Revenue review app. People read it before the charts.
+            You write the words on the Revenue review app. The page is laid out as a title, three numbered chapters
+
+            (the ARR bridge, net revenue retention by region, the accounts that moved ARR most) and an analyst's
+
+            aside. The block above computed a plain `story` dict from the numbers; replace it with a better one.
 
 
             Scope: the `region`, `segment` and `quarter` inputs, unless `question` names a different one. If the
 
-            `question` input is not empty, answer it. Otherwise explain what changed in the selected quarter and why.
+            `question` input is not empty, the aside answers it; otherwise the aside explains what changed and why.
 
 
             How to work:
@@ -285,15 +364,24 @@ project:
               example price_plan or industry), filter `mrr` first and pass the subset in.
             - `accounts`, `mrr` and `opportunities` come from the "Revenue data" module; the analyst guide lists
               their columns.
+            - Every sentence must state a number from the data or a conclusion drawn from one. No generalities.
+
             - Add at most three blocks below this one. Never edit or delete existing blocks.
 
             - Finish with one code block that runs exactly this, filled in:
 
               from IPython.display import display
-              display({"application/json": {"analyst": {
-                  "headline": "<the answer in one sentence>",
-                  "evidence": ["<fact with a number>", "<fact with a number>", "<fact with a number>"],
-                  "next_step": "<one recommended action>",
+              display({"application/json": {"story": {
+                  "title": "<a title in at most ten words that states the finding, like a headline>",
+                  "standfirst": "<two sentences: what changed, and the main reason, with numbers>",
+                  "bridge": "<one line on the ARR bridge: how much ARR moved and which movement drove it>",
+                  "regions": "<one line on retention by region: which regions moved and which did not>",
+                  "accounts": "<one line on the accounts: how concentrated the change is>",
+                  "analyst": {
+                      "headline": "<the answer to the question, or the main conclusion, in one sentence>",
+                      "evidence": ["<fact with a number>", "<fact with a number>", "<fact with a number>"],
+                      "next_step": "<one recommended action>"
+                  }
               }}}, raw=True)
           metadata:
             deepnote_agent_model: auto
