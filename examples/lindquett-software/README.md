@@ -56,7 +56,7 @@ The same loop, with a coding agent that has the Deepnote skill (`deepnote instal
    for `account_id` and `term_years` with the rules in the Pricing rules block. Load accounts and
    revenue with module blocks from the Lindquett metrics project. End with one `application/json`
    output holding the quote and a plain-language reason for each part of the price."_ Run it with
-   `node local/run.mjs deal-desk` and review the change with `git diff`.
+   `node examples/lindquett-software/local/run.mjs deal-desk` and review the change with `git diff`.
 2. **Build the page.** Ask for `deal-desk/app/index.html`: _"An account picker on the left and the
    quote on the right. Run the notebook with `runNotebook` from `deepnote-app.js` when the account or
    term changes."_ Try it at http://127.0.0.1:4749, against the same notebook.
@@ -70,7 +70,7 @@ The same loop, with a coding agent that has the Deepnote skill (`deepnote instal
    `--create` makes the data app project and prints its ID; use `--project-id` from then on. A data
    app project holds exactly one notebook, so open it in Deepnote and replace that notebook's blocks
    with `deal-desk.deepnote`. Then set `<meta name="deepnote-notebook-id">` in `app/index.html` to
-   that notebook's ID and publish again.
+   that notebook's ID, run `serve.mjs` again to rebuild the site, and publish again.
 
 `shared/deepnote-app.js` is what makes one page work in both places: locally it calls the launcher's
 `/api/run`, and inside Deepnote it gets a short-lived viewer token from the Deepnote shell and runs the
