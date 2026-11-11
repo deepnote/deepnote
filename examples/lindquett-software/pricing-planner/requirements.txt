@@ -1,3 +1,2 @@
 altair
 pandas
-streamlit

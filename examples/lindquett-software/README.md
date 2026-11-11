@@ -28,7 +28,9 @@ interaction on data that changes once a day.
 ## Try it on your machine
 
 You need Python 3.10 or later with `deepnote-toolkit[server]`, and `streamlit` for the planner
-(`pip install "deepnote-toolkit[server]" -r examples/lindquett-software/pricing-planner/requirements.txt`).
+(`pip install "deepnote-toolkit[server]" streamlit -r examples/lindquett-software/pricing-planner/requirements.txt`).
+The requirements file leaves Streamlit out on purpose: Deepnote provides it, and installing another
+version on each machine start changes the app's front-end build under a page that is already open.
 From the repository root:
 
 ```bash
