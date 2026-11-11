@@ -63,14 +63,14 @@ The same loop, with a coding agent that has the Deepnote skill (`deepnote instal
 3. **Ship it.** Push the notebook to Deepnote and publish the page into a data app project:
 
    ```bash
-   node examples/lindquett-software/local/serve.mjs   # also writes local/build/deal-desk/site
+   node examples/lindquett-software/local/serve.mjs   # builds local/build/deal-desk/site; stop it after
    deepnote publish examples/lindquett-software/local/build/deal-desk/site --create "Renewal deal desk"
    ```
 
-   `--create` makes the data app project and prints its ID; use `--project-id` from then on. A data
-   app project holds exactly one notebook, so open it in Deepnote and replace that notebook's blocks
-   with `deal-desk.deepnote`. Then set `<meta name="deepnote-notebook-id">` in `app/index.html` to
-   that notebook's ID, run `serve.mjs` again to rebuild the site, and publish again.
+   Pull the new project with [`deepnote sync`](https://deepnote.com/docs/deepnote-cli-sync), replace the
+   blocks of its only notebook with those of `deal-desk.deepnote`, and push with `deepnote sync`. Set
+   `deepnote-notebook-id` in `app/index.html` to that notebook's `id`, then rebuild and publish with
+   `--project-id`.
 
 `shared/deepnote-app.js` is what makes one page work in both places: locally it calls the launcher's
 `/api/run`, and inside Deepnote it gets a short-lived viewer token from the Deepnote shell and runs the
