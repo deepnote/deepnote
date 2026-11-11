@@ -21,10 +21,11 @@ npm install @deepnote/federated-auth
 
 ## Usage
 
-Sign in. `openInBrowser` and `saveCredential` stand for the host application's own browser launcher
-and credential store; this package does not store anything. Keep the refresh token in the operating
-system's secret store or a file only its owner can read, and keep it and the start URL out of logs.
-`onListening` returns the launcher's promise, so a failed launch fails the flow.
+Sign in to the integration `integrationId`. `openInBrowser` and `saveCredential` stand for the host
+application's own browser launcher and credential store; this package does not store anything. Keep
+the refresh token in the operating system's secret store or a file only its owner can read, and keep
+it and the start URL out of logs. `onListening` returns the launcher's promise, so a failed launch
+fails the flow.
 
 ```ts
 import {
@@ -62,7 +63,7 @@ const { refreshToken } = await runOAuthFlow({
     ),
 });
 
-await saveCredential({
+await saveCredential(integrationId, {
   refreshToken,
   clientFingerprint: computeClientFingerprint(client),
 });
@@ -93,7 +94,7 @@ async function getAccessToken(
   switch (result.status) {
     case "ready":
       if (result.rotatedRefreshToken !== undefined) {
-        await saveCredential({
+        await saveCredential(integrationId, {
           refreshToken: result.rotatedRefreshToken,
           clientFingerprint: computeClientFingerprint(client),
         });
