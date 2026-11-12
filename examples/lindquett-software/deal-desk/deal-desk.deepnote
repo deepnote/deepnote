@@ -1,0 +1,208 @@
+metadata:
+  createdAt: 2026-11-09T09:00:00.000Z
+  modifiedAt: 2026-11-09T09:00:00.000Z
+project:
+  id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4c02
+  name: Renewal deal desk
+  notebooks:
+    - blocks:
+        - id: b66a0c7c52b749176ad42c70dfc0f82e
+          blockGroup: e97b592c06bc77aacc3901a3cc7f716a
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Renewal quote
+
+
+            One set of pricing rules for two callers: the deal desk app, where account managers pick an
+
+            account and a term, and the CRM, which calls this notebook through the runs API. Both pass
+
+            `account_id` and `term_years` and read the `application/json` output.
+          metadata: {}
+        - id: f6613aed521434bbdfd606ff02941563
+          blockGroup: 280273cf80b587cd4106f057f00299fc
+          sortingKey: "000001"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: account_id
+            deepnote_input_label: Account ID
+            deepnote_variable_value: ACC-1003
+            deepnote_variable_default_value: ACC-1003
+        - id: b16b299d3c24bf601944d40b8ed0fd06
+          blockGroup: 897129a66edf4b7946513fc20f99d3f7
+          sortingKey: "000002"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: term_years
+            deepnote_input_label: Term (years)
+            deepnote_variable_value: "1"
+            deepnote_variable_default_value: "1"
+            deepnote_variable_options:
+              - "1"
+              - "2"
+              - "3"
+            deepnote_variable_custom_options:
+              - "1"
+              - "2"
+              - "3"
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: d80357e667b82ec66762783850c4e82f
+          blockGroup: 49cd6da07c313d2e23935898c00a60d4
+          sortingKey: "000003"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              accounts:
+                enabled: true
+                variable_name: accounts
+              mrr:
+                enabled: true
+                variable_name: mrr
+        - id: aa868d34bfbde55b10ca072d11d6ada0
+          blockGroup: c07ef4eb523e348d3a18a25baed3b6f2
+          sortingKey: "000004"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b02
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              retention:
+                enabled: true
+                variable_name: retention
+        - id: 198b3d21be2e957dc8ce08b99df67729
+          blockGroup: 97ddf2feb45d40d1f11bcd6eba91b0bc
+          sortingKey: "000005"
+          type: markdown
+          content: >-
+            **Pricing rules**
+
+
+            - Accounts still on the legacy price list move to the 2026 price list at renewal: +8%. Accounts
+              already on it get the standard +3%.
+            - Multi-year terms are discounted: 4% for two years, 7% for three.
+
+            - High-risk accounts keep their current price, so the renewal conversation is about value, not price.
+
+            - Risk is **High** when the account's ARR fell more than 15% in a year or its peer group (same
+              region and segment) has gross revenue retention below 85%; **Medium** when either is declining
+              or below 92%.
+          metadata: {}
+        - id: 26ce123d262ed58256b9de5d1e23adf6
+          blockGroup: 40fe9dcc4b0e654e79e0bf15fba96ee2
+          sortingKey: "000006"
+          type: code
+          content: >-
+            from IPython.display import display
+
+
+            # The renewal book: every account with revenue in the latest month, for the app's account picker.
+
+            latest_month = mrr["month"].max()
+
+            active = mrr[mrr["month"] == latest_month].assign(arr=lambda d: (d["mrr"] * 12).round(0))
+
+            display({"application/json": {
+                "as_of": f"{latest_month:%Y-%m}",
+                "accounts": active.sort_values("arr", ascending=False)[["account_id", "account", "region", "segment", "arr"]]
+                .to_dict("records"),
+            }}, raw=True)
+          metadata: {}
+        - id: 1d4a6fbfae5a370131d526357e4dfd21
+          blockGroup: e250cb745132154230248d13ec5af9db
+          sortingKey: "000007"
+          type: code
+          content: >-
+            import pandas as pd
+
+
+            account = accounts[accounts["account_id"] == account_id.strip()]
+
+            if account.empty:
+                raise ValueError(f"Unknown account_id {account_id!r}")
+            account = account.iloc[0]
+
+            history = mrr[mrr["account_id"] == account["account_id"]].set_index("month")["mrr"]
+
+            if history.empty or history.index.max() < latest_month:
+                raise ValueError(f"{account['account']} ({account['account_id']}) has no revenue in {latest_month:%B %Y}")
+
+            current_arr = float(history.iloc[-1] * 12)
+
+            year_ago = latest_month - pd.DateOffset(months=12)
+
+            arr_year_ago = float(history.get(year_ago, history.iloc[0]) * 12)
+
+            arr_trend = current_arr / arr_year_ago - 1
+
+
+            latest_quarter = f"{latest_month.year}-Q{latest_month.quarter}"
+
+            peer_grr = retention(mrr, latest_quarter, account["region"], account["segment"])["grr"]
+
+
+            if arr_trend < -0.15 or peer_grr < 0.85:
+                risk = "High"
+            elif arr_trend < 0 or peer_grr < 0.92:
+                risk = "Medium"
+            else:
+                risk = "Low"
+
+            uplift = 0.0 if risk == "High" else (0.08 if account["price_plan"] == "Legacy" else 0.03)
+
+            term_discount = {"1": 0.0, "2": 0.04, "3": 0.07}[str(term_years)]
+
+            proposed_arr = round(current_arr * (1 + uplift) * (1 - term_discount), -2)
+
+
+            peers = f"{account['region']} {account['segment']}"
+
+            reasons = [
+                f"ARR {arr_trend:+.0%} over 12 months, and {peers} accounts keep {peer_grr:.0%} of revenue (GRR): {risk.lower()} risk.",
+                "High risk, so the price is held and the renewal is about value."
+                if risk == "High"
+                else (
+                    "On the legacy price list, so it moves to the 2026 list: +8%."
+                    if account["price_plan"] == "Legacy"
+                    else "Already on the 2026 price list: standard +3%."
+                ),
+                f"{term_years}-year term: {term_discount:.0%} discount." if term_discount else "One-year term: no discount.",
+            ]
+          metadata: {}
+        - id: efd9c0a0b6528cbe9373886abd516738
+          blockGroup: 7090de78e639d877586b63e53b4cf538
+          sortingKey: "000008"
+          type: code
+          content: >-
+            from IPython.display import display
+
+
+            display({"application/json": {"quote": {
+                "account_id": account["account_id"],
+                "account": account["account"],
+                "region": account["region"],
+                "segment": account["segment"],
+                "price_plan": account["price_plan"],
+                "current_arr": round(current_arr, 2),
+                "arr_change_12m": round(arr_trend, 3),
+                "peer_grr": round(float(peer_grr), 3),
+                "risk": risk,
+                "term_years": int(term_years),
+                "uplift": uplift,
+                "term_discount": term_discount,
+                "proposed_arr": proposed_arr,
+                "reasons": reasons,
+            }}}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d02
+      name: Renewal quote
+version: 1.0.0

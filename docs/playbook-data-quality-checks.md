@@ -89,6 +89,14 @@ When a scheduled run fails, open its [run snapshot](/docs/run-snapshots) to see 
 - **Resume a paused schedule** from the scheduling settings once the data is fixed.
 - **Track the trend.** `GET /v2/notebooks/{notebookId}/runs` in the [Deepnote API](/docs/deepnote-api) returns the notebook's run history, if you want to chart check failures over time.
 
+## Example
+
+The [Data health app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/data-health) in the Lindquett Software example checks duplicates, invalid
+values and orphaned rows with SQL blocks, and freshness with a line of Python. The same notebook fails the run in CI on every pull
+request and after every warehouse load, and the app runs it with failing turned off to tell everyone
+else whether today's numbers can be trusted. A **Simulate an issue** input breaks the data on purpose so
+you can see a check fail.
+
 ## Plan requirements
 
 - **Running checks in CI with the CLI:** free and open source. The CLI needs a Deepnote API key only for commands that talk to Deepnote Cloud, such as `integrations pull` and `sync`.

@@ -1,0 +1,94 @@
+metadata:
+  createdAt: 2026-11-09T09:00:00.000Z
+  modifiedAt: 2026-11-09T09:00:00.000Z
+project:
+  id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4c05
+  name: Pricing scenario planner
+  notebooks:
+    - blocks:
+        - id: 2afb0f6ce03b24895958e2028f3e63ba
+          blockGroup: 940b9b0300d69ed81bfa97abc15f6946
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Pricing baseline
+
+
+            Scheduled daily. Writes `baseline.json`, today's ARR and monthly churn, contraction and
+
+            expansion per segment and price plan, from the governed revenue modules. The Streamlit app in
+
+            `app.py` reads it and models price changes interactively.
+          metadata: {}
+        - id: b84d561df0e0082e7ab75d67aed6334f
+          blockGroup: 261ee2566333f94b40c598e20f48ed0d
+          sortingKey: "000001"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              accounts:
+                enabled: true
+                variable_name: accounts
+              mrr:
+                enabled: true
+                variable_name: mrr
+        - id: c2dbe1831a53d8fc02c73c7dedfb7163
+          blockGroup: 02988ba40768868849e3b5e41af5d8f3
+          sortingKey: "000002"
+          type: code
+          content: >-
+            import json
+
+            import os
+
+
+            import pandas as pd
+
+
+            # Per segment and price plan: today's ARR and the monthly churn, contraction and expansion rates
+
+            # over the last 12 months. The Streamlit app models price changes on top of this baseline.
+
+            as_of = mrr["month"].max()
+
+            window = mrr[mrr["month"] > as_of - pd.DateOffset(months=13)]
+
+            monthly = window.pivot_table(index="account_id", columns="month", values="mrr", aggfunc="sum").fillna(0)
+
+            plans = accounts.set_index("account_id")[["segment", "price_plan"]]
+
+
+            rows = []
+
+            for (segment, plan), members in plans.groupby(["segment", "price_plan"]):
+                m = monthly.reindex(members.index).dropna(how="all").fillna(0)
+                start, end = m.iloc[:, :-1].to_numpy(), m.iloc[:, 1:].to_numpy()
+                paying = start > 0
+                base = start[paying].sum()
+                rows.append({
+                    "segment": segment,
+                    "price_plan": plan,
+                    "accounts": int((m.iloc[:, -1] > 0).sum()),
+                    "arr": round(float(m.iloc[:, -1].sum() * 12), 0),
+                    "monthly_churn": round(float(start[paying & (end == 0)].sum() / base), 5),
+                    "monthly_contraction": round(float((start - end)[paying & (end > 0) & (end < start)].sum() / base), 5),
+                    "monthly_expansion": round(float((end - start)[paying & (end > start)].sum() / base), 5),
+                })
+
+            baseline = {"as_of": f"{as_of:%Y-%m}", "groups": rows}
+
+            path = os.environ.get("PRICING_BASELINE_PATH", "baseline.json")
+
+            with open(path, "w") as f:
+                json.dump(baseline, f, indent=2)
+            print(f"Wrote {path}")
+
+            pd.DataFrame(rows)
+          metadata: {}
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d05
+      name: Pricing baseline
+version: 1.0.0

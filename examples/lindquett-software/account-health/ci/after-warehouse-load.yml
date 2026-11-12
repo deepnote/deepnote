@@ -1,0 +1,48 @@
+# When the warehouse load that feeds Lindquett's apps finishes, check the data, then score account
+# health and post the accounts that crossed the threshold to Slack. Copy this file to
+# .github/workflows/ to use it.
+#
+# The pipeline that loads the warehouse (Airflow, Dagster, dbt Cloud or a script) triggers this
+# workflow when it succeeds:
+#
+#   curl -X POST https://api.github.com/repos/<owner>/<repo>/dispatches \
+#     -H "Authorization: Bearer $GITHUB_TOKEN" \
+#     -d '{"event_type": "warehouse-loaded"}'
+#
+# Both notebooks run in Deepnote, where module blocks, integrations and the Slack webhook in the
+# project's environment variables work. If a data check fails, the run fails, this workflow stops and
+# nobody gets an alert built on bad data. See
+# https://deepnote.com/docs/playbook-orchestrator-triggered-runs
+name: After the warehouse load
+
+on:
+  repository_dispatch:
+    types: [warehouse-loaded]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-then-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: deepnote # holds the DEEPNOTE_TOKEN secret
+    env:
+      DEEPNOTE_TOKEN: ${{ secrets.DEEPNOTE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Check the data
+        run: |
+          npx @deepnote/cli run examples/lindquett-software/data-health/data-health.deepnote --cloud \
+            --storage-mode readonly --timeout 1200 -o json
+
+      - name: Score account health and alert
+        run: |
+          npx @deepnote/cli run examples/lindquett-software/account-health/account-health.deepnote --cloud \
+            --storage-mode readonly --timeout 1200 -o json

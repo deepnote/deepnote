@@ -32,7 +32,9 @@ To see the notebook, click **Show notebook** in the top bar. Click **Show app** 
 
 ### Data and refreshes
 
-Each person who opens the app sees data from their own latest run of the notebook. When they refresh the app or submit its inputs, the whole notebook runs again for them and the app shows the new results. The first time someone opens the app, it may ask them to run the notebook to load their data.
+Runs are per person. Each signed-in person sees data from their own latest run of the notebook. The first time they open the app they have no run yet, so the app shows no data and asks them to run the notebook. After that, opening or reloading the app fetches their last run's results rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
+
+If the app is public, someone who opens it without signing in sees the results of the last run started by an editor or admin — a scheduled run included — and can rerun the app to get fresh results. This is the only case in which one person's run is what another person sees.
 
 Running blocks in the editor doesn't change what the app shows.
 
@@ -58,6 +60,18 @@ If the app hits an error while you're using it, a message appears above the app.
 
 New apps use a calm, Deepnote-like theme with light and dark modes. Ask the agent for another look, such as your brand's colors and fonts.
 
+## Examples
+
+Three data apps built on public data are in the Deepnote repository, under [`examples/data-apps`](https://github.com/deepnote/deepnote/tree/main/examples/data-apps). Each folder is one project: a notebook that downloads and prepares the data, and the page that shows it.
+
+- **[Global ship traffic](https://github.com/deepnote/deepnote/tree/main/examples/data-apps/ship-traffic-globe)** turns six years of AIS position reports into a 3D globe and a flat map of the world's shipping lanes, down to the busiest straits and canals.
+- **[The Night Shift](https://github.com/deepnote/deepnote/tree/main/examples/data-apps/bird-migration-europe)** shows a season of nightly bird migration over Europe, measured by weather radars, beside the wind that shapes it.
+- **[The coastline paradox](https://github.com/deepnote/deepnote/tree/main/examples/data-apps/coastline-paradox)** walks a ruler along nine Greek islands, from tens of kilometers down to tens of metres, and plots each coastline growing as the ruler shrinks.
+
+None of them need an API key, and each notebook caches its downloads in the project, so only the first run is slow. Their pages are written by hand rather than by the agent, which is how to take an app past what chat gives you: the page is yours, and the notebook still does the querying and the heavy work behind it.
+
+For apps built on a company's own data, see [`examples/lindquett-software`](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software), five tools one fictional SaaS company runs on Deepnote.
+
 ## Publishing and sharing
 
 A new data app is unpublished, so only editors of the project can open it. To let others use it:
@@ -80,6 +94,8 @@ To publish from code, upload a local build with [`deepnote publish`](/docs/deepn
 ### Sharing an app publicly
 
 A published app can be made public, so anyone with its link can open it, including people without a Deepnote account. Public apps are available on the Team and Enterprise plans, and only a project admin can make an app public.
+
+Public access can be turned on only here, in the app's **Share** dialog. The [CLI](/docs/deepnote-cli-publish) and the [API](/docs/deepnote-api) can publish an app to the people with project access, but can't open it to anyone with the link: making an app public is a deliberate step someone takes in Deepnote, not something a script or a pipeline can do.
 
 1. Click **Share** in the top bar.
 2. Under **Anyone with a link to this app**, choose the access:

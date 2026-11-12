@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The notebook this app runs in Deepnote. Matches account-health.deepnote; change it if Deepnote assigns another ID. -->
+  <meta name="deepnote-notebook-id" content="5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d03">
+  <title>Account health</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .risk-list { max-height: 640px; overflow-y: auto; }
+    .detail ol { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+  </style>
+</head>
+<body>
+<header class="title">
+  <div class="inner">
+    <div class="meta">
+      <span>Lindquett Software · Account health · <span id="as-of">loading</span></span>
+      <div class="controls">
+        <label>Region <select id="region"><option>All</option><option>North America</option><option>EMEA</option><option>APAC</option><option>LATAM</option></select></label>
+        <label>At risk from score <input type="range" id="threshold" min="30" max="90" step="5" value="60"><output id="threshold-value">60</output></label>
+      </div>
+    </div>
+    <h1 id="title">Account health</h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="figures" id="figures"></div>
+    <div class="status" id="status"></div>
+  </div>
+</header>
+
+<main class="story">
+  <section class="chapter">
+    <div class="no">01</div>
+    <div class="body">
+      <h2 id="new-line">Crossed the line this month</h2>
+      <div id="new"></div>
+      <p class="caption" id="new-caption"></p>
+    </div>
+  </section>
+  <section class="chapter">
+    <div class="no">02</div>
+    <div class="split">
+      <div class="body">
+        <h2 id="risk-line">Highest risk first</h2>
+        <input class="plain" id="search" type="search" placeholder="Find an account" aria-label="Find an account" style="max-width: 320px">
+        <div class="list risk-list" id="list"></div>
+      </div>
+      <aside class="analyst quiet detail" id="detail"><div class="kicker">Why it scored this</div><p class="muted">Pick an account.</p></aside>
+    </div>
+  </section>
+</main>
+<footer class="story"><div class="rule">Synthetic data for Lindquett Software, a fictional company. Scores, reasons and every sentence on this page come from the Account health notebook, which also posts to Slack after each warehouse load.</div></footer>
+
+<script type="module">
+  import { runNotebook } from './deepnote-app.js'
+  import { h, money, percent, ranked, signed } from './ui.js'
+
+  const $ = id => document.getElementById(id)
+  const params = new URLSearchParams(location.search)
+  const state = { data: null, selected: params.get('account') }
+  if (params.get('region')) $('region').value = params.get('region')
+  if (params.get('threshold')) $('threshold').value = params.get('threshold')
+  $('threshold-value').textContent = $('threshold').value
+  const tone = (score, threshold) => (score >= threshold ? 'bad' : score >= threshold - 15 ? 'warn' : 'good')
+  let generation = 0
+
+  async function refresh() {
+    const mine = ++generation
+    // The page never posts to Slack: that is the scheduled run's job.
+    const inputs = { region: $('region').value, risk_threshold: $('threshold').value, notify: false }
+    $('status').replaceChildren(h('span.spinner'), 'Scoring accounts…')
+    try {
+      const { data, error } = await runNotebook(inputs)
+      if (mine !== generation) return
+      if (error) throw new Error(error)
+      state.data = data
+      $('status').replaceChildren()
+      render()
+    } catch (failure) {
+      if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
+    }
+  }
+
+  const figure = (value, label, plain = false) => h('div.figure', {}, h(`div.value${plain ? '.plain' : ''}`, {}, value), h('div.label', {}, label))
+
+  function render() {
+    const { summary, accounts, newly_at_risk, threshold, region, as_of } = state.data
+    const fresh = new Set(newly_at_risk)
+    const scope = region === 'All' ? 'the company' : region
+    $('as-of').textContent = `revenue through ${as_of}`
+    $('title').textContent = `${summary.at_risk} accounts in ${scope} are at risk of churning`
+    $('standfirst').textContent = `${money(summary.at_risk_arr, 2)} of ARR sits with accounts scoring ${threshold} or more. ${summary.newly_at_risk} of them crossed that line since last month.`
+    $('figures').replaceChildren(
+      figure(String(summary.at_risk), `at risk, score ${threshold}+`),
+      figure(money(summary.at_risk_arr, 2), 'ARR at risk'),
+      figure(String(summary.newly_at_risk), 'crossed the line this month', true),
+      figure(summary.accounts.toLocaleString(), 'accounts scored', true)
+    )
+
+    const newest = accounts.filter(a => fresh.has(a.account_id)).sort((a, b) => b.arr - a.arr)
+    $('new-line').textContent = newest.length
+      ? `${newest.length} account${newest.length > 1 ? 's' : ''} crossed score ${threshold} since last month, ${money(newest.reduce((s, a) => s + a.arr, 0), 2)} of ARR`
+      : `No account crossed score ${threshold} since last month`
+    $('new').replaceChildren(newest.length ? ranked(newest.slice(0, 8).map(a => ({ name: `${a.account} (${a.score})`, value: a.arr }))) : h('p.muted', {}, 'Nothing to show.'))
+    $('new-caption').textContent = newest.length ? `ARR of each account that crossed the threshold, with its score in brackets. The scheduled run posts these to Slack.` : ''
+
+    const term = $('search').value.trim().toLowerCase()
+    const shown = accounts.filter(a => !term || a.account.toLowerCase().includes(term) || a.account_id.toLowerCase().includes(term)).slice(0, 60)
+    const top = accounts[0]
+    $('risk-line').textContent = top ? `${top.account} scores highest at ${top.score}; ${top.drivers[0] ? top.drivers[0].charAt(0).toLowerCase() + top.drivers[0].slice(1) : 'no single driver'}` : 'No accounts in scope'
+    $('list').replaceChildren(...shown.map(a => h('button', {
+      'aria-current': String(a.account_id === state.selected),
+      onclick: () => { state.selected = a.account_id; history.replaceState(null, '', `?account=${a.account_id}`); render() },
+    },
+      h(`div.score.${tone(a.score, threshold)}`, {}, String(a.score)),
+      h('div', {}, h('strong', {}, a.account), ' ', fresh.has(a.account_id) ? h('span.badge.bad', {}, 'New this month') : null, h('div.muted.small', {}, `${a.region}, ${a.segment}, ${a.price_plan}`)),
+      h('div', { style: { textAlign: 'right' } }, money(a.arr), h(`div.small.${a.change_3m < 0 ? 'down' : 'up'}`, {}, `${signed(a.change_3m * 100, '%', 0)} in 3 months`))
+    )))
+    renderDetail(accounts.find(a => a.account_id === state.selected) ?? accounts[0], fresh, threshold)
+  }
+
+  function renderDetail(a, fresh, threshold) {
+    if (!a) return
+    $('detail').className = `analyst detail${a.score >= threshold ? '' : ' quiet'}`
+    $('detail').replaceChildren(
+      h('div.kicker', {}, 'Why it scored this'),
+      h('p.headline', {}, `${a.account}: ${a.score} of 100${fresh.has(a.account_id) ? `, up from ${a.previous_score} last month` : ''}`),
+      a.drivers.length ? h('ol', {}, a.drivers.map(d => h('li', {}, d))) : h('p', {}, 'No risk signals.'),
+      h('dl.facts', { style: { marginTop: '12px' } },
+        h('dt', {}, 'ARR'), h('dd', {}, money(a.arr)),
+        h('dt', {}, '12 months'), h('dd', {}, signed(a.change_12m * 100, '%', 0)),
+        h('dt', {}, 'Peer retention'), h('dd', {}, `${percent(a.peer_grr, 0)} gross`),
+        h('dt', {}, 'Industry'), h('dd', {}, a.industry))
+    )
+  }
+
+  $('region').addEventListener('change', refresh)
+  $('threshold').addEventListener('input', () => { $('threshold-value').textContent = $('threshold').value })
+  $('threshold').addEventListener('change', refresh)
+  $('search').addEventListener('input', () => state.data && render())
+  refresh()
+</script>
+</body>
+</html>

@@ -1,0 +1,466 @@
+metadata:
+  createdAt: 2026-11-09T09:00:00.000Z
+  modifiedAt: 2026-11-09T09:00:00.000Z
+project:
+  id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b00
+  name: Lindquett metrics
+  notebooks:
+    - blocks:
+        - id: 86cd548bc735a100b0b0f5c6d2dbf4aa
+          blockGroup: 63f22273223dc1819e373ba8dbc71f7e
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Revenue data
+
+
+            Governed source tables for the revenue review. **Synthetic, deterministic data** for a fictional
+
+            B2B SaaS company, generated with a fixed seed so every run, module call and app session sees
+
+            identical numbers. Swap the generator block for warehouse SQL blocks to point this at real data;
+
+            the exported names and columns are the contract.
+
+
+            | Export | Grain | Columns |
+
+            | --- | --- | --- |
+
+            | `accounts` | one row per customer | account_id, account, region, segment, industry, customer_since,
+            price_plan |
+
+            | `mrr` | account × month (only months with revenue) | account_id, account, region, segment, month, mrr
+            (USD) |
+
+            | `opportunities` | open pipeline at the start of each quarter | quarter, region, segment, opportunity_id,
+            stage, probability, amount, target |
+          metadata: {}
+        - id: 77e7fdb47fba0f41bd29f43811b2119f
+          blockGroup: 073acaf5518a375f12823556ad950569
+          sortingKey: "000001"
+          type: code
+          content: >-
+            import numpy as np
+
+            import pandas as pd
+
+
+            # Synthetic, deterministic revenue data for a fictional B2B SaaS company, Lindquett Software.
+
+            AS_OF = pd.Period("2026-09", "M")
+
+            MONTHS = pd.period_range("2024-01", AS_OF, freq="M")
+
+            rng = np.random.default_rng(20260930)
+
+
+            REGIONS = ["North America", "EMEA", "APAC", "LATAM"]
+
+            REGION_WEIGHTS = [0.47, 0.30, 0.15, 0.08]
+
+            SEGMENTS = ["Enterprise", "Mid-market", "SMB"]
+
+            SEGMENT_WEIGHTS = [0.10, 0.32, 0.58]
+
+            INDUSTRIES = ["Retail", "Financial services", "Healthcare", "Logistics", "Manufacturing", "Software",
+            "Media"]
+
+            # Lognormal parameters for starting MRR in USD.
+
+            START_MRR = {"Enterprise": (9.55, 0.45), "Mid-market": (8.0, 0.4), "SMB": (6.5, 0.45)}
+
+            CHURN = {"Enterprise": 0.003, "Mid-market": 0.007, "SMB": 0.014}
+
+            EXPAND = {"Enterprise": 0.07, "Mid-market": 0.05, "SMB": 0.025}
+
+            CONTRACT = {"Enterprise": 0.025, "Mid-market": 0.02, "SMB": 0.015}
+
+
+            PREFIXES = ["Northwind", "Bluepeak", "Corvid", "Ardent", "Silverline", "Quarry", "Harbor", "Meridian",
+            "Tessel",
+                        "Orchard", "Granite", "Lattice", "Brightwater", "Fernhill", "Copperleaf", "Ridgeway", "Solano",
+                        "Aster", "Kinetic", "Pinecrest", "Vantage", "Halden", "Marlow", "Juniper", "Oakmont", "Ember",
+                        "Westbrook", "Crescent", "Alder", "Summit", "Tidewater", "Larkspur", "Beacon", "Driftwood", "Calder"]
+            SUFFIXES = ["Labs", "Group", "Systems", "Health", "Logistics", "Retail", "Capital", "Foods", "Energy",
+            "Media",
+                        "Partners", "Works", "Analytics", "Mobility", "Insurance", "Studios", "Supply", "Bio", "Freight"]
+
+            # Named accounts behind the Q3 2026 story. Each event is (month, kind, factor).
+
+            STORY = {
+                "Vireo Retail Group": ("EMEA", "Enterprise", "Retail", 74_000, [("2026-07", "churn", 0)]),
+                "Nordhafen Logistics": ("EMEA", "Enterprise", "Logistics", 96_000, [("2026-08", "set", 0.75)]),
+                "Kestrel Bank": ("EMEA", "Enterprise", "Financial services", 61_000, [("2026-09", "set", 0.85)]),
+                "Halcyon Health": ("North America", "Enterprise", "Healthcare", 58_000, [("2026-08", "set", 1.6)]),
+                "Sakura Mobility": ("APAC", "Enterprise", "Software", 39_000, [("2026-07", "set", 1.35)]),
+            }
+
+
+
+            def _names(n):
+                pool = [f"{p} {s}{t}" for p in PREFIXES for s in SUFFIXES for t in ["", " International", " Holdings"]]
+                rng.shuffle(pool)
+                return pool[:n]
+
+
+            def _event_multipliers(region, segment, month, migrated):
+                """Shocks that shape the story: the July 2026 EMEA move to the 2026 price list hits migrated accounts."""
+                churn = expand = contract = 1.0
+                if migrated and month >= pd.Period("2026-07", "M"):
+                    if segment == "SMB":
+                        churn, contract = 4.5, 2.4
+                    elif segment == "Mid-market":
+                        churn, contract = 3.0, 2.0
+                if region == "North America" and month >= pd.Period("2026-01", "M"):
+                    expand = 1.25
+                return churn, expand, contract
+
+
+            def build():
+                starts = [MONTHS[0]] * 560 + [m for m in MONTHS[1:] for _ in range(rng.poisson(14 + 0.25 * (m - MONTHS[0]).n))]
+                names = _names(len(starts))
+                rows, accounts = [], []
+                for i, (start, name) in enumerate(zip(starts, names)):
+                    region = rng.choice(REGIONS, p=REGION_WEIGHTS)
+                    segment = rng.choice(SEGMENTS, p=SEGMENT_WEIGHTS)
+                    industry = rng.choice(INDUSTRIES)
+                    mu, sigma = START_MRR[segment]
+                    events = {}
+                    migrated = region == "EMEA" and segment in ("SMB", "Mid-market") and rng.random() < 0.7
+                    if i < len(STORY):
+                        name, (region, segment, industry, mrr0, ev) = list(STORY.items())[i]
+                        mrr = float(mrr0)  # monthly recurring revenue, USD
+                        migrated = False
+                        events = {pd.Period(m, "M"): (kind, f) for m, kind, f in ev}
+                        start = MONTHS[0]
+                    else:
+                        mrr = float(np.exp(rng.normal(mu, sigma)))
+                    account_id = f"ACC-{1000 + i}"
+                    accounts.append(dict(account_id=account_id, account=name, region=region, segment=segment,
+                                         industry=industry, customer_since=start.to_timestamp(),
+                                         price_plan="2026 price list" if migrated and start <= pd.Period("2026-07", "M") else "Legacy"))
+                    for month in MONTHS[MONTHS.get_loc(start):]:
+                        if month > start:
+                            if month in events:
+                                kind, f = events[month]
+                                mrr = 0.0 if kind == "churn" else mrr * f
+                            elif not events:
+                                c, e, k = _event_multipliers(region, segment, month, migrated and start <= pd.Period("2026-07", "M"))
+                                r = rng.random()
+                                if r < CHURN[segment] * c:
+                                    mrr = 0.0
+                                elif r < CHURN[segment] * c + EXPAND[segment] * e:
+                                    mrr *= 1 + rng.uniform(0.05, 0.35)
+                                elif r < CHURN[segment] * c + EXPAND[segment] * e + CONTRACT[segment] * k:
+                                    mrr *= 1 - rng.uniform(0.1, 0.35)
+                        if mrr <= 0:
+                            break
+                        rows.append((account_id, month.to_timestamp(), round(mrr, 2)))
+                accounts = pd.DataFrame(accounts)
+                mrr = pd.DataFrame(rows, columns=["account_id", "month", "mrr"]).merge(
+                    accounts[["account_id", "account", "region", "segment"]], on="account_id")
+                return accounts, mrr[["account_id", "account", "region", "segment", "month", "mrr"]]
+
+
+            def build_opportunities(mrr):
+                """Open pipeline at the start of each quarter, against a new-business target per region and segment."""
+                quarters = pd.period_range("2025Q1", "2026Q4", freq="Q")
+                coverage_mean = {"North America": 3.3, "EMEA": 3.1, "APAC": 3.0, "LATAM": 2.8}
+                stages = [("Discovery", 0.1), ("Evaluation", 0.25), ("Proposal", 0.5), ("Negotiation", 0.75)]
+                rows = []
+                for q in quarters:
+                    for region in REGIONS:
+                        for segment in SEGMENTS:
+                            base = mrr[(mrr.region == region) & (mrr.segment == segment) & (mrr.month == (q.asfreq("M", "start") - 1).to_timestamp())]
+                            target = round(base.mrr.sum() * 12 * 0.07, -3)
+                            cov = coverage_mean[region] * rng.uniform(0.9, 1.1)
+                            if region == "EMEA" and q >= pd.Period("2026Q4", "Q"):
+                                cov = 2.05
+                            if region == "EMEA" and q == pd.Period("2026Q3", "Q"):
+                                cov = 2.6
+                            pipeline = target * cov
+                            n = max(3, int(pipeline / {"Enterprise": 180_000, "Mid-market": 45_000, "SMB": 9_000}[segment]))
+                            amounts = rng.dirichlet(np.ones(n)) * pipeline
+                            for j, amount in enumerate(amounts):
+                                stage, prob = stages[rng.integers(0, len(stages))]
+                                rows.append(dict(quarter=str(q).replace("Q", "-Q"), region=region, segment=segment,
+                                                 opportunity_id=f"OPP-{q}-{region[:2].upper()}{segment[:1]}{j:03d}",
+                                                 stage=stage, probability=prob, amount=max(round(amount, -2), 500.0), target=target))
+                return pd.DataFrame(rows)
+          metadata: {}
+        - id: 24c041949a86f1f84f536390d8cf5d73
+          blockGroup: 64fc08121fe5cf61e1d62ca15e327dcd
+          sortingKey: "000002"
+          type: code
+          content: >-
+            accounts, mrr = build()
+
+            accounts
+          metadata:
+            function_export_name: accounts
+        - id: 62ef116c8978dfbe8611794cda80ff69
+          blockGroup: 504d92d6939e32001556748165adc6ff
+          sortingKey: "000003"
+          type: code
+          content: mrr
+          metadata:
+            function_export_name: mrr
+        - id: b32871a1417340f224df1bdbf4b62140
+          blockGroup: e9822dfc879d3124912ca773b9ca1a5e
+          sortingKey: "000004"
+          type: code
+          content: >-
+            opportunities = build_opportunities(mrr)
+
+            opportunities
+          metadata:
+            function_export_name: opportunities
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+      isModule: true
+      name: Revenue data
+    - blocks:
+        - id: 35c612e074301fae34ac6ab4429fc51b
+          blockGroup: 400064b1d80633af82b7913a790702ce
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Revenue metrics
+
+
+            The semantic layer for revenue: **one definition per metric**, exported as functions so every
+
+            notebook, app and AI agent computes ARR, NRR, GRR and pipeline coverage the same way. Each function
+
+            is self-contained (imports inside, no shared globals) because exported functions run in the
+
+            importing notebook.
+
+
+            - **ARR** is 12 × month-end MRR.
+
+            - **NRR** (trailing twelve months): ARR today from the accounts that paid twelve months ago,
+              divided by their ARR then.
+            - **GRR**: the same cohort with each account capped at its starting ARR, so expansion can't hide
+              churn and contraction.
+            - **Pipeline coverage**: open pipeline at the start of a quarter ÷ that quarter's new-business target.
+          metadata: {}
+        - id: 09c76361e22f4261145e091a8d64a96c
+          blockGroup: 759729db20e8660fb900152c14ea49d0
+          sortingKey: "000001"
+          type: code
+          content: >-
+            def arr_movements(mrr, region="All", segment="All"):
+                """ARR movements per quarter, in USD.
+
+                ARR is 12 x month-end MRR. Each account's month-over-month ARR change is classified as
+                new (first revenue), expansion (up), contraction (down, still paying) or churn (to zero),
+                and the monthly changes are summed per quarter.
+                """
+                import pandas as pd
+
+                df = mrr
+                if region != "All":
+                    df = df[df["region"] == region]
+                if segment != "All":
+                    df = df[df["segment"] == segment]
+                arr = df.pivot_table(index="account_id", columns="month", values="mrr", aggfunc="sum", fill_value=0.0) * 12
+                arr = arr.reindex(columns=sorted(mrr["month"].unique()), fill_value=0.0)
+                prev = arr.shift(1, axis=1).fillna(0.0)
+                paid_before = arr.cummax(axis=1).shift(1, axis=1).fillna(0.0) > 0
+                delta = (arr - prev).iloc[:, 1:]
+                kinds = {
+                    "New": (~paid_before & (arr > 0)).iloc[:, 1:],
+                    "Expansion": ((prev > 0) & (arr > 0)).iloc[:, 1:] & (delta > 0),
+                    "Contraction": ((prev > 0) & (arr > 0)).iloc[:, 1:] & (delta < 0),
+                    "Churn": ((prev > 0) & (arr == 0)).iloc[:, 1:],
+                }
+                rows = []
+                for kind, mask in kinds.items():
+                    monthly = delta.where(mask, 0.0).sum(axis=0)
+                    quarterly = monthly.groupby(pd.PeriodIndex(monthly.index, freq="Q")).sum()
+                    for q, value in quarterly.items():
+                        rows.append({"quarter": f"{q.year}-Q{q.quarter}", "movement": kind, "arr_change": round(float(value), 2)})
+                return pd.DataFrame(rows)
+
+
+            arr_movements
+          metadata:
+            function_export_name: arr_movements
+        - id: ea55c8302fa15288461ad15af281be3e
+          blockGroup: 39fdb5bb351ea8a3cbeaf38d451633c7
+          sortingKey: "000002"
+          type: code
+          content: >-
+            def arr_bridge(mrr, quarter, region="All", segment="All"):
+                """Starting ARR -> new, expansion, contraction, churn -> ending ARR for one quarter ('2026-Q3')."""
+                import pandas as pd
+
+                df = mrr
+                if region != "All":
+                    df = df[df["region"] == region]
+                if segment != "All":
+                    df = df[df["segment"] == segment]
+                q = pd.Period(quarter.replace("-", ""), freq="Q")
+                start_month = (q.asfreq("M", "start") - 1).to_timestamp()
+                end_month = q.asfreq("M", "end").to_timestamp()
+                starting = float(df.loc[df["month"] == start_month, "mrr"].sum() * 12)
+                ending = float(df.loc[df["month"] == end_month, "mrr"].sum() * 12)
+                months = [m for m in sorted(mrr["month"].unique()) if start_month <= m <= end_month]
+                arr = df.pivot_table(index="account_id", columns="month", values="mrr", aggfunc="sum", fill_value=0.0) * 12
+                arr = arr.reindex(columns=sorted(mrr["month"].unique()), fill_value=0.0)
+                paid_before = arr.cummax(axis=1).shift(1, axis=1).fillna(0.0) > 0
+                arr, paid_before = arr[months], paid_before[months]
+                prev = arr.shift(1, axis=1).iloc[:, 1:]
+                cur, paid_before = arr.iloc[:, 1:], paid_before.iloc[:, 1:]
+                delta = cur - prev
+                moves = {
+                    "New": float(delta.where(~paid_before & (cur > 0), 0.0).sum().sum()),
+                    "Expansion": float(delta.where((prev > 0) & (cur > 0) & (delta > 0), 0.0).sum().sum()),
+                    "Contraction": float(delta.where((prev > 0) & (cur > 0) & (delta < 0), 0.0).sum().sum()),
+                    "Churn": float(delta.where((prev > 0) & (cur == 0), 0.0).sum().sum()),
+                }
+                steps = [("Starting ARR", starting)] + [(k, float(moves.get(k, 0.0))) for k in ["New", "Expansion", "Contraction", "Churn"]]
+                steps.append(("Ending ARR", ending))
+                return pd.DataFrame(steps, columns=["step", "arr"])
+
+
+            arr_bridge
+          metadata:
+            function_export_name: arr_bridge
+        - id: 024e6d6883fffc9edd88e917966929ae
+          blockGroup: 50e9a9dd32fd58a735fc13c586e9a03b
+          sortingKey: "000003"
+          type: code
+          content: >-
+            def retention(mrr, quarter, region="All", segment="All"):
+                """Trailing-twelve-month net and gross revenue retention at the end of a quarter.
+
+                Cohort: accounts paying 12 months before the quarter end. NRR = their ARR now / their ARR then.
+                GRR caps each account at its starting ARR, so expansion cannot hide churn and contraction.
+                """
+                import pandas as pd
+
+                df = mrr
+                if region != "All":
+                    df = df[df["region"] == region]
+                if segment != "All":
+                    df = df[df["segment"] == segment]
+                q = pd.Period(quarter.replace("-", ""), freq="Q")
+                end_month = q.asfreq("M", "end")
+                then = df[df["month"] == (end_month - 12).to_timestamp()].groupby("account_id")["mrr"].sum() * 12
+                now = df[df["month"] == end_month.to_timestamp()].groupby("account_id")["mrr"].sum() * 12
+                now = now.reindex(then.index, fill_value=0.0)
+                base = float(then.sum())
+                if base == 0:
+                    return {"nrr": None, "grr": None, "cohort_arr": 0.0, "cohort_accounts": 0}
+                return {
+                    "nrr": float(now.sum() / base),
+                    "grr": float(now.clip(upper=then).sum() / base),
+                    "cohort_arr": base,
+                    "cohort_accounts": int(len(then)),
+                }
+
+
+            retention
+          metadata:
+            function_export_name: retention
+        - id: ac434cbba61a22a24026c631920ed63c
+          blockGroup: 3ea6b7b816626027925865ee3a0565bc
+          sortingKey: "000004"
+          type: code
+          content: >-
+            def retention_trend(mrr, segment="All", quarters=6):
+                """NRR by region for the last `quarters` quarters, long format for charting."""
+                import pandas as pd
+
+                df = mrr if segment == "All" else mrr[mrr["segment"] == segment]
+                by_month = df.groupby(["month", "region", "account_id"])["mrr"].sum() * 12
+                last = pd.Period(mrr["month"].max(), freq="Q")
+                rows = []
+                for q in pd.period_range(last - quarters + 1, last, freq="Q"):
+                    end_month = q.asfreq("M", "end")
+                    then_month, now_month = (end_month - 12).to_timestamp(), end_month.to_timestamp()
+                    for region in sorted(df["region"].unique()):
+                        try:
+                            then = by_month.loc[(then_month, region)]
+                        except KeyError:
+                            continue
+                        try:
+                            now = by_month.loc[(now_month, region)].reindex(then.index, fill_value=0.0)
+                        except KeyError:
+                            now = then * 0
+                        if then.sum() > 0:
+                            rows.append({"quarter": f"{q.year}-Q{q.quarter}", "region": region, "nrr": round(float(now.sum() / then.sum()), 4)})
+                return pd.DataFrame(rows)
+
+
+            retention_trend
+          metadata:
+            function_export_name: retention_trend
+        - id: 4d739f25c6550b23386703298d7063f7
+          blockGroup: 0706f3e407f8c32cf5e991efaa303664
+          sortingKey: "000005"
+          type: code
+          content: >-
+            def top_movers(mrr, quarter, region="All", segment="All", n=8):
+                """Accounts with the largest absolute ARR change during a quarter."""
+                import pandas as pd
+
+                df = mrr
+                if region != "All":
+                    df = df[df["region"] == region]
+                if segment != "All":
+                    df = df[df["segment"] == segment]
+                q = pd.Period(quarter.replace("-", ""), freq="Q")
+                start_month = (q.asfreq("M", "start") - 1).to_timestamp()
+                end_month = q.asfreq("M", "end").to_timestamp()
+                info = df.drop_duplicates("account_id").set_index("account_id")[["account", "region", "segment"]]
+                start = df[df["month"] == start_month].groupby("account_id")["mrr"].sum() * 12
+                end = df[df["month"] == end_month].groupby("account_id")["mrr"].sum() * 12
+                both = pd.concat([start.rename("arr_start"), end.rename("arr_end")], axis=1).fillna(0.0)
+                both["arr_change"] = both["arr_end"] - both["arr_start"]
+                both["movement"] = "Expansion"
+                both.loc[both["arr_change"] < 0, "movement"] = "Contraction"
+                both.loc[both["arr_end"] == 0, "movement"] = "Churn"
+                both.loc[both["arr_start"] == 0, "movement"] = "New"
+                both = both[both["arr_change"] != 0].join(info)
+                both = both.reindex(both["arr_change"].abs().sort_values(ascending=False).index).head(n)
+                return both.reset_index()[["account", "region", "segment", "movement", "arr_start", "arr_end", "arr_change"]]
+
+
+            top_movers
+          metadata:
+            function_export_name: top_movers
+        - id: 540fefb33d2ed36c99cbf693ea30e290
+          blockGroup: 685f546b5bb80f3149db6d0350f4273d
+          sortingKey: "000006"
+          type: code
+          content: >-
+            def pipeline_coverage(opportunities, quarter, region="All", segment="All"):
+                """Open pipeline at the start of a quarter divided by that quarter's new-business ARR target."""
+                df = opportunities[opportunities["quarter"] == quarter]
+                if region != "All":
+                    df = df[df["region"] == region]
+                if segment != "All":
+                    df = df[df["segment"] == segment]
+                target = float(df.drop_duplicates(["region", "segment"])["target"].sum())
+                pipeline = float(df["amount"].sum())
+                weighted = float((df["amount"] * df["probability"]).sum())
+                return {
+                    "pipeline": pipeline,
+                    "weighted_pipeline": weighted,
+                    "target": target,
+                    "coverage": pipeline / target if target else None,
+                }
+
+
+            pipeline_coverage
+          metadata:
+            function_export_name: pipeline_coverage
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b02
+      isModule: true
+      name: Revenue metrics
+version: 1.0.0

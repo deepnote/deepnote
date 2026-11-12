@@ -92,6 +92,13 @@ The machines API controls a project's machine, which the editor, live runs and h
 
 Requests are rate limited per minute for each API key, at a level set by the workspace's plan. A response with status 429 means the limit was reached. Wait for the number of seconds in its `Retry-After` header, then retry.
 
+## Example
+
+The `Renewal quote` notebook behind the [Renewal deal desk](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/deal-desk) in the Lindquett Software
+example serves two callers. The deal desk app runs it when an account manager picks an account, and
+`crm-client.mjs` shows what a CRM does to get the same quote through the runs API: pass `account_id` and
+`term_years`, wait for the run, and read the `quote` from its `application/json` output.
+
 ## Plan requirements
 
 - **API keys:** Team and Enterprise.
