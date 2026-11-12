@@ -110,7 +110,7 @@ describe('injectIntegrationEnvVarsAndCheckCredentials', () => {
     expect(injected).toContain(getSqlEnvVarName('password-snowflake'))
   })
 
-  it("never puts a federated integration's OAuth client secret into the environment", async () => {
+  it("puts a federated integration's non-secret metadata into the environment, but never its OAuth client secret", async () => {
     const bq = bigQueryIntegration('federated-bq')
     const trinoClientSecret = 'trino-client-secret'
     const trino: DatabaseIntegrationConfig = {
@@ -138,6 +138,7 @@ describe('injectIntegrationEnvVarsAndCheckCredentials', () => {
       value => value?.includes(CLIENT_SECRET) || value?.includes(trinoClientSecret)
     )
     expect(leaked).toEqual([])
+    expect(process.env.TRINO_FEDERATED_TRINO_CLIENTID).toBe('trino-client-id')
   })
 
   it('does not throw for an error from the synchronous generator (debug-log-only)', async () => {
@@ -171,7 +172,7 @@ describe('injectIntegrationEnvVarsAndCheckCredentials', () => {
     expect(process.env[bqEnvVarName]).toContain('federated-bq')
   })
 
-  it('passes refreshFederatedTokens through as the dry-run flag: no network call, no env var', async () => {
+  it('passes refreshFederatedTokens through as the dry-run flag: no network call, no SQL env var', async () => {
     const bq = bigQueryIntegration('dry-run-bq')
     await storeMatchingToken('dry-run-bq')
 

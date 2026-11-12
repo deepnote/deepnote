@@ -16,7 +16,7 @@ export interface StreamlitPublishOptions {
 
 export function createStreamlitPublishAction(program: Command) {
   return async (entrypoint: string, options: StreamlitPublishOptions) => {
-    // Load .env from the current directory before reading the token — mirrors `publish` and `static-site access`.
+    // Load .env from the current directory before reading the token — mirrors `publish` and `unpublish`.
     dotenv.config({ path: join(process.cwd(), DEFAULT_ENV_FILE), quiet: true })
     const token = resolveToken(options.token)
     if (!token) {

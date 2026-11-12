@@ -1,7 +1,7 @@
-# Build and publish apps and Streamlit apps
+# Build and publish data apps and Streamlit apps
 
-Use **app** for HTML, CSS, and JavaScript hosted by Deepnote, and **Streamlit app** for a Python
-UI. An app can be interactive and run notebooks through the Deepnote API. Follow the matching
+Use **data app** for an HTML, CSS, and JavaScript page hosted by a data app project, and **Streamlit
+app** for a Python UI. A data app can be interactive and run notebooks through the Deepnote API. Follow the matching
 workflow to prepare files, publish, and verify the result as its intended viewer.
 
 ## Choose a workflow
@@ -9,29 +9,19 @@ workflow to prepare files, publish, and verify the result as its intended viewer
 Keep the user's chosen framework and hosting target. If neither is specified, choose by the work
 needed:
 
-| Need                                                                | Choose        | Prepare                                                                  |
-| ------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
-| Build a custom HTML/JS interface hosted by Deepnote                 | App           | A browser build directory; enable viewer API access if it runs notebooks |
-| Run a Python UI with custom widgets                                 | Streamlit app | A `.py` entrypoint and its dependencies in the project's Files           |
-| Present notebook blocks with inputs and outputs                     | Data app      | A notebook; configure and publish the data app in the Deepnote UI        |
-| Use local Python, scheduling, or run history through a local server | Local server  | A browser build, a `.deepnote` file, and a `serveStatic` server          |
+| Need                                                                | Choose        | Prepare                                                         |
+| ------------------------------------------------------------------- | ------------- | --------------------------------------------------------------- |
+| Build a custom HTML/JS interface hosted by Deepnote                 | Data app      | A data app project and a browser build directory                |
+| Run a Python UI with custom widgets                                 | Streamlit app | A `.py` entrypoint and its dependencies in the project's Files  |
+| Use local Python, scheduling, or run history through a local server | Local server  | A browser build, a `.deepnote` file, and a `serveStatic` server |
 
-Apps run in the browser; their notebook runs use project hardware. Streamlit apps and data apps
-run on project hardware. A local server runs on the operator's machine and can send notebook runs
+Data apps run in the browser; their notebook runs use project hardware. Streamlit apps run on
+project hardware. A local server runs on the operator's machine and can send notebook runs
 to Deepnote.
 
-For an audience without Deepnote accounts, consider a data app's public or link-sharing options.
-App viewers must sign in and have project access.
-
-## Prepare a data app
-
-1. Create or edit the notebook's blocks, inputs, and outputs. Order the blocks for the intended UI.
-2. Run the notebook and check its outputs.
-3. Configure the visible blocks and app permissions in the Deepnote UI. File edits alone cannot
-   create the app or set its permissions.
-
-Viewers change inputs and run the notebook on project hardware, with separate state per viewer.
-See [Data apps](https://deepnote.com/docs/data-apps) for sharing and layout settings.
+Data app viewers must sign in and have project access; data apps have no public or link-only sharing.
+Streamlit apps follow the project's sharing settings, but only signed-in viewers with project access can
+use their viewer API access. Apps published from notebook blocks are deprecated; do not build new ones.
 
 ## Prepare a Streamlit app
 
@@ -60,14 +50,18 @@ the hosting project. Handle missing viewer credentials with a sign-in/access hin
 instead of offering a run that will fail.
 Do not substitute the publisher's personal token.
 
-## Prepare an app
+## Prepare a data app
 
-1. Build the HTML, CSS, JavaScript, and assets into a dedicated output directory such as `dist`.
+1. Use a data app project. Publishing refuses any other project type, and a `.deepnote` file cannot
+   create one. Create it on the first publish with `deepnote publish <dir> --create <name>`, or have
+   the user create it in Deepnote with **Create new → New data app**. Data app projects are in beta
+   and may not be enabled for the workspace yet.
+2. Build the HTML, CSS, JavaScript, and assets into a dedicated output directory such as `dist`.
    Exclude credentials and files that viewers should not receive.
-2. Use browser-compatible code. A published app has no local `serveStatic` routes or Python
+3. Use browser-compatible code. A published app has no local `serveStatic` routes or Python
    server. If it runs notebooks, implement the viewer API flow below.
-3. Follow [Publish an app](cli-publish.md#publish-an-app).
-4. Open the returned URL as a viewer with project access. Check assets, navigation, and any notebook
+4. Follow [Publish a data app](cli-publish.md#publish-a-data-app).
+5. Open the returned URL as a viewer with project access. Check assets, navigation, and any notebook
    runs in that hosted page.
 
 Use the URL returned by Deepnote. `/` serves `index.html`; a path ending in `/` serves that
@@ -75,7 +69,7 @@ directory's `index.html`. Other paths serve exact filenames, so link to `about.h
 
 ### Add viewer API access
 
-Enable API access only when the app needs notebook inputs or runs. Use the token handshake in
+A published data app always has viewer API access. When it needs notebook inputs or runs, use the token handshake in
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app): request a token from the Deepnote shell over `postMessage`, pin
 the shell origin when sending and receiving messages, and send API requests to the returned API
 origin. Keep personal development tokens out of the published build.
@@ -118,15 +112,16 @@ For cloud scheduling and run history routes, consult the
 [local-runner API](https://github.com/deepnote/deepnote/tree/main/packages/local-runner#readme) and
 [run app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/run-app).
 
-Publishing this build as an app does not deploy the local server. Replace local API calls
+Publishing this build as a data app does not deploy the local server. Replace local API calls
 with the viewer API flow before publishing it to Deepnote.
 
 ## Choose the available tool
 
 - With a terminal, use the CLI publishing workflow linked above.
 - With only hosted MCP (`https://deepnote.com/mcp`), inspect its advertised tools. Use
-  `publish_static_site` if available to publish an app, and `update_project` to change sharing
-  or viewer API access. Do not use notebook execution to write app files. Hosted MCP can activate
-  an existing Streamlit entrypoint but cannot upload it; arrange the file upload first.
+  `write_file` to write a data app's files below `_deepnote_static/`, then `update_project` to publish
+  or unpublish it. Set `overwrite` when replacing an existing file, and check the returned path:
+  without it, Deepnote writes a uniquely named copy and the app keeps serving the old file. Do not use notebook execution to write app files. Hosted MCP can also write a
+  Streamlit entrypoint with `write_file` and serve it with `create_streamlit_app`.
 - Use local `@deepnote/mcp` for local `.deepnote` file work. It does not manage hosted apps or
   publish files.

@@ -11,7 +11,7 @@ Data app projects are in beta. This is an early version, so expect it to change,
 
 A data app project is a web app you build by chatting with [Deepnote Agent](/docs/deepnote-agent). Describe what you need, such as a sales dashboard, a data explorer, or an interactive tool, and the agent builds the app and connects it to a notebook that queries and prepares the data. Refine it in chat and share it with your team.
 
-To publish blocks from an existing notebook as an app instead, see [Data apps](/docs/data-apps).
+Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). Neither can be embedded in another site or shared with anyone who has the link; to put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
 
 ## Creating a data app
 
@@ -72,6 +72,10 @@ A new data app is unpublished, so only editors of the project can open it. To le
 To make the app editor-only again, set it to **Unpublished**.
 
 Published apps open only when **Allow static file sharing in projects** is on in **Settings & members → Project settings**.
+
+To publish from code, upload a local build with [`deepnote publish`](/docs/deepnote-cli-publish), or call
+`PATCH /v2/projects/{projectId}` with `{ "dataApp": { "published": true } }` through the
+[Deepnote API](/docs/deepnote-api). Send `false` to unpublish.
 
 ## Limitations
 
