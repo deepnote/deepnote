@@ -10,7 +10,8 @@
     "*.min.js",
     "*.min.css",
     "**/__marimo__/**",
-    "packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts"
+    "packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts",
+    "cspell.json"
   ],
   "language": "en",
   "dictionaries": ["docs"],
