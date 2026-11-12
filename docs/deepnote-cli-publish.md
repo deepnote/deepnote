@@ -124,7 +124,7 @@ inputs and block metadata (without source), read the notebook's
 in the workspace where the viewer has direct access, and poll the viewer's own runs for their
 `snapshotBlocks`. Runs in other projects also require execute permission. Visitors of a public app
 can start runs only with **Execute** access and get an empty `snapshotBlocks` and no `error` for
-them, so read their results from app data. Every other endpoint
+them, so read their results from app data once the run succeeds. Every other endpoint
 answers `403`, so features you built against a local preview with a personal token can fail in the
 published app. See the
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
