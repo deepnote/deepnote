@@ -30,7 +30,7 @@ Then:
 
 ## What they have in common
 
-- **Access.** Both are shared only with people who have access to the project: **App user** can use the app, **View** can also open the notebook and the app's code, and **Edit** can change them. Neither can be shared with anyone who has the link or made public. People outside the workspace can use an app once they're invited to the project and signed in.
+- **Access.** Both are shared with people who have access to the project: **App user** can use the app, **View** can also open the notebook and the app's code, and **Edit** can change them. People outside the workspace can use an app once they're invited to the project and signed in. A data app can go further and be [made public](/docs/data-app-projects#sharing-an-app-publicly), so anyone with its link can open it without a Deepnote account; a Streamlit app can't be shared by link at all.
 - **Integrations.** Queries run against the integrations connected to the project, and credentials stay on the server. With integrations that use per-user OAuth, such as [Snowflake OAuth](/docs/snowflake-oauth) or [BigQuery with Google OAuth](/docs/bigquery-oauth), queries run with each viewer's own account. Embedded blocks are different: they show the block's saved output to anyone with the link, without querying again as the viewer.
 - **Built with the agent.** Deepnote Agent writes both, checks them for errors and fixes what it finds. You refine them in chat.
 
@@ -43,6 +43,7 @@ Then:
 | How it reads data             | Runs the whole notebook as the viewer and shows the notebook's JSON output      | Python in `app.py` queries the integrations, or runs the notebook as the viewer |
 | How long results last         | Each viewer's latest results, for your plan's run retention (1, 30 or 365 days) | What the app keeps in session state or its cache                                |
 | Publishing                    | Unpublished until an editor sets it to **Published**                            | Available to everyone with access as soon as it runs                            |
+| Sharing by link               | Can be made public by a project admin, on Team and Enterprise                   | Not available: viewers need project access                                      |
 
 ## Example
 

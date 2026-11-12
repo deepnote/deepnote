@@ -124,7 +124,9 @@ Publishing also requires **Allow static file sharing in projects** in the worksp
 permissions are checked on every request.
 
 A published data app can also be [made public](/docs/data-app-projects#sharing-an-app-publicly), so
-anyone with its link can open it, including people without a Deepnote account.
+anyone with its link can open it, including people without a Deepnote account. Only a project admin
+can do that, and only in the app's **Share** dialog in Deepnote: `deepnote publish` publishes an app
+to the people with project access and can't make it public.
 
 ### Calling the API as the viewer
 

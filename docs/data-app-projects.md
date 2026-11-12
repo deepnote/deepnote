@@ -95,6 +95,8 @@ To publish from code, upload a local build with [`deepnote publish`](/docs/deepn
 
 A published app can be made public, so anyone with its link can open it, including people without a Deepnote account. Public apps are available on the Team and Enterprise plans, and only a project admin can make an app public.
 
+Public access can be turned on only here, in the app's **Share** dialog. The [CLI](/docs/deepnote-cli-publish) and the [API](/docs/deepnote-api) can publish an app to the people with project access, but can't open it to anyone with the link: making an app public is a deliberate step someone takes in Deepnote, not something a script or a pipeline can do.
+
 1. Click **Share** in the top bar.
 2. Under **Anyone with a link to this app**, choose the access:
    - **View:** visitors see the latest saved results from runs by the app's editors and admins. Results from their later runs become public too.
