@@ -51,6 +51,12 @@ their notebook for each viewer. The [pricing scenario planner](https://github.co
 a scheduled notebook writes the pricing baseline once a day, and the app models price changes on it
 with no notebook run per slider move.
 
+When the page itself is the point, a data app's page is just HTML, so you can write it by hand instead of
+asking the agent for it. The three public-data apps in
+[`examples/data-apps`](https://github.com/deepnote/deepnote/tree/main/examples/data-apps) — a globe of the
+world's shipping lanes, a season of nightly bird migration over Europe, and the coastline paradox on nine
+Greek islands — are built that way: a custom page, with the notebook behind it preparing the data.
+
 ## Plan requirements
 
 - **Data app projects, Streamlit app projects and embedded blocks:** all plans.
