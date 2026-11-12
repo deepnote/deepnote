@@ -512,6 +512,30 @@ describe('uploadProjectFile', () => {
     expect(await file.text()).toBe('a,b')
   })
 
+  it('sends overwrite=true when asked to replace the file in place', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ file: { path: 'data/input.csv', size: 3 } }))
+
+    await uploadProjectFile(BASE_URL, TOKEN, 'p1', 'data/input.csv', new TextEncoder().encode('a,b'), {
+      overwrite: true,
+    })
+
+    const form = fetchSpy.mock.calls[0][1]?.body as FormData
+    expect(form.get('overwrite')).toBe('true')
+  })
+
+  it('sends no overwrite field by default', async () => {
+    const fetchSpy = vi
+      .spyOn(global, 'fetch')
+      .mockResolvedValueOnce(response({ file: { path: 'data/input.csv', size: 3 } }))
+
+    await uploadProjectFile(BASE_URL, TOKEN, 'p1', 'data/input.csv', new TextEncoder().encode('a,b'))
+
+    const form = fetchSpy.mock.calls[0][1]?.body as FormData
+    expect(form.has('overwrite')).toBe(false)
+  })
+
   it('rejects a response without the actual stored path', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValueOnce(response({ file: { size: 3 } }))
 

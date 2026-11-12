@@ -616,6 +616,11 @@ export interface ProjectFileTransferOptions extends RequestOptions {
   maxBytes?: number
 }
 
+export interface UploadProjectFileOptions extends ProjectFileTransferOptions {
+  /** Replace an existing file at `path` in place instead of storing the upload at a unique path. */
+  overwrite?: boolean
+}
+
 function projectFileTooLarge(filePath: string, maxBytes: number): ApiError {
   const limit =
     maxBytes >= 1024 * 1024 ? `${maxBytes / (1024 * 1024)} MiB` : `${maxBytes.toLocaleString('en-US')} bytes`
@@ -673,10 +678,11 @@ async function readProjectFileBytes(response: Response, filePath: string, maxByt
 /**
  * Upload a working-directory file (`POST {baseUrl}/v2/files`, multipart).
  *
- * **The server generates a *unique* path when `path` already exists — it does not overwrite.** To
- * replace a file, {@link deleteProjectFile} it first (last-write-wins; there is no content-hash or
- * staleness check on the files surface). Buffered uploads are limited to 100 MiB. Returns the stored
- * file's inventory fields.
+ * **Without `overwrite`, the server generates a *unique* path when `path` already exists.** With
+ * `overwrite: true` it replaces the file in place, which keeps anything registered against the path,
+ * such as a Streamlit app; {@link deleteProjectFile} followed by an upload does not. Either way the last
+ * write wins: there is no content-hash or staleness check on the files surface. Buffered uploads are
+ * limited to 100 MiB. Returns the stored file's inventory fields.
  */
 export async function uploadProjectFile(
   baseUrl: string,
@@ -684,7 +690,7 @@ export async function uploadProjectFile(
   projectId: string,
   filePath: string,
   bytes: Uint8Array,
-  options: ProjectFileTransferOptions = {}
+  options: UploadProjectFileOptions = {}
 ): Promise<UploadedFile> {
   const maxBytes = projectFileTransferLimit(options)
   if (bytes.byteLength > maxBytes) {
@@ -693,6 +699,9 @@ export async function uploadProjectFile(
   const form = new FormData()
   form.set('projectId', projectId)
   form.set('path', filePath)
+  if (options.overwrite) {
+    form.set('overwrite', 'true')
+  }
   // A basename is enough; the destination is `path`. Copy into a fresh ArrayBuffer so the Blob is
   // backed by exactly these bytes regardless of the view's offset into a larger buffer.
   const buffer = new Uint8Array(bytes).buffer

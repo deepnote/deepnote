@@ -48,7 +48,7 @@ async function handleRequest(
   for (const route of ROUTES) {
     const match = route.method === method ? route.pattern.exec(requestUrl.pathname) : null
     if (match) {
-      await route.handle({ ...context, req, res, requestUrl, pathProjectId: match[1] })
+      await route.handle({ ...context, req, res, requestUrl, pathId: match[1] })
       return
     }
   }
@@ -70,7 +70,7 @@ export async function startMockDeepnoteCloud(options: MockDeepnoteCloudOptions =
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
-  const context: MockContext = { rootDir, url, publishedDataApps: new Set() }
+  const context: MockContext = { rootDir, url, publishedDataApps: new Set(), streamlitApps: [] }
   const handling = new Set<Promise<void>>()
   server.on('request', (req: IncomingMessage, res: ServerResponse) => {
     // `close()` would wait out the keep-alive timeout of a connection with a request in flight.

@@ -704,20 +704,23 @@ ${c.bold('Exit Codes:')}
 
   streamlit
     .command('publish')
-    .description('Serve a file already in the project as a Streamlit app')
+    .description('Serve a project file as a Streamlit app, optionally uploading it first')
     .argument('<entrypoint>', 'Project-relative path of the Python file to serve')
     .requiredOption('--project-id <uuid>', 'Deepnote project ID')
     .option('--url <url>', 'API base URL', DEFAULT_API_URL)
     .option('--token <token>', `Bearer token for the Deepnote API (or use ${DEEPNOTE_TOKEN_ENV} env var)`)
+    .option('--upload', 'Upload <entrypoint> from the current directory first, replacing the project file')
+    .option('--force', 'With --upload, overwrite the file even if it changed in Deepnote since the last sync')
     .option('--no-wait', 'Exit without waiting for the app to start')
     .addHelpText('after', () => {
       const c = getChalk()
       return `
 ${c.bold('Description:')}
-  Streamlit apps are Python UIs that run on project hardware. <entrypoint> is a Python file
-  already in the project's Files. Upload it in Deepnote, or push it with
-  ${c.dim('deepnote sync --all-files')} alongside a notebook push. Nothing is uploaded and no app
-  setting changes.
+  Streamlit apps are Python UIs that run on project hardware. <entrypoint> is a Python file in
+  the project's Files. With --upload, the command first uploads <entrypoint> from the current
+  directory and replaces the project file in place, which keeps its app. In a sync workspace that
+  tracks the project, the upload is also recorded in ${c.dim('.deepnote-sync.json')}. No app setting
+  changes.
   Creating a Streamlit app restarts the project machine and interrupts active work. The command
   waits up to 10 minutes for readiness, including when it finds an existing Streamlit app.
   Use --no-wait to return without checking readiness.
@@ -726,13 +729,18 @@ ${c.bold('Examples:')}
   ${c.dim('# Serve a file already in the project as a Streamlit app and wait for it to start')}
   $ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
 
+  ${c.dim('# Upload the file from the current directory first, then serve it')}
+  $ deepnote streamlit publish apps/dashboard.py --project-id <uuid> --upload
+
   ${c.dim('# Create the Streamlit app without waiting for the machine to restart')}
   $ deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Streamlit app running, or created/found with --no-wait
-  ${c.dim('1')}  A Streamlit app request failed, or the app did not start in time
-  ${c.dim('2')}  Invalid usage (bad entrypoint, missing token)
+  ${c.dim('1')}  A Streamlit app request failed, the app did not start in time, the upload failed or
+     the file changed in Deepnote
+  ${c.dim('2')}  Invalid usage (bad entrypoint, missing token, --force without --upload) or invalid
+     upload input (a missing or oversized local file, an unusable sync workspace)
 `
     })
     .action(createStreamlitPublishAction(program))

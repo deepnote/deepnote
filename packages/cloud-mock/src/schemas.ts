@@ -48,6 +48,15 @@ export const ImportProjectQuerySchema = z.strictObject({
   force: BooleanQueryParamSchema.optional().default(false),
 })
 
+export const CreateStreamlitAppBodySchema = z.strictObject({
+  projectId: ProjectIdSchema,
+  entrypoint: z.string().min(1),
+})
+
+export const ListStreamlitAppsQuerySchema = z.strictObject({ projectId: ProjectIdSchema })
+
+export const StreamlitAppIdParamSchema = z.object({ streamlitAppId: z.uuid() })
+
 type Same<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
 type Check<T extends true> = T
 
@@ -76,6 +85,14 @@ type _SchemasMatchOpenApi = [
   Check<
     Same<z.input<typeof ImportProjectQuerySchema>, NonNullable<operations['importProject']['parameters']['query']>>
   >,
+  Check<
+    Same<
+      z.input<typeof CreateStreamlitAppBodySchema>,
+      operations['createStreamlitApp']['requestBody']['content']['application/json']
+    >
+  >,
+  Check<Same<z.input<typeof ListStreamlitAppsQuerySchema>, operations['listStreamlitApps']['parameters']['query']>>,
+  Check<Same<z.input<typeof StreamlitAppIdParamSchema>, operations['getStreamlitAppStatus']['parameters']['path']>>,
 ]
 
 /** Parses `input`, throwing a 400 {@link HttpError} that names each invalid field. */

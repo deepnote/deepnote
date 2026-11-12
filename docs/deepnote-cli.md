@@ -91,7 +91,7 @@ Deepnote Cloud and open it in your browser, where you sign in; they need no toke
 | [`deepnote sync [dir]`](/docs/deepnote-cli-sync)       | Mirror your workspace to a local directory and push notebook edits back                        |
 | [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Publish a local build directory as a data app                                                  |
 | `deepnote unpublish`                                   | Make a data app editor-only again without changing its files                                   |
-| `deepnote streamlit publish <entrypoint>`              | Serve a Python file already in the project as a Streamlit app                                  |
+| `deepnote streamlit publish <entrypoint>`              | Serve a project file as a Streamlit app, optionally uploading it first                         |
 | `deepnote integrations pull\|add\|edit`                | Manage the local database integrations file used by `run`                                      |
 | `deepnote install-skills`                              | Install the Deepnote skill for Claude Code, Cursor and other AI coding assistants              |
 | `deepnote completion <shell>`                          | Generate shell completion scripts                                                              |

@@ -9,13 +9,14 @@ export interface MockContext {
   rootDir: string
   url: string
   publishedDataApps: Set<string>
+  streamlitApps: Schemas['StreamlitApp'][]
 }
 
 export interface RouteRequest extends MockContext {
   req: IncomingMessage
   res: ServerResponse
   requestUrl: URL
-  pathProjectId: string | undefined
+  pathId: string | undefined
 }
 
 export interface NotebookFile {

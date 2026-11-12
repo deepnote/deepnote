@@ -23,7 +23,15 @@ import {
   setDataAppPublished,
   uploadProjectFile,
 } from '@deepnote/cloud'
-import { type PublishAppEvent, type PublishAppOptions, PublishDivergedError, PublishError, publishApp } from './index'
+import {
+  type PublishAppEvent,
+  type PublishAppOptions,
+  PublishDivergedError,
+  PublishError,
+  publishApp,
+  type UploadWorkingFileOptions,
+  uploadWorkingFile,
+} from './index'
 
 const mockedCreate = vi.mocked(createDataAppProject)
 const mockedDelete = vi.mocked(deleteProjectFile)
@@ -870,5 +878,259 @@ describe('publishApp', () => {
       expect(mockedUpload.mock.calls[0]?.[3]).toBe('_deepnote_static/docs/index.html')
       expect(events[0]).toMatchObject({ kind: 'publishing', targetPath: '_deepnote_static/docs' })
     })
+  })
+})
+
+describe('uploadWorkingFile', () => {
+  const SCRIPT = 'print("v2")\n'
+  const SCRIPT_SHA256 = '59e9044c4320f02ebd72dfa4ab2b5bd8425a7a9a618fd94ad2d9df8bdc4f3f0e'
+
+  function upload(options: Partial<UploadWorkingFileOptions> & Pick<UploadWorkingFileOptions, 'file'>) {
+    return uploadWorkingFile({
+      path: 'apps/dashboard.py',
+      projectId: 'p1',
+      baseUrl: 'https://api.example.com',
+      token: 'tok',
+      ...options,
+    })
+  }
+
+  async function writeScript(dir: string, content = SCRIPT): Promise<string> {
+    await writeFiles(dir, { 'apps/dashboard.py': content })
+    return join(dir, 'apps', 'dashboard.py')
+  }
+
+  function expectNoRequests() {
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedUpload).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+  }
+
+  it('replaces the project file in place and creates no sync manifest without a sync folder', async () => {
+    const file = await writeScript(join(tempDir, 'src'))
+
+    const result = await upload({ file })
+
+    expect(result).toEqual({})
+    expect(mockedUpload).toHaveBeenCalledExactlyOnceWith(
+      'https://api.example.com',
+      'tok',
+      'p1',
+      'apps/dashboard.py',
+      Buffer.from(SCRIPT),
+      { overwrite: true }
+    )
+    expect(mockedGetProject).not.toHaveBeenCalled()
+    expect(mockedDelete).not.toHaveBeenCalled()
+    expect(await fs.readdir(tempDir)).toEqual(['src'])
+  })
+
+  it('records the upload in the sync folder that tracks the project', async () => {
+    const { root } = await writeWorkspace({ 'apps/dashboard.py': { size: 3, updatedAt: '2026-01-01T00:00:00.000Z' } })
+    mockedGetProject.mockResolvedValue({
+      id: 'p1',
+      name: 'Project',
+      files: [{ path: 'apps/dashboard.py', size: 3, updatedAt: '2026-01-01T00:00:00.000Z' }],
+    })
+    const file = await writeScript(join(root, 'scratch'))
+
+    const result = await upload({ file })
+
+    expect(result).toEqual({})
+    expect(await readManifestFiles(root)).toEqual({
+      'apps/dashboard.py': { size: 12, hash: SCRIPT_SHA256, updatedAt: '2026-02-01T00:00:00.000Z' },
+    })
+    expect(await fs.readFile(join(root, 'Alpha', '.files', 'apps', 'dashboard.py'), 'utf-8')).toBe(SCRIPT)
+  })
+
+  describe('a file that changed in Deepnote since the last sync', () => {
+    async function setup() {
+      const { root } = await writeWorkspace({ 'apps/dashboard.py': { size: 3, updatedAt: '2026-01-01T00:00:00.000Z' } })
+      mockedGetProject.mockResolvedValue({
+        id: 'p1',
+        name: 'Project',
+        files: [{ path: 'apps/dashboard.py', size: 3, updatedAt: '2026-01-05T00:00:00.000Z' }],
+      })
+      return { root, file: await writeScript(join(root, 'scratch')) }
+    }
+
+    it('is not overwritten', async () => {
+      const { root, file } = await setup()
+      const before = await fs.readFile(join(root, '.deepnote-sync.json'), 'utf-8')
+
+      const error = await rejection(upload({ file }))
+
+      expect(error).toBeInstanceOf(PublishDivergedError)
+      expect(error).toMatchObject({ syncRoot: root, paths: ['apps/dashboard.py'] })
+      expect(mockedUpload).not.toHaveBeenCalled()
+      expect(mockedDelete).not.toHaveBeenCalled()
+      expect(await fs.readFile(join(root, '.deepnote-sync.json'), 'utf-8')).toBe(before)
+    })
+
+    it('is overwritten with force, without loading the project', async () => {
+      const { file } = await setup()
+
+      await upload({ file, force: true })
+
+      expect(mockedUpload).toHaveBeenCalledOnce()
+      expect(mockedGetProject).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('invalid input', () => {
+    it.each([
+      ['a path with a parent segment', '../app.py', 'Not a valid project file path: "../app.py"'],
+      ['a path with leading whitespace', ' app.py', 'Not a valid project file path: " app.py"'],
+      ['a path with trailing whitespace', 'app.py ', 'Not a valid project file path: "app.py "'],
+    ])('rejects %s before any request', async (_name, path, message) => {
+      const file = await writeScript(join(tempDir, 'src'))
+
+      const error = await rejection(upload({ file, path }))
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({ reason: 'invalid-input', message })
+      expectNoRequests()
+    })
+
+    it('rejects a missing file before any request', async () => {
+      const file = join(tempDir, 'missing.py')
+
+      const error = await rejection(upload({ file }))
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({ reason: 'invalid-input', message: `File not found: ${file}` })
+      expectNoRequests()
+    })
+
+    it('rejects a directory before any request', async () => {
+      const file = join(tempDir, 'src')
+      await fs.mkdir(file)
+
+      const error = await rejection(upload({ file }))
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({ reason: 'invalid-input', message: `Not a file: ${file}` })
+      expectNoRequests()
+    })
+
+    it('rejects a file over the upload limit before any request', async () => {
+      const file = await writeScript(join(tempDir, 'src'), '')
+      await fs.truncate(file, MAX_BUFFERED_PROJECT_FILE_BYTES + 1)
+
+      const error = await rejection(upload({ file }))
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: 'File "apps/dashboard.py" exceeds the 100 MiB upload limit.',
+      })
+      expectNoRequests()
+    })
+
+    it('rejects an unusable sync folder before any request', async () => {
+      const { root } = await writeWorkspace()
+      await fs.writeFile(join(root, '.deepnote-sync.json'), '{')
+      const file = await writeScript(join(root, 'scratch'))
+
+      const error = await rejection(upload({ file }))
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: expect.stringContaining('is not valid JSON'),
+        code: undefined,
+        hint: undefined,
+      })
+      expectNoRequests()
+    })
+
+    it('reports a file that cannot be inspected with the underlying error, not as missing', async () => {
+      const file = join(await writeScript(join(tempDir, 'src')), 'child')
+
+      const error = await rejection(upload({ file }))
+
+      expect(error).toBeInstanceOf(PublishError)
+      expect(error).toMatchObject({
+        reason: 'invalid-input',
+        message: expect.stringMatching(new RegExp(`^Could not read ${file}: ENOTDIR`)),
+      })
+      expectNoRequests()
+    })
+  })
+
+  it('lets a failure to read the file through as the underlying error, before any request', async () => {
+    const file = await writeScript(join(tempDir, 'src'))
+    const readError = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+    vi.spyOn(fs, 'readFile').mockRejectedValueOnce(readError)
+
+    const error = await rejection(upload({ file }))
+
+    expect(error).toBe(readError)
+    expectNoRequests()
+  })
+
+  it('deletes a copy stored at another path and fails without recording it in the sync folder', async () => {
+    const { root } = await writeWorkspace()
+    const manifestPath = join(root, '.deepnote-sync.json')
+    const before = await fs.readFile(manifestPath, 'utf-8')
+    const file = await writeScript(join(root, 'scratch'))
+    mockedUpload.mockResolvedValue({ path: 'apps/dashboard (1).py', size: 12 })
+
+    const error = await rejection(upload({ file }))
+
+    expect(error).toMatchObject({
+      message: 'Deepnote stored the file at "apps/dashboard (1).py" instead of "apps/dashboard.py"',
+    })
+    expect(mockedDelete.mock.calls.map(call => call[3])).toEqual(['apps/dashboard (1).py'])
+    expect(await fs.readFile(manifestPath, 'utf-8')).toBe(before)
+  })
+
+  it('keeps a save made while uploading when the file is the sync folder copy itself', async () => {
+    const { root } = await writeWorkspace()
+    const file = await writeScript(join(root, 'Alpha', '.files'))
+    mockedUpload.mockImplementation(async (_base, _token, _projectId, path, content) => {
+      await fs.writeFile(file, 'print("v3")\n')
+      return { path, size: content.length, updatedAt: '2026-02-01T00:00:00.000Z' }
+    })
+
+    await upload({ file })
+
+    expect(await fs.readFile(file, 'utf-8')).toBe('print("v3")\n')
+    expect((await readManifestFiles(root))['apps/dashboard.py']).toEqual({
+      size: 12,
+      hash: SCRIPT_SHA256,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    })
+  })
+
+  it('keeps an atomic save of the sync folder copy made while uploading', async () => {
+    const { root } = await writeWorkspace()
+    const file = await writeScript(join(root, 'Alpha', '.files'))
+    const beforeSave = await fs.stat(file, { bigint: true })
+    mockedUpload.mockImplementation(async (_base, _token, _projectId, path, content) => {
+      await fs.writeFile(`${file}.swp`, 'print("v3")\n')
+      await fs.rename(`${file}.swp`, file)
+      // An inode check racing the rename can still see the replaced file.
+      vi.spyOn(fs, 'stat').mockResolvedValueOnce(beforeSave)
+      return { path, size: content.length, updatedAt: '2026-02-01T00:00:00.000Z' }
+    })
+
+    await upload({ file })
+
+    expect(await fs.readFile(file, 'utf-8')).toBe('print("v3")\n')
+  })
+
+  it('returns a sync folder failure instead of failing the upload', async () => {
+    const { root } = await writeWorkspace()
+    const outside = join(tempDir, 'outside')
+    await fs.mkdir(outside)
+    await fs.symlink(outside, join(root, 'Alpha', '.files'))
+    const file = await writeScript(join(root, 'scratch'))
+
+    const result = await upload({ file })
+
+    expect(mockedUpload).toHaveBeenCalledOnce()
+    expect(result).toEqual({ mirrorError: expect.stringContaining('symbolic-link ancestor') })
+    expect(await fs.readdir(outside)).toEqual([])
   })
 })

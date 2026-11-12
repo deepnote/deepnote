@@ -21,11 +21,14 @@ import { HttpError, sendBytes, sendJson } from './http'
 import {
   CreateFileMultipartFieldsSchema,
   CreateProjectBodySchema,
+  CreateStreamlitAppBodySchema,
   FileReferenceQuerySchema,
   ImportProjectQuerySchema,
+  ListStreamlitAppsQuerySchema,
   ProjectIdParamSchema,
   ProjectIdSchema,
   parseRequestInput,
+  StreamlitAppIdParamSchema,
   UpdateProjectBodySchema,
 } from './schemas'
 import type { ImportedNotebook, RouteRequest, Schemas } from './types'
@@ -140,7 +143,7 @@ async function createProject({ rootDir, req, res }: RouteRequest): Promise<void>
 }
 
 async function getProject(request: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: request.pathProjectId })
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: request.pathId })
   const dir = await projectDir(request.rootDir, projectId)
   const summary = await projectSummary(dir)
   const body: Schemas['GetProjectResponse'] = {
@@ -157,7 +160,7 @@ async function getProject(request: RouteRequest): Promise<void> {
 }
 
 async function updateProject(request: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: request.pathProjectId })
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: request.pathId })
   const { dataApp: update } = parseRequestInput(UpdateProjectBodySchema, await readJsonBody(request.req))
   const summary = await projectSummary(await projectDir(request.rootDir, projectId))
   if (update) {
@@ -176,14 +179,14 @@ async function updateProject(request: RouteRequest): Promise<void> {
   sendJson(request.res, 200, body)
 }
 
-async function exportProject({ rootDir, res, pathProjectId }: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: pathProjectId })
+async function exportProject({ rootDir, res, pathId }: RouteRequest): Promise<void> {
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: pathId })
   const files = await readNotebookFiles(await projectDir(rootDir, projectId))
   sendBytes(res, 'application/zip', zipSync(Object.fromEntries(files.map(file => [file.filename, file.content]))))
 }
 
-async function importProject({ rootDir, req, res, requestUrl, pathProjectId }: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: pathProjectId })
+async function importProject({ rootDir, req, res, requestUrl, pathId }: RouteRequest): Promise<void> {
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: pathId })
   const options = parseRequestInput(ImportProjectQuerySchema, Object.fromEntries(requestUrl.searchParams))
   if (req.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/zip') {
     throw new HttpError(400, 'Content-Type must be application/zip')
@@ -295,12 +298,13 @@ async function uploadFile({ rootDir, req, res, requestUrl }: RouteRequest): Prom
   sendJson(res, 201, responseBody)
 }
 
-async function deleteFile({ rootDir, res, requestUrl }: RouteRequest): Promise<void> {
+async function deleteFile({ rootDir, res, requestUrl, streamlitApps }: RouteRequest): Promise<void> {
   const { projectId, path: filePath } = parseRequestInput(
     FileReferenceQuerySchema,
     Object.fromEntries(requestUrl.searchParams)
   )
-  const target = workingFile(path.join(rootDir, projectId, FILES_DIR), filePath)
+  const filesDir = path.join(rootDir, projectId, FILES_DIR)
+  const target = workingFile(filesDir, filePath)
   const stats = await statIfExists(target)
   if (!stats) {
     throw new HttpError(404, 'File not found')
@@ -309,7 +313,60 @@ async function deleteFile({ rootDir, res, requestUrl }: RouteRequest): Promise<v
     throw new HttpError(400, 'Path is not a file')
   }
   await fs.rm(target)
+  const deletedPath = path.relative(filesDir, target).split(path.sep).join('/')
+  const servedApp = streamlitApps.findIndex(app => app.projectId === projectId && app.entrypoint === deletedPath)
+  if (servedApp !== -1) {
+    streamlitApps.splice(servedApp, 1)
+  }
   res.writeHead(204).end()
+}
+
+async function listStreamlitApps({ rootDir, res, requestUrl, streamlitApps }: RouteRequest): Promise<void> {
+  const { projectId } = parseRequestInput(ListStreamlitAppsQuerySchema, Object.fromEntries(requestUrl.searchParams))
+  await projectDir(rootDir, projectId)
+  const body: Schemas['ListStreamlitAppsResponse'] = {
+    streamlitApps: streamlitApps.filter(app => app.projectId === projectId),
+  }
+  sendJson(res, 200, body)
+}
+
+async function createStreamlitApp({ rootDir, url, req, res, streamlitApps }: RouteRequest): Promise<void> {
+  const { projectId, entrypoint } = parseRequestInput(CreateStreamlitAppBodySchema, await readJsonBody(req))
+  const filesDir = path.join(rootDir, projectId, FILES_DIR)
+  const target = workingFile(filesDir, entrypoint)
+  await projectDir(rootDir, projectId)
+  const stats = await statIfExists(target)
+  if (!stats) {
+    throw new HttpError(404, 'Entrypoint file not found')
+  }
+  if (!stats.isFile()) {
+    throw new HttpError(400, 'Entrypoint path is not a file')
+  }
+  const servedPath = path.relative(filesDir, target).split(path.sep).join('/')
+  if (streamlitApps.some(app => app.projectId === projectId && app.entrypoint === servedPath)) {
+    throw new HttpError(409, 'A Streamlit app already exists for this file')
+  }
+
+  const id = randomUUID()
+  const streamlitApp: Schemas['StreamlitApp'] = {
+    id,
+    projectId,
+    entrypoint: servedPath,
+    url: `${url}/streamlit-apps/${id}`,
+    createdAt: new Date().toISOString(),
+  }
+  streamlitApps.push(streamlitApp)
+  const body: Schemas['CreateStreamlitAppResponse'] = { streamlitApp }
+  sendJson(res, 201, body)
+}
+
+async function getStreamlitAppStatus({ res, pathId, streamlitApps }: RouteRequest): Promise<void> {
+  const { streamlitAppId } = parseRequestInput(StreamlitAppIdParamSchema, { streamlitAppId: pathId })
+  if (!streamlitApps.some(app => app.id === streamlitAppId)) {
+    throw new HttpError(404, 'Streamlit app not found')
+  }
+  const body: Schemas['GetStreamlitAppStatusResponse'] = { status: 'running' }
+  sendJson(res, 200, body)
 }
 
 export const ROUTES: { method: string; pattern: RegExp; handle: (request: RouteRequest) => Promise<void> }[] = [
@@ -323,4 +380,7 @@ export const ROUTES: { method: string; pattern: RegExp; handle: (request: RouteR
   { method: 'GET', pattern: /^\/v2\/files\/download$/, handle: downloadFile },
   { method: 'POST', pattern: /^\/v2\/files$/, handle: uploadFile },
   { method: 'DELETE', pattern: /^\/v2\/files$/, handle: deleteFile },
+  { method: 'GET', pattern: /^\/v2\/streamlit-apps$/, handle: listStreamlitApps },
+  { method: 'POST', pattern: /^\/v2\/streamlit-apps$/, handle: createStreamlitApp },
+  { method: 'GET', pattern: /^\/v2\/streamlit-apps\/([^/]+)\/status$/, handle: getStreamlitAppStatus },
 ]

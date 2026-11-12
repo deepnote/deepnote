@@ -1,5 +1,11 @@
 import { StreamlitAppTimeoutError, waitForStreamlitApp } from '@deepnote/cloud'
-import { createOrFindStreamlitApp, type PublishedStreamlitApp } from '@deepnote/cloud-sync'
+import {
+  createOrFindStreamlitApp,
+  PublishDivergedError,
+  PublishError,
+  type PublishedStreamlitApp,
+  uploadWorkingFile,
+} from '@deepnote/cloud-sync'
 import { ApiError } from '@deepnote/database-integrations'
 import ora from 'ora'
 import { ExitCode } from '../exit-codes'
@@ -9,6 +15,8 @@ export interface PublishStreamlitAppOptions {
   url: string
   projectId: string
   wait: boolean
+  /** Upload `file` as the entrypoint before the app is created or found. */
+  upload?: { file: string; force?: boolean }
 }
 
 export async function publishStreamlitApp(
@@ -17,8 +25,12 @@ export async function publishStreamlitApp(
   options: PublishStreamlitAppOptions
 ): Promise<void> {
   const c = getChalk()
-  const { url: baseUrl, projectId } = options
+  const { url: baseUrl, projectId, upload } = options
   log(`Publishing Streamlit app ${c.cyan(entrypoint)} in project ${c.dim(projectId)}`)
+
+  if (upload && !(await uploadEntrypoint(token, entrypoint, upload, options))) {
+    return
+  }
 
   let published: PublishedStreamlitApp
   try {
@@ -32,7 +44,7 @@ export async function publishStreamlitApp(
     log(`${c.green('✓')} Created app ${app.id}`)
     warn('The project machine is restarting to serve it, which interrupts anyone working in the project.')
   } else {
-    log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}; nothing was changed`)
+    log(`${c.green('✓')} ${entrypoint} is already served by app ${app.id}${upload ? '' : '; nothing was changed'}`)
   }
   log(`\n${c.bold('Streamlit app URL:')} ${c.underline(app.url)}`)
 
@@ -48,6 +60,40 @@ export async function publishStreamlitApp(
         ? `${error.message}. Check the project in Deepnote and start its machine if stopped, then run this command again to keep waiting.`
         : `Could not check the app status: ${errorMessage(error)}`
     )
+  }
+}
+
+async function uploadEntrypoint(
+  token: string,
+  entrypoint: string,
+  upload: NonNullable<PublishStreamlitAppOptions['upload']>,
+  { url: baseUrl, projectId }: PublishStreamlitAppOptions
+): Promise<boolean> {
+  try {
+    const { mirrorError } = await uploadWorkingFile({
+      file: upload.file,
+      path: entrypoint,
+      projectId,
+      baseUrl,
+      token,
+      force: upload.force,
+    })
+    log(`${getChalk().green('✓')} Uploaded ${entrypoint}`)
+    if (mirrorError) {
+      warn(`Uploaded, but could not update the sync folder: ${mirrorError}`)
+    }
+    return true
+  } catch (error) {
+    if (error instanceof PublishDivergedError) {
+      fail(
+        `${error.message}. Run \`deepnote sync ${error.syncRoot} --all-files\` to bring the Deepnote copy down (this replaces the copy in the project's .files folder), or use --force to overwrite it.`
+      )
+    } else if (error instanceof PublishError && error.reason === 'invalid-input') {
+      fail(error.message, ExitCode.InvalidUsage)
+    } else {
+      fail(`Could not upload ${entrypoint}: ${errorMessage(error)}`)
+    }
+    return false
   }
 }
 
@@ -82,14 +128,14 @@ async function waitUntilAppRuns(baseUrl: string, token: string, appId: string): 
 function describeStreamlitAppError(error: unknown): string {
   const message = errorMessage(error)
   if (error instanceof ApiError && error.statusCode === 404 && /entrypoint/i.test(message)) {
-    return `${message}. The file must already exist in the project's Files: upload it in Deepnote, or push it with \`deepnote sync --all-files\` alongside a notebook push.`
+    return `${message}. The file must already exist in the project's Files: upload it in Deepnote, or run this command again with --upload.`
   }
   return message
 }
 
-function fail(message: string): void {
+function fail(message: string, exitCode: ExitCode = ExitCode.Error): void {
   logError(message)
-  process.exitCode = ExitCode.Error
+  process.exitCode = exitCode
 }
 
 function errorMessage(error: unknown): string {

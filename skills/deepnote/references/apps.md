@@ -31,15 +31,16 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
    file's block IDs aligned with the deployed notebook; preview with
    `deepnote run <file> --cloud --push --dry-run`, then apply the intended changes with
    `deepnote run <file> --cloud --push --yes`.
-3. Upload the entrypoint and local dependencies into the project's Files in Deepnote. If a notebook
-   push is already pending in a sync workspace, `deepnote sync --all-files` can upload the files
-   with it. For a `.py`-only edit, use the Deepnote upload flow; the edit alone does not trigger sync.
+3. Put the local dependencies in the project's Files: upload them in Deepnote, or push them with
+   `deepnote sync --all-files` alongside a notebook push. Sync does not push a `.py`-only edit
+   alone. Upload the entrypoint in Deepnote, or with `--upload` in the next step.
 4. Follow [Publish a Streamlit app](cli-publish.md#publish-a-streamlit-app), then open the returned
    URL and test the app as its intended viewer.
 
 Creating a Streamlit app restarts the project machine and interrupts active work. Replacing the
 entrypoint through file sync can remove its app registration; publish again and use the returned
-URL, which may change. Some Streamlit apps created in the UI retain their registration.
+URL, which may change. `deepnote streamlit publish --upload` replaces the file in place and keeps
+the app. Some Streamlit apps created in the UI retain their registration.
 
 For ordinary Python integration access, use the project's integrations. Federated-auth integrations
 require each viewer to authenticate; see [Streamlit apps](https://deepnote.com/docs/streamlit).

@@ -181,17 +181,23 @@ async function assertWritableMirrorPath(mirror: PublishMirror, filePath: string)
   await assertNoSymbolicLinkAncestors(mirror.rootDir, `${mirror.filesDir}/${filePath}`)
 }
 
-/** Writes a published file to the sync mirror and records its cloud metadata. */
+/**
+ * Writes a published file to the sync mirror and records its cloud metadata. A `sourceFile` at the mirror
+ * copy's path is not rewritten, because `content` may be older than a save made while it was uploaded.
+ */
 export async function recordPublishedFile(
   mirror: PublishMirror,
   filePath: string,
   content: Uint8Array,
-  stored: UploadedFile
+  stored: UploadedFile,
+  sourceFile?: string
 ): Promise<void> {
   await assertWritableMirrorPath(mirror, filePath)
   const absolute = path.join(mirror.filesDirAbsolute, ...filePath.split('/'))
-  await fs.mkdir(path.dirname(absolute), { recursive: true })
-  await fs.writeFile(absolute, content)
+  if (sourceFile === undefined || path.resolve(sourceFile) !== absolute) {
+    await fs.mkdir(path.dirname(absolute), { recursive: true })
+    await fs.writeFile(absolute, content)
+  }
   mirror.record.files ??= {}
   mirror.record.files[filePath] = {
     size: stored.size ?? content.length,
