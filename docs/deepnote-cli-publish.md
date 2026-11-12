@@ -178,9 +178,10 @@ remote copy is replaced.
 
 If an upload fails, successful uploads remain in place, the app keeps its previous publish state, and
 remaining stale files are not pruned. An app that was already published stays published and serves the
-partly updated files. The command reports the failures and exits with code `1`. Fix the reported
-errors and publish again. Replacement overwrites the remote file in place, so a file whose upload
-fails keeps its previous version and the app keeps loading.
+partly updated files, which can leave it unable to load. The command reports the failures and exits
+with code `1`. Fix the reported errors and publish again. Replacement overwrites the remote file in
+place rather than deleting it first, so the path is never empty, but a request that failed after the
+server committed the replacement leaves the new version in place.
 
 ## Streamlit apps
 

@@ -10,6 +10,7 @@ import {
   canonicalProjectHash,
   classifySyncStep,
   describeCloudFileDivergence,
+  describePendingUploadDivergence,
   readExportModifiedAt,
   type SyncConflict,
   type SyncConflictDecision,
@@ -1175,7 +1176,7 @@ describe('syncWorkspace', () => {
       expect(cloud.uploadedPaths.length).toEqual(uploadsBefore)
     })
 
-    it('treats a pending path re-created in the cloud as a conflict, not a retry', async () => {
+    it('treats a pending path changed in the cloud as a conflict, not a retry', async () => {
       const projects: CloudProject[] = [
         {
           id: 'p1',
@@ -1199,7 +1200,7 @@ describe('syncWorkspace', () => {
       expect(failed.projects).toEqual([expect.objectContaining({ action: 'error' })])
       expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['report.csv'])
 
-      // Another writer put content at the pending path — "our own unfinished delete" no longer holds.
+      // Another writer put content at the pending path — "our own unfinished overwrite" no longer holds.
       projects[0].files = [{ path: 'report.csv', size: 6, updatedAt: '2026-01-06T00:00:00.000Z', content: 'theirs' }]
       delete projects[0].fileUploadError
       const uploadsBeforeRetry = cloud.uploadedPaths.length
@@ -1209,6 +1210,41 @@ describe('syncWorkspace', () => {
       expect(cloud.uploadedPaths.length).toEqual(uploadsBeforeRetry)
       // Keeping the cloud copy ends the retry: the path is an ordinary diverged file from here on,
       // so the next pull can bring the cloud copy down instead of the conflict re-raising forever.
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
+    })
+
+    it('retries a pending upload without a conflict when the cloud copy is still the baseline', async () => {
+      const projects: CloudProject[] = [
+        {
+          id: 'p1',
+          name: 'Alpha',
+          notebooks: singleNotebook('p1', '2026-01-02T00:00:00.000Z'),
+          notebooksAfterImport: singleNotebook('p1', '2026-01-09T00:00:00.000Z', 'canonical'),
+          files: [{ path: 'report.csv', size: 3, updatedAt: '2026-01-01T00:00:00.000Z', content: 'old' }],
+          fileUploadError: { status: 500, message: 'Upload failed' },
+        },
+      ]
+      const cloud = installCloud(projects)
+      await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true })
+      await fs.writeFile(
+        path.join(tempDir, 'Alpha', 'main.deepnote'),
+        notebookYaml('p1', 'nb-main', '2026-01-02T00:00:00.000Z', 'local-edit'),
+        'utf-8'
+      )
+      await fs.writeFile(path.join(tempDir, 'Alpha', '.files', 'report.csv'), 'mine', 'utf-8')
+
+      const failed = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true })
+      expect(failed.projects).toEqual([expect.objectContaining({ action: 'error' })])
+      expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toEqual(['report.csv'])
+
+      // The overwrite never landed, so the cloud copy is untouched. Nothing to ask about: finish it.
+      delete projects[0].fileUploadError
+      const onConflict = vi.fn(async () => 'skip' as const)
+      const retried = await syncWorkspace({ ...baseOptions, rootDir: tempDir, allFiles: true, onConflict })
+
+      expect(onConflict).not.toHaveBeenCalled()
+      expect(retried.projects).toEqual([expect.objectContaining({ filesUploaded: 1 })])
+      expect(cloud.uploadedPaths).toContain('p1:report.csv')
       expect((await loadSyncManifest(tempDir)).projects.p1?.pendingFileUploads).toBeUndefined()
     })
   })
@@ -2551,6 +2587,35 @@ describe('describeCloudFileDivergence', () => {
     expect(
       describeCloudFileDivergence({ size: 3 }, { ...remote, updatedAt: '2026-01-05T00:00:00.000Z' })
     ).toBeUndefined()
+  })
+})
+
+describe('describePendingUploadDivergence', () => {
+  const baseline = { size: 3, hash: 'a'.repeat(64), updatedAt: '2026-01-01T00:00:00.000Z' }
+  const remote = { path: 'f', size: 3, updatedAt: '2026-01-01T00:00:00.000Z' }
+
+  it('reports nothing when the cloud copy is still the baseline the overwrite started from', () => {
+    expect(describePendingUploadDivergence(baseline, remote)).toBeUndefined()
+  })
+
+  it('reports nothing when the cloud copy is gone, because the overwrite never landed', () => {
+    expect(describePendingUploadDivergence(baseline, undefined)).toBeUndefined()
+  })
+
+  it('reports a cloud copy written by someone else', () => {
+    expect(describePendingUploadDivergence(baseline, { ...remote, updatedAt: '2026-01-05T00:00:00.000Z' })).toBe(
+      'changed in Deepnote after an interrupted upload'
+    )
+  })
+
+  it('reports a cloud copy at a path that had no baseline', () => {
+    expect(describePendingUploadDivergence(undefined, remote)).toBe(
+      'was created in Deepnote after an interrupted upload'
+    )
+  })
+
+  it('reports nothing for a local-only path', () => {
+    expect(describePendingUploadDivergence(undefined, undefined)).toBeUndefined()
   })
 })
 

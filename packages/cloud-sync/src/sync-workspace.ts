@@ -715,6 +715,25 @@ export function describeCloudFileDivergence(
   return baselineDiverged(baseline, remote) ? 'changed in Deepnote' : undefined
 }
 
+/**
+ * Returns a conflict description when the cloud copy of a pending replacement is not the baseline
+ * the replacement started from. The overwrite either never landed, leaving the baseline in place,
+ * or landed and left our own copy there; a missing copy means it never landed either way. Anything
+ * else was written by someone after our upload started.
+ */
+export function describePendingUploadDivergence(
+  baseline: ManifestFileRecord | undefined,
+  remote: ProjectFileEntry | undefined
+): string | undefined {
+  if (remote === undefined) {
+    return undefined
+  }
+  if (baseline === undefined) {
+    return 'was created in Deepnote after an interrupted upload'
+  }
+  return baselineDiverged(baseline, remote) ? 'changed in Deepnote after an interrupted upload' : undefined
+}
+
 interface PlannedFileUpload {
   relPath: string
   conflict?: string
@@ -765,14 +784,12 @@ async function uploadProjectFiles(
     if (!isPending && prev && prev.size === stats.size && prev.hash === sha256(await fs.readFile(absolute))) {
       continue
     }
-    // A pending replacement belongs to this sync, so retry it without a conflict — unless the
-    // cloud copy exists again, which disproves "our own unfinished delete": another writer (or a
-    // run interrupted after its upload) put it there, and overwriting that needs a choice.
+    // A pending replacement belongs to this sync, so retry it without a conflict — unless the cloud
+    // copy diverged from the baseline the replacement started from, which disproves "our own
+    // unfinished overwrite": another writer put it there, and overwriting that needs a choice.
     const remote = inventory.get(relPath)
     const conflict = isPending
-      ? remote !== undefined
-        ? 'was re-created in Deepnote after an interrupted upload'
-        : undefined
+      ? describePendingUploadDivergence(prev, remote)
       : describeCloudFileDivergence(prev, remote)
     planned.push({ relPath, ...(conflict ? { conflict } : {}) })
   }
@@ -810,8 +827,8 @@ async function uploadProjectFiles(
 
   for (const { relPath, conflict } of planned) {
     if (conflict !== undefined && !overrideConflicts) {
-      // A kept re-created cloud copy is no longer ours to finish replacing. Dropping the retry turns
-      // the path back into an ordinary diverged file: pull brings the cloud copy down, push asks again.
+      // A kept cloud copy is no longer ours to finish replacing. Dropping the retry turns the path
+      // back into an ordinary diverged file: pull brings the cloud copy down, push asks again.
       if (!ctx.dryRun && pending.delete(relPath)) {
         commitPending()
         await persistManifest()
@@ -847,7 +864,7 @@ async function uploadProjectFiles(
       pending.delete(relPath)
       commitPending()
       // Settle the baseline on disk now: a run interrupted later must not leave this upload
-      // recorded as still pending, which the next sync would read as a re-created conflict.
+      // recorded as still pending, which the next sync would read as a conflict.
       record.files = next
       await persistManifest()
     } else {

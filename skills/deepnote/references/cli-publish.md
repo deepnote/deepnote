@@ -106,8 +106,7 @@ It waits for that app too; `unavailable` can be a temporary state during a resta
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
 Sync overwrites changed files in place, so an edited entrypoint keeps its app and URL. Never
 delete and re-upload an entrypoint to change it: that removes the app, and publishing again creates
-a new one with a new URL. After syncing an edited entrypoint,
-publish again and use the returned URL, which may change.
+a new one with a new URL.
 
 ### Handle failures
 
@@ -167,8 +166,9 @@ Authentication and the API origin match `publish`.
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. After an upload fails, the app keeps its previous publish state
 and remaining stale files are not pruned; an app that was already published serves the partly updated
-files. Replacement overwrites the remote file in place, so a file whose upload failed keeps its
-previous version and the app keeps loading.
+files, which can leave it unable to load. Replacement overwrites the remote file in place rather than
+deleting it first, so the path is never empty, but a request that failed after the server committed
+the replacement leaves the new version in place.
 
 For `unpublish`, exit codes are `0` for success, `1` for a request failure (including a project that
 is not a data app), and `2` for invalid arguments or a missing token.

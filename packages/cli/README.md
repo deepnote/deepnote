@@ -663,8 +663,7 @@ API access, and only for signed-in viewers with direct access to the project.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
 Sync overwrites changed files in place, so an edited entrypoint keeps its app. Deleting and
-re-uploading the entrypoint removes the app; publish again after that and use the new URL. Publish again after syncing an edited
-entrypoint and use the returned URL, which may change. See the
+re-uploading the entrypoint removes the app; publish again after that and use the new URL. See the
 [publishing guide](../../docs/deepnote-cli-publish.md) for access requirements and failure handling.
 
 **Examples:**
