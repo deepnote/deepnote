@@ -12,15 +12,23 @@ import {
   fetchIntegrations,
   resolveEnvVarRefsFromMap,
 } from '@deepnote/database-integrations'
+import {
+  buildBigQueryOAuthStartUrl,
+  computeClientFingerprint,
+  generatePkcePair,
+  generateStateNonce,
+  getBigQueryOAuthRedirectUri,
+  InvalidDeepnoteDomainError,
+  resolveDeepnoteProxyOrigin,
+  runOAuthFlow,
+} from '@deepnote/federated-auth'
 import { select } from '@inquirer/prompts'
 import chalk from 'chalk'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
 import { type Document, isMap, isSeq, type YAMLMap } from 'yaml'
 import { ExitCode } from '../../exit-codes'
-import { generatePkcePair, generateStateNonce } from '../../federated-auth/google-oauth'
-import { runOAuthFlow } from '../../federated-auth/oauth-loopback-server'
-import { computeClientFingerprint, getTokenStoreDir, writeToken } from '../../federated-auth/token-store'
+import { getTokenStoreDir, writeToken } from '../../federated-auth/token-store'
 import { debug, log, output, warn } from '../../output'
 import { MissingTokenError, resolveToken } from '../../utils/auth'
 import { openInBrowser } from '../../utils/browser'
@@ -35,26 +43,6 @@ export interface IntegrationsAuthOptions {
   domain?: string
   url?: string
   token?: string
-}
-
-/**
- * `new URL()` normalizes the authority — lowercasing the host, dropping a default port — while raw
- * interpolation does not, so deriving the start URL and `redirectUri` separately can hand Google two
- * different `redirect_uri` strings. The proxy derives its own from the inbound Host header and never
- * echoes it back, so that mismatch surfaces only as Google's `redirect_uri_mismatch`, after the user
- * has already consented.
- */
-function resolveProxyOrigin(domain: string): string {
-  let url: URL
-  try {
-    url = new URL(`https://${domain}`)
-  } catch {
-    throw new Error(`Invalid --domain "${domain}": expected a hostname such as "deepnote.com".`)
-  }
-  if (url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
-    throw new Error(`Invalid --domain "${domain}": expected a hostname such as "deepnote.com".`)
-  }
-  return url.origin
 }
 
 /** A credential field that is empty or whitespace-only once `env:` references are resolved. */
@@ -207,30 +195,52 @@ async function authIntegration(id: string | undefined, options: IntegrationsAuth
 
   const { challenge, verifier } = generatePkcePair()
   const state = generateStateNonce()
-  const proxyOrigin = resolveProxyOrigin(domain)
-  const redirectUri = `${proxyOrigin}/auth/bigquery/google-oauth-callback`
+  let proxyOrigin: string
+  try {
+    proxyOrigin = resolveDeepnoteProxyOrigin(domain)
+  } catch (error) {
+    if (error instanceof InvalidDeepnoteDomainError) {
+      throw new Error(`Invalid --domain "${domain}": expected a hostname such as "deepnote.com".`)
+    }
+    throw error
+  }
+  const redirectUri = getBigQueryOAuthRedirectUri(proxyOrigin)
 
   log(chalk.dim(`Starting Google OAuth for integration "${canonicalId}"...`))
 
-  const { refreshToken } = await runOAuthFlow({
-    clientId,
-    clientSecret,
-    codeVerifier: verifier,
-    state,
-    redirectUri,
-    onListening: callbackUrl => {
-      const startUrl = new URL(`${proxyOrigin}/auth/bigquery/extension/start`)
-      startUrl.searchParams.set('client_id', clientId)
-      startUrl.searchParams.set('state', state)
-      startUrl.searchParams.set('code_challenge', challenge)
-      startUrl.searchParams.set('final_redirect', callbackUrl)
+  const controller = new AbortController()
+  const onSigint = () => controller.abort(new Error('Authentication cancelled.'))
+  // Any SIGINT listener disables Node's default exit, so this one must not outlive the flow: Ctrl-C
+  // during the token write must still exit.
+  process.on('SIGINT', onSigint)
+  let flowResult: { refreshToken: string }
+  try {
+    flowResult = await runOAuthFlow({
+      clientId,
+      clientSecret,
+      codeVerifier: verifier,
+      state,
+      redirectUri,
+      signal: controller.signal,
+      onListening: callbackUrl => {
+        const startUrl = buildBigQueryOAuthStartUrl({
+          proxyOrigin,
+          clientId,
+          state,
+          codeChallenge: challenge,
+          finalRedirect: callbackUrl,
+        })
 
-      output(`Open this URL to continue in your browser:\n\n  ${startUrl.toString()}\n`)
-      openInBrowser(startUrl.toString()).catch((error: unknown) => {
-        warn(`Could not open the browser automatically: ${error instanceof Error ? error.message : String(error)}`)
-      })
-    },
-  })
+        output(`Open this URL to continue in your browser:\n\n  ${startUrl}\n`)
+        openInBrowser(startUrl).catch((error: unknown) => {
+          warn(`Could not open the browser automatically: ${error instanceof Error ? error.message : String(error)}`)
+        })
+      },
+    })
+  } finally {
+    process.off('SIGINT', onSigint)
+  }
+  const { refreshToken } = flowResult
 
   try {
     await writeToken(canonicalId, {

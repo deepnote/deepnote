@@ -123,7 +123,8 @@ Project editors can always open the app; everyone else can open it once it is pu
 Publishing also requires **Allow static file sharing in projects** in the workspace settings. These
 permissions are checked on every request.
 
-Data apps have no anonymous or link-only access.
+A published data app can also be [made public](/docs/data-app-projects#sharing-an-app-publicly), so
+anyone with its link can open it, including people without a Deepnote account.
 
 ### Calling the API as the viewer
 
@@ -132,7 +133,9 @@ it. Deepnote hands the page a viewer token that expires after 15 minutes. It can
 inputs and block metadata (without source), read the notebook's
 [app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), start detached runs in this project or other projects
 in the workspace where the viewer has direct access, and poll the viewer's own runs for their
-`snapshotBlocks`. Runs in other projects also require execute permission. Every other endpoint
+`snapshotBlocks`. Runs in other projects also require execute permission. Visitors of a public app
+can start runs only with **Execute** access and get an empty `snapshotBlocks` and no `error` for
+them, so read their results from app data once the run succeeds. Every other endpoint
 answers `403`, so features you built against a local preview with a personal token can fail in the
 published app. See the
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)

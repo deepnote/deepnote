@@ -32,11 +32,6 @@ function tokenFileName(integrationId: string): string {
   return `${readable}-${digest.slice(0, 16)}.json`
 }
 
-/** Detects that `clientId` / `clientSecret` / `project` changed since the stored token was issued. */
-export function computeClientFingerprint(m: { clientId: string; clientSecret: string; project: string }): string {
-  return createHash('sha256').update(`${m.clientId}|${m.clientSecret}|${m.project}`).digest('hex')
-}
-
 /**
  * Returns the token stored for `integrationId`, matched case-insensitively. `undefined` means "not
  * authenticated": no entry is stored for the id, or the stored entry is malformed. Other filesystem
