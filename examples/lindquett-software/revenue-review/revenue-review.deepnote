@@ -190,7 +190,9 @@ project:
 
             nrr_by_region = nrr_by_region[nrr_by_region["quarter"] <= quarter]
 
-            movers = top_movers(mrr, quarter, region, segment, n=8)
+            all_movers = top_movers(mrr, quarter, region, segment, n=mrr["account_id"].nunique())
+
+            movers = all_movers.head(8)
 
             bridge
           metadata: {}
@@ -255,7 +257,7 @@ project:
             else:
                 regions_line = f"{len(moved)} of {len(region_moves)} regions moved more than two points against {prior_quarter}"
 
-            losses = movers[movers["arr_change"] < 0].sort_values("arr_change")
+            losses = all_movers[all_movers["arr_change"] < 0].sort_values("arr_change")
 
             lost_total = float(-(steps["Contraction"] + steps["Churn"]))
 
@@ -349,9 +351,13 @@ project:
             aside. The block above computed a plain `story` dict from the numbers; replace it with a better one.
 
 
-            Scope: the `region`, `segment` and `quarter` inputs, unless `question` names a different one. If the
+            Scope: the `region`, `segment` and `quarter` inputs. The title and the three chapters describe that
 
-            `question` input is not empty, the aside answers it; otherwise the aside explains what changed and why.
+            scope and nothing else, because the figures and charts beside them are drawn from it. If the `question`
+
+            input is not empty, the aside answers it; otherwise the aside explains what changed and why. A question
+
+            may name a different scope — only the aside may go there, and its headline must name the scope it used.
 
 
             How to work:

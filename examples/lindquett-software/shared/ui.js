@@ -49,9 +49,10 @@ export function waterfall(steps, { format = money } = {}) {
     return { ...step, from, to, total }
   })
   const ends = bars.flatMap(bar => [bar.from, bar.to])
+  // The scale has to include zero: the first and last bars are totals, and they start there.
   const hi = Math.max(...ends)
-  const lo = Math.min(...ends.filter(v => v > 0)) * 0.9
-  const pct = v => `${((Math.max(v, lo) - lo) / (hi - lo)) * 100}%`
+  const lo = Math.min(0, ...ends)
+  const pct = v => `${((v - lo) / (hi - lo)) * 100}%`
   return h(
     'div.waterfall',
     {},

@@ -23,7 +23,7 @@ Deepnote has two kinds of app project for putting an analysis in front of other 
 Then:
 
 - **The tool is mostly Python logic with many interactions.** A Streamlit app project gives you Streamlit's components and session state, written in `app.py` by you or the agent.
-- **Many people ask the same few questions and want answers instantly.** A Streamlit app can cache results for every viewer with `st.cache_data`. A data app runs the notebook for each viewer and keeps no shared results.
+- **Many people ask the same few questions and want answers instantly.** A Streamlit app can cache results for every viewer with `st.cache_data`. A data app keeps no shared results: each viewer gets an answer only once they've run the notebook themselves, and sees their own last run until they run it again.
 - **The numbers need to live in another tool.** Embed the block in Notion, Confluence or a website. Data apps can't be embedded in other sites.
 - **Your own product shows the result.** Call the notebook from your server with the [Deepnote API](/docs/deepnote-api). See [A notebook as a backend](/docs/playbook-notebook-as-a-backend).
 - **Viewers must not open the notebook.** Share the project with them at **App user** access, which lets them use the app without seeing the notebook or the app's code. A person gets the most permissive of all their grants, so App user only works if workspace access, groups and direct sharing don't give them more. App users can still read every output of their own runs through the app's API access, not only what the page shows, so keep anything a viewer may not see out of the notebook's outputs. Keep secrets in integrations and environment variables, never in the app's code.

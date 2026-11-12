@@ -13,8 +13,11 @@ import pandas as pd
 import streamlit as st
 from packaging.version import Version
 
-# `width="stretch"` arrived in Streamlit 1.49; older images still take `use_container_width`.
-WIDE = {"width": "stretch"} if Version(st.__version__) >= Version("1.49") else {"use_container_width": True}
+# `width="stretch"` arrived in Streamlit 1.49 for `st.dataframe` but only in 1.51 for `st.altair_chart`;
+# older images still take `use_container_width` and reject `width` outright.
+_STREAMLIT = Version(st.__version__)
+WIDE_TABLE = {"width": "stretch"} if _STREAMLIT >= Version("1.49") else {"use_container_width": True}
+WIDE_CHART = {"width": "stretch"} if _STREAMLIT >= Version("1.51") else {"use_container_width": True}
 
 st.set_page_config(page_title="Pricing scenario planner", layout="wide")
 
@@ -123,7 +126,7 @@ st.altair_chart(
         color=alt.Color("Scenario:N", scale=alt.Scale(range=["#b8b2a7", "#0b3d2e"])),
         tooltip=["Scenario", "month", alt.Tooltip("ARR:Q", format="$,.0f")],
     ),
-    **WIDE,
+    **WIDE_CHART,
 )
 
 by_group = (
@@ -141,5 +144,5 @@ st.dataframe(
         }
     )[["segment", "price_plan", "accounts", "ARR today", "Monthly churn", f"Difference at {months} months"]],
     hide_index=True,
-    **WIDE,
+    **WIDE_TABLE,
 )

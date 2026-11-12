@@ -32,7 +32,9 @@ To see the notebook, click **Show notebook** in the top bar. Click **Show app** 
 
 ### Data and refreshes
 
-Each person who opens the app sees data from their own latest run of the notebook. When they refresh the app or submit its inputs, the whole notebook runs again for them and the app shows the new results. The first time someone opens the app, it may ask them to run the notebook to load their data.
+Runs are per person. Each signed-in person sees data from their own latest run of the notebook. The first time they open the app they have no run yet, so the app shows no data and asks them to run the notebook. After that, opening or reloading the app fetches their last run's results rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
+
+If the app is public, someone who opens it without signing in sees the results of the last run started by an editor or admin — a scheduled run included — and can rerun the app to get fresh results. This is the only case in which one person's run is what another person sees.
 
 Running blocks in the editor doesn't change what the app shows.
 

@@ -82,10 +82,13 @@ notebook with the runs API.
 
 - **Metrics.** Import `metrics/lindquett-metrics.deepnote` and publish `Revenue data` and
   `Revenue metrics` as modules. Each app's module blocks point at them, and every run of an app calls
-  them, so share the metrics project with everyone who will open the apps, with Execute access.
+  them, so share the metrics project with everyone who will open the apps, with Execute access. That
+  access also lets them open every notebook in the metrics project and read its outputs, not only the
+  modules the apps import, so keep metrics the apps' readers shouldn't see in a project of their own.
 - **Schedules and alerts.** Schedule the Revenue review every Monday with success notifications, so
-  each run is a snapshot of that week's numbers and analyst note (the app itself runs the notebook for
-  each reader when they open it), and the pricing baseline daily. Add `SLACK_WEBHOOK_URL` and `ACCOUNT_HEALTH_URL` to the Account
+  each run is a snapshot of that week's numbers and analyst note (a signed-in reader still sees their
+  own last run, not the schedule's, and runs the notebook themselves the first time they open the
+  app), and the pricing baseline daily. Add `SLACK_WEBHOOK_URL` and `ACCOUNT_HEALTH_URL` to the Account
   health project, and trigger it after the warehouse load with
   [`account-health/ci/after-warehouse-load.yml`](account-health/ci/after-warehouse-load.yml), which runs
   the data checks first.
