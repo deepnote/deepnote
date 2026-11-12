@@ -36,8 +36,12 @@ const PUBLISH_ERROR_SENTENCES: { [C in PublishErrorCode]: (flag: CliFlag<Publish
   'project-not-in-sync-root': flag => ` Sync the workspace first, or pass ${flag} to publish without updating it.`,
 }
 
-function publishErrorSuffix(error: unknown): string {
-  if (error instanceof PublishError && error.reason === 'not-a-data-app') {
+function publishErrorSuffix(error: unknown, options: PublishOptions, createdProjectId: string | undefined): string {
+  if (createdProjectId !== undefined) {
+    // --create already made the project, so a retry should reuse it rather than make another.
+    return ` The data app project ${createdProjectId} was created; publish to it with --project-id ${createdProjectId}.`
+  }
+  if (error instanceof PublishError && error.reason === 'not-a-data-app' && options.create === undefined) {
     return ' Or pass --create <name> to create a data app project and publish to it.'
   }
   if (!(error instanceof PublishError) || !error.code || !error.hint) {
@@ -69,9 +73,11 @@ export function createPublishAction(program: Command) {
     }
 
     let targetPath = options.path
+    let createdProjectId: string | undefined
     const renderEvent = (event: PublishAppEvent) => {
       switch (event.kind) {
         case 'project-created': {
+          createdProjectId = event.projectId
           if (!options.quiet) {
             log(`${c.green('✓')} Created data app project ${c.bold(event.name)} ${c.dim(event.projectId)}`)
           }
@@ -137,7 +143,8 @@ export function createPublishAction(program: Command) {
         onEvent: renderEvent,
       })
     } catch (error) {
-      const message = (error instanceof Error ? error.message : String(error)) + publishErrorSuffix(error)
+      const message =
+        (error instanceof Error ? error.message : String(error)) + publishErrorSuffix(error, options, createdProjectId)
       if (error instanceof PublishDivergedError) {
         logError(
           `${message}. Run \`deepnote sync --all-files\` to bring the changes down, ` +
@@ -184,6 +191,10 @@ export function createPublishAction(program: Command) {
     if (result.created) {
       output(`${c.bold('Project ID:')} ${result.projectId}`)
       log(c.dim(`  Publish updates with --project-id ${result.projectId}; --create makes another project.`))
+    }
+    if (result.notebookId !== undefined && result.errors.length === 0) {
+      output(`${c.bold('Notebook ID:')} ${result.notebookId}`)
+      log(c.dim('  The notebook the app runs. A page that starts runs through the API names this ID.'))
     }
 
     if (result.errors.length > 0) {
