@@ -92,8 +92,10 @@ writing, and a file whose cloud copy changed or was deleted since the manifest r
 same `--on-conflict` override-or-skip path as a diverged notebook rather than being overwritten.
 Skipped files appear as `N file(s) kept from Deepnote` in the summary and as `filesSkipped` in
 `-o json`. A pending replacement is retried without a conflict while its cloud copy is unchanged
-since the upload started. A pending path whose cloud copy changed since is a conflict, not a retry;
-keeping the cloud copy ends the retry, and the next pull brings that copy down. A cloud-deleted file kept locally by a pull keeps its manifest record (with a
+since the upload started or is missing. The retry re-creates a pending file deleted in Deepnote,
+unlike the cloud-deletion conflict above. A pending path whose cloud copy changed since is a
+conflict, not a retry; keeping the cloud copy ends the retry, and the next pull brings that copy
+down. A cloud-deleted file kept locally by a pull keeps its manifest record (with a
 warning), so a later edited push still surfaces the deletion as a conflict instead of resurrecting
 the file. A record written before `updatedAt` was tracked has no baseline to compare
 and is still overwritten; the next pull makes it verifiable (a push does too when the server echoes
