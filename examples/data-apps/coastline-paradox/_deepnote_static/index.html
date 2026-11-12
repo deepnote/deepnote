@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <script src="https://deepnote.com/static/app-client/v1.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3" crossorigin="anonymous"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The coastline paradox</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&display=swap">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous"></script>
+  <style type="text/tailwindcss">
+    @theme static {
+      --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+      --font-display: "Bricolage Grotesque", Inter, sans-serif;
+      --color-surface: #00041C; --color-surface-subtle: #012447; --color-surface-muted: #0A4989;
+      --color-fg: #E3F2FD; --color-muted: #6AB3F4; --color-subtle: #6E7684;
+      --color-border: #0A4989; --color-border-strong: #1560AB;
+      --color-accent: #146EFE; --color-accent-hover: #3793EF; --color-electric: #00A9FF;
+      --color-blue-50: #E3F2FD; --color-blue-100: #C9E3FA; --color-blue-200: #6AB3F4; --color-blue-300: #3793EF;
+      --color-blue-400: #2478CD; --color-blue-500: #1560AB; --color-blue-600: #0A4989; --color-blue-700: #012447; --color-blue-800: #00041C;
+      --color-chart-1: #6AB3F4; --color-chart-2: #00A9FF; --color-chart-3: #E3F2FD;
+    }
+    body { @apply bg-surface text-fg text-sm antialiased; }
+  </style>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-h-screen overflow-x-hidden">
+  <div id="flash" class="flash" aria-hidden="true"></div>
+
+  <main class="relative z-10 mx-auto max-w-[1600px] px-4 md:px-6 pb-12">
+    <!-- First screen: everything needed for the demo -->
+    <div class="lg:h-dvh lg:min-h-[620px] flex flex-col pb-4">
+      <header class="pt-5 pb-1 flex flex-wrap items-center gap-3 justify-between shrink-0">
+        <h1 class="font-display font-extrabold leading-none tracking-tight text-3xl md:text-[40px]">
+          <span class="text-white">The coastline</span> <span class="text-electric title-glow">paradox</span>
+        </h1>
+        <div class="flex items-center gap-2 shrink-0">
+          <button id="resetBtn" class="h-10 px-4 rounded-lg border border-border bg-surface-subtle text-blue-100 hover:border-blue-300 hover:text-white transition font-medium">Reset</button>
+          <button id="diveBtn" class="dive-btn h-10 px-5 rounded-lg font-display font-semibold text-[15px] text-white">Dive to infinity</button>
+        </div>
+      </header>
+
+      <section aria-label="Choose an island" class="shrink-0">
+        <div id="picker" class="picker flex gap-2 overflow-x-auto pt-4 pb-4 -mx-2 px-2 snap-x"></div>
+      </section>
+
+      <div class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-4">
+        <!-- Map + slider -->
+        <div class="flex flex-col gap-4 min-h-0">
+          <div class="stage relative rounded-xl overflow-hidden border border-border bg-blue-800 h-[460px] lg:h-auto lg:flex-1 lg:min-h-0">
+            <div id="map" class="absolute inset-0 z-0 isolate"></div>
+            <svg id="callout" class="pointer-events-none absolute inset-0 w-full h-full z-[2]"></svg>
+
+            <div class="absolute top-3 left-3 right-3 flex items-start justify-between gap-3 pointer-events-none z-[3]">
+              <div class="panel rounded-xl px-3.5 py-2">
+                <div class="text-[10px] uppercase tracking-[0.2em] text-muted font-medium">Now measuring</div>
+                <div class="flex items-baseline gap-2.5">
+                  <div id="islandName" class="font-display font-bold text-2xl md:text-3xl text-white">—</div>
+                  <div id="islandGreek" class="font-display text-lg text-electric"></div>
+                </div>
+              </div>
+              <div class="panel rounded-lg px-3 py-2 text-xs text-blue-100 hidden md:block">Click the coastline to move the lens</div>
+            </div>
+
+            <div id="lensWrap" class="lens-wrap absolute">
+              <div class="lens-ring"></div>
+              <canvas id="lens" class="lens-canvas"></canvas>
+              <div class="lens-shade"></div>
+              <div class="lens-label lens-top"><span id="lensZoom">×1</span></div>
+              <div class="lens-label lens-bottom">field of view <span id="lensFov" class="text-white">—</span></div>
+            </div>
+
+            <div id="mapLoading" class="absolute inset-0 grid place-items-center bg-blue-800 z-20">
+              <div class="text-center">
+                <div class="loader mx-auto"></div>
+                <div class="mt-4 font-display text-lg text-white">Charting the Aegean…</div>
+                <div id="loadingSub" class="text-muted text-xs mt-1">Loading coastlines</div>
+              </div>
+            </div>
+          </div>
+
+          <section class="card rounded-xl px-5 md:px-6 pt-3.5 pb-5 shrink-0">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+              <div class="flex items-baseline gap-3 min-w-0">
+                <div class="text-[10.5px] uppercase tracking-[0.2em] text-muted font-medium">Stick</div>
+                <div id="stickLen" class="font-display font-bold text-2xl md:text-3xl stick-num">—</div>
+                <div id="stickCompare" class="text-blue-100 text-sm truncate"></div>
+              </div>
+              <div class="text-xs text-subtle">← longer sticks · shorter sticks →</div>
+            </div>
+            <div class="relative mt-3">
+              <input id="slider" type="range" min="0" max="1000" step="0.5" value="0" class="stick-slider w-full" aria-label="Stick length">
+              <div id="ticks" class="relative h-7 mt-1.5 select-none"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Readouts -->
+        <aside class="flex flex-col gap-4 min-h-0">
+          <div id="lengthCard" class="card rounded-xl p-5 relative overflow-hidden flex flex-col shrink-0">
+            <div class="text-[10.5px] uppercase tracking-[0.2em] text-muted font-medium">Measured coastline</div>
+            <div class="mt-2 flex items-baseline gap-2 min-h-[72px]">
+              <div id="bigLen" class="big-num font-display font-extrabold">—</div>
+              <div id="bigUnit" class="font-display text-xl text-blue-200">km</div>
+            </div>
+            <div id="lenCompare" class="mt-2 text-base text-blue-50 min-h-[24px]"></div>
+            <div id="lenGrowth" class="mt-0.5 text-xs text-blue-200 min-h-[16px]"></div>
+            <div class="mt-5 grid grid-cols-3 gap-2">
+              <div class="stat"><div class="stat-k">Sticks</div><div id="statSticks" class="stat-v">—</div></div>
+              <div class="stat"><div class="stat-k">Fractal dim.</div><div id="statD" class="stat-v">—</div></div>
+              <div class="stat"><div class="stat-k">Area</div><div id="statArea" class="stat-v">—</div></div>
+            </div>
+            <div id="phase" class="mt-4 phase rounded-lg px-3 py-2.5 text-xs leading-relaxed"></div>
+          </div>
+
+          <div class="card rounded-xl p-5 flex flex-col lg:flex-1 lg:min-h-0 overflow-y-auto theory">
+            <div class="font-display font-bold text-lg text-white leading-tight">Why the coast never ends</div>
+            <ol class="mt-3 flex flex-col gap-3">
+              <li class="step"><span class="step-n">1</span><div><div class="step-t">Walk the coast with a stick</div><p>Lay straight sticks end to end along the shore. Number of sticks × stick length = coastline.</p></div></li>
+              <li class="step"><span class="step-n">2</span><div><div class="step-t">Shorter sticks find more coast</div><p>A smaller stick reaches into every bay, cove and rock that a longer one skipped over, so the total grows.</p></div></li>
+              <li class="step"><span class="step-n">3</span><div><div class="step-t">It never settles</div><p>Coastlines are fractal: zoom in and there is always more wiggle. Shrink the stick to zero and the length goes to infinity.</p></div></li>
+            </ol>
+            <div class="formula mt-auto pt-4">
+              <div class="rounded-lg bg-blue-800 border border-border px-4 py-3">
+                <div class="font-display text-xl text-white tracking-tight">L(ε) ≈ F · ε<sup class="text-sm">1 − D</sup></div>
+                <div class="mt-1.5 text-xs text-blue-100/80 leading-relaxed">ε is the stick length. D is the fractal dimension: 1 for a smooth curve, 2 for one that fills the plane. <span id="theoryD" class="text-electric font-medium"></span></div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Below the fold -->
+    <p class="mt-5 text-[11px] text-subtle leading-relaxed max-w-4xl">Lengths down to each island’s data resolution come from walking OpenStreetMap coastlines. Below that, length is extrapolated using the island’s measured fractal dimension, and the lens shows illustrative fractal detail. Below atomic scale the physics stops applying. That part is pure mathematics. Imagery © Esri, Maxar, Earthstar Geographics.</p>
+  </main>
+
+  <div id="errorState" class="hidden fixed inset-0 z-50 grid place-items-center bg-blue-800/95 p-6">
+    <div class="card rounded-xl p-8 max-w-md text-center">
+      <div class="font-display text-2xl font-semibold text-white">No coastline data yet</div>
+      <p id="errorMsg" class="text-blue-100 mt-2"></p>
+      <button id="runBtn" class="dive-btn mt-6 h-11 px-6 rounded-lg font-display font-semibold text-white">Run notebook</button>
+      <div id="runStatus" class="text-xs text-blue-200 mt-3 min-h-[16px]"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

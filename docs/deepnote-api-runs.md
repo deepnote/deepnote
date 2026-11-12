@@ -207,10 +207,12 @@ display({"application/json": {"revenue": float(total), "orders": int(order_count
 ```
 
 `GET /v2/notebooks/{notebookId}/app-data` then returns that object as `appData` from your newest
-successful detached run of the notebook, together with `agentBlockSummary` when the notebook has an
-[agent block](/docs/deepnote-agent) that writes a summary. It reads the first `application/json`
-output, so keep one such block per notebook. This is the same mechanism
-[data apps](/docs/data-app-projects) use to get their data.
+successful detached run of the notebook, together with `runCreatedAt`, when that run started, and
+`agentBlockSummary` when the notebook has an [agent block](/docs/deepnote-agent) that writes a
+summary. It reads the first `application/json` output, so keep one such block per notebook. This is
+the same mechanism [data apps](/docs/data-app-projects) use to get their data. In a
+[public app](/docs/data-app-projects#sharing-an-app-publicly), a visitor without results of their
+own gets the latest results from the app's editors and admins, unless **Private outputs** is on.
 
 ## Run history
 

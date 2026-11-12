@@ -11,7 +11,7 @@ Data app projects are in beta. This is an early version, so expect it to change,
 
 A data app project is a web app you build by chatting with [Deepnote Agent](/docs/deepnote-agent). Describe what you need, such as a sales dashboard, a data explorer, or an interactive tool, and the agent builds the app and connects it to a notebook that queries and prepares the data. Refine it in chat and share it with your team.
 
-Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). Neither can be embedded in another site or shared with anyone who has the link; to put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
+Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). To put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
 
 ## Creating a data app
 
@@ -79,6 +79,37 @@ To publish from code, upload a local build with [`deepnote publish`](/docs/deepn
 `PATCH /v2/projects/{projectId}` with `{ "dataApp": { "published": true } }` through the
 [Deepnote API](/docs/deepnote-api). Send `false` to unpublish.
 
-## Limitations
+### Sharing an app publicly
 
-- Data apps can be shared only with people who have access to the project. Sharing with anyone who has the link isn't available.
+A published app can be made public, so anyone with its link can open it, including people without a Deepnote account. Public apps are available on the Team and Enterprise plans, and only a project admin can make an app public.
+
+1. Click **Share** in the top bar.
+2. Under **Anyone with a link to this app**, choose the access:
+   - **View:** visitors see the latest saved results from runs by the app's editors and admins. Results from their later runs become public too.
+   - **Execute:** visitors can also run the app with their own inputs and see their own results.
+3. Click **Copy link to app** and send the link.
+
+Visitors can't open the project or the notebook. Before you make an app public, keep in mind:
+
+- Check the app for sensitive information. Anyone can forward the link or keep a copy of what they see.
+- Visitor runs use your workspace's machines and integrations. They can read the project's files but can't change them.
+- All visitors of an app share one limit on runs. A busy app asks them to try again in a few minutes.
+- When **Private outputs** is on, visitors see only the results of their own runs, so an app with **View** access shows them no results.
+
+To make the app private again, choose **Disabled**. The app also stops being public when you unpublish it.
+
+Public apps open only when **Allow apps to be shared publicly** and **Allow static file sharing in projects** are on in **Settings & members → Project settings**. Turning off **Allow apps to be shared publicly** removes public access from every app in the workspace and keeps the apps published for collaborators.
+
+### Embedding a public app
+
+The link of a public app also works in an iframe on another site:
+
+```html
+<iframe
+  src="https://deepnote.com/apps/your-app"
+  width="100%"
+  height="600"
+></iframe>
+```
+
+Use the link from **Copy link to app** as the `src`. An embedded app shows a compact Deepnote top bar, and everyone uses it as a visitor, even when they are signed in to Deepnote.

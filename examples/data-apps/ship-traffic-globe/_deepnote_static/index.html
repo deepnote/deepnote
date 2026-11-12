@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ships Global</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050913; --panel:rgba(9,15,30,.66); --panel-2:rgba(14,22,42,.86); --line:rgba(150,180,230,.13); --line-2:rgba(150,180,230,.24);
+  --ink:#eaf0f8; --ink-2:#b8c4d6; --ink-3:#7f8ca6; --ink-4:#4f5c77; --acc:#62d6ff; --warm:#ffb65e;
+  --font-d:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif; --font-m:'JetBrains Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.45 var(--font-d);overflow:hidden;-webkit-font-smoothing:antialiased}
+canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+canvas#c.drag{cursor:grabbing}
+.mono{font-family:var(--font-m)}
+button{font:inherit;color:inherit}
+#vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(2,4,10,.55) 100%)}
+#grain{position:fixed;inset:-50%;pointer-events:none;opacity:.05;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");animation:grain 1.2s steps(6) infinite}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+
+.hud{position:fixed;z-index:5;opacity:0;transform:translateY(8px);transition:opacity .9s ease,transform .9s cubic-bezier(.2,.8,.2,1)}
+body.ready .hud{opacity:1;transform:none}
+.tl{top:26px;left:30px;max-width:420px;pointer-events:none}
+.tl *{pointer-events:auto}
+.eyebrow{font:500 11px/1 var(--font-m);letter-spacing:.16em;color:var(--ink-3);display:flex;align-items:center;gap:9px;text-transform:uppercase}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 12px var(--acc);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35;box-shadow:0 0 2px var(--acc)}}
+h1{font:700 clamp(26px,3.1vw,40px)/1.02 var(--font-d);letter-spacing:-.02em;margin:14px 0 18px;max-width:12ch;text-wrap:balance}
+.big{font:300 clamp(52px,6.4vw,84px)/.9 var(--font-d);letter-spacing:-.035em;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,#fff 30%,#9fd8ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.big small{font-size:.5em;letter-spacing:0}
+.biglbl{color:var(--ink-2);margin-top:8px;font-size:15px;max-width:30ch;line-height:1.35}
+.q{width:18px;height:18px;border-radius:50%;border:1px solid var(--line-2);background:transparent;color:var(--ink-3);font:600 10px/1 var(--font-m);cursor:pointer;padding:0;vertical-align:1px;margin-left:4px}
+.q:hover{color:var(--ink);border-color:var(--ink-3)}
+.conc{margin-top:18px;display:grid;gap:7px;max-width:300px}
+.conc .row{display:grid;grid-template-columns:42px 1fr 52px;gap:10px;align-items:center;font:500 11px var(--font-m);color:var(--ink-3)}
+.conc .row b{color:var(--ink);font-weight:500;text-align:right}
+.conc .trk{height:5px;border-radius:3px;background:rgba(150,180,230,.08);overflow:hidden}
+.conc .trk i{display:block;height:100%;border-radius:3px;width:0;background:linear-gradient(90deg,#1d6fa5,var(--acc));transition:width 1.6s cubic-bezier(.2,.8,.2,1)}
+.conc .cap{font:10.5px/1.5 var(--font-m);color:var(--ink-4);margin-top:2px}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3)}
+#regions{top:26px;right:26px;width:300px;padding:14px 8px 8px;max-height:calc(100vh - 210px);overflow:auto}
+.ph{display:flex;justify-content:space-between;align-items:baseline;padding:0 10px 10px;border-bottom:1px solid var(--line);font:500 10.5px/1 var(--font-m);letter-spacing:.14em;color:var(--ink-3)}
+.ph .k{letter-spacing:.04em;color:var(--ink-4)}
+#regList{list-style:none;margin:6px 0 0;padding:0}
+#regList li{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;padding:6px 10px;border-radius:9px;cursor:pointer;transition:background .2s}
+#regList li:hover,#regList li.on{background:rgba(98,214,255,.08)}
+#regList li.on .nm{color:#fff}
+#regList .ix{font:500 10px var(--font-m);color:var(--ink-4)}
+#regList .nm{font-size:13.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#regList .v{font:500 12px var(--font-m);color:var(--ink);font-variant-numeric:tabular-nums}
+#regList .bar{grid-column:2/4;height:3px;border-radius:2px;background:rgba(150,180,230,.08);overflow:hidden;margin-top:-2px}
+#regList .bar i{display:block;height:100%;border-radius:2px;background:linear-gradient(90deg,#1d6fa5,var(--acc),#e8fbff);width:0;transition:width 1.4s cubic-bezier(.2,.8,.2,1)}
+.rnote{font:10.5px/1.5 var(--font-m);color:var(--ink-4);padding:10px 10px 4px;border-top:1px solid var(--line);margin-top:6px}
+
+.bottom{left:50%;bottom:22px;transform:translate(-50%,8px);width:min(980px,calc(100vw - 40px));padding:12px 14px 10px}
+body.ready .bottom{transform:translate(-50%,0)}
+.ctrls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:999px;padding:2px;background:rgba(5,9,19,.4)}
+.seg button{border:0;background:transparent;padding:5px 12px;border-radius:999px;font:500 12px var(--font-m);color:var(--ink-3);cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s}
+.seg button.on{background:rgba(98,214,255,.14);color:var(--ink)}
+.seg button i{width:22px;height:8px;border-radius:4px;display:block}
+.sl{display:flex;align-items:center;gap:8px;font:500 11px var(--font-m);color:var(--ink-3)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:96px;height:3px;border-radius:2px;background:var(--line-2);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 3px rgba(98,214,255,.25);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border:0;border-radius:50%;background:var(--ink);cursor:pointer}
+.tg{border:1px solid var(--line-2);background:transparent;border-radius:999px;padding:5px 12px;font:500 12px var(--font-m);color:var(--ink-3);cursor:pointer;transition:all .2s}
+.tg.on{color:var(--ink);border-color:rgba(98,214,255,.5);background:rgba(98,214,255,.1)}
+.sp{flex:1}
+.prof{position:relative;height:44px;margin-top:10px}
+#lonProf{width:100%;height:100%;display:block;cursor:crosshair}
+#lonMark{position:absolute;top:-3px;bottom:12px;width:1px;background:#fff;box-shadow:0 0 8px var(--acc);pointer-events:none}
+#lonMark::after{content:"";position:absolute;top:-3px;left:-3px;width:7px;height:7px;border-radius:50%;background:#fff}
+.proflbl{position:absolute;left:0;bottom:-1px;font-size:9.5px;letter-spacing:.14em;color:var(--ink-4);pointer-events:none}
+.proflbl.r{left:auto;right:0;color:var(--ink-3)}
+
+.br{right:26px;bottom:150px;font-size:10.5px;color:var(--ink-4);text-align:right;max-width:260px;line-height:1.6}
+.br a{color:var(--ink-3)}
+#zoomInfo{left:30px;bottom:150px;font:500 10.5px/1.7 var(--font-m);color:var(--ink-4);letter-spacing:.06em}
+#zoomInfo b{color:var(--ink-2);font-weight:500}
+
+#tip{position:fixed;z-index:8;pointer-events:none;padding:10px 12px;border-radius:10px;background:var(--panel-2);border:1px solid var(--line-2);font-size:11.5px;line-height:1.55;color:var(--ink-2);opacity:0;transition:opacity .15s;min-width:210px;backdrop-filter:blur(10px)}
+#tip b{color:#fff;font-weight:500}
+#tip .k{color:var(--ink-4)}
+#tip .meter{height:4px;border-radius:2px;background:rgba(150,180,230,.12);margin:6px 0 4px;overflow:hidden}
+#tip .meter i{display:block;height:100%;background:linear-gradient(90deg,#1d6fa5,var(--acc),#fff)}
+
+#labels{position:fixed;inset:0;pointer-events:none;z-index:4}
+.lbl{position:absolute;left:0;top:0;font:500 10.5px var(--font-m);color:var(--ink-2);white-space:nowrap;letter-spacing:.04em;transition:opacity .3s;cursor:pointer;display:flex;align-items:center;gap:6px;text-shadow:0 1px 6px #000;opacity:0}
+.lbl i{width:6px;height:6px;border-radius:50%;border:1px solid var(--warm);display:block;box-shadow:0 0 8px var(--warm)}
+.lbl.on{color:#fff}
+.lbl.on i{background:var(--warm)}
+
+#loader{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:var(--bg);transition:opacity 1.1s ease .2s}
+#loader.gone{opacity:0;pointer-events:none}
+.ldbox{width:min(360px,80vw)}
+.ldt{font:700 30px/1 var(--font-d);letter-spacing:-.02em}
+.lds{font:500 11px var(--font-m);color:var(--ink-3);letter-spacing:.12em;margin:12px 0 26px;text-transform:uppercase}
+.ldbar{height:2px;background:var(--line);border-radius:1px;overflow:hidden}
+.ldbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#1d6fa5,var(--acc),#fff);transition:width .25s}
+.ldrow{display:flex;justify-content:space-between;font:500 11px var(--font-m);color:var(--ink-4);margin-top:10px}
+#ldErr{color:#ff8a7a;font:12px/1.5 var(--font-m);margin-top:18px;white-space:pre-wrap}
+
+.modal{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.modal.on{opacity:1;pointer-events:auto}
+.scrim{position:absolute;inset:0;background:rgba(2,5,12,.7);backdrop-filter:blur(4px)}
+.mbox{position:relative;width:min(680px,calc(100vw - 32px));max-height:calc(100vh - 60px);overflow:auto;padding:28px 30px;border-radius:16px;background:#0a1122;border:1px solid var(--line-2);color:var(--ink-2);font-size:14px;line-height:1.6}
+.mbox h2{font:700 24px/1.1 var(--font-d);color:var(--ink);margin:0 0 14px;letter-spacing:-.01em}
+.mbox h4{font:500 10.5px var(--font-m);letter-spacing:.14em;color:var(--ink-3);margin:22px 0 6px}
+.mbox p{margin:0 0 10px}
+.mbox code{font:12px var(--font-m);color:var(--acc)}
+.mbox a{color:var(--acc)}
+.mx{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line-2);background:transparent;cursor:pointer;color:var(--ink-3)}
+#mobRegions{display:none}
+#hint{position:fixed;left:50%;bottom:156px;transform:translateX(-50%);z-index:4;font-size:10.5px;letter-spacing:.12em;color:var(--ink-4);transition:opacity 1s;pointer-events:none;text-transform:uppercase;white-space:nowrap}
+@media (max-width:860px){
+  .tl{left:18px;top:18px;right:18px}
+  h1{font-size:24px;margin:10px 0 10px}
+  .conc{display:none}
+  #regions{display:none;top:auto;bottom:178px;left:16px;right:16px;width:auto;max-height:42vh}
+  #regions.mob{display:block}
+  #mobRegions{display:inline-block}
+  .bottom{bottom:12px;width:calc(100vw - 24px)}
+  .sl input{width:70px}
+  .br,#zoomInfo,#hint{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="grain"></div>
+<div id="labels"></div>
+
+<header class="hud tl">
+  <div class="eyebrow"><span class="dot"></span>Ships Global · AIS density 2015–2021</div>
+  <h1>Where the world’s ships go</h1>
+  <div class="big"><span id="bigN">0.00</span><small>%</small></div>
+  <div class="biglbl">of the ocean carries <b>half</b> of all ship traffic<button class="q" id="whatN" title="How is this computed?">?</button></div>
+  <div class="conc" id="conc"></div>
+</header>
+
+<aside id="regions" class="hud panel">
+  <div class="ph"><span>PASSAGES</span><span class="k">share of world traffic</span></div>
+  <ol id="regList"></ol>
+  <div class="rnote" id="rnote"></div>
+</aside>
+
+<footer class="hud bottom panel">
+  <div class="ctrls">
+    <div class="seg" id="segView"><button data-v="0" class="on">◉ Globe</button><button data-v="1">▭ Flat</button></div>
+    <div class="seg" id="segPal"></div>
+    <label class="sl">Floor <input type="range" id="slLo" min="0" max="100" value="38"></label>
+    <label class="sl">Glow <input type="range" id="slGain" min="0" max="100" value="55"></label>
+    <span class="sp"></span>
+    <button class="tg on" id="tgSpark">✦ Sparkle</button>
+    <button class="tg" id="tgSpin">⟳ Spin</button>
+    <button class="tg" id="mobRegions">Passages</button>
+  </div>
+  <div class="prof"><canvas id="lonProf"></canvas><div id="lonMark"></div><div class="proflbl mono">SHARE OF TRAFFIC BY LONGITUDE · CLICK TO GO</div><div class="proflbl r mono" id="profVal"></div></div>
+</footer>
+
+<div id="zoomInfo" class="hud"></div>
+<div class="hud br mono">World Bank / IMF <i>Global Shipping Traffic Density</i> (CC BY 4.0) · Natural Earth · <a href="#" id="openMethod">Method</a></div>
+<div id="hint" class="mono">drag to rotate · scroll to zoom · double-click to dive · G globe / flat · 1–9 passages</div>
+<div id="tip" class="mono"></div>
+
+<div id="loader"><div class="ldbox">
+  <div class="ldt">Ships Global</div>
+  <div class="lds" id="ldStep">Loading six years of AIS density</div>
+  <div class="ldbar"><i id="ldBar"></i></div>
+  <div class="ldrow"><span id="ldWhat">global texture · 8192 × 4096</span><span id="ldPct">0%</span></div>
+  <div id="ldErr"></div>
+</div></div>
+
+<div class="modal" id="method"><div class="scrim" id="mScrim"></div><div class="mbox">
+  <button class="mx" id="mX">✕</button>
+  <h2>How this map is made</h2>
+  <div id="mBody"></div>
+</div></div>
+
+<script src="vendor/three.min.js"></script>
+<script>
+(async function () {
+'use strict';
+const $ = s => document.querySelector(s);
+const D2R = Math.PI / 180, R2D = 180 / Math.PI;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const easeIO = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const wrap = l => ((l + 180) % 360 + 360) % 360 - 180;
+const fmt = n => Math.round(n).toLocaleString('en-US');
+const pctTxt = p => p >= 10 ? p.toFixed(1) : p >= 1 ? p.toFixed(2) : p >= .1 ? p.toFixed(2) : p.toFixed(3);
+const fail = msg => { $('#ldErr').textContent = msg; throw new Error(msg); };
+if (!window.THREE) fail('three.js did not load (vendor/three.min.js). Run the notebook to build the app.');
+
+// ------------------------------------------------------------------ loading
+async function fetchProgress(url, onp) {
+  const r = await fetch(url);
+  if (!r.ok) fail(`Could not load ${url} (${r.status}). Run the notebook to build the data.`);
+  const total = +r.headers.get('content-length') || 0;
+  if (!r.body || !total) { const b = await r.arrayBuffer(); onp(1); return b; }
+  const rd = r.body.getReader(), parts = []; let got = 0;
+  for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; onp(Math.min(1, got / total)); }
+  const out = new Uint8Array(got); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+  onp(1); return out.buffer;
+}
+const prog = { meta: 0, g: 0, p: 0 };
+const setProg = () => { const p = prog.g * .8 + prog.p * .15 + prog.meta * .05; $('#ldBar').style.width = (p * 100) + '%'; $('#ldPct').textContent = Math.round(p * 100) + '%'; };
+const [meta, gbuf, pbuf] = await Promise.all([
+  fetch('data/meta.json').then(r => r.ok ? r.json() : fail('Could not load data/meta.json. Run the notebook to build the data.')).then(j => { prog.meta = 1; setProg(); return j; }),
+  fetchProgress('data/global.png', p => { prog.g = p; setProg(); }),
+  fetchProgress('data/particles.bin', p => { prog.p = p; setProg(); }),
+]);
+$('#ldStep').textContent = 'Decoding'; $('#ldWhat').textContent = 'uploading to the GPU';
+const decode = buf => createImageBitmap(new Blob([buf], { type: 'image/png' }), { premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+const gbmp = await decode(gbuf);
+const LOGMAX = meta.logmax;
+
+// ------------------------------------------------------------------ renderer
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const DPR = () => Math.min(devicePixelRatio || 1, 2);
+renderer.setPixelRatio(DPR());
+renderer.setClearColor(0x050913, 1);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.001, 300);
+const ANISO = renderer.capabilities.getMaxAnisotropy();
+const MAXT = renderer.capabilities.maxTextureSize;
+
+let gsrc = gbmp;
+if (gbmp.width > MAXT) { const c = document.createElement('canvas'); c.width = MAXT; c.height = MAXT / 2; c.getContext('2d').drawImage(gbmp, 0, 0, c.width, c.height); gsrc = c; }
+const gTex = new THREE.Texture(gsrc);
+Object.assign(gTex, { flipY: false, wrapS: THREE.RepeatWrapping, wrapT: THREE.ClampToEdgeWrapping, anisotropy: ANISO, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, needsUpdate: true });
+
+// CPU copy for hover readouts + ocean percentiles (area-weighted)
+const SW = 2048, SH = 1024;
+const sc = document.createElement('canvas'); sc.width = SW; sc.height = SH;
+const sctx = sc.getContext('2d', { willReadFrequently: true }); sctx.imageSmoothingQuality = 'high'; sctx.drawImage(gbmp, 0, 0, SW, SH);
+const SD = sctx.getImageData(0, 0, SW, SH).data;
+const hist = new Float64Array(256); let oceanW = 0;
+for (let y = 0; y < SH; y++) { const w = Math.cos(((y + .5) / SH * 180 - 90) * D2R); for (let x = 0; x < SW; x++) { const i = (y * SW + x) * 4; if (SD[i + 1] >= 128) continue; hist[SD[i]] += w; oceanW += w; } }
+const CDF = new Float64Array(257); for (let v = 0; v < 256; v++) CDF[v + 1] = CDF[v] + hist[v] / oceanW;
+
+// ------------------------------------------------------------------ palettes
+const PALS = {
+  Sonar: ['#03101f', '#0a3a63', '#1478b3', '#2fb8ea', '#8ae6ff', '#f2fdff', '#ffffff'],
+  Ember: ['#12050c', '#4a0d2e', '#951c3f', '#de4a2c', '#ff9a3c', '#ffe08a', '#fffaf0'],
+  Aurora: ['#03100f', '#083f43', '#11806f', '#3fc47f', '#b3ec6b', '#f6ffb8', '#ffffff'],
+};
+const rampCv = document.createElement('canvas'); rampCv.width = 256; rampCv.height = 1;
+const rampTex = new THREE.CanvasTexture(rampCv); rampTex.minFilter = THREE.LinearFilter; rampTex.generateMipmaps = false;
+function setPalette(name) {
+  const g = rampCv.getContext('2d', { willReadFrequently: true }), gr = g.createLinearGradient(0, 0, 256, 0), st = PALS[name];
+  st.forEach((c, k) => gr.addColorStop(k / (st.length - 1), c)); g.fillStyle = gr; g.fillRect(0, 0, 256, 1);
+  rampTex.needsUpdate = true; drawProfile();
+  document.querySelectorAll('#segPal button').forEach(b => b.classList.toggle('on', b.dataset.p === name));
+  try { localStorage.setItem('sg.pal', name); } catch (e) {}
+}
+
+// ------------------------------------------------------------------ shaders
+const PLACE = `
+uniform float uCLon; uniform float uMorph;
+const float D2R = 0.017453292519943295;
+vec3 placeS(float rel, float lat, float lift){ float lo = rel * D2R, la = lat * D2R; return (1. + lift) * vec3(cos(la) * sin(lo), sin(la), cos(la) * cos(lo)); }
+vec3 placeF(float rel, float lat, float lift){ return vec3(rel * D2R, lat * D2R, 1. + lift); }
+vec3 place(float rel, float lat, float lift){ return mix(placeS(rel, lat, lift), placeF(rel, lat, lift), uMorph); }
+`;
+const U = {
+  uCLon: { value: 0 }, uMorph: { value: 0 }, uG: { value: gTex }, uD: { value: null }, uRamp: { value: rampTex },
+  uDBox: { value: new THREE.Vector4(0, 0, 30, 0) }, uHi: { value: new THREE.Vector4(0, 0, 0, 0) }, uHiAmt: { value: 0 },
+  uLo: { value: .3 }, uTop: { value: 1 }, uGain: { value: 1 }, uReveal: { value: 0 }, uAlt: { value: 3 }, uTime: { value: 0 }, uGrid: { value: 15 },
+};
+const globeMat = new THREE.ShaderMaterial({
+  uniforms: U, side: THREE.DoubleSide, extensions: { derivatives: true },
+  vertexShader: PLACE + `
+    varying float vLon; varying float vLat; varying vec3 vN; varying vec3 vV;
+    void main(){
+      float rel = (uv.x - .5) * 360., lat = (uv.y - .5) * 180.;
+      vLon = rel + uCLon; vLat = lat;
+      vec3 p = place(rel, lat, 0.);
+      vN = mix(normalize(placeS(rel, lat, 0.)), vec3(0., 0., 1.), uMorph);
+      vec4 wp = modelMatrix * vec4(p, 1.); vV = cameraPosition - wp.xyz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform sampler2D uG; uniform sampler2D uD; uniform sampler2D uRamp;
+    uniform vec4 uDBox; uniform vec4 uHi; uniform float uHiAmt;
+    uniform float uLo; uniform float uTop; uniform float uGain; uniform float uReveal; uniform float uMorph; uniform float uAlt; uniform float uTime; uniform float uGrid;
+    varying float vLon; varying float vLat; varying vec3 vN; varying vec3 vV;
+    void main(){
+      vec4 g = texture2D(uG, vec2((vLon + 180.) / 360., (90. - vLat) / 180.));
+      float d = g.r, land = g.g;
+      // close-zoom detail atlas (0.01°)
+      float du = mod(vLon - uDBox.x + 720., 360.) / uDBox.z, dv = (uDBox.y - vLat) / uDBox.z;
+      vec2 tc = clamp(vec2(du, dv), 0., 1.), o = vec2(.55 / 3000.);
+      vec4 t = texture2D(uD, tc) * .4 + (texture2D(uD, tc + vec2(o.x, o.y)) + texture2D(uD, tc + vec2(-o.x, o.y)) + texture2D(uD, tc + vec2(o.x, -o.y)) + texture2D(uD, tc - o)) * .15;
+      float e = (du < 1. && dv > 0. && dv < 1.) ? smoothstep(0., .05, min(min(du, 1. - du), min(dv, 1. - dv))) * uDBox.w : 0.;
+      d = mix(d, t.r, e); land = mix(land, t.g, e);
+
+      float x = clamp((d - uLo) / max(uTop - uLo, .05), 0., 1.);
+      float rv = smoothstep(1. - uReveal, 1. - uReveal + .3, x + .02);
+      vec3 ramp = texture2D(uRamp, vec2(x, .5)).rgb;
+      float glow = pow(x, 1.25) * uGain * rv;
+
+      float L = smoothstep(.3, .7, land);
+      vec3 ocean = mix(vec3(.012, .024, .05), vec3(.02, .04, .08), smoothstep(-60., 60., vLat) * .5);
+      vec3 col = mix(ocean, vec3(.052, .072, .112), L);
+      float fl = max(fwidth(land), 1e-4);
+      float coast = 1. - smoothstep(0., fl * 1.3, abs(land - .5));
+      col += vec3(.28, .42, .62) * coast * mix(.16, .45, smoothstep(.6, .02, uAlt));
+      vec2 gq = vec2(vLon, vLat) / uGrid; vec2 gf = abs(fract(gq - .5) - .5) / max(fwidth(gq), 1e-5);
+      col += vec3(.22, .32, .5) * (1. - min(min(gf.x, gf.y), 1.)) * .09 * (1. - L);
+      col += 1. - exp(-ramp * glow * 1.9);
+
+      // highlighted passage box
+      float hw = uHi.z - uHi.x, hh = uHi.w - uHi.y;
+      float hl = mod(vLon - uHi.x + 720., 360.), hv = vLat - uHi.y;
+      if (uHiAmt > 0.001 && hl < hw && hv > 0. && hv < hh) {
+        float ed = min(min(hl, hw - hl), min(hv, hh - hv)) / max(fwidth(vLat), 1e-6);
+        float ln = 1. - smoothstep(.5, 1.8, ed);
+        col += vec3(1., .71, .37) * (ln * .9 + .03) * uHiAmt;
+      }
+      float fr = pow(1. - max(dot(normalize(vN), normalize(vV)), 0.), 3.) * (1. - uMorph) * smoothstep(.15, 1.4, uAlt);
+      col += vec3(.18, .45, .9) * fr * .55;
+      gl_FragColor = vec4(col, 1.);
+    }`,
+});
+const globe = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 720, 360), globeMat);
+globe.frustumCulled = false; scene.add(globe);
+
+// atmosphere halo
+const atmo = new THREE.Mesh(new THREE.SphereGeometry(1.14, 96, 96), new THREE.ShaderMaterial({
+  uniforms: { uA: { value: 1 } }, side: THREE.BackSide, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }`,
+  fragmentShader: `uniform float uA; varying vec3 vN; void main(){ float i = pow(clamp(.72 - dot(vN, vec3(0., 0., 1.)), 0., 1.), 6.); gl_FragColor = vec4(vec3(.25, .6, 1.) * i * 1.1 * uA, 1.); }`,
+}));
+scene.add(atmo);
+
+// stars
+const starGeo = new THREE.BufferGeometry();
+{
+  const n = 3000, P = new Float32Array(n * 3), S = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = 90, s = Math.sqrt(1 - u * u); P[3 * i] = r * s * Math.cos(a); P[3 * i + 1] = r * u; P[3 * i + 2] = r * s * Math.sin(a); S[i] = Math.pow(Math.random(), 3); }
+  starGeo.setAttribute('position', new THREE.BufferAttribute(P, 3)); starGeo.setAttribute('aS', new THREE.BufferAttribute(S, 1));
+}
+const stars = new THREE.Points(starGeo, new THREE.ShaderMaterial({
+  uniforms: { uA: { value: 1 }, uPx: { value: DPR() }, uT: { value: 0 } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `attribute float aS; uniform float uPx; uniform float uT; varying float vA; void main(){ vA = .25 + .75 * aS; vA *= .75 + .25 * sin(uT * (.5 + aS) + position.x); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); gl_PointSize = uPx * (1. + 1.6 * aS); }`,
+  fragmentShader: `uniform float uA; varying float vA; void main(){ float r = length(gl_PointCoord - .5); gl_FragColor = vec4(vec3(.75, .85, 1.) * smoothstep(.5, 0., r) * vA * uA * .8, 1.); }`,
+}));
+scene.add(stars);
+
+// sparkle particles, sampled by density in the notebook
+const NP = (pbuf.byteLength / 5) | 0;
+const sparkGeo = new THREE.BufferGeometry();
+{
+  const lonU = new Uint16Array(pbuf, 0, NP), latU = new Uint16Array(pbuf, 2 * NP, NP), vU = new Uint8Array(pbuf, 4 * NP, NP);
+  const LL = new Float32Array(2 * NP), V = new Float32Array(NP), RR = new Float32Array(NP);
+  for (let i = 0; i < NP; i++) { LL[2 * i] = lonU[i] / 65535 * 360 - 180; LL[2 * i + 1] = latU[i] / 65535 * 180 - 90; V[i] = vU[i] / 255; RR[i] = Math.random(); }
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 3), 3));
+  sparkGeo.setAttribute('aLL', new THREE.BufferAttribute(LL, 2)); sparkGeo.setAttribute('aV', new THREE.BufferAttribute(V, 1)); sparkGeo.setAttribute('aR', new THREE.BufferAttribute(RR, 1));
+}
+const sparkU = { uCLon: U.uCLon, uMorph: U.uMorph, uTime: U.uTime, uRamp: U.uRamp, uLo: U.uLo, uPx: { value: DPR() }, uAmt: { value: 0 } };
+const spark = new THREE.Points(sparkGeo, new THREE.ShaderMaterial({
+  uniforms: sparkU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: PLACE + `
+    attribute vec2 aLL; attribute float aV; attribute float aR;
+    uniform float uTime; uniform float uPx; uniform float uAmt; uniform float uLo;
+    varying float vA; varying float vX;
+    void main(){
+      float rel = mod(aLL.x - uCLon + 540., 360.) - 180.;
+      vec3 p = place(rel, aLL.y, .0015);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.);
+      float tw = .5 + .5 * sin(uTime * (.35 + aR * 1.9) + aR * 61.);
+      vX = clamp((aV - uLo) / (1. - uLo), 0., 1.);
+      vA = uAmt * (.15 + .85 * vX) * pow(tw, 4.);
+      gl_PointSize = uPx * (1.1 + 2.6 * vX * vX) * (.55 + .45 * tw);
+    }`,
+  fragmentShader: `
+    uniform sampler2D uRamp; varying float vA; varying float vX;
+    void main(){ float r = length(gl_PointCoord - .5) * 2.; float a = exp(-r * r * 5.) * vA; if (a < .003) discard;
+      vec3 c = mix(texture2D(uRamp, vec2(clamp(vX + .25, 0., 1.), .5)).rgb, vec3(1.), .35); gl_FragColor = vec4(c * a, 1.); }`,
+}));
+spark.frustumCulled = false; scene.add(spark);
+
+// ------------------------------------------------------------------ camera model: (lon, lat, alt) + morph globe↔flat
+const cam = { lon: 62, lat: 14, alt: 7 }, tgt = { lon: 62, lat: 14, alt: 2.7 };
+let morph = 0, morphTo = 0, fly = null, lastInteract = performance.now(), spin = false, sparkOn = true, ready = false;
+const MIN_ALT = 0.022;
+const maxAlt = () => morphTo ? 3.2 : 4.2;
+function placeJS(lon, lat, lift, m, out) {
+  const rel = wrap(lon - cam.lon) * D2R, la = lat * D2R;
+  const sx = (1 + lift) * Math.cos(la) * Math.sin(rel), sy = (1 + lift) * Math.sin(la), sz = (1 + lift) * Math.cos(la) * Math.cos(rel);
+  return out.set(lerp(sx, rel, m), lerp(sy, la, m), lerp(sz, 1 + lift, m));
+}
+const _look = new THREE.Vector3();
+function placeCamera(m) {
+  const la = cam.lat * D2R, r = 1 + cam.alt;
+  camera.position.set(0, lerp(Math.sin(la) * r, la, m), lerp(Math.cos(la) * r, 1 + cam.alt, m));
+  camera.up.set(0, 1, 0);
+  camera.lookAt(_look.set(0, lerp(0, la, m), lerp(0, 1, m)));
+  camera.near = clamp(cam.alt * .15, .0008, .2); camera.far = 300; camera.updateProjectionMatrix();
+  U.uCLon.value = cam.lon; U.uMorph.value = m; U.uAlt.value = cam.alt;
+}
+function flyTo(lon, lat, alt, dur) {
+  const from = { ...cam }, dl = wrap(lon - from.lon);
+  const dist = Math.hypot(dl * Math.cos(lat * D2R), lat - from.lat);
+  fly = { from, to: { lon: from.lon + dl, lat, alt }, t0: performance.now(), dur: dur || clamp(1200 + dist * 24, 1400, 3800), hop: clamp(dist / 40, 0, 1.7) * (Math.min(from.alt, alt) < 1 ? 1 : .3) };
+  tgt.lon = fly.to.lon; tgt.lat = lat; tgt.alt = alt; vel = { lon: 0, lat: 0 };
+}
+function updateFly(now) {
+  const t = clamp((now - fly.t0) / fly.dur, 0, 1), e = easeIO(t), f = fly.from, to = fly.to;
+  cam.lon = lerp(f.lon, to.lon, e); cam.lat = lerp(f.lat, to.lat, e);
+  cam.alt = Math.exp(lerp(Math.log(f.alt), Math.log(to.alt), e) + fly.hop * Math.sin(Math.PI * e));
+  if (t >= 1) { fly = null; Object.assign(tgt, { lon: cam.lon, lat: cam.lat, alt: cam.alt }); }
+}
+
+// ------------------------------------------------------------------ input
+const ptrs = new Map(); let drag = null, pinch = null, vel = { lon: 0, lat: 0 };
+const mouse = { x: 0, y: 0, dirty: false, in: false };
+let hintGone = false; const hideHint = () => { if (!hintGone) { hintGone = true; $('#hint').style.opacity = 0; } };
+const degPerPx = () => 2 * cam.alt * Math.tan(17.5 * D2R) / innerHeight * R2D * (morph > .5 ? 1 : (cam.alt > 1 ? .62 : 1));
+canvas.addEventListener('pointerdown', e => {
+  canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY }; canvas.classList.add('drag'); }
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), alt: tgt.alt }; drag = null; }
+  fly = null; lastInteract = performance.now(); vel = { lon: 0, lat: 0 }; hideHint();
+});
+canvas.addEventListener('pointermove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY; mouse.dirty = true; mouse.in = true;
+  if (!ptrs.has(e.pointerId)) return;
+  ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()]; tgt.alt = clamp(pinch.alt * pinch.d / Math.max(20, Math.hypot(a.x - b.x, a.y - b.y)), MIN_ALT, maxAlt()); return; }
+  if (!drag) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  const k = degPerPx(), cl = morph > .5 ? 1 : Math.max(Math.cos(cam.lat * D2R), .25);
+  vel.lon = -dx * k / cl; vel.lat = dy * k;
+  cam.lon += vel.lon; cam.lat = clamp(cam.lat + vel.lat, -82, 82); tgt.lon = cam.lon; tgt.lat = cam.lat;
+  lastInteract = performance.now();
+});
+const endPtr = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) { drag = null; canvas.classList.remove('drag'); } };
+canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
+canvas.addEventListener('pointerleave', () => { mouse.in = false; $('#tip').style.opacity = 0; });
+canvas.addEventListener('wheel', e => { e.preventDefault(); fly = null; tgt.alt = clamp(tgt.alt * Math.exp(e.deltaY * (e.ctrlKey ? .01 : .0013)), MIN_ALT, maxAlt()); lastInteract = performance.now(); hideHint(); }, { passive: false });
+canvas.addEventListener('dblclick', e => { const p = pick(e.clientX, e.clientY); if (p) flyTo(p.lon, p.lat, Math.max(MIN_ALT, cam.alt * .3), 1300); });
+
+// ray pick → lon/lat
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function pick(x, y) {
+  if (morph > .02 && morph < .98) return null;
+  ndc.set(x / innerWidth * 2 - 1, -(y / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  const o = ray.ray.origin, d = ray.ray.direction;
+  if (morph <= .02) {
+    const b = o.dot(d), c = o.lengthSq() - 1, disc = b * b - c; if (disc < 0) return null;
+    const t = -b - Math.sqrt(disc); if (t < 0) return null;
+    const px = o.x + d.x * t, py = o.y + d.y * t, pz = o.z + d.z * t;
+    return { lon: wrap(cam.lon + Math.atan2(px, pz) * R2D), lat: Math.asin(clamp(py, -1, 1)) * R2D };
+  }
+  if (Math.abs(d.z) < 1e-6) return null;
+  const t = (1 - o.z) / d.z; const rel = (o.x + d.x * t) * R2D, lat = (o.y + d.y * t) * R2D;
+  if (Math.abs(rel) > 180 || Math.abs(lat) > 90) return null;
+  return { lon: wrap(cam.lon + rel), lat };
+}
+
+// ------------------------------------------------------------------ detail atlas: 3×3 tiles of 10° at 0.01° around the view
+const T = meta.tiles, AT = 3, APX = T.px * AT;
+const atlas = { key: '', loading: null, amt: 0, cv: document.createElement('canvas'), data: null, box: null };
+atlas.cv.width = atlas.cv.height = APX;
+const dTex = new THREE.CanvasTexture(atlas.cv);
+Object.assign(dTex, { flipY: false, anisotropy: ANISO, minFilter: THREE.LinearMipmapLinearFilter, wrapS: THREE.ClampToEdgeWrapping, wrapT: THREE.ClampToEdgeWrapping });
+U.uD.value = dTex;
+const tileCache = new Map();
+function loadTile(ty, tx) {
+  const k = ty + '_' + tx; if (tileCache.has(k)) return tileCache.get(k);
+  const p = fetch(`data/tiles/${k}.png`).then(r => r.ok ? r.arrayBuffer() : null).then(b => b ? decode(b) : null).catch(() => null);
+  tileCache.set(k, p); if (tileCache.size > 60) tileCache.delete(tileCache.keys().next().value);
+  return p;
+}
+async function ensureAtlas() {
+  const tx = Math.floor((wrap(cam.lon) + 180) / T.deg), ty = clamp(Math.floor((90 - cam.lat) / T.deg), 0, T.rows - 1);
+  const ty0 = clamp(ty - 1, 0, T.rows - AT), tx0 = ((tx - 1) % T.cols + T.cols) % T.cols, key = ty0 + '/' + tx0;
+  if (key === atlas.key || atlas.loading === key) return;
+  atlas.loading = key;
+  const jobs = [];
+  for (let j = 0; j < AT; j++) for (let i = 0; i < AT; i++) jobs.push(loadTile(ty0 + j, (tx0 + i) % T.cols).then(bmp => ({ bmp, i, j })));
+  const res = await Promise.all(jobs);
+  if (atlas.loading !== key) return;
+  const g = atlas.cv.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#000'; g.fillRect(0, 0, APX, APX);
+  for (const { bmp, i, j } of res) if (bmp) g.drawImage(bmp, i * T.px, j * T.px);
+  atlas.ok = res.filter(r => r.bmp).length;
+  atlas.data = g.getImageData(0, 0, APX, APX).data;
+  atlas.box = { lon0: -180 + tx0 * T.deg, lat1: 90 - ty0 * T.deg, size: AT * T.deg };
+  U.uDBox.value.set(atlas.box.lon0, atlas.box.lat1, atlas.box.size, 0); atlas.amt = 0;
+  dTex.needsUpdate = true; atlas.key = key; atlas.loading = null;
+}
+
+// ------------------------------------------------------------------ hover readout (all relative: × ocean average, percentile)
+function sample(lon, lat) {
+  if (atlas.box && U.uDBox.value.w > .5) {
+    const du = (((lon - atlas.box.lon0) % 360) + 360) % 360 / atlas.box.size, dv = (atlas.box.lat1 - lat) / atlas.box.size;
+    if (du >= 0 && du < 1 && dv >= 0 && dv < 1) { const i = ((dv * APX | 0) * APX + (du * APX | 0)) * 4; return { v: atlas.data[i], land: atlas.data[i + 1], res: '0.01° · ~1 km' }; }
+  }
+  const x = clamp(((lon + 180) / 360 * SW) | 0, 0, SW - 1), y = clamp(((90 - lat) / 180 * SH) | 0, 0, SH - 1), i = (y * SW + x) * 4;
+  return { v: SD[i], land: SD[i + 1], res: '0.18° · ~20 km' };
+}
+const xAvg = (v, lat) => Math.expm1(v / 255 * LOGMAX) / Math.max(Math.cos(lat * D2R), .05) / meta.mean_per_cell;
+const pctOf = v => (CDF[v] + (CDF[v + 1] - CDF[v]) / 2) * 100;
+const llTxt = (lon, lat) => `${Math.abs(lat).toFixed(2)}°${lat >= 0 ? 'N' : 'S'} ${Math.abs(lon).toFixed(2)}°${lon >= 0 ? 'E' : 'W'}`;
+function updateTip() {
+  const tip = $('#tip');
+  if (!mouse.in || drag || fly) { tip.style.opacity = 0; return; }
+  const p = pick(mouse.x, mouse.y); if (!p) { tip.style.opacity = 0; return; }
+  const s = sample(p.lon, p.lat);
+  let h = `<b>${llTxt(p.lon, p.lat)}</b>`;
+  if (s.land > 150 && s.v < 40) h += `<br><span class="k">land</span>`;
+  else if (s.v < 4) h += `<br>almost no AIS traffic<br><span class="k">quieter than ${(100 - pctOf(s.v)).toFixed(0)}% of the ocean</span>`;
+  else {
+    const r = xAvg(s.v, p.lat), pc = pctOf(s.v);
+    h += `<div class="meter"><i style="width:${(s.v / 255 * 100).toFixed(1)}%"></i></div>`
+      + `<b>${r >= 100 ? fmt(r) : r >= 10 ? r.toFixed(0) : r.toFixed(r >= 1 ? 1 : 2)}×</b> <span class="k">the ocean average</span><br>`
+      + `<span class="k">busier than</span> <b>${pc >= 99.95 ? '99.9' : pc.toFixed(pc > 99 ? 1 : 0)}%</b> <span class="k">of the ocean</span>`;
+  }
+  h += `<br><span class="k">grid ${s.res}</span>`;
+  tip.innerHTML = h;
+  tip.style.left = Math.min(mouse.x + 18, innerWidth - 240) + 'px'; tip.style.top = Math.min(mouse.y + 16, innerHeight - 120) + 'px'; tip.style.opacity = 1;
+}
+
+// ------------------------------------------------------------------ UI: headline, concentration, passages, profile, controls
+const C = meta.concentration;
+$('#conc').innerHTML = [['50%', C['50']], ['90%', C['90']], ['99%', C['99']]].map(([q, a]) =>
+  `<div class="row"><span>${q}</span><span class="trk"><i data-w="${a}"></i></span><b>${pctTxt(a)}%</b></div>`).join('')
+  + `<div class="cap">share of traffic → smallest share of the ocean that carries it</div>`;
+function odo(el, to, dur, dec) { const t0 = performance.now(); (function f(now) { const t = clamp((now - t0) / dur, 0, 1), e = 1 - Math.pow(1 - t, 4); el.textContent = (to * e).toFixed(dec); if (t < 1) requestAnimationFrame(f); })(t0); }
+
+const regs = meta.regions, maxS = Math.max(...regs.map(r => r.share));
+$('#rnote').textContent = `Share of all AIS traffic, 2015–2021, inside a ${meta.passage_km} × ${meta.passage_km} km box at each passage. Click to fly there.`;
+const regEls = [], lblEls = [];
+regs.forEach((r, k) => {
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="ix">${k + 1}</span><span class="nm">${r.name}</span><span class="v">${pctTxt(r.share * 100)}%</span><span class="bar"><i></i></span>`;
+  li.onclick = () => { hideHint(); goRegion(k); }; $('#regList').appendChild(li); regEls.push(li);
+  const lb = document.createElement('div'); lb.className = 'lbl'; lb.innerHTML = `<i></i><span>${r.name}</span>`; lb.onclick = () => goRegion(k);
+  $('#labels').appendChild(lb); lblEls.push({ el: lb, lon: r.center[0], lat: r.center[1], on: false });
+});
+let regOn = -1, hiTarget = 0;
+function goRegion(k) {
+  const r = regs[k], [x0, y0, x1, y1] = r.box;
+  regOn = k; regEls.forEach((e, i) => e.classList.toggle('on', i === k)); lblEls.forEach((l, i) => l.el.classList.toggle('on', i === k));
+  U.uHi.value.set(x0, y0, x1, y1); hiTarget = 1;
+  flyTo(r.center[0], r.center[1], morphTo ? .05 : .055);
+  $('#profVal').textContent = `${r.name.toUpperCase()} · ${pctTxt(r.share * 100)}% OF WORLD TRAFFIC IN ${meta.passage_km} KM`;
+  $('#regions').classList.remove('mob');
+}
+function clearRegion() { regOn = -1; hiTarget = 0; regEls.forEach(x => x.classList.remove('on')); lblEls.forEach(l => l.el.classList.remove('on')); }
+
+// longitude profile
+const lonP = meta.lon_profile, pmax = Math.max(...lonP);
+function drawProfile() {
+  const cv = $('#lonProf'), w = cv.clientWidth, h = cv.clientHeight, r = DPR();
+  if (!w) return;
+  cv.width = w * r; cv.height = h * r; const g = cv.getContext('2d'); g.setTransform(r, 0, 0, r, 0, 0); g.clearRect(0, 0, w, h);
+  const rd = rampCv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, 256, 1).data, bh = h - 14;
+  for (let k = 0; k < 360; k++) {
+    const v = Math.pow(lonP[k] / pmax, .7), x = k / 360 * w, ci = Math.round(clamp(.25 + v * .75, 0, 1) * 255) * 4;
+    g.fillStyle = `rgba(${rd[ci]},${rd[ci + 1]},${rd[ci + 2]},${.35 + .65 * v})`;
+    g.fillRect(x, bh - v * bh, Math.max(1, w / 360 - .6), Math.max(1, v * bh));
+  }
+  g.fillStyle = 'rgba(127,140,166,.5)';
+  for (let l = -180; l <= 180; l += 60) { const x = (l + 180) / 360 * w; g.fillRect(Math.min(x, w - 1), bh + 1, 1, 3); }
+}
+$('#lonProf').addEventListener('click', e => { const rr = e.target.getBoundingClientRect(), lon = (e.clientX - rr.left) / rr.width * 360 - 180; clearRegion(); flyTo(lon, clamp(cam.lat, -40, 50), Math.max(cam.alt, morphTo ? 1.4 : 1.8)); });
+$('#lonProf').addEventListener('mousemove', e => { const rr = e.target.getBoundingClientRect(), k = clamp(Math.floor((e.clientX - rr.left) / rr.width * 360), 0, 359), l = k - 180; $('#profVal').textContent = `${Math.abs(l)}–${Math.abs(l) + 1}°${l >= 0 ? 'E' : 'W'} · ${(lonP[k] * 100).toFixed(2)}% OF ALL TRAFFIC`; });
+
+// controls
+Object.keys(PALS).forEach(n => { const b = document.createElement('button'); b.dataset.p = n; b.innerHTML = `<i style="background:linear-gradient(90deg,${PALS[n].slice(1).join(',')})"></i>${n}`; b.onclick = () => setPalette(n); $('#segPal').appendChild(b); });
+let pal = 'Sonar'; try { pal = localStorage.getItem('sg.pal') || pal; } catch (e) {}
+setPalette(PALS[pal] ? pal : 'Sonar');
+const loTarget = () => lerp(.12, .55, $('#slLo').value / 100), gainTarget = () => lerp(.3, 2.4, Math.pow($('#slGain').value / 100, 1.3));
+function setView(v) { morphTo = v; document.querySelectorAll('#segView button').forEach(b => b.classList.toggle('on', +b.dataset.v === v)); if (v && tgt.alt > 2.2) tgt.alt = 2.2; tgt.alt = clamp(tgt.alt, MIN_ALT, maxAlt()); }
+document.querySelectorAll('#segView button').forEach(b => b.onclick = () => setView(+b.dataset.v));
+$('#tgSpark').onclick = () => { sparkOn = !sparkOn; $('#tgSpark').classList.toggle('on', sparkOn); };
+$('#tgSpin').onclick = () => { spin = !spin; $('#tgSpin').classList.toggle('on', spin); };
+$('#mobRegions').onclick = () => $('#regions').classList.toggle('mob');
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === 'g' || e.key === 'G') setView(morphTo ? 0 : 1);
+  else if (e.key === 's' || e.key === 'S') $('#tgSpark').click();
+  else if (e.code === 'Space') { e.preventDefault(); $('#tgSpin').click(); }
+  else if (e.key === 'Escape') { if ($('#method').classList.contains('on')) $('#method').classList.remove('on'); else { clearRegion(); flyTo(cam.lon, clamp(cam.lat, -30, 40), morphTo ? 2.2 : 2.7); } }
+  else if (/^[1-9]$/.test(e.key) && regs[+e.key - 1]) goRegion(+e.key - 1);
+});
+
+// method
+function methodHTML() {
+  return `<p>Every glowing pixel is shipping traffic recorded by the <b>Automatic Identification System</b> (AIS), the radio transponders ships use to broadcast their position. The IMF processed AIS position reports from satellite and coastal receivers for <b>${meta.period}</b>. The World Bank published the result as a grid of 0.005° cells (about 550 m at the equator): the <a href="https://datacatalog.worldbank.org/search/dataset/0037580" target="_blank">Global Shipping Traffic Density</a> dataset, licensed CC BY 4.0.</p>
+  <h4>WHAT THE NUMBERS MEAN</h4>
+  <p>Each cell sums the AIS position reports recorded there over the whole period. The total is far more than one report per ship per hour, so the raw values can't be read as ship counts. Everything on this page is therefore <b>relative</b>:</p>
+  <p>· <b>Concentration</b>: the cells are ranked from busiest to quietest per km². The headline is the smallest share of the world ocean (361 million km²) that holds half of all reports. 90% and 99% are shown below it.<br>
+  · <b>Passages</b>: the share of the world total inside a ${meta.passage_km} × ${meta.passage_km} km box centred on each strait or canal. Every box has the same area, so the passages can be compared with each other.<br>
+  · <b>Hover</b>: a cell's density as a multiple of the ocean-wide average, and the share of ocean area, by km², that is quieter than it.</p>
+  <h4>WHICH SHIPS</h4>
+  <p>All AIS vessel types are included: cargo ships and tankers, but also fishing, passenger, leisure and offshore oil-and-gas vessels. Vessels that report more often weigh more. Small boats without AIS are missing. So are ships that switch their transponder off, which happens in some fisheries and in sanctions-evading trades.</p>
+  <h4>HOW IT WAS PROCESSED</h4>
+  <p>A Deepnote notebook in this project downloads the 535 MB zip and reads the full GeoTIFF (72,006 × 33,998 cells). It averages it into 0.01° tiles (10° × 10°, loaded when you zoom in) and an 8192 × 4096 global texture, storing density as <code>log(1 + value)</code> in 8 bits. Land and coastlines are rasterised from Natural Earth 1:10m. The sparkles are ${fmt(NP)} points sampled with probability ∝ density<sup>0.55</sup>. They show where traffic is, not individual ships.</p>
+  <p style="font:11px var(--font-m);color:var(--ink-4);margin-top:20px">Data built ${meta.built_at}</p>`;
+}
+const openM = () => { $('#mBody').innerHTML = methodHTML(); $('#method').classList.add('on'); };
+$('#openMethod').onclick = e => { e.preventDefault(); openM(); }; $('#whatN').onclick = openM;
+$('#mX').onclick = $('#mScrim').onclick = () => $('#method').classList.remove('on');
+
+// ------------------------------------------------------------------ resize & loop
+function resize() {
+  renderer.setPixelRatio(DPR()); renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  sparkU.uPx.value = DPR(); stars.material.uniforms.uPx.value = DPR(); drawProfile();
+}
+addEventListener('resize', resize); resize();
+
+const expo = { lo: .3, top: 1, on: 0 };
+function autoExposure() {
+  const n = 40, spanLat = cam.alt * 2 * Math.tan(17.5 * D2R) * R2D, spanLon = spanLat * innerWidth / innerHeight / Math.max(Math.cos(cam.lat * D2R), .2);
+  if (cam.alt > 1 || morph > .02 && morph < .98) { expo.on = 0; return; }
+  const v = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const s = sample(wrap(cam.lon + (i / (n - 1) - .5) * spanLon * .9), clamp(cam.lat + (j / (n - 1) - .5) * spanLat * .9, -85, 85));
+    if (s.land < 128) v.push(s.v);
+  }
+  if (v.length < 60) { expo.on = 0; return; }
+  v.sort((a, b) => a - b); const q = f => v[Math.min(v.length - 1, Math.floor(f * v.length))] / 255;
+  expo.lo = clamp(q(.35), .1, .8); expo.top = clamp(Math.max(q(.995), expo.lo + .12), .3, 1); expo.on = 1;
+}
+let last = performance.now(), frames = 0;
+const _p = new THREE.Vector3(), _q = new THREE.Vector3();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(.1, (now - last) / 1000); last = now; frames++;
+  U.uTime.value = now / 1000; stars.material.uniforms.uT.value = now / 1000;
+
+  morph += clamp(morphTo - morph, -dt / 1.3, dt / 1.3);
+  const m = easeIO(morph);
+
+  // camera
+  if (fly) updateFly(now);
+  else if (!drag) {
+    cam.lon += vel.lon; cam.lat = clamp(cam.lat + vel.lat, -82, 82); tgt.lon += vel.lon; tgt.lat = clamp(tgt.lat + vel.lat, -82, 82);
+    vel.lon *= .9; vel.lat *= .9;
+    if (spin || !ready || (now - lastInteract > 6000 && cam.alt > 1.2 && morph < .01 && regOn < 0 && !mouse.in)) tgt.lon += dt * (spin ? 6 : 2.4);
+    cam.lon += (tgt.lon - cam.lon) * .12; cam.lat += (tgt.lat - cam.lat) * .12;
+    cam.alt = Math.exp(lerp(Math.log(cam.alt), Math.log(tgt.alt), ready ? .14 : .035));
+  }
+  if (Math.abs(cam.lon) > 720) { const d = wrap(cam.lon) - cam.lon; cam.lon += d; tgt.lon += d; }
+  placeCamera(m);
+
+  // looks
+  if (frames % 20 === 0) autoExposure();
+  const zf = expo.on * (1 - smooth(.04, .9, cam.alt));   // zoomed in: stretch contrast to what is on screen
+  U.uLo.value += (lerp(loTarget(), expo.lo, zf) - U.uLo.value) * .08; U.uTop.value += (lerp(1, expo.top, zf) - U.uTop.value) * .08;
+  U.uGain.value += (gainTarget() * (1 - zf * .15) - U.uGain.value) * .15;
+  if (ready) U.uReveal.value = Math.min(1.35, U.uReveal.value + dt * .42);
+  U.uGrid.value = cam.alt < .08 ? 1 : cam.alt < .4 ? 5 : cam.alt < 1.3 ? 10 : 15;
+  U.uHiAmt.value += (hiTarget - U.uHiAmt.value) * .08;
+  atmo.material.uniforms.uA.value = (1 - m) * smooth(.12, 1.2, cam.alt); atmo.visible = m < .99;
+  stars.material.uniforms.uA.value = 1 - m;
+  sparkU.uAmt.value += ((sparkOn && ready ? 1 : 0) * smooth(.05, .3, cam.alt) - sparkU.uAmt.value) * .06;
+  spark.visible = sparkU.uAmt.value > .005;
+
+  // detail atlas
+  if (cam.alt < .5 && frames % 10 === 0) ensureAtlas().catch(e => { atlas.err = String(e && e.message || e); atlas.loading = null; });
+  if (atlas.key) { atlas.amt = Math.min(1, atlas.amt + dt * 1.5); U.uDBox.value.w = atlas.amt * smooth(.5, .28, cam.alt); }
+
+  // passage labels
+  const showL = ready && cam.alt < 1.7 && cam.alt > .03;
+  for (const L of lblEls) {
+    let vis = showL;
+    if (vis) {
+      placeJS(L.lon, L.lat, .002, m, _p);
+      const facing = m > .5 || _p.dot(_q.copy(camera.position).sub(_p)) > 0;
+      _q.copy(_p).project(camera);
+      vis = facing && _q.z < 1 && Math.abs(_q.x) < 1.05 && Math.abs(_q.y) < 1.05;
+      if (vis) L.el.style.transform = `translate(${(_q.x * .5 + .5) * innerWidth - 4}px,${(-_q.y * .5 + .5) * innerHeight - 7}px)`;
+    }
+    if (vis !== L.on) { L.el.style.opacity = vis ? 1 : 0; L.el.style.pointerEvents = vis ? 'auto' : 'none'; L.on = vis; }
+  }
+
+  // HUD
+  $('#lonMark').style.left = ((wrap(cam.lon) + 180) / 360 * 100) + '%';
+  if (frames % 6 === 0) {
+    const km = cam.alt * 2 * Math.tan(17.5 * D2R) * 6371;
+    $('#zoomInfo').innerHTML = `VIEW <b>${llTxt(wrap(cam.lon), cam.lat)}</b><br>SPAN <b>${fmt(km > 2000 ? Math.round(km / 100) * 100 : km)} km</b> · GRID <b>${U.uDBox.value.w > .5 ? '0.01°' : '0.044°'}</b>${atlas.key ? ` · TILES <b>${atlas.ok}/9</b>` : ''}${atlas.err ? ' · ' + atlas.err : ''}`;
+  }
+  if (mouse.dirty && frames % 2 === 0) { mouse.dirty = false; updateTip(); }
+  else if (frames % 15 === 0) updateTip();
+
+  renderer.render(scene, camera);
+}
+
+// ------------------------------------------------------------------ boot
+$('#ldStep').textContent = 'Ready'; $('#ldPct').textContent = '100%'; $('#ldBar').style.width = '100%';
+placeCamera(0);
+requestAnimationFrame(frame);
+setTimeout(() => {
+  $('#loader').classList.add('gone'); document.body.classList.add('ready'); ready = true;
+  odo($('#bigN'), C['50'], 2600, 2); setTimeout(hideHint, 9000);
+  document.querySelectorAll('#conc i').forEach((el, k) => setTimeout(() => el.style.width = Math.min(100, +el.dataset.w) + '%', 400 + k * 150));
+  regEls.forEach((li, k) => setTimeout(() => li.querySelector('.bar i').style.width = (Math.sqrt(regs[k].share / maxS) * 100) + '%', 300 + k * 60));
+  drawProfile();
+}, 450);
+})().catch(e => { console.error(e); const el = document.getElementById('ldErr'); if (el && !el.textContent) el.textContent = String(e && e.message || e); });
+</script>
+</body>
+</html>

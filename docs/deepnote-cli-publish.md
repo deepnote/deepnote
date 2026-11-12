@@ -73,7 +73,18 @@ deepnote publish ./dist --create "Revenue review"
 The build directory is checked before anything is created, so a `.env` file or a bad path leaves no
 empty project behind. The command prints the new project's ID; pass it as `--project-id` for later
 publishes, since each `--create` makes another project. A new project isn't in a sync workspace, so
-`--create` doesn't update one, and `--sync-root` is refused with it.
+`--create` doesn't update one, and `--sync-root` is refused with it. If publishing fails after
+`--create` made the project, the error names it, so you can retry with `--project-id` instead of
+creating another.
+
+A data app project has exactly one notebook, and the command prints its ID after publishing. A page
+that runs the notebook through the API names this ID, so set it in the page and publish again. To
+replace that notebook's blocks with a local `.deepnote` file, push it to that ID (this also runs the
+notebook):
+
+```bash
+deepnote run app.deepnote --cloud --notebook-id <notebook-id> --push --yes
+```
 
 The command uploads files below `_deepnote_static`, replaces matching files, and publishes the app
 after all uploads succeed, so people with access to the project can open it. Remote files absent from
@@ -112,7 +123,8 @@ Project editors can always open the app; everyone else can open it once it is pu
 Publishing also requires **Allow static file sharing in projects** in the workspace settings. These
 permissions are checked on every request.
 
-Data apps have no anonymous or link-only access.
+A published data app can also be [made public](/docs/data-app-projects#sharing-an-app-publicly), so
+anyone with its link can open it, including people without a Deepnote account.
 
 ### Calling the API as the viewer
 
@@ -121,7 +133,9 @@ it. Deepnote hands the page a viewer token that expires after 15 minutes. It can
 inputs and block metadata (without source), read the notebook's
 [app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), start detached runs in this project or other projects
 in the workspace where the viewer has direct access, and poll the viewer's own runs for their
-`snapshotBlocks`. Runs in other projects also require execute permission. Every other endpoint
+`snapshotBlocks`. Runs in other projects also require execute permission. Visitors of a public app
+can start runs only with **Execute** access and get an empty `snapshotBlocks` and no `error` for
+them, so read their results from app data once the run succeeds. Every other endpoint
 answers `403`, so features you built against a local preview with a personal token can fail in the
 published app. See the
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
@@ -164,14 +178,14 @@ publish it again.
 
 Invalid local paths, conflicting destination paths, `.env` files, or files over 100 MiB in the build
 directory stop the command before uploads, with exit code `2`. Each local file is read before its
-remote copy is deleted and replaced.
+remote copy is replaced.
 
 If an upload fails, successful uploads remain in place, the app keeps its previous publish state, and
 remaining stale files are not pruned. An app that was already published stays published and serves the
-partly updated files. The command reports the failures and exits with code `1`. Fix the reported
-errors and publish again. Replacement deletes the remote file before uploading the new one, so a file
-whose upload fails is missing until a later publish succeeds. If that file is `index.html`, the
-published app doesn't load until then.
+partly updated files, which can leave it unable to load. The command reports the failures and exits
+with code `1`. Fix the reported errors and publish again. Replacement overwrites the remote file in
+place rather than deleting it first, so the path is never empty, but a request that failed after the
+server committed the replacement leaves the new version in place.
 
 ## Streamlit apps
 
@@ -195,8 +209,9 @@ for that app too: `unavailable` can be a temporary state during a restart.
 Use `--no-wait` to return after creation or lookup without checking readiness.
 
 Deleting the entrypoint can remove its app registration, but some apps created in the UI retain it.
-Sync replaces changed files by deleting and uploading them. After syncing an edited entrypoint,
-publish again and use the returned URL; it may change. Creating a replacement app restarts the machine.
+Sync overwrites changed files in place, so an edited entrypoint keeps its app and URL. Deleting the
+entrypoint, or deleting and re-uploading it, removes the app; publishing again then creates a new
+app with a new URL. Creating a replacement app restarts the machine.
 
 If the app calls the public API, the project owner must enable Streamlit app API access and the
 viewer must be signed in with direct project access. Streamlit viewer API access is limited to the

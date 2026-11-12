@@ -131,5 +131,6 @@ You can have a look at the other examples in this folder:
 - `3_integrations.deepnote` - Example with database integrations
 - `demo-agent-block.deepnote` - agent block with MCP server support
 - `lindquett-software/` - five data apps for one fictional company, from local notebook to published app, sharing the same metric modules
+- [`data-apps/`](./data-apps/) - data apps built on public data: global ship traffic, bird migration over Europe, and the coastline paradox
 
 For more advanced use case examples, check out the [/examples/demos](./demos/) folder which contains real-world demonstrations of working with data and building models.
