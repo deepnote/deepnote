@@ -717,9 +717,9 @@ export function describeCloudFileDivergence(
 
 /**
  * Returns a conflict description when the cloud copy of a pending replacement is not the baseline
- * the replacement started from. The overwrite either never landed, leaving the baseline in place,
- * or landed and left our own copy there; a missing copy means it never landed either way. Anything
- * else was written by someone after our upload started.
+ * the replacement started from. A changed copy is a conflict even if it is our own upload that
+ * landed, since the inventory has no content hash to tell it apart. A missing copy is retried: older
+ * versions deleted the cloud copy before uploading.
  */
 export function describePendingUploadDivergence(
   baseline: ManifestFileRecord | undefined,
