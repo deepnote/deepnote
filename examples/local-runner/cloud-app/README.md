@@ -19,6 +19,9 @@ Embedded mode stays within the data app viewer token's restricted API surface: r
 notebook, start a detached run, and poll that run. Notebook discovery and run-history enumeration
 are intentionally not available to data app viewer tokens.
 
+In a public data app, visitors without access to the project get an empty `snapshotBlocks` for their
+runs. Read their results from `GET /v2/notebooks/{notebookId}/app-data` instead.
+
 ### Configuration
 
 Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `notebookId` and `shellOrigin` values can also be overridden through query parameters:

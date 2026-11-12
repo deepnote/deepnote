@@ -91,7 +91,6 @@ Visitors can't open the project or the notebook. Before you make an app public, 
 
 - Check the app for sensitive information. Anyone can forward the link or keep a copy of what they see.
 - Visitor runs use your workspace's machines and integrations. They can read the project's files but can't change them.
-- A visitor can see every output of the notebook from their own run, including outputs the app doesn't show.
 - All visitors of an app share one limit on runs. A busy app asks them to try again in a few minutes.
 - When **Private outputs** is on, visitors see only the results of their own runs, so an app with **View** access shows them no results.
 
