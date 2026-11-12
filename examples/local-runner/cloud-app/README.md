@@ -20,7 +20,8 @@ notebook, start a detached run, and poll that run. Notebook discovery and run-hi
 are intentionally not available to data app viewer tokens.
 
 In a public data app, visitors without access to the project get an empty `snapshotBlocks` for their
-runs. Read their results from `GET /v2/notebooks/{notebookId}/app-data` instead.
+runs. Once a run succeeds, read its result from
+[app data](https://deepnote.com/docs/deepnote-api-runs#return-structured-data-from-a-notebook).
 
 ### Configuration
 
