@@ -41,6 +41,10 @@ Schedules that fail repeatedly are automatically paused to avoid wasting compute
 
 Scheduled notebooks can use integrations that rely on federated (OAuth) authentication, such as Snowflake and BigQuery OAuth. Scheduled runs authenticate using the OAuth tokens of the user who set up the schedule. Those tokens can expire or be revoked. For reliable, unattended execution, we recommend service account authentication for BigQuery or username-and-password authentication for Snowflake.
 
+### Projects with private outputs
+
+In a project with [private outputs](/docs/private-outputs), a scheduled run uses its owner's machine and credentials, and only the owner sees its results. The option to update the notebook with the run's results isn't available.
+
 ### Alerts
 
 You can use the scheduled notebook to periodically check the consistency of your data and use the notification system to alert you when the notebook fails (i.e. the consistency check fails).

@@ -91,7 +91,7 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `list_machine_types`: List the machine types the workspace can use, with their vCPUs, memory, and GPUs, and whether the plan and this month's free quota allow each one.
 - `list_environments`: List the environments (Docker images) projects can run on, including the workspace's custom images.
 
-These tools manage the machine behind the editor, live-mode runs, and hosted Streamlit apps. Detached runs start machines of their own, so an agent doesn't need to start the project's machine before calling `create_run`.
+These tools manage the machine behind the editor, live-mode runs, and hosted Streamlit apps. Detached runs start machines of their own, so an agent doesn't need to start the project's machine before calling `create_run`. In a project with [private outputs](/docs/private-outputs), these tools act on the caller's own machine, and run tools and `get_block` return only the caller's runs and outputs.
 
 ### Apps
 

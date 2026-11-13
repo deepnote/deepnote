@@ -11,5 +11,9 @@ Beware, terminals are also collaborative so all collaborators will be able to vi
 <VideoLoop src="../assets/docs/ePieNO0CRnSFAsPsvkm9.mp4" />
 
 <Callout status="info">
+Terminals aren't available in projects with [private outputs](/docs/private-outputs).
+</Callout>
+
+<Callout status="info">
 Terminals are an experimental feature so occasional bugs might happen.
 </Callout>

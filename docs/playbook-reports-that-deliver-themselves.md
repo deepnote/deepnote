@@ -31,7 +31,7 @@ A weekly report often costs someone a morning: run the notebook, check the numbe
 The schedule updates the notebook's outputs, so put the report where those outputs show:
 
 - **In the tools readers already use.** [Embed](/docs/sharing-and-embedding-blocks) the headline numbers and charts in Notion, Confluence or your wiki. Embedded blocks show the notebook's latest outputs, so they update after each scheduled run.
-- **In Deepnote.** Share the project with readers at **View** access. They open the notebook and see the latest edition, along with its code. Keep the report in a project that doesn't run privately, so everyone sees the same outputs.
+- **In Deepnote.** Share the project with readers at **View** access. They open the notebook and see the latest edition, along with its code. Keep the report in a project that doesn't [run privately](/docs/private-outputs), so everyone sees the same outputs.
 - **For their own slice.** If readers want another period or region, build a [data app project](/docs/data-app-projects) on the same definitions, with the period and region as inputs. Each reader runs it for their own values and sees only their own results, so it answers follow-up questions rather than replacing the weekly edition. If its notebook imports metric [modules](/docs/modules), each reader needs Execute access to the modules' projects, and a module in a private project runs only for that project's owner.
 
 A manual run of the report notebook replaces the outputs readers see, so do exploratory runs in a copy of the notebook, and rerun the report if someone changes it by hand.

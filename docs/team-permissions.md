@@ -71,6 +71,8 @@ To share a project only with certain workspace members, change the project acces
 
 Private projects still have access to the workspace resources, such as integrations and machine hours. Note that only **Editors** and **Admins** can create private projects.
 
+A private project limits who can open it; everyone with access sees the same results. To keep each person's results their own inside a project, turn on [private outputs](/docs/private-outputs).
+
 #### How can I lock a project?
 
 From within a project, you can set the workspace member permissions to **View** in "one fell swoop". Note that **Admins** will always be able to edit projects. If the option is set to "Full access" then all members of a workspace will follow their respective roles according to the **Workspace** settings.

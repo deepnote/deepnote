@@ -121,7 +121,7 @@ Schedules created through the API start with auto-pause off; turn it on in the s
 
 ## Monitor from one place
 
-`GET /v2/notebooks/{notebookId}/runs` lists a notebook's runs, newest first, whether the orchestrator, a schedule or a person started them. In a project that runs privately, it lists only the runs started with your key. A small monitoring job can read it for every production notebook and alert when the latest run failed or is older than expected.
+`GET /v2/notebooks/{notebookId}/runs` lists a notebook's runs, newest first, whether the orchestrator, a schedule or a person started them. In a project that [runs privately](/docs/private-outputs), it lists only the runs started with your key. A small monitoring job can read it for every production notebook and alert when the latest run failed or is older than expected.
 
 Scheduled runs can also notify Slack channels or email recipients on success, on failure or both. API runs don't send these notifications, so rely on your orchestrator's alerting for them.
 
