@@ -78,6 +78,9 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockDe
   // We are taking block order into account - creating edges only with the closest defining block
   // or the closest block that uses the variable. When traversing the DAG, we should still
   // get the same result as if we were adding all edges.
+  // A block that uses a variable counts only if it can change it (code). A read-only block (a chart,
+  // a big number) would otherwise look like it produces the variable, and running it would re-run
+  // every later block that reads the same variable.
   blocksWithUsedImportedModules.forEach(block => {
     block.usedVariables.forEach((usedVar: string) => {
       const [closestDefiningBlock] = blocksWithUsedImportedModules
@@ -85,7 +88,7 @@ export function buildDagFromBlocks(blocks: BlockContentDepsWithOrder[]): BlockDe
         .sort((a, b) => b.order - a.order)
 
       const [closesBlockThatUsesVariable] = blocksWithUsedImportedModules
-        .filter(b => b.usedVariables.includes(usedVar) && b.order < block.order)
+        .filter(b => b.usedVariables.includes(usedVar) && b.order < block.order && b.canMutateUsedVariables !== false)
         .sort((a, b) => b.order - a.order)
 
       // If there is a block that defines the variable and a block that uses the variable,
