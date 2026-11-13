@@ -12,6 +12,20 @@ The data isn't in this repo. Each notebook downloads its own data on the first r
 
 No API keys are needed.
 
+## What they look like
+
+**[Global ship traffic](./ship-traffic-globe)**
+
+![A dark 3D globe with the world's shipping lanes drawn as glowing tracks, beside a ranked list of the busiest passages and their share of world traffic](../../assets/examples/data-apps/ship-traffic-globe.webp)
+
+**[The Night Shift](./bird-migration-europe)**
+
+![A night map of Europe where each weather radar glows with the birds flying over it, with wind streaks behind them and a timeline of the migration season below](../../assets/examples/data-apps/bird-migration-europe.webp)
+
+**[The coastline paradox](./coastline-paradox)**
+
+![Satellite view of Milos with straight measuring sticks walked around its coastline, and a panel giving the measured length, stick count and fractal dimension](../../assets/examples/data-apps/coastline-paradox.webp)
+
 ## Run one
 
 1. In Deepnote, create a new data app project.

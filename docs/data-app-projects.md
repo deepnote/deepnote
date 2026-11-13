@@ -65,8 +65,16 @@ New apps use a calm, Deepnote-like theme with light and dark modes. Ask the agen
 Three data apps built on public data are in the Deepnote repository, under [`examples/data-apps`](https://github.com/deepnote/deepnote/tree/main/examples/data-apps). Each folder is one project: a notebook that downloads and prepares the data, and the page that shows it.
 
 - **[Global ship traffic](https://github.com/deepnote/deepnote/tree/main/examples/data-apps/ship-traffic-globe)** turns six years of AIS position reports into a 3D globe and a flat map of the world's shipping lanes, down to the busiest straits and canals.
+
+  ![A dark 3D globe with the world's shipping lanes drawn as glowing tracks, beside a ranked list of the busiest passages and their share of world traffic](../assets/examples/data-apps/ship-traffic-globe.webp)
+
 - **[The Night Shift](https://github.com/deepnote/deepnote/tree/main/examples/data-apps/bird-migration-europe)** shows a season of nightly bird migration over Europe, measured by weather radars, beside the wind that shapes it.
+
+  ![A night map of Europe where each weather radar glows with the birds flying over it, with wind streaks behind them and a timeline of the migration season below](../assets/examples/data-apps/bird-migration-europe.webp)
+
 - **[The coastline paradox](https://github.com/deepnote/deepnote/tree/main/examples/data-apps/coastline-paradox)** walks a ruler along nine Greek islands, from tens of kilometers down to tens of metres, and plots each coastline growing as the ruler shrinks.
+
+  ![Satellite view of Milos with straight measuring sticks walked around its coastline, and a panel giving the measured length, stick count and fractal dimension](../assets/examples/data-apps/coastline-paradox.webp)
 
 None of them need an API key, and each notebook caches its downloads in the project, so only the first run is slow. Their pages are written by hand rather than by the agent, which is how to take an app past what chat gives you: the page is yours, and the notebook still does the querying and the heavy work behind it.
 
