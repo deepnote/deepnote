@@ -74,6 +74,9 @@ const syncProjectSchema = z
   .object({
     id: z.string(),
     name: z.string(),
+    /** The spec makes this a required enum. It stays an optional plain string so a project whose type
+     * this client does not know, or that reports none, does not fail the whole list. */
+    projectType: z.string().optional(),
     createdAt: z.string().optional(),
     updatedAt: z.string().nullish(),
     folder: folderSchema.nullish(),
@@ -176,6 +179,8 @@ export interface ProjectFolder {
 export interface SyncProject {
   id: string
   name: string
+  /** `standard`, `notebook`, `agent`, `data_app`, or `streamlit_app`; absent if the server did not report one. */
+  projectType?: string
   createdAt?: string
   updatedAt?: string | null
   /** `null`/absent when the project sits at the workspace root. */
