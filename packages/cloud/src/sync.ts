@@ -74,6 +74,7 @@ const syncProjectSchema = z
   .object({
     id: z.string(),
     name: z.string(),
+    projectType: z.string().optional(),
     createdAt: z.string().optional(),
     updatedAt: z.string().nullish(),
     folder: folderSchema.nullish(),
@@ -176,6 +177,7 @@ export interface ProjectFolder {
 export interface SyncProject {
   id: string
   name: string
+  projectType?: string
   createdAt?: string
   updatedAt?: string | null
   /** `null`/absent when the project sits at the workspace root. */
