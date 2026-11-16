@@ -48,6 +48,7 @@ export {
   serializeDeepnoteFile,
   serializeDeepnoteSnapshot,
 } from './deepnote-file/serialize-deepnote-file'
+export { compareSortingKeys, sortBlocksBySortingKey } from './deepnote-file/sorting-key'
 export {
   DeepnoteError,
   EncodingError,

@@ -12,6 +12,7 @@ import {
 } from '@deepnote/database-integrations'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, type Mock, type MockedFunction, vi } from 'vitest'
+import { stringify } from 'yaml'
 import { DEEPNOTE_TOKEN_ENV } from '../constants'
 
 // Create mock engine functions
@@ -2509,6 +2510,10 @@ describe('run command', () => {
         blocksToExecuteWithDeps: [],
         newlyComputedBlocksContentDeps: [],
       })
+      mockParseIntegrationsFile.mockResolvedValue({
+        integrations: [],
+        issues: [],
+      })
 
       program = new Command()
       program.exitOverride()
@@ -2524,6 +2529,28 @@ describe('run command', () => {
       consoleLogSpy.mockRestore()
       programErrorSpy.mockRestore()
       process.exitCode = originalExitCode
+    })
+
+    it('lists executable blocks with uppercase sortingKeys before lowercase ones, as Deepnote Cloud orders them', async () => {
+      const file = parseDeepnoteFixture(HELLO_WORLD_FILE)
+      file.project.notebooks[0].blocks = [
+        { id: 'listed-second', type: 'code', content: '', blockGroup: 'g1', sortingKey: 'a0', metadata: {} },
+        { id: 'not-listed', type: 'text-cell-p', content: 'Prose', blockGroup: 'g2', sortingKey: '0', metadata: {} },
+        { id: 'listed-first', type: 'code', content: '', blockGroup: 'g3', sortingKey: 'Z0', metadata: {} },
+      ]
+      const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'run-test-'))
+      const tempFile = join(tempDir, 'mixed-case-keys.deepnote')
+      // Not serializeDeepnoteFile: it renumbers sortingKeys by array position, erasing the keys under test.
+      fs.writeFileSync(tempFile, stringify(file))
+
+      try {
+        await action(tempFile, { dryRun: true, output: 'json' })
+      } finally {
+        fs.rmSync(tempDir, { recursive: true })
+      }
+
+      const jsonOutput = getJsonOutput(consoleLogSpy) as { blocks: Array<{ id: string }> }
+      expect(jsonOutput.blocks.map(block => block.id)).toEqual(['listed-first', 'listed-second'])
     })
 
     it('does not start ExecutionEngine in dry-run mode', async () => {

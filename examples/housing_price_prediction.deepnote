@@ -63,7 +63,7 @@ project:
           id: 2c02cb54fe77f190fb93eafa64acd46f
           metadata:
             formattedRanges: []
-          sortingKey: a0
+          sortingKey: C
           type: text-cell-h1
         - blockGroup: 808a3f1913934d5cbdf27ba93c3337a7
           content: In this notebook we generate synthetic housing data and use it to train a price prediction model.

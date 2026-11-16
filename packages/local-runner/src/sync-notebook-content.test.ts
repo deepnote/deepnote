@@ -294,6 +294,22 @@ describe('planNotebookSync', () => {
     expect(plan.moves).toEqual([{ blockIds: ['b2'], placement: { type: 'start' } }])
   })
 
+  it('orders sorting keys by character code, so an uppercase key comes before a lowercase one', async () => {
+    cloudMock.getNotebook.mockResolvedValue(remoteNotebook([{ id: 'b1' }, { id: 'b2' }]))
+
+    const plan = await planNotebookSync(
+      fileWith([
+        { id: 'b1', sortingKey: 'a0' },
+        { id: 'b2', sortingKey: 'Z0' },
+      ]),
+      'nb-local',
+      'nb-cloud',
+      { token: TOKEN }
+    )
+
+    expect(plan.moves).toEqual([{ blockIds: ['b2'], placement: { type: 'start' } }])
+  })
+
   it('refuses a notebook id that is not in the file', async () => {
     await expect(planNotebookSync(fileWith([{ id: 'b1' }]), 'not-here', 'nb-cloud', { token: TOKEN })).rejects.toThrow(
       /is not in this file/
