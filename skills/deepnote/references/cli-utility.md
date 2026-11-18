@@ -68,7 +68,8 @@ files. For agents that read one instructions file instead — Codex, Amp, Kimi C
 (`AGENTS.md`), Gemini CLI (`GEMINI.md`), GitHub Copilot (`.github/copilot-instructions.md`) — the
 command also writes a pointer to the installed skill into that file, as a managed block between
 `<!-- BEGIN DEEPNOTE SKILL -->` and `<!-- END DEEPNOTE SKILL -->`. The block is replaced in place on
-the next install and the rest of the file is left as it is.
+the next install and the rest of the file is left as it is. With `--global` the pointer names the
+skill by absolute path. A file whose markers cannot be paired is reported and left unchanged.
 
 | Option                | Description                             |
 | --------------------- | --------------------------------------- |

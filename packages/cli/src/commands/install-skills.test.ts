@@ -279,7 +279,7 @@ describe('install-skills command', () => {
       cwdSpy.mockRestore()
     })
 
-    it('writes one AGENTS.md shared by the agents that read it', async () => {
+    it('uses .github/copilot-instructions.md for GitHub Copilot', async () => {
       const action = createInstallSkillsAction(program)
       const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
 
@@ -288,6 +288,59 @@ describe('install-skills command', () => {
 
       const copilot = await fs.readFile(path.join(tempDir, '.github', 'copilot-instructions.md'), 'utf8')
       expect(copilot).toContain('.agents/skills/deepnote/SKILL.md')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('writes one block for agents that share an instructions file', async () => {
+      await fs.mkdir(path.join(tempDir, '.config', 'amp'), { recursive: true })
+      await fs.mkdir(path.join(tempDir, '.kimi'), { recursive: true })
+
+      const action = createInstallSkillsAction(program)
+      const homeSpy = vi.spyOn(os, 'homedir').mockReturnValue(tempDir)
+
+      await action({ global: true })
+
+      const shared = await fs.readFile(path.join(tempDir, '.config', 'AGENTS.md'), 'utf8')
+      expect(shared.match(/<!-- BEGIN DEEPNOTE SKILL -->/g)).toHaveLength(1)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('Amp, Kimi Code CLI')
+
+      homeSpy.mockRestore()
+    })
+
+    it('leaves a file with unpaired markers untouched', async () => {
+      const agentsPath = path.join(tempDir, 'AGENTS.md')
+      const handEdited = '# House rules\n\n<!-- BEGIN DEEPNOTE SKILL -->\n\nUse pnpm.\n'
+      await fs.writeFile(agentsPath, handEdited, 'utf8')
+
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      expect(await fs.readFile(agentsPath, 'utf8')).toBe(handEdited)
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('unpaired skill markers')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('leaves a file with a duplicated block untouched', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      const agentsPath = path.join(tempDir, 'AGENTS.md')
+      const doubled = await fs.readFile(agentsPath, 'utf8')
+      await fs.writeFile(agentsPath, `${doubled}\n${doubled}`, 'utf8')
+
+      await action({ agent: 'codex' })
+
+      expect(await fs.readFile(agentsPath, 'utf8')).toBe(`${doubled}\n${doubled}`)
 
       cwdSpy.mockRestore()
     })
@@ -310,8 +363,9 @@ describe('install-skills command', () => {
 
       await action({ agent: 'codex', global: true })
 
+      // The file is read from any project, so the pointer must be an absolute path.
       const agentsMd = await fs.readFile(path.join(tempDir, '.codex', 'AGENTS.md'), 'utf8')
-      expect(agentsMd).toContain('.codex/skills/deepnote/SKILL.md')
+      expect(agentsMd).toContain(`${tempDir}/.codex/skills/deepnote/SKILL.md`)
 
       homeSpy.mockRestore()
     })

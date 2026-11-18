@@ -193,10 +193,17 @@ interface InstallResult {
   status: InstallStatus
 }
 
+/** `conflict`: the file has markers we cannot pair safely, so it is left untouched. */
+type PointerStatus = InstallStatus | 'conflict'
+
 interface PointerResult {
   agents: string[]
   file: string
-  status: InstallStatus
+  status: PointerStatus
+}
+
+function toPosix(filePath: string): string {
+  return filePath.split(path.sep).join('/')
 }
 
 const POINTER_START = '<!-- BEGIN DEEPNOTE SKILL -->'
@@ -224,29 +231,55 @@ function renderPointer(skillDir: string): string {
   ].join('\n')
 }
 
-/** Replaces the managed block, or appends it, leaving the rest of the file untouched. */
-function upsertPointer(existing: string | null, block: string): { content: string; status: InstallStatus } {
+function countOccurrences(haystack: string, needle: string): number {
+  let count = 0
+  let index = haystack.indexOf(needle)
+  while (index !== -1) {
+    count++
+    index = haystack.indexOf(needle, index + needle.length)
+  }
+  return count
+}
+
+/**
+ * Replaces the managed block, or appends it, leaving the rest of the file untouched.
+ *
+ * Anything other than "no markers" or "exactly one well-formed pair" is a conflict: pairing a
+ * hand-edited marker with one of ours would delete the instructions between them.
+ */
+function upsertPointer(existing: string | null, block: string): { content: string | null; status: PointerStatus } {
   if (existing === null) {
     return { content: `${block}\n`, status: 'installed' }
+  }
+
+  const starts = countOccurrences(existing, POINTER_START)
+  const ends = countOccurrences(existing, POINTER_END)
+
+  if (starts === 0 && ends === 0) {
+    const separator = existing.length === 0 || existing.endsWith('\n\n') ? '' : existing.endsWith('\n') ? '\n' : '\n\n'
+    return { content: `${existing}${separator}${block}\n`, status: 'installed' }
   }
 
   const start = existing.indexOf(POINTER_START)
   const end = existing.indexOf(POINTER_END)
 
-  if (start === -1 || end === -1 || end < start) {
-    const separator = existing.length === 0 || existing.endsWith('\n\n') ? '' : existing.endsWith('\n') ? '\n' : '\n\n'
-    return { content: `${existing}${separator}${block}\n`, status: 'installed' }
+  if (starts !== 1 || ends !== 1 || end < start) {
+    return { content: null, status: 'conflict' }
   }
 
   const content = existing.slice(0, start) + block + existing.slice(end + POINTER_END.length)
   return { content, status: content === existing ? 'up-to-date' : 'updated' }
 }
 
-async function readFileOrNull(filePath: string): Promise<string | null> {
+/** Returns null only for a file that is not there; any other read failure is a real error. */
+async function readFileIfExists(filePath: string): Promise<string | null> {
   try {
     return await fs.readFile(filePath, 'utf8')
-  } catch {
-    return null
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+    throw error
   }
 }
 
@@ -272,11 +305,15 @@ async function installPointers(
     }
 
     const filePath = path.join(baseDir, instructionsFile)
-    const block = renderPointer(path.posix.join(agentSkillDir.split(path.sep).join('/'), 'deepnote'))
-    const existing = await readFileOrNull(filePath)
-    const { content, status } = upsertPointer(existing, block)
+    // A global instructions file is read from any project, so a relative skill path would resolve
+    // against whichever project the agent is in.
+    const skillDirRef = isGlobal
+      ? toPosix(path.join(baseDir, agentSkillDir, 'deepnote'))
+      : toPosix(path.join(agentSkillDir, 'deepnote'))
+    const existing = await readFileIfExists(filePath)
+    const { content, status } = upsertPointer(existing, renderPointer(skillDirRef))
 
-    if (!dryRun && status !== 'up-to-date') {
+    if (!dryRun && content !== null && status !== 'up-to-date') {
       await fs.mkdir(path.dirname(filePath), { recursive: true })
       await fs.writeFile(filePath, content, 'utf8')
     }
@@ -379,13 +416,26 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
   output(c.bold('Skill pointer written to agent instructions:'))
 
   for (const pointer of pointers) {
-    const icon = pointer.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
+    const icon =
+      pointer.status === 'conflict' ? c.yellow('!') : pointer.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
     const agents = c.dim(`(${pointer.agents.join(', ')})`)
     output(`  ${icon} ${pointer.file} ${agents} ${formatStatus(pointer.status, c)}`.trimEnd())
   }
+
+  if (pointers.some(pointer => pointer.status === 'conflict')) {
+    output('')
+    output(
+      c.yellow(
+        `Left unchanged: remove the stray ${POINTER_START} or ${POINTER_END} marker from the file, then install again.`
+      )
+    )
+  }
 }
 
-function formatStatus(status: InstallStatus, c: ReturnType<typeof getChalk>): string {
+function formatStatus(status: PointerStatus, c: ReturnType<typeof getChalk>): string {
+  if (status === 'conflict') {
+    return c.yellow('(unpaired skill markers — not written)')
+  }
   if (status === 'up-to-date') {
     return c.dim('(already up to date)')
   }
