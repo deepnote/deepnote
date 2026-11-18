@@ -63,6 +63,13 @@ deepnote completion fish > ~/.config/fish/completions/deepnote.fish
 
 Install Deepnote agent skills for AI coding assistants.
 
+Agents that discover skills themselves (Claude Code, Cursor, and similar) only need the copied
+files. For agents that read one instructions file instead — Codex, Amp, Kimi Code CLI and OpenCode
+(`AGENTS.md`), Gemini CLI (`GEMINI.md`), GitHub Copilot (`.github/copilot-instructions.md`) — the
+command also writes a pointer to the installed skill into that file, as a managed block between
+`<!-- BEGIN DEEPNOTE SKILL -->` and `<!-- END DEEPNOTE SKILL -->`. The block is replaced in place on
+the next install and the rest of the file is left as it is.
+
 | Option                | Description                             |
 | --------------------- | --------------------------------------- |
 | `-g, --global`        | Install to user home instead of project |

@@ -203,6 +203,148 @@ describe('install-skills command', () => {
     })
   })
 
+  describe('skill pointer in agent instructions', () => {
+    it('creates AGENTS.md pointing at the installed skill for Codex', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      const agentsMd = await fs.readFile(path.join(tempDir, 'AGENTS.md'), 'utf8')
+      expect(agentsMd).toContain('<!-- BEGIN DEEPNOTE SKILL -->')
+      expect(agentsMd).toContain('.agents/skills/deepnote/SKILL.md')
+      expect(agentsMd).toContain('.agents/skills/deepnote/references/apps.md')
+      expect(agentsMd).toContain('<!-- END DEEPNOTE SKILL -->')
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('AGENTS.md')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('appends to an existing instructions file without touching its content', async () => {
+      await fs.writeFile(path.join(tempDir, 'AGENTS.md'), '# House rules\n\nUse pnpm.\n', 'utf8')
+
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      const agentsMd = await fs.readFile(path.join(tempDir, 'AGENTS.md'), 'utf8')
+      expect(agentsMd).toContain('# House rules')
+      expect(agentsMd).toContain('Use pnpm.')
+      expect(agentsMd.indexOf('Use pnpm.')).toBeLessThan(agentsMd.indexOf('<!-- BEGIN DEEPNOTE SKILL -->'))
+
+      cwdSpy.mockRestore()
+    })
+
+    it('replaces the managed block instead of appending a second one', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      const agentsPath = path.join(tempDir, 'AGENTS.md')
+      const stale = (await fs.readFile(agentsPath, 'utf8')).replace(
+        '.agents/skills/deepnote/SKILL.md',
+        '.old/skills/deepnote/SKILL.md'
+      )
+      await fs.writeFile(agentsPath, stale, 'utf8')
+
+      await action({ agent: 'codex' })
+
+      const agentsMd = await fs.readFile(agentsPath, 'utf8')
+      expect(agentsMd.match(/<!-- BEGIN DEEPNOTE SKILL -->/g)).toHaveLength(1)
+      expect(agentsMd).toContain('.agents/skills/deepnote/SKILL.md')
+      expect(agentsMd).not.toContain('.old/skills/deepnote/SKILL.md')
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('(updated)')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('reports the pointer as up to date on a second install', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+      consoleSpy.mockClear()
+      await action({ agent: 'codex' })
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('AGENTS.md')
+      expect(output).toContain('already up to date')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('writes one AGENTS.md shared by the agents that read it', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await fs.mkdir(path.join(tempDir, '.github'), { recursive: true })
+      await action({})
+
+      const copilot = await fs.readFile(path.join(tempDir, '.github', 'copilot-instructions.md'), 'utf8')
+      expect(copilot).toContain('.agents/skills/deepnote/SKILL.md')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('uses GEMINI.md for Gemini CLI', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'gemini cli' })
+
+      const gemini = await fs.readFile(path.join(tempDir, 'GEMINI.md'), 'utf8')
+      expect(gemini).toContain('.agents/skills/deepnote/SKILL.md')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('points at the global skill directory with --global', async () => {
+      const action = createInstallSkillsAction(program)
+      const homeSpy = vi.spyOn(os, 'homedir').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex', global: true })
+
+      const agentsMd = await fs.readFile(path.join(tempDir, '.codex', 'AGENTS.md'), 'utf8')
+      expect(agentsMd).toContain('.codex/skills/deepnote/SKILL.md')
+
+      homeSpy.mockRestore()
+    })
+
+    it('writes no pointer for agents that discover skills themselves', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'claude code' })
+
+      await expect(fs.readFile(path.join(tempDir, 'AGENTS.md'), 'utf8')).rejects.toThrow()
+
+      const output = getOutput(consoleSpy)
+      expect(output).not.toContain('Skill pointer')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('writes no pointer with --dry-run', async () => {
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex', dryRun: true })
+
+      await expect(fs.readFile(path.join(tempDir, 'AGENTS.md'), 'utf8')).rejects.toThrow()
+
+      const output = getOutput(consoleSpy)
+      expect(output).toContain('AGENTS.md')
+
+      cwdSpy.mockRestore()
+    })
+  })
+
   describe('skill file content', () => {
     it('installs all expected skill files', async () => {
       const action = createInstallSkillsAction(program)

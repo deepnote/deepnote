@@ -23,6 +23,13 @@ interface AgentConfig {
   globalConfigDir: string | null
   /** Skills install directory in global mode (relative to home). Null = global not supported. */
   globalSkillDir: string | null
+  /**
+   * Instructions file that points the agent at the installed skill (relative to project root).
+   * Only for agents that do not discover `SKILL.md` on their own. Null = discovery is automatic.
+   */
+  projectInstructionsFile?: string | null
+  /** Instructions file in global mode (relative to home). Null = no pointer is written. */
+  globalInstructionsFile?: string | null
 }
 
 // Agent configurations sourced from https://github.com/vercel-labs/skills
@@ -128,6 +135,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.copilot',
     globalSkillDir: '.copilot/skills',
+    projectInstructionsFile: '.github/copilot-instructions.md',
+    globalInstructionsFile: null,
   },
   {
     name: 'Codex',
@@ -135,6 +144,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.codex',
     globalSkillDir: '.codex/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.codex/AGENTS.md',
   },
   {
     name: 'Gemini CLI',
@@ -142,6 +153,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.gemini',
     globalSkillDir: '.gemini/skills',
+    projectInstructionsFile: 'GEMINI.md',
+    globalInstructionsFile: '.gemini/GEMINI.md',
   },
   {
     name: 'Amp',
@@ -149,6 +162,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.config/amp',
     globalSkillDir: '.config/agents/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.config/AGENTS.md',
   },
   {
     name: 'Kimi Code CLI',
@@ -156,6 +171,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.kimi',
     globalSkillDir: '.config/agents/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.config/AGENTS.md',
   },
   {
     name: 'OpenCode',
@@ -163,6 +180,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.config/opencode',
     globalSkillDir: '.config/opencode/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.config/opencode/AGENTS.md',
   },
 ]
 
@@ -172,6 +191,100 @@ interface InstallResult {
   agent: AgentConfig
   skillPath: string
   status: InstallStatus
+}
+
+interface PointerResult {
+  agents: string[]
+  file: string
+  status: InstallStatus
+}
+
+const POINTER_START = '<!-- BEGIN DEEPNOTE SKILL -->'
+const POINTER_END = '<!-- END DEEPNOTE SKILL -->'
+
+/**
+ * Agents that discover `SKILL.md` on their own need nothing more than the copied files. The rest
+ * read a single instructions file, so point that file at the skill or the agent never opens it.
+ */
+function renderPointer(skillDir: string): string {
+  const skillPath = path.posix.join(skillDir, 'SKILL.md')
+  const referencesDir = path.posix.join(skillDir, 'references')
+
+  return [
+    POINTER_START,
+    '## Deepnote skill',
+    '',
+    `Read \`${skillPath}\` before working with \`.deepnote\` files, the Deepnote CLI, or Deepnote`,
+    'data apps and Streamlit apps. It links to task-specific references in',
+    `\`${referencesDir}/\`; open the ones the task needs. Building or publishing an app needs`,
+    `\`${referencesDir}/apps.md\` and \`${referencesDir}/cli-publish.md\`.`,
+    '',
+    'This block is managed by `deepnote install-skills`. Edits inside it are overwritten.',
+    POINTER_END,
+  ].join('\n')
+}
+
+/** Replaces the managed block, or appends it, leaving the rest of the file untouched. */
+function upsertPointer(existing: string | null, block: string): { content: string; status: InstallStatus } {
+  if (existing === null) {
+    return { content: `${block}\n`, status: 'installed' }
+  }
+
+  const start = existing.indexOf(POINTER_START)
+  const end = existing.indexOf(POINTER_END)
+
+  if (start === -1 || end === -1 || end < start) {
+    const separator = existing.length === 0 || existing.endsWith('\n\n') ? '' : existing.endsWith('\n') ? '\n' : '\n\n'
+    return { content: `${existing}${separator}${block}\n`, status: 'installed' }
+  }
+
+  const content = existing.slice(0, start) + block + existing.slice(end + POINTER_END.length)
+  return { content, status: content === existing ? 'up-to-date' : 'updated' }
+}
+
+async function readFileOrNull(filePath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(filePath, 'utf8')
+  } catch {
+    return null
+  }
+}
+
+async function installPointers(
+  baseDir: string,
+  isGlobal: boolean,
+  agents: AgentConfig[],
+  dryRun: boolean
+): Promise<PointerResult[]> {
+  const results = new Map<string, PointerResult>()
+
+  for (const agent of agents) {
+    const instructionsFile = isGlobal ? agent.globalInstructionsFile : agent.projectInstructionsFile
+    const agentSkillDir = isGlobal ? agent.globalSkillDir : agent.projectSkillDir
+    if (!instructionsFile || !agentSkillDir) {
+      continue
+    }
+
+    const existingResult = results.get(instructionsFile)
+    if (existingResult) {
+      existingResult.agents.push(agent.name)
+      continue
+    }
+
+    const filePath = path.join(baseDir, instructionsFile)
+    const block = renderPointer(path.posix.join(agentSkillDir.split(path.sep).join('/'), 'deepnote'))
+    const existing = await readFileOrNull(filePath)
+    const { content, status } = upsertPointer(existing, block)
+
+    if (!dryRun && status !== 'up-to-date') {
+      await fs.mkdir(path.dirname(filePath), { recursive: true })
+      await fs.writeFile(filePath, content, 'utf8')
+    }
+
+    results.set(instructionsFile, { agents: [agent.name], file: instructionsFile, status })
+  }
+
+  return [...results.values()]
 }
 
 export function createInstallSkillsAction(_program: Command): (options: InstallSkillsOptions) => Promise<void> {
@@ -240,6 +353,8 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
     results.push({ agent, status, skillPath })
   }
 
+  const pointers = await installPointers(baseDir, isGlobal, agents, !!options.dryRun)
+
   const c = getChalk()
 
   if (options.dryRun) {
@@ -252,15 +367,29 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
 
   for (const result of results) {
     const icon = result.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
-    const statusText =
-      result.status === 'up-to-date'
-        ? c.dim('(already up to date)')
-        : result.status === 'updated'
-          ? c.yellow('(updated)')
-          : ''
-    const line = `  ${icon} ${result.agent.name.padEnd(maxNameLen + 2)} ${result.skillPath} ${statusText}`
+    const line = `  ${icon} ${result.agent.name.padEnd(maxNameLen + 2)} ${result.skillPath} ${formatStatus(result.status, c)}`
     output(line.trimEnd())
   }
+
+  if (pointers.length === 0) {
+    return
+  }
+
+  output('')
+  output(c.bold('Skill pointer written to agent instructions:'))
+
+  for (const pointer of pointers) {
+    const icon = pointer.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
+    const agents = c.dim(`(${pointer.agents.join(', ')})`)
+    output(`  ${icon} ${pointer.file} ${agents} ${formatStatus(pointer.status, c)}`.trimEnd())
+  }
+}
+
+function formatStatus(status: InstallStatus, c: ReturnType<typeof getChalk>): string {
+  if (status === 'up-to-date') {
+    return c.dim('(already up to date)')
+  }
+  return status === 'updated' ? c.yellow('(updated)') : ''
 }
 
 /** Recursively reads all files in a directory, returning a map of relative paths to contents. */

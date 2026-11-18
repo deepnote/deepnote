@@ -964,6 +964,17 @@ deepnote install-skills
 
 **Supported agents:** Claude Code, Cursor, Windsurf, GitHub Copilot, Cline, Roo Code, Augment, Continue, Antigravity, Trae, Goose, Junie, Kilo Code, Kiro, Codex, Gemini CLI, Amp, Kimi Code CLI, OpenCode.
 
+**Agents that do not discover skills on their own** read a single instructions file instead, so the
+command also writes a pointer to the installed skill into that file. It is a managed block between
+`<!-- BEGIN DEEPNOTE SKILL -->` and `<!-- END DEEPNOTE SKILL -->`, replaced in place on the next
+install; the rest of the file is left untouched.
+
+| Agent                               | Instructions file (project)       | Instructions file (`--global`) |
+| ----------------------------------- | --------------------------------- | ------------------------------ |
+| Codex, Amp, Kimi Code CLI, OpenCode | `AGENTS.md`                       | agent's own config directory   |
+| Gemini CLI                          | `GEMINI.md`                       | `~/.gemini/GEMINI.md`          |
+| GitHub Copilot                      | `.github/copilot-instructions.md` | —                              |
+
 **Examples:**
 
 ```bash
