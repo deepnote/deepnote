@@ -34,7 +34,7 @@ To see the notebook, click **Show notebook** in the top bar. Click **Show app** 
 
 Runs are per person. Once someone has run the app, opening or reloading it shows the results of their own latest run rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
 
-Until someone has run the app themselves, what they see depends on **Let people see results without running the app**, under **General** in the project's **Settings** sidebar:
+Until someone has run the app themselves, what they see depends on **Let everyone with access see results without running the app**, under **General** in the project's **Settings** sidebar:
 
 - **On:** they see the results of the latest run by an editor or admin, a scheduled run included.
 - **Off:** the app shows no data and asks them to run it.
@@ -45,7 +45,7 @@ Running blocks in the editor doesn't change what the app shows.
 
 ### Scheduling
 
-To keep the app's data fresh, schedule its notebook. Click **Schedule notebook** next to **Run** at the top of the notebook, or **Scheduled Runs** under **Triggers** in the project's **Settings** sidebar. See [Scheduling](/docs/scheduling) for the options. Scheduling turns on **Let people see results without running the app**, so everyone who opens the app sees the latest scheduled results.
+To keep the app's data fresh, schedule its notebook. Click **Schedule notebook** next to **Run** at the top of the notebook, or **Scheduled Runs** under **Triggers** in the project's **Settings** sidebar. See [Scheduling](/docs/scheduling) for the options. Scheduling turns on **Let everyone with access see results without running the app**, so everyone with access sees the latest scheduled results.
 
 ### Inputs
 
@@ -125,7 +125,7 @@ Visitors can't open the project or the notebook. Before you make an app public, 
 - Check the app for sensitive information. Anyone can forward the link or keep a copy of what they see.
 - Visitor runs use your workspace's machines and integrations. They can read the project's files but can't change them.
 - All visitors of an app share one limit on runs. A busy app asks them to try again in a few minutes.
-- Making the app public turns on **Let people see results without running the app**, so people with access to the project see the same results until they run the app.
+- Making the app public turns on **Let everyone with access see results without running the app**, so everyone with access to the project sees the same results until they run the app.
 - When **Private outputs** is on, visitors see only the results of their own runs, so an app with **View** access shows them no results.
 
 To make the app private again, choose **Disabled**. The app also stops being public when you unpublish it.
