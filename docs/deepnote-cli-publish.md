@@ -90,10 +90,9 @@ The command uploads files below `_deepnote_static`, replaces matching files, and
 after all uploads succeed, so people with access to the project can open it. Remote files absent from
 the build are retained unless you use `--prune`. Use the URL printed by the command.
 
-The project must be a data app project. For any other project type, the command exits with code `2`
-before uploading anything. [Data app projects](/docs/data-app-projects) are in beta and may not be
-enabled for your workspace yet. Publishing HTML files from a notebook project as a static website is no
-longer supported.
+The project must be a [data app project](/docs/data-app-projects). For any other project type, the
+command exits with code `2` before uploading anything. Publishing HTML files from a notebook project as
+a static website is no longer supported.
 
 <Callout status="warning">
 Every file in the build directory can be served to viewers, including dotfiles and source maps.
