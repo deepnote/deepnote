@@ -1163,7 +1163,7 @@
       el.loadingSub.textContent = 'Loading coastlines'
       const { appData } = await notebook.appData()
       const list = appData && Array.isArray(appData.islands) ? appData.islands : null
-      if (!list || !list.length)
+      if (!list?.length)
         throw new Error('The notebook result has no island coastlines. Run the notebook to compute them.')
       S.islands = list.map(prep).filter(Boolean)
       if (!S.islands.length) throw new Error('The island data is empty or malformed.')
