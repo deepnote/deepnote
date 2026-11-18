@@ -89,7 +89,7 @@ export const USE_CASES = {
 }
 
 /** Path of a use case's shipped notebook file. Throws, listing the use cases, for an unknown name. */
-export function useCasePath(useCase) {
+export function resolveUseCasePath(useCase) {
   const file = USE_CASES[useCase]
   if (!file) {
     throw new Error(`No use case named "${useCase}". Choose one of ${Object.keys(USE_CASES).join(', ')}.`)
@@ -106,7 +106,7 @@ export function useCasePath(useCase) {
  * @param {{ agentModel?: string }} [options]
  */
 export function buildLocal(useCase, outDir, { agentModel } = {}) {
-  const file = deserializeDeepnoteFile(readFileSync(useCasePath(useCase), 'utf8'))
+  const file = deserializeDeepnoteFile(readFileSync(resolveUseCasePath(useCase), 'utf8'))
   const [target] = file.project.notebooks
   const metrics = deserializeDeepnoteFile(readFileSync(METRICS_PATH, 'utf8'))
   const modules = new Map(metrics.project.notebooks.filter(nb => nb.isModule).map(nb => [nb.id, nb]))
@@ -135,7 +135,7 @@ export function buildLocal(useCase, outDir, { agentModel } = {}) {
  * @returns {string} the directory
  */
 export function buildSite(useCase, outDir) {
-  useCasePath(useCase)
+  resolveUseCasePath(useCase)
   const site = join(outDir, 'site')
   rmSync(site, { recursive: true, force: true })
   cpSync(join(exampleRoot, useCase, 'app'), site, { recursive: true })
