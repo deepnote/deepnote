@@ -315,8 +315,8 @@ must name that ID. Put a local notebook into the project with
 
 ### Publish a Streamlit app
 
-The entrypoint must already be in the project's Files — this command uploads nothing — and the path
-is project-relative:
+The entrypoint and its local dependencies must already be in the project's Files — this command
+uploads nothing — and the paths are project-relative:
 
 ```bash
 deepnote streamlit publish apps/dashboard.py --project-id <uuid>
@@ -324,7 +324,9 @@ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
 
 Creating a new Streamlit app restarts the project machine; re-publishing an existing entrypoint does
 not. Never delete and re-upload an entrypoint to change it: that drops the app registration and the
-next publish returns a new URL. Open the printed URL and test it as the intended viewer.
+next publish returns a new URL. To change an entrypoint, upload the edited file to the same path in
+the project's Files in Deepnote, which keeps the app and its URL. Open the printed URL and test it
+as the intended viewer.
 
 Apps published from notebook blocks are deprecated; do not build new ones.
 
