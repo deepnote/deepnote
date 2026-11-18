@@ -9,12 +9,12 @@ Deepnote has two kinds of app project for putting an analysis in front of other 
 
 ## The options
 
-| Option                                                       | What you build                                                   | Who builds it                      | Best for                                                    |
-| ------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
-| [Data app project](/docs/data-app-projects) (beta)           | An HTML page backed by one notebook                              | Deepnote Agent, from a description | Dashboards and self-serve tools with a polished interface   |
-| [Streamlit app project](/docs/streamlit-app-projects) (beta) | A Streamlit app in `app.py`, hosted by Deepnote, with a notebook | Deepnote Agent, or you in Python   | Python-heavy interactive tools                              |
-| [Embedded blocks](/docs/sharing-and-embedding-blocks)        | Single charts or tables placed in another tool                   | Anyone who can edit the notebook   | Live numbers inside Notion, Confluence or a website         |
-| [Deepnote API](/docs/deepnote-api)                           | Your own product or service calling a notebook                   | Developers                         | Showing a notebook's results inside an app you already have |
+| Option                                                | What you build                                                   | Who builds it                      | Best for                                                    |
+| ----------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------- |
+| [Data app project](/docs/data-app-projects)           | An HTML page backed by one notebook                              | Deepnote Agent, from a description | Dashboards and self-serve tools with a polished interface   |
+| [Streamlit app project](/docs/streamlit-app-projects) | A Streamlit app in `app.py`, hosted by Deepnote, with a notebook | Deepnote Agent, or you in Python   | Python-heavy interactive tools                              |
+| [Embedded blocks](/docs/sharing-and-embedding-blocks) | Single charts or tables placed in another tool                   | Anyone who can edit the notebook   | Live numbers inside Notion, Confluence or a website         |
+| [Deepnote API](/docs/deepnote-api)                    | Your own product or service calling a notebook                   | Developers                         | Showing a notebook's results inside an app you already have |
 
 ## How to choose
 

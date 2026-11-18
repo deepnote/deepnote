@@ -5,10 +5,6 @@ noIndex: true
 noContent: false
 ---
 
-<Callout status="info">
-Data app projects are in beta. This is an early version, so expect it to change, and tell us what you'd like it to do.
-</Callout>
-
 A data app project is a web app you build by chatting with [Deepnote Agent](/docs/deepnote-agent). Describe what you need, such as a sales dashboard, a data explorer, or an interactive tool, and the agent builds the app and connects it to a notebook that queries and prepares the data. Refine it in chat and share it with your team.
 
 Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). To put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
