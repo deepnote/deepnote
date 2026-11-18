@@ -39,13 +39,13 @@ Until someone has run the app themselves, what they see depends on **Let everyon
 - **On:** they see the results of the latest run by an editor or admin, a scheduled run included.
 - **Off:** the app shows no data and asks them to run it.
 
-The setting is always on while the app is scheduled or public, and always off when **Private outputs** is on.
+The setting is always on while the app is scheduled or public, unless **Private outputs** is on, which always turns it off.
 
 Running blocks in the editor doesn't change what the app shows.
 
 ### Scheduling
 
-To keep the app's data fresh, schedule its notebook. Click **Schedule notebook** next to **Run** at the top of the notebook, or **Scheduled Runs** under **Triggers** in the project's **Settings** sidebar. See [Scheduling](/docs/scheduling) for the options. Scheduling turns on **Let everyone with access see results without running the app**, so everyone with access sees the latest scheduled results.
+To keep the app's data fresh, schedule its notebook. Click **Schedule notebook** next to **Run** at the top of the notebook, or **Scheduled Runs** under **Triggers** in the project's **Settings** sidebar. See [Scheduling](/docs/scheduling) for the options. Scheduling turns on **Let everyone with access see results without running the app**, so everyone with access who hasn't run the app sees the latest scheduled results.
 
 ### Inputs
 
