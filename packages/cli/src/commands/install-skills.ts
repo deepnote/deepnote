@@ -283,6 +283,22 @@ async function readFileIfExists(filePath: string): Promise<string | null> {
   }
 }
 
+/**
+ * The instructions file belongs to the user, so never truncate it in place: a failed write would
+ * take their instructions with it and leave nothing to retry from.
+ */
+async function writeFileAtomic(filePath: string, content: string): Promise<void> {
+  const tempPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.deepnote-${process.pid}.tmp`)
+
+  try {
+    await fs.writeFile(tempPath, content, 'utf8')
+    await fs.rename(tempPath, filePath)
+  } catch (error) {
+    await fs.rm(tempPath, { force: true }).catch(() => {})
+    throw error
+  }
+}
+
 async function installPointers(
   baseDir: string,
   isGlobal: boolean,
@@ -315,7 +331,7 @@ async function installPointers(
 
     if (!dryRun && content !== null && status !== 'up-to-date') {
       await fs.mkdir(path.dirname(filePath), { recursive: true })
-      await fs.writeFile(filePath, content, 'utf8')
+      await writeFileAtomic(filePath, content)
     }
 
     results.set(instructionsFile, { agents: [agent.name], file: instructionsFile, status })

@@ -310,6 +310,28 @@ describe('install-skills command', () => {
       homeSpy.mockRestore()
     })
 
+    it('keeps the existing instructions and cleans up when the write fails', async () => {
+      const agentsPath = path.join(tempDir, 'AGENTS.md')
+      const original = '# House rules\n\nUse pnpm.\n'
+      await fs.writeFile(agentsPath, original, 'utf8')
+
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+      const renameSpy = vi.spyOn(fs, 'rename').mockRejectedValue(new Error('rename failed'))
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('process.exit called')
+      })
+
+      await expect(action({ agent: 'codex' })).rejects.toThrow('process.exit called')
+
+      expect(await fs.readFile(agentsPath, 'utf8')).toBe(original)
+      expect((await fs.readdir(tempDir)).filter(entry => entry.endsWith('.tmp'))).toHaveLength(0)
+
+      exitSpy.mockRestore()
+      renameSpy.mockRestore()
+      cwdSpy.mockRestore()
+    })
+
     it('leaves a file with unpaired markers untouched', async () => {
       const agentsPath = path.join(tempDir, 'AGENTS.md')
       const handEdited = '# House rules\n\n<!-- BEGIN DEEPNOTE SKILL -->\n\nUse pnpm.\n'
