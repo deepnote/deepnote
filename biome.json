@@ -6,7 +6,11 @@
     "includes": [
       "**",
       "!skills/deepnote/references/schema.ts",
-      "!packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts"
+      "!packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts",
+      "!**/*.html",
+      "!**/*.md",
+      "!**/*.yaml",
+      "!**/*.yml"
     ]
   },
   "formatter": {
