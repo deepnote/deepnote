@@ -315,9 +315,10 @@ must name that ID. Put a local notebook into the project with
 
 ### Publish a Streamlit app
 
-Install the third-party packages the entrypoint imports in the project environment; this command
-installs nothing. The entrypoint and its local dependencies must already be in the project's
-Files — it uploads nothing either — and the paths are project-relative:
+This command installs nothing and uploads nothing. Put the third-party packages the entrypoint
+imports in the project's `requirements.txt`, which the Init notebook installs on every machine
+start — an ad-hoc `!pip install` is gone after the restart below. The entrypoint and its local
+dependencies must already be in the project's Files, and the paths are project-relative:
 
 ```bash
 deepnote streamlit publish apps/dashboard.py --project-id <uuid>

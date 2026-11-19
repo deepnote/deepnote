@@ -25,7 +25,9 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
 
 ## Prepare a Streamlit app
 
-1. Write the `.py` entrypoint and install its dependencies in the project environment. The app
+1. Write the `.py` entrypoint and install its dependencies so they survive a machine restart: list
+   them in the project's `requirements.txt`, which the Init notebook installs on every start. An
+   ad-hoc `!pip install` is gone after the restart that creating the app triggers. The app
    inherits the project's integrations and sharing settings and sleeps when its hardware is inactive.
 2. If the app runs a notebook, deploy that notebook before publishing. Keep the local `.deepnote`
    file's block IDs aligned with the deployed notebook; preview with
