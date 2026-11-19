@@ -23,6 +23,13 @@ interface AgentConfig {
   globalConfigDir: string | null
   /** Skills install directory in global mode (relative to home). Null = global not supported. */
   globalSkillDir: string | null
+  /**
+   * Instructions file that points the agent at the installed skill (relative to project root).
+   * Only for agents that do not discover `SKILL.md` on their own. Null = discovery is automatic.
+   */
+  projectInstructionsFile?: string | null
+  /** Instructions file in global mode (relative to home). Null = no pointer is written. */
+  globalInstructionsFile?: string | null
 }
 
 // Agent configurations sourced from https://github.com/vercel-labs/skills
@@ -128,6 +135,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.copilot',
     globalSkillDir: '.copilot/skills',
+    projectInstructionsFile: '.github/copilot-instructions.md',
+    globalInstructionsFile: null,
   },
   {
     name: 'Codex',
@@ -135,6 +144,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.codex',
     globalSkillDir: '.codex/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.codex/AGENTS.md',
   },
   {
     name: 'Gemini CLI',
@@ -142,6 +153,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.gemini',
     globalSkillDir: '.gemini/skills',
+    projectInstructionsFile: 'GEMINI.md',
+    globalInstructionsFile: '.gemini/GEMINI.md',
   },
   {
     name: 'Amp',
@@ -149,6 +162,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.config/amp',
     globalSkillDir: '.config/agents/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.config/AGENTS.md',
   },
   {
     name: 'Kimi Code CLI',
@@ -156,6 +171,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.kimi',
     globalSkillDir: '.config/agents/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.config/AGENTS.md',
   },
   {
     name: 'OpenCode',
@@ -163,6 +180,8 @@ const AGENTS: AgentConfig[] = [
     projectSkillDir: '.agents/skills',
     globalConfigDir: '.config/opencode',
     globalSkillDir: '.config/opencode/skills',
+    projectInstructionsFile: 'AGENTS.md',
+    globalInstructionsFile: '.config/opencode/AGENTS.md',
   },
 ]
 
@@ -172,6 +191,186 @@ interface InstallResult {
   agent: AgentConfig
   skillPath: string
   status: InstallStatus
+}
+
+/** `conflict`: the file has markers we cannot pair safely, so it is left untouched. */
+type PointerStatus = InstallStatus | 'conflict'
+
+interface PointerResult {
+  agents: string[]
+  file: string
+  status: PointerStatus
+}
+
+function toPosix(filePath: string): string {
+  return filePath.split(path.sep).join('/')
+}
+
+const POINTER_START = '<!-- BEGIN DEEPNOTE SKILL -->'
+const POINTER_END = '<!-- END DEEPNOTE SKILL -->'
+
+/**
+ * Agents that discover `SKILL.md` on their own need nothing more than the copied files. The rest
+ * read a single instructions file, so point that file at the skill or the agent never opens it.
+ */
+function renderPointer(skillDir: string): string {
+  const skillPath = path.posix.join(skillDir, 'SKILL.md')
+  const referencesDir = path.posix.join(skillDir, 'references')
+
+  return [
+    POINTER_START,
+    '## Deepnote skill',
+    '',
+    `Read \`${skillPath}\` before working with \`.deepnote\` files, the Deepnote CLI, or Deepnote`,
+    'data apps and Streamlit apps. It links to task-specific references in',
+    `\`${referencesDir}/\`; open the ones the task needs. Building or publishing an app needs`,
+    `\`${referencesDir}/apps.md\` and \`${referencesDir}/cli-publish.md\`.`,
+    '',
+    'This block is managed by `deepnote install-skills`. Edits inside it are overwritten.',
+    POINTER_END,
+  ].join('\n')
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  let count = 0
+  let index = haystack.indexOf(needle)
+  while (index !== -1) {
+    count++
+    index = haystack.indexOf(needle, index + needle.length)
+  }
+  return count
+}
+
+/**
+ * Replaces the managed block, or appends it, leaving the rest of the file untouched.
+ *
+ * Anything other than "no markers" or "exactly one well-formed pair" is a conflict: pairing a
+ * hand-edited marker with one of ours would delete the instructions between them.
+ */
+function upsertPointer(existing: string | null, block: string): { content: string | null; status: PointerStatus } {
+  if (existing === null) {
+    return { content: `${block}\n`, status: 'installed' }
+  }
+
+  const starts = countOccurrences(existing, POINTER_START)
+  const ends = countOccurrences(existing, POINTER_END)
+
+  if (starts === 0 && ends === 0) {
+    const separator = existing.length === 0 || existing.endsWith('\n\n') ? '' : existing.endsWith('\n') ? '\n' : '\n\n'
+    return { content: `${existing}${separator}${block}\n`, status: 'installed' }
+  }
+
+  const start = existing.indexOf(POINTER_START)
+  const end = existing.indexOf(POINTER_END)
+
+  if (starts !== 1 || ends !== 1 || end < start) {
+    return { content: null, status: 'conflict' }
+  }
+
+  const content = existing.slice(0, start) + block + existing.slice(end + POINTER_END.length)
+  return { content, status: content === existing ? 'up-to-date' : 'updated' }
+}
+
+/** Returns null only for a file that is not there; any other read failure is a real error. */
+async function readFileIfExists(filePath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(filePath, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+    throw error
+  }
+}
+
+/** Resolves a symlinked instructions file to its target; returns the path itself for anything else. */
+async function resolveLink(filePath: string): Promise<string> {
+  try {
+    if (!(await fs.lstat(filePath)).isSymbolicLink()) {
+      return filePath
+    }
+    return await fs.realpath(filePath)
+  } catch {
+    return filePath
+  }
+}
+
+/** Returns the permission bits of an existing file, or null when it is not there. */
+async function getFileMode(filePath: string): Promise<number | null> {
+  try {
+    return (await fs.stat(filePath)).mode & 0o777
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+    throw error
+  }
+}
+
+/**
+ * The instructions file belongs to the user, so never truncate it in place: a failed write would
+ * take their instructions with it and leave nothing to retry from.
+ *
+ * The rename lands on the symlink target when the file is a link, because replacing the link itself
+ * would quietly detach the agent from the shared instructions it points at. It also carries over the
+ * target's permissions, which `writeFile` would otherwise reset to the umask default on the new file.
+ */
+async function writeFileAtomic(filePath: string, content: string): Promise<void> {
+  const destination = await resolveLink(filePath)
+  const existingMode = await getFileMode(destination)
+  const tempPath = path.join(path.dirname(destination), `.${path.basename(destination)}.deepnote-${process.pid}.tmp`)
+
+  try {
+    await fs.writeFile(tempPath, content, 'utf8')
+    if (existingMode !== null) {
+      await fs.chmod(tempPath, existingMode)
+    }
+    await fs.rename(tempPath, destination)
+  } catch (error) {
+    await fs.rm(tempPath, { force: true }).catch(() => {})
+    throw error
+  }
+}
+
+async function installPointers(
+  baseDir: string,
+  isGlobal: boolean,
+  agents: AgentConfig[],
+  dryRun: boolean
+): Promise<PointerResult[]> {
+  const results = new Map<string, PointerResult>()
+
+  for (const agent of agents) {
+    const instructionsFile = isGlobal ? agent.globalInstructionsFile : agent.projectInstructionsFile
+    const agentSkillDir = isGlobal ? agent.globalSkillDir : agent.projectSkillDir
+    if (!instructionsFile || !agentSkillDir) {
+      continue
+    }
+
+    const existingResult = results.get(instructionsFile)
+    if (existingResult) {
+      existingResult.agents.push(agent.name)
+      continue
+    }
+
+    const filePath = path.join(baseDir, instructionsFile)
+    // A global instructions file is read from any project, so a relative skill path would resolve
+    // against whichever project the agent is in.
+    const skillDirRef = isGlobal
+      ? toPosix(path.join(baseDir, agentSkillDir, 'deepnote'))
+      : toPosix(path.join(agentSkillDir, 'deepnote'))
+    const existing = await readFileIfExists(filePath)
+    const { content, status } = upsertPointer(existing, renderPointer(skillDirRef))
+
+    if (!dryRun && content !== null && status !== 'up-to-date') {
+      await fs.mkdir(path.dirname(filePath), { recursive: true })
+      await writeFileAtomic(filePath, content)
+    }
+
+    results.set(instructionsFile, { agents: [agent.name], file: instructionsFile, status })
+  }
+
+  return [...results.values()]
 }
 
 export function createInstallSkillsAction(_program: Command): (options: InstallSkillsOptions) => Promise<void> {
@@ -240,6 +439,8 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
     results.push({ agent, status, skillPath })
   }
 
+  const pointers = await installPointers(baseDir, isGlobal, agents, !!options.dryRun)
+
   const c = getChalk()
 
   if (options.dryRun) {
@@ -252,15 +453,42 @@ async function installSkills(options: InstallSkillsOptions): Promise<void> {
 
   for (const result of results) {
     const icon = result.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
-    const statusText =
-      result.status === 'up-to-date'
-        ? c.dim('(already up to date)')
-        : result.status === 'updated'
-          ? c.yellow('(updated)')
-          : ''
-    const line = `  ${icon} ${result.agent.name.padEnd(maxNameLen + 2)} ${result.skillPath} ${statusText}`
+    const line = `  ${icon} ${result.agent.name.padEnd(maxNameLen + 2)} ${result.skillPath} ${formatStatus(result.status, c)}`
     output(line.trimEnd())
   }
+
+  if (pointers.length === 0) {
+    return
+  }
+
+  output('')
+  output(c.bold('Skill pointer written to agent instructions:'))
+
+  for (const pointer of pointers) {
+    const icon =
+      pointer.status === 'conflict' ? c.yellow('!') : pointer.status === 'up-to-date' ? c.dim('=') : c.green('\u2713')
+    const agents = c.dim(`(${pointer.agents.join(', ')})`)
+    output(`  ${icon} ${pointer.file} ${agents} ${formatStatus(pointer.status, c)}`.trimEnd())
+  }
+
+  if (pointers.some(pointer => pointer.status === 'conflict')) {
+    output('')
+    output(
+      c.yellow(
+        `Left unchanged: remove the stray ${POINTER_START} or ${POINTER_END} marker from the file, then install again.`
+      )
+    )
+  }
+}
+
+function formatStatus(status: PointerStatus, c: ReturnType<typeof getChalk>): string {
+  if (status === 'conflict') {
+    return c.yellow('(unpaired skill markers — not written)')
+  }
+  if (status === 'up-to-date') {
+    return c.dim('(already up to date)')
+  }
+  return status === 'updated' ? c.yellow('(updated)') : ''
 }
 
 /** Recursively reads all files in a directory, returning a map of relative paths to contents. */

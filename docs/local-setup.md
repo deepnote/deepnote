@@ -103,7 +103,7 @@ Open the Command Palette and type `Deepnote` to see all available commands:
 
 The **Deepnote CLI** runs, inspects, converts and validates `.deepnote` files from the terminal, mirrors a whole workspace to a local directory, and publishes apps and Streamlit apps to a project. It is the right tool when you want notebooks in scripts, cron jobs, CI or AI agent workflows rather than in an editor.
 
-It also pairs well with terminal AI agents such as Claude Code or Codex CLI. Run `deepnote install-skills` to give the agent the `.deepnote` format and CLI reference; the agent then edits `.deepnote` files directly and uses `deepnote lint`, `deepnote run` and `-o llm` output to check its work.
+It also pairs well with terminal AI agents such as Claude Code or Codex CLI. Run `deepnote install-skills` to give the agent the `.deepnote` format and CLI reference; the agent then edits `.deepnote` files directly and uses `deepnote lint`, `deepnote run` and `-o llm` output to check its work. Agents that look up skills by themselves, such as Claude Code and Cursor, pick the skill up from their skills directory. For agents that read one instructions file instead, such as Codex, Gemini CLI and GitHub Copilot, the command also writes a pointer to the skill into that file (`AGENTS.md`, `GEMINI.md` or `.github/copilot-instructions.md`), so keep that file where the agent reads it.
 
 ```bash
 npm install -g @deepnote/cli
