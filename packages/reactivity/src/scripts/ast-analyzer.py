@@ -234,7 +234,7 @@ def sqlsafe(value):
     return value
 
 
-def sanitize_python_variable_name(name):
+def sanitize_python_variable_name(name, disable_empty_fallback=False):
     """
     Python implementation of sanitizePythonVariableName from utils.ts
     """
@@ -242,10 +242,28 @@ def sanitize_python_variable_name(name):
     sanitized = re.sub(r"[^0-9a-zA-Z_]", "", sanitized)
     sanitized = re.sub(r"^[^a-zA-Z_]+", "", sanitized)
 
-    if sanitized == "":
+    if sanitized == "" and not disable_empty_fallback:
         sanitized = "input_1"
 
     return sanitized
+
+
+def get_read_dataframe_variables(block):
+    """
+    The DataFrame a chart or pivot table reads, from metadata.deepnote_variable_name.
+    A name that sanitizes to nothing doesn't fall back to `input_1`, same as the block's generated code.
+    """
+    metadata = block.get("metadata") or {}
+    variable_name = metadata.get("deepnote_variable_name")
+    if not isinstance(variable_name, str):
+        return []
+
+    # Whitespace only would sanitize to "_", which is not a real DataFrame name.
+    if variable_name.strip() == "":
+        return []
+
+    sanitized = sanitize_python_variable_name(variable_name, disable_empty_fallback=True)
+    return [sanitized] if sanitized else []
 
 
 def extract_jinja_variables(sql_code):
@@ -321,6 +339,7 @@ def analyze_blocks(blocks):
     analysis = []
 
     for block in blocks:
+        analysis_length = len(analysis)
         try:
             content = block.get("content", "")
             loc = count_lines_of_code(content)
@@ -407,6 +426,16 @@ def analyze_blocks(blocks):
                         "id": block["id"],
                         "definedVariables": [],
                         "usedVariables": used_variables,
+                        "importedModules": [],
+                        "linesOfCode": loc,
+                    }
+                )
+            elif block["type"] in ["visualization", "pivot-table"]:
+                analysis.append(
+                    {
+                        "id": block["id"],
+                        "definedVariables": [],
+                        "usedVariables": get_read_dataframe_variables(block),
                         "importedModules": [],
                         "linesOfCode": loc,
                     }
@@ -500,6 +529,11 @@ def analyze_blocks(blocks):
                     },
                 }
             )
+
+        # Python code can change a variable it reads (e.g. `df["a"] = 1`). A notebook function runs code on its
+        # inputs, so it counts as code too. Other blocks only read the variables they use.
+        if len(analysis) > analysis_length:
+            analysis[-1]["canMutateUsedVariables"] = block.get("type") in (None, "code", "notebook-function")
 
     return analysis
 
