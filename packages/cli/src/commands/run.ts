@@ -8,7 +8,7 @@ import type {
   DeepnoteFile,
   InputBlockValueOverrides,
 } from '@deepnote/blocks'
-import { serializeDeepnoteFile } from '@deepnote/blocks'
+import { compareSortingKeys, serializeDeepnoteFile, sortBlocksBySortingKey } from '@deepnote/blocks'
 import {
   InitNotebookResolutionError,
   type LoadedRunnableFile,
@@ -460,7 +460,7 @@ function collectExecutableBlocks(
   // Collect all executable blocks
   const executableBlocks: DryRunBlockInfo[] = []
   for (const notebook of notebooks) {
-    const sortedBlocks = [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+    const sortedBlocks = sortBlocksBySortingKey(notebook.blocks)
     for (const block of sortedBlocks) {
       if (!executableBlockTypeSet.has(block.type)) {
         continue
@@ -872,7 +872,7 @@ async function validateRequirements(
       const codeBlockSortKey = block.sortingKey
       const inputBlockSortKey = inputInfo.sortingKey
 
-      if (codeBlockSortKey < inputBlockSortKey) {
+      if (compareSortingKeys(codeBlockSortKey, inputBlockSortKey) < 0) {
         // Code block runs before input block - need --input flag
         if (!Object.hasOwn(providedInputs, usedVar)) {
           missingInputs.add(usedVar)

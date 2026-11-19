@@ -62,7 +62,7 @@ Every block has these common fields:
 | `blockGroup` | Groups related blocks (same format as id)                       |
 | `type`       | Block type string                                               |
 | `content`    | Source code, text, or query (YAML multi-line `\|` syntax)       |
-| `sortingKey` | Determines display order (lexicographic, e.g. `a0`, `a1`, `a2`) |
+| `sortingKey` | Display and run order by character code (e.g. `a0`, `a1`, `a2`) |
 | `metadata`   | Type-specific configuration object                              |
 
 ### Block Types

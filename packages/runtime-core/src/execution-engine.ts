@@ -12,6 +12,7 @@ import {
   isAgentBlock,
   isExecutableBlock,
   isInputBlock,
+  sortBlocksBySortingKey,
 } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import {
@@ -262,7 +263,7 @@ export class ExecutionEngine {
       notebookIndex: number
     }> = []
     for (const notebook of notebooks) {
-      const sortedBlocks = this.sortBlocks(notebook.blocks)
+      const sortedBlocks = sortBlocksBySortingKey(notebook.blocks)
       for (const block of sortedBlocks) {
         if (isExecutableBlock(block)) {
           if (blockIdFilter && !blockIdFilter.has(block.id)) {
@@ -521,13 +522,6 @@ export class ExecutionEngine {
   }
 
   /**
-   * Sort blocks by their sortingKey.
-   */
-  private sortBlocks(blocks: DeepnoteBlock[]): DeepnoteBlock[] {
-    return [...blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
-  }
-
-  /**
    * Ensure a requested block exists in the selected notebooks and is executable.
    */
   private assertExecutableBlockExists(blockId: string, notebooks: DeepnoteFile['project']['notebooks']): void {
@@ -613,7 +607,7 @@ export class ExecutionEngine {
     const inputBlocks: InputBlock[] = []
 
     for (const notebook of notebooks) {
-      for (const block of this.sortBlocks(notebook.blocks)) {
+      for (const block of sortBlocksBySortingKey(notebook.blocks)) {
         if (isInputBlock(block) && block.metadata.deepnote_variable_name === inputName) {
           inputBlocks.push(block)
         }

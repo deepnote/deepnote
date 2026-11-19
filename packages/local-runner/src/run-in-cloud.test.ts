@@ -501,6 +501,22 @@ describe('runInCloud', () => {
     )
   })
 
+  it('creates an uppercase sortingKey before a lowercase one, as Deepnote Cloud orders them', async () => {
+    cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
+    cloudMock.findNotebook.mockResolvedValue(undefined)
+    cloudMock.createProject.mockResolvedValue({
+      projectId: 'new-proj',
+      notebooks: [{ id: 'new-nb', name: 'NB', blockIds: [] }],
+    })
+    cloudMock.triggerNotebookRun.mockResolvedValueOnce({ runId: 'r1', status: 'pending' })
+    const mixedCaseKeys = NOTEBOOK.replace('sortingKey: a1', 'sortingKey: Z0')
+
+    await runInCloud(mixedCaseKeys, { count: 7 }, { token: 't' })
+
+    const spec = cloudMock.createProject.mock.calls[0][2]
+    expect(spec.notebooks[0].blocks.map((b: { type: string }) => b.type)).toEqual(['code', 'input-slider'])
+  })
+
   it('adds a missing notebook to an existing project and runs the new notebook', async () => {
     cloudMock.triggerNotebookRun.mockRejectedValueOnce(new Error('{"message":"Notebook not found"}'))
     cloudMock.findProject.mockResolvedValue({ projectId: 'existing-proj', notebooks: [] })

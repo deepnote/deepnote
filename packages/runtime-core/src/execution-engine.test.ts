@@ -542,36 +542,54 @@ describe('ExecutionEngine', () => {
     })
 
     describe('execution behavior', () => {
-      it('sorts blocks by sortingKey before execution', async () => {
+      it('runs blocks in sortingKey order, keeping file order for equal keys', async () => {
+        const project = structuredClone(HELLO_WORLD)
+        const notebook = project.project.notebooks[0]
+        const template = notebook.blocks[0]
+        if (template?.type !== 'code') throw new Error('Expected the hello world example to start with a code block')
+        notebook.blocks = [
+          { ...template, id: 'tie-first', sortingKey: 'a1', content: 'print("tie-first")' },
+          { ...template, id: 'a2', sortingKey: 'a2', content: 'print("a2")' },
+          {
+            id: 'a11',
+            type: 'input-text',
+            blockGroup: 'g-a11',
+            sortingKey: 'a11',
+            content: '',
+            metadata: { deepnote_variable_name: 'input_a11', deepnote_variable_value: 'from a11' },
+          },
+          { ...template, id: 'tie-second', sortingKey: 'a1', content: 'print("tie-second")' },
+        ]
+
         await engine.start()
-        await engine.runProject(BLOCKS_EXAMPLE, { notebookName: '2. Input blocks' })
+        await engine.runProject(project)
 
-        // Get the blocks from the '2. Input blocks' notebook and sort by sortingKey
-        const inputBlocksNotebook = BLOCKS_EXAMPLE.project.notebooks.find(n => n.name === '2. Input blocks')
-        if (!inputBlocksNotebook) throw new Error('Notebook "2. Input blocks" not found in test data')
-        const executableBlocks = inputBlocksNotebook.blocks
-          .filter(b => b.type !== 'markdown')
-          .slice()
-          .sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
-
-        // Map the executed calls to identify the order
         const executedCodes = mockKernelClient.execute.mock.calls.map(call => call[0] as string)
+        expect(executedCodes).toEqual([
+          expect.stringContaining('print("tie-first")'),
+          expect.stringContaining('print("tie-second")'),
+          expect.stringContaining("input_a11 = 'from a11'"),
+          expect.stringContaining('print("a2")'),
+        ])
+      })
 
-        // Verify execution count matches the number of executable blocks
-        expect(executedCodes.length).toBe(executableBlocks.length)
+      it('runs uppercase sortingKeys before lowercase ones, as Deepnote Cloud orders them', async () => {
+        const project = structuredClone(HELLO_WORLD)
+        const notebook = project.project.notebooks[0]
+        const template = notebook.blocks[0]
+        if (template?.type !== 'code') throw new Error('Expected the hello world example to start with a code block')
+        notebook.blocks = [
+          { ...template, id: 'runs-second', sortingKey: 'a0', content: 'print("second")' },
+          { ...template, id: 'runs-first', sortingKey: 'Z0', content: 'print("first")' },
+        ]
 
-        // Verify each executed code corresponds to the expected block in sorted order
-        executableBlocks.forEach((block, index) => {
-          const executedCode = executedCodes[index]
-          if (block.type === 'code') {
-            // Code blocks execute their content
-            expect(executedCode).toContain(block.content)
-          } else if (block.type.startsWith('input-')) {
-            // Input blocks set a variable
-            const varName = block.metadata?.deepnote_variable_name as string
-            expect(executedCode).toContain(varName)
-          }
-        })
+        await engine.start()
+        await engine.runProject(project)
+
+        const executedCodes = mockKernelClient.execute.mock.calls.map(call => call[0] as string)
+        expect(executedCodes).toHaveLength(2)
+        expect(executedCodes[0]).toContain('print("first")')
+        expect(executedCodes[1]).toContain('print("second")')
       })
 
       it('stops execution on first failure (fail-fast)', async () => {

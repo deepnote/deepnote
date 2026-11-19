@@ -166,6 +166,15 @@ describe('parseSnapshot', () => {
     expect(ids).toEqual(['b-input', 'b-md', 'b-sql', 'b-code'])
   })
 
+  it('orders sorting keys by character code, as Deepnote Cloud does: digits, uppercase, lowercase', () => {
+    const mixedCase = SNAPSHOT.replace('sortingKey: "1"', 'sortingKey: "a0"').replace(
+      'sortingKey: "2"',
+      'sortingKey: "Z0"'
+    )
+    const ids = parseSnapshot(mixedCase).notebooks[0].blocks.map(b => b.id)
+    expect(ids).toEqual(['b-code', 'b-sql', 'b-md', 'b-input'])
+  })
+
   it('reads a plain .deepnote file too, not just a snapshot', () => {
     // A snapshot is a file plus required `execution`/`environment`. A file that carries inline
     // outputs — e.g. one a run wrote back — still renders.
