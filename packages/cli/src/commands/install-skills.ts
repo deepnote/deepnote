@@ -283,16 +283,49 @@ async function readFileIfExists(filePath: string): Promise<string | null> {
   }
 }
 
+/** Resolves a symlinked instructions file to its target; returns the path itself for anything else. */
+async function resolveLink(filePath: string): Promise<string> {
+  try {
+    if (!(await fs.lstat(filePath)).isSymbolicLink()) {
+      return filePath
+    }
+    return await fs.realpath(filePath)
+  } catch {
+    return filePath
+  }
+}
+
+/** Returns the permission bits of an existing file, or null when it is not there. */
+async function getFileMode(filePath: string): Promise<number | null> {
+  try {
+    return (await fs.stat(filePath)).mode & 0o777
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null
+    }
+    throw error
+  }
+}
+
 /**
  * The instructions file belongs to the user, so never truncate it in place: a failed write would
  * take their instructions with it and leave nothing to retry from.
+ *
+ * The rename lands on the symlink target when the file is a link, because replacing the link itself
+ * would quietly detach the agent from the shared instructions it points at. It also carries over the
+ * target's permissions, which `writeFile` would otherwise reset to the umask default on the new file.
  */
 async function writeFileAtomic(filePath: string, content: string): Promise<void> {
-  const tempPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.deepnote-${process.pid}.tmp`)
+  const destination = await resolveLink(filePath)
+  const existingMode = await getFileMode(destination)
+  const tempPath = path.join(path.dirname(destination), `.${path.basename(destination)}.deepnote-${process.pid}.tmp`)
 
   try {
     await fs.writeFile(tempPath, content, 'utf8')
-    await fs.rename(tempPath, filePath)
+    if (existingMode !== null) {
+      await fs.chmod(tempPath, existingMode)
+    }
+    await fs.rename(tempPath, destination)
   } catch (error) {
     await fs.rm(tempPath, { force: true }).catch(() => {})
     throw error

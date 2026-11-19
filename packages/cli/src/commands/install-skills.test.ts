@@ -332,6 +332,40 @@ describe('install-skills command', () => {
       cwdSpy.mockRestore()
     })
 
+    it('writes through a symlinked instructions file to its target', async () => {
+      const sharedPath = path.join(tempDir, 'shared-instructions.md')
+      const agentsPath = path.join(tempDir, 'AGENTS.md')
+      await fs.writeFile(sharedPath, '# House rules\n\nUse pnpm.\n', 'utf8')
+      await fs.symlink(sharedPath, agentsPath)
+
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      expect((await fs.lstat(agentsPath)).isSymbolicLink()).toBe(true)
+      const shared = await fs.readFile(sharedPath, 'utf8')
+      expect(shared).toContain('Use pnpm.')
+      expect(shared).toContain('<!-- BEGIN DEEPNOTE SKILL -->')
+
+      cwdSpy.mockRestore()
+    })
+
+    it('keeps the permissions the instructions file already had', async () => {
+      const agentsPath = path.join(tempDir, 'AGENTS.md')
+      await fs.writeFile(agentsPath, '# House rules\n', 'utf8')
+      await fs.chmod(agentsPath, 0o600)
+
+      const action = createInstallSkillsAction(program)
+      const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tempDir)
+
+      await action({ agent: 'codex' })
+
+      expect((await fs.stat(agentsPath)).mode & 0o777).toBe(0o600)
+
+      cwdSpy.mockRestore()
+    })
+
     it('leaves a file with unpaired markers untouched', async () => {
       const agentsPath = path.join(tempDir, 'AGENTS.md')
       const handEdited = '# House rules\n\n<!-- BEGIN DEEPNOTE SKILL -->\n\nUse pnpm.\n'
