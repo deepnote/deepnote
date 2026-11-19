@@ -329,8 +329,9 @@ not, so a package added afterwards reaches the app only when the project's share
 never from a notebook or terminal install, which in a privately-run project lands on your own
 machine instead. Never delete and re-upload an entrypoint to change it: that drops the app
 registration and the next publish returns a new URL. To change an entrypoint, upload the edited file
-to the same path in the project's Files in Deepnote, which keeps the app and its URL. Open the printed URL and test it
-as the intended viewer.
+to the same path in the project's Files in Deepnote, which keeps the app and its URL; through the MCP
+server that means `write_file` with `overwrite`, or Deepnote writes a uniquely named copy and the app
+goes on serving the old file. Open the printed URL and test it as the intended viewer.
 
 Apps published from notebook blocks are deprecated; do not build new ones.
 

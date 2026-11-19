@@ -32,9 +32,11 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
    app that already exists installs nothing by itself, because re-publishing does not restart the
    machine; the app picks it up when the project's shared machine restarts and Init runs again. A
    hosted Streamlit app stays on that shared machine, so in a privately-run project an install from
-   the editor, a terminal or the API's machine `restart` hits the caller's own machine and never
-   reaches the app. The app inherits the project's integrations and sharing settings and sleeps when
-   its hardware is inactive.
+   the editor, a terminal or `POST /v2/projects/{projectId}/machine/restart` hits the caller's own
+   machine and never reaches the app; the shared machine is the one `PATCH …/machine` with
+   `"restart": true` acts on (see [machines](https://deepnote.com/docs/deepnote-api-machines)). The
+   app inherits the project's integrations and sharing settings and sleeps when its hardware is
+   inactive.
 2. If the app runs a notebook, deploy that notebook before publishing. Keep the local `.deepnote`
    file's block IDs aligned with the deployed notebook; preview with
    `deepnote run <file> --cloud --push --dry-run`, then apply the intended changes with
