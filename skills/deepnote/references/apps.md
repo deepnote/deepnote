@@ -19,7 +19,8 @@ Data apps run in the browser; their notebook runs use project hardware. Streamli
 project hardware. A local server runs on the operator's machine and can send notebook runs
 to Deepnote.
 
-Data app viewers must sign in and have project access; data apps have no public or link-only sharing.
+Data app viewers must sign in and have project access, unless a project admin makes the app public
+from its Share menu in Deepnote. Publishing alone never makes an app public.
 Streamlit apps follow the project's sharing settings, but only signed-in viewers with project access can
 use their viewer API access. Apps published from notebook blocks are deprecated; do not build new ones.
 
