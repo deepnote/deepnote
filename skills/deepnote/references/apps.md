@@ -30,8 +30,11 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
    ad-hoc `!pip install` is gone after the restart that creating the app triggers. A customized Init
    notebook can drop that install, so check it still runs before publishing. Adding a package for an
    app that already exists installs nothing by itself, because re-publishing does not restart the
-   machine: run `pip install -r requirements.txt` in the project, or restart it. The app inherits the
-   project's integrations and sharing settings and sleeps when its hardware is inactive.
+   machine; the app picks it up when the project's shared machine restarts and Init runs again. A
+   hosted Streamlit app stays on that shared machine, so in a privately-run project an install from
+   the editor, a terminal or the API's machine `restart` hits the caller's own machine and never
+   reaches the app. The app inherits the project's integrations and sharing settings and sleeps when
+   its hardware is inactive.
 2. If the app runs a notebook, deploy that notebook before publishing. Keep the local `.deepnote`
    file's block IDs aligned with the deployed notebook; preview with
    `deepnote run <file> --cloud --push --dry-run`, then apply the intended changes with

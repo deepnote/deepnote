@@ -325,10 +325,11 @@ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
 ```
 
 Creating a new Streamlit app restarts the project machine; re-publishing an existing entrypoint does
-not, so a package added for an app that already exists needs `pip install -r requirements.txt` run in
-the project as well. Never delete and re-upload an entrypoint to change it: that drops the app
-registration and the next publish returns a new URL. To change an entrypoint, upload the edited file to the same path in
-the project's Files in Deepnote, which keeps the app and its URL. Open the printed URL and test it
+not, so a package added afterwards reaches the app only when the project's shared machine restarts —
+never from a notebook or terminal install, which in a privately-run project lands on your own
+machine instead. Never delete and re-upload an entrypoint to change it: that drops the app
+registration and the next publish returns a new URL. To change an entrypoint, upload the edited file
+to the same path in the project's Files in Deepnote, which keeps the app and its URL. Open the printed URL and test it
 as the intended viewer.
 
 Apps published from notebook blocks are deprecated; do not build new ones.
