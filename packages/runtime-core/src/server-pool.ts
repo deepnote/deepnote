@@ -256,7 +256,7 @@ export class ServerPool {
   /** Stops `server`, remembering the in-flight stop so shutdown waits for it and killAll can still see it. */
   private trackStop(server: ServerInfo): Promise<void> {
     const pending = this.stopping.get(server)
-    if (pending) return pending
+    if (pending !== undefined) return pending
     const stop = stopServer(server).finally(() => {
       this.stopping.delete(server)
     })
