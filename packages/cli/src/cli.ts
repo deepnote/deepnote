@@ -1070,6 +1070,16 @@ ${c.bold('Detection:')}
   If none are detected, defaults to Claude Code.
   Use --agent to target a specific agent regardless of detection.
 
+${c.bold('Instruction files:')}
+  Agents that do not discover skills on their own also get a managed pointer block
+  written into the instructions file they do read, so the skill is actually loaded:
+
+  Codex, Amp, Kimi, OpenCode   AGENTS.md
+  Gemini CLI                   GEMINI.md
+  GitHub Copilot               .github/copilot-instructions.md
+
+  The block is replaced in place on the next install; the rest of the file is kept.
+
 ${c.bold('Examples:')}
   ${c.dim('# Install for all detected agents in current project')}
   $ deepnote install-skills
