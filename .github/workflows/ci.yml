@@ -36,10 +36,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -59,10 +59,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -101,10 +101,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -138,18 +138,18 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
         if: ${{ matrix.node-version == 'nvmrc' }}
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - name: Setup Node.js
         if: ${{ matrix.node-version != 'nvmrc' }}
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -173,18 +173,18 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
         if: ${{ matrix.node-version == 'nvmrc' }}
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
 
       - name: Setup Node.js
         if: ${{ matrix.node-version != 'nvmrc' }}
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -201,7 +201,7 @@ jobs:
       # Only upload coverage from the pinned version to avoid duplicate reports
       - name: Upload coverage to Codecov
         if: ${{ success() && matrix.node-version == 'nvmrc' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork) }}
-        uses: codecov/codecov-action@v7.0.0
+        uses: codecov/codecov-action@v7.1.1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
@@ -216,10 +216,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -246,10 +246,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -285,10 +285,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -308,10 +308,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
@@ -331,10 +331,10 @@ jobs:
         uses: actions/checkout@v6.1.0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4.3.0
+        uses: pnpm/action-setup@v4.4.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.4.0
+        uses: actions/setup-node@v6.5.0
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
