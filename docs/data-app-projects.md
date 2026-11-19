@@ -5,10 +5,6 @@ noIndex: true
 noContent: false
 ---
 
-<Callout status="info">
-Data app projects are in beta. This is an early version, so expect it to change, and tell us what you'd like it to do.
-</Callout>
-
 A data app project is a web app you build by chatting with [Deepnote Agent](/docs/deepnote-agent). Describe what you need, such as a sales dashboard, a data explorer, or an interactive tool, and the agent builds the app and connects it to a notebook that queries and prepares the data. Refine it in chat and share it with your team.
 
 Data app projects replace apps published from notebook blocks, which are deprecated. For a Python app, see [Streamlit app projects](/docs/streamlit-app-projects). To put a chart or table in another tool, [embed the block](/docs/sharing-and-embedding-blocks).
@@ -32,11 +28,20 @@ To see the notebook, click **Show notebook** in the top bar. Click **Show app** 
 
 ### Data and refreshes
 
-Runs are per person. Each signed-in person sees data from their own latest run of the notebook. The first time they open the app they have no run yet, so the app shows no data and asks them to run the notebook. After that, opening or reloading the app fetches their last run's results rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
+Runs are per person. Once someone has run the app, opening or reloading it shows the results of their own latest run rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
 
-If the app is public, someone who opens it without signing in sees the results of the last run started by an editor or admin — a scheduled run included — and can rerun the app to get fresh results. This is the only case in which one person's run is what another person sees.
+Until someone has run the app themselves, what they see depends on **Let everyone with access see results without running the app**, under **General** in the project's **Settings** sidebar:
+
+- **On:** they see the results of the latest run by an editor or admin, a scheduled run included.
+- **Off:** the app shows no data and asks them to run it.
+
+The setting is always on while the app is scheduled or public, unless **Private outputs** is on, which always turns it off.
 
 Running blocks in the editor doesn't change what the app shows.
+
+### Scheduling
+
+To keep the app's data fresh, schedule its notebook. Click **Schedule notebook** next to **Run** at the top of the notebook, or **Scheduled Runs** under **Triggers** in the project's **Settings** sidebar. See [Scheduling](/docs/scheduling) for the options. Scheduling turns on **Let everyone with access see results without running the app**, so everyone with access who hasn't run the app sees the latest scheduled results.
 
 ### Inputs
 
@@ -116,6 +121,7 @@ Visitors can't open the project or the notebook. Before you make an app public, 
 - Check the app for sensitive information. Anyone can forward the link or keep a copy of what they see.
 - Visitor runs use your workspace's machines and integrations. They can read the project's files but can't change them.
 - All visitors of an app share one limit on runs. A busy app asks them to try again in a few minutes.
+- Making the app public turns on **Let everyone with access see results without running the app**, so everyone with access to the project sees the same results until they run the app.
 - When **Private outputs** is on, visitors see only the results of their own runs, so an app with **View** access shows them no results.
 
 To make the app private again, choose **Disabled**. The app also stops being public when you unpublish it.

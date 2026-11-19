@@ -59,7 +59,7 @@ describe('triggerNotebookRun', () => {
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toBe(`${BASE_URL}/v2/runs`)
     expect(init?.method).toBe('POST')
-    expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
+    expect((init?.headers as Record<string, string> | undefined)?.Authorization).toBe(`Bearer ${TOKEN}`)
     expect(JSON.parse(init?.body as string)).toEqual({ notebookId: 'nb-1', inputs: { a: '1' }, detached: true })
   })
 
@@ -307,7 +307,7 @@ describe('fetchSnapshotContent', () => {
     expect(content).toBe('api-yaml')
     const [url, init] = fetchSpy.mock.calls[0]
     expect(url).toBe(`${BASE_URL}/v2/runs/r/snapshot`)
-    expect((init?.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`)
+    expect((init?.headers as Record<string, string> | undefined)?.Authorization).toBe(`Bearer ${TOKEN}`)
   })
 })
 

@@ -1755,7 +1755,7 @@ describe('syncWorkspace', () => {
       expect(process.env).toEqual(before)
       const authorizations = vi
         .mocked(fetch)
-        .mock.calls.map(([, init]) => (init?.headers as Record<string, string>).Authorization)
+        .mock.calls.map(([, init]) => (init?.headers as Record<string, string> | undefined)?.Authorization)
       expect(new Set(authorizations)).toEqual(new Set(['Bearer tok-1']))
     } finally {
       vi.unstubAllEnvs()
