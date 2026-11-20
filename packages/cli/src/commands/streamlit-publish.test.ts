@@ -294,7 +294,7 @@ describe('deepnote streamlit publish', () => {
       await fs.rm(tempDir, { recursive: true, force: true })
     })
 
-    async function trackProject(): Promise<void> {
+    async function writeEarlierSync(): Promise<void> {
       await fs.mkdir(join(tempDir, 'Alpha'))
       await fs.writeFile(
         join(tempDir, '.deepnote-sync.json'),
@@ -312,7 +312,7 @@ describe('deepnote streamlit publish', () => {
       )
     }
 
-    function changeFileInDeepnote(): void {
+    function simulateEditInDeepnoteSinceSync(): void {
       mockedGetProjectDetail.mockResolvedValue({
         id: 'p1',
         name: 'Project',
@@ -406,8 +406,8 @@ describe('deepnote streamlit publish', () => {
     })
 
     it('exits 1 with sync hints and no app when the file changed in Deepnote since the last sync', async () => {
-      await trackProject()
-      changeFileInDeepnote()
+      await writeEarlierSync()
+      simulateEditInDeepnoteSinceSync()
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
 
       await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--upload')
@@ -421,8 +421,8 @@ describe('deepnote streamlit publish', () => {
     })
 
     it('names the sync workspace in the sync hint when run from the project .files folder', async () => {
-      await trackProject()
-      changeFileInDeepnote()
+      await writeEarlierSync()
+      simulateEditInDeepnoteSinceSync()
       const filesDir = join(tempDir, 'Alpha', '.files')
       await fs.mkdir(join(filesDir, 'apps'), { recursive: true })
       await fs.writeFile(join(filesDir, 'apps', 'dashboard.py'), SCRIPT)
@@ -438,8 +438,8 @@ describe('deepnote streamlit publish', () => {
     })
 
     it('overwrites a file that changed in Deepnote with --force', async () => {
-      await trackProject()
-      changeFileInDeepnote()
+      await writeEarlierSync()
+      simulateEditInDeepnoteSinceSync()
       captureLogs()
 
       await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--no-wait', '--upload', '--force')
@@ -450,7 +450,7 @@ describe('deepnote streamlit publish', () => {
     })
 
     it('warns when the sync folder could not be updated, and still creates the app', async () => {
-      await trackProject()
+      await writeEarlierSync()
       const outside = join(tempDir, 'outside')
       await fs.mkdir(outside)
       await fs.symlink(outside, join(tempDir, 'Alpha', '.files'))
