@@ -214,6 +214,112 @@ the same mechanism [data apps](/docs/data-app-projects) use to get their data. W
 data app [lets everyone with access see results without running it](/docs/data-app-projects#data-and-refreshes),
 a viewer without results of their own gets the latest results from the app's editors and admins.
 
+For a result too large for one JSON output, [store it as a DataFrame](#read-a-stored-dataframe-page-by-page)
+instead.
+
+## Read a stored DataFrame page by page
+
+When a result is too large for one JSON output, or callers should read it without starting a run,
+have the notebook store it as a DataFrame under a name. Callers then read it one page at a time.
+
+Store the DataFrame in a block:
+
+```python
+from deepnote_toolkit.artifacts import store_dataframe
+
+store_dataframe(df, "orders")
+```
+
+`store_dataframe` writes a pandas or polars DataFrame whole into the project's files, under
+`deepnote_dataframes/orders/`, and replaces the DataFrame stored before under that name. The name
+must match `[A-Za-z0-9_-]{1,128}`. It returns the new DataFrame's reference ID, or `None` when the
+project's files are read-only, in which case it stores nothing. That is the case in runs and
+sessions started with read-only storage, which include a public app's visitor runs and, by default,
+the runs that data apps and `StreamlitCloudRunner` start for their viewers. Any other run stores the
+DataFrame, even one started with an app's viewer token, and every caller reads the one stored last.
+
+- A pandas index other than the default `RangeIndex`, such as the one that sorting, filtering or
+  `groupby` leaves, is stored as an extra column, named after the index or `__index_level_0__`. Call
+  `df.reset_index()` first to make it a regular column, or `df.reset_index(drop=True)` to leave it
+  out.
+- A polars DataFrame needs polars 1.35.1 or later, or 1.43.2 or later when a column is or holds an
+  `Array`. Older versions raise `TypeError`.
+- A SQL block in **Query preview** mode holds at most 100 rows of the query's result, and storing it
+  raises `TypeError`. Switch the block to [DataFrame mode](/docs/sql-cells#output-modes) and run it
+  again to store the whole result: `pd.DataFrame(df)` of a preview stores only the preview's rows.
+- `delete_dataframe("orders")`, from the same module, deletes what is stored under the name and
+  returns `True`. It returns `False` when nothing is stored under the name, and when the project's
+  files are read-only, where the stored DataFrame stays.
+
+Then read a page with `GET /v2/projects/{projectId}/dataframes/{name}`:
+
+```bash
+curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/dataframes/orders?pageIndex=0&pageSize=100" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN"
+```
+
+The response, with its rows cut to two:
+
+```json
+{
+  "referenceId": "9d1e…",
+  "rowCount": 2500,
+  "columnCount": 2,
+  "pageIndex": 0,
+  "pageSize": 100,
+  "pageCount": 25,
+  "columns": [
+    { "name": "order_id", "type": "int64", "timezone": null },
+    { "name": "amount", "type": "float", "timezone": null }
+  ],
+  "rows": [
+    ["100001", 42.5],
+    ["100002", null]
+  ]
+}
+```
+
+`pageIndex` starts at 0, the default. `pageSize` defaults to 10 and can be at most 1000. An empty
+DataFrame has one empty page. Each row is an array with one value per column, in the order of
+`columns`, and a column's `type` says how its values are encoded:
+
+| `type`                  | Value                                                                                                        |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `integer`, `float`      | A number. NaN and infinities are `null`                                                                      |
+| `int64`                 | A decimal string, such as `"9007199254740993"`. pandas' default integer columns are `int64`                  |
+| `decimal`               | A plain decimal string, such as `"123.45"`                                                                   |
+| `boolean`, `string`     | A boolean or a string                                                                                        |
+| `date`                  | `"YYYY-MM-DD"`                                                                                               |
+| `timestamp`             | ISO 8601 with milliseconds, such as `"2026-01-02T03:04:05.678"`. With a `timezone`, in UTC and ending in `Z` |
+| `time`                  | `"HH:MM:SS.sss"`                                                                                             |
+| `duration`              | A number of seconds                                                                                          |
+| `binary`                | A base64 string                                                                                              |
+| `list`, `struct`, `map` | An array, an object keyed by field name, or an array of `[key, value]` pairs                                 |
+| `null`                  | Always `null`                                                                                                |
+
+A missing value is `null` in every type.
+
+To read the whole DataFrame, request pages `0` to `pageCount - 1` with the same `pageSize`. When
+`referenceId` changes between pages, or a page below a `pageCount` returned earlier comes back
+`400`, a new DataFrame was stored under the name: start again at page 0.
+
+An API key reads stored DataFrames in the projects its user can view in the key's workspace. In a
+private project, only the owner's key can read them; other keys get `404`. Apps can read them as
+their viewer too; see
+[Apps that call the API as their viewer](/docs/deepnote-api#apps-that-call-the-api-as-their-viewer).
+
+| Status | Meaning                                                                                                         |
+| ------ | --------------------------------------------------------------------------------------------------------------- |
+| `400`  | A parameter is invalid, or `pageIndex` is past the last page                                                    |
+| `401`  | The API key or viewer token is missing, invalid or expired. A viewer token expires after 15 minutes             |
+| `403`  | No access to the project. An app's viewer token also gets it in a project that runs privately                   |
+| `404`  | `{ "message": "Dataframe not found" }`: the project isn't in the workspace, or nothing is stored under the name |
+| `409`  | The project is suspended                                                                                        |
+| `422`  | The page can't be served, and the message says why. A smaller `pageSize` may help                               |
+| `429`  | Rate limited, or the server is reading as many DataFrame pages as it can. Retry after `Retry-After` seconds     |
+
+See `getProjectDataframe` in the [API reference](/docs/api-reference) for the full details.
+
 ## Run history
 
 `GET /v2/notebooks/{notebookId}/runs` lists past runs of a notebook (started from the editor, a
