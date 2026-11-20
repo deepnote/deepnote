@@ -78,8 +78,8 @@ publishes, since each `--create` makes another project. A new project isn't in a
 creating another.
 
 A data app project has exactly one notebook, and the command prints its ID after publishing. A page
-that runs the notebook through the API names this ID, so set it in the page and publish again. To
-replace that notebook's blocks with a local `.deepnote` file, push it to that ID (this also runs the
+doesn't need to set this ID: the [token handshake](#calling-the-api-as-the-viewer) hands it to the page
+as `notebookId`, so a copy of the project keeps working. To replace that notebook's blocks with a local `.deepnote` file, push it to that ID (this also runs the
 notebook):
 
 ```bash

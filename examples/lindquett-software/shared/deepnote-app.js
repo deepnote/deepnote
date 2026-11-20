@@ -12,13 +12,6 @@
 const SHELL_ORIGIN = 'https://deepnote.com'
 const embedded = window !== window.parent
 
-/** The notebook this page runs in Deepnote, from `<meta name="deepnote-notebook-id">`. */
-function notebookId() {
-  const id = document.querySelector('meta[name="deepnote-notebook-id"]')?.content
-  if (!id) throw new Error('Set <meta name="deepnote-notebook-id"> to the ID of the notebook this app runs.')
-  return id
-}
-
 let credential = null
 
 function requestToken() {
@@ -28,10 +21,11 @@ function requestToken() {
       // Only believe a token from the frame we asked, on the origin we expect.
       if (event.source !== window.parent || event.origin !== SHELL_ORIGIN) return
       if (event.data?.type !== 'deepnote-static-files-api-token-response') return
-      const { token, apiOrigin, expiresAtSeconds } = event.data
+      // notebookId is the data app's own notebook, so the page never names it and a copy of the project works.
+      const { token, apiOrigin, expiresAtSeconds, notebookId } = event.data
       if (!token || !apiOrigin || !Number.isFinite(expiresAtSeconds)) return
       try {
-        done({ token, apiOrigin: new URL(apiOrigin).origin, expiresAtSeconds })
+        done({ token, apiOrigin: new URL(apiOrigin).origin, expiresAtSeconds, notebookId })
       } catch {
         // An origin that doesn't parse is not a credential.
       }
@@ -50,9 +44,14 @@ function requestToken() {
   })
 }
 
-async function api(path, options = {}) {
+async function ensureCredential() {
   if (!credential || credential.expiresAtSeconds - Date.now() / 1000 < 60) credential = await requestToken()
   if (!credential) throw new Error('Deepnote did not provide an API token. Open the app from Deepnote.')
+  return credential
+}
+
+async function api(path, options = {}) {
+  await ensureCredential()
   const send = () =>
     fetch(`${credential.apiOrigin}${path}`, {
       ...options,
@@ -73,7 +72,8 @@ async function api(path, options = {}) {
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 async function runInDeepnote(inputs) {
-  const started = await api('/v2/runs', { method: 'POST', body: JSON.stringify({ notebookId: notebookId(), inputs }) })
+  const { notebookId } = await ensureCredential()
+  const started = await api('/v2/runs', { method: 'POST', body: JSON.stringify({ notebookId, inputs }) })
   const runId = (started.run ?? started).runId ?? (started.run ?? started).id
   const terminal = new Set(['success', 'error', 'internal_error', 'stopped'])
   for (let wait = 1500; ; wait = Math.min(wait * 1.3, 8000)) {

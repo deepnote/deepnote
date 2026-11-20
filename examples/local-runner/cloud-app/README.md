@@ -30,7 +30,7 @@ Runtime configuration comes from `APP_CONFIG` in the HTML. The non-sensitive `no
 | Parameter     | Default                    | Description                                                                  |
 | ------------- | -------------------------- | ---------------------------------------------------------------------------- |
 | `baseUrl`     | `https://api.deepnote.com` | Fallback API origin; replaced by the shell-provided origin when embedded     |
-| `notebookId`  | —                          | Required notebook to run                                                     |
+| `notebookId`  | —                          | Notebook to run; when embedded, defaults to the data app's own notebook      |
 | `shellOrigin` | `https://deepnote.com`     | Origin of the embedding Deepnote shell, pinned so only it can supply a token |
 | `inputs`      | `[]`                       | Optional input definitions; empty means discover them from the notebook API  |
 
@@ -69,14 +69,14 @@ a notebook or start a run. Use the published flow below for functional testing.
 ## Publishing to deepnote.com
 
 ```bash
-# 1. Set notebookId in APP_CONFIG inside index.html
-# 2. Copy the snapshot reader into this directory
+# 1. Copy the snapshot reader into this directory
 cp packages/local-runner/dist/snapshot-reader.iife.js examples/local-runner/cloud-app/snapshot-reader.js
 
-# 3. Publish to a data app project with a personal API token
+# 2. Publish to a data app project with a personal API token
 DEEPNOTE_TOKEN=... deepnote publish examples/local-runner/cloud-app --project-id <your-data-app-project-id>
 ```
 
-The project must be a data app project (in Deepnote: **Create new → New data app**), with the
-notebook from step 1 in it. The command publishes the app and prints its URL. At that URL, the app acquires a
+The project must be a data app project (in Deepnote: **Create new → New data app**). The app runs
+that project's notebook, whose ID it gets from the token handshake. The command publishes the app and
+prints its URL. At that URL, the app acquires a
 data app viewer token automatically via `postMessage` — no server or manual token configuration.

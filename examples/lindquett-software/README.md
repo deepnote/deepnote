@@ -70,9 +70,8 @@ The same loop, with a coding agent that has the Deepnote skill (`deepnote instal
    ```
 
    Pull the new project with [`deepnote sync`](https://deepnote.com/docs/deepnote-cli-sync), replace the
-   blocks of its only notebook with those of `deal-desk.deepnote`, and push with `deepnote sync`. Set
-   `deepnote-notebook-id` in `app/index.html` to that notebook's `id`, then rebuild and publish with
-   `--project-id`.
+   blocks of its only notebook with those of `deal-desk.deepnote`, and push with `deepnote sync`. The
+   page gets that notebook's ID from Deepnote, so it doesn't need rebuilding.
 
 `shared/deepnote-app.js` is what makes one page work in both places: locally it calls the launcher's
 `/api/run`, and inside Deepnote it gets a short-lived viewer token from the Deepnote shell and runs the

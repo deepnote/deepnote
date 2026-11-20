@@ -264,7 +264,12 @@
             } catch {
               return
             }
-            finish({ token: e.data.token, apiOrigin, expiresAtSeconds: e.data.expiresAtSeconds })
+            finish({
+              token: e.data.token,
+              apiOrigin,
+              expiresAtSeconds: e.data.expiresAtSeconds,
+              notebookId: typeof e.data.notebookId === 'string' ? e.data.notebookId : null,
+            })
           }
           window.addEventListener('message', onMessage)
 
@@ -295,6 +300,8 @@
         apiToken = credential.token
         apiTokenExpiresAtSeconds = credential.expiresAtSeconds
         APP_CONFIG.baseUrl = credential.apiOrigin
+        // The shell names the data app's own notebook, so a page published without one runs it.
+        if (!APP_CONFIG.notebookId) APP_CONFIG.notebookId = credential.notebookId
         return true
       }
 
