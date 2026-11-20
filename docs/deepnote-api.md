@@ -78,8 +78,12 @@ page if it is exposed.
 [Data apps](/docs/data-app-projects) and
 [Streamlit apps](/docs/streamlit-app-projects#running-the-notebook-from-the-app) call the API as the
 person viewing them rather than with your key. Deepnote hands the app a short-lived viewer token that
-can read a notebook's inputs, start detached runs, and read that viewer's own runs and their
-[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook).
+can read a notebook's inputs, start detached runs, read that viewer's own runs and their
+[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), and read pages of
+[DataFrames that notebooks stored by name](/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page).
+A data app's token reads stored DataFrames in the app's project and in other projects in the
+workspace where the viewer has direct access, which link sharing doesn't give. A Streamlit app's
+token reads only its own project's. Neither reads them in a project that runs privately.
 
 ## Related
 

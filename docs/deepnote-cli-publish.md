@@ -133,8 +133,10 @@ A published data app can read notebook inputs and run the project's notebook as 
 it. Deepnote hands the page a viewer token that expires after 15 minutes. It can read notebook
 inputs and block metadata (without source), read the notebook's
 [app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), start detached runs in this project or other projects
-in the workspace where the viewer has direct access, and poll the viewer's own runs for their
-`snapshotBlocks`. Runs in other projects also require execute permission. Visitors of a public app
+in the workspace where the viewer has direct access, poll the viewer's own runs for their
+`snapshotBlocks`, and read pages of
+[DataFrames that notebooks stored by name](/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page).
+Runs in other projects also require execute permission. Visitors of a public app
 can start runs only with **Execute** access and get an empty `snapshotBlocks` and no `error` for
 them, so read their results from app data once the run succeeds. Every other endpoint
 answers `403`, so features you built against a local preview with a personal token can fail in the

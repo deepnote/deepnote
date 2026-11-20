@@ -28,16 +28,16 @@ To see the notebook, click **Show notebook** in the top bar. Click **Show app** 
 
 ### Data and refreshes
 
-Runs are per person. Once someone has run the app, opening or reloading it shows the results of their own latest run rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
+Apart from [large tables](#large-tables), the app shows data from runs of its notebook, and runs are per person. Once someone has run the app, opening or reloading it shows the results of their own latest run rather than running anything again. To get fresh numbers they submit the app's inputs, or use its rerun control if it has one, and the whole notebook runs again for them.
 
 Until someone has run the app themselves, what they see depends on **Let everyone with access see results without running the app**, under **General** in the project's **Settings** sidebar:
 
 - **On:** they see the results of the latest run by an editor or admin, a scheduled run included.
-- **Off:** the app shows no data and asks them to run it.
+- **Off:** the app shows no data apart from [large tables](#large-tables), and asks them to run it.
 
 The setting is always on while the app is scheduled or public, unless **Private outputs** is on, which always turns it off.
 
-Running blocks in the editor doesn't change what the app shows.
+Running blocks in the editor doesn't change what the app shows, except for large tables.
 
 ### Scheduling
 
@@ -46,6 +46,12 @@ To keep the app's data fresh, schedule its notebook. Click **Schedule notebook**
 ### Inputs
 
 The app's controls use the notebook's [input blocks](/docs/input-blocks). When someone changes a control and submits, the notebook runs with their values.
+
+### Large tables
+
+For a table too large to load on every run, the agent can store the table in the project. The app then pages through the stored table without running the notebook, so it loads even for people who haven't run the app.
+
+Every viewer sees the same stored table, whatever inputs they choose. It changes when the block that stores it runs, in the editor or in a scheduled run, not when viewers reload the app or submit inputs. Large tables aren't available when **Private outputs** is on.
 
 ### AI summaries
 
