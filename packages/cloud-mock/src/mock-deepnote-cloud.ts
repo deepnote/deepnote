@@ -143,7 +143,7 @@ async function createProject({ rootDir, req, res }: RouteRequest): Promise<void>
 }
 
 async function getProject(request: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: request.pathId })
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, request.pathParams)
   const dir = await projectDir(request.rootDir, projectId)
   const summary = await projectSummary(dir)
   const body: Schemas['GetProjectResponse'] = {
@@ -160,7 +160,7 @@ async function getProject(request: RouteRequest): Promise<void> {
 }
 
 async function updateProject(request: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: request.pathId })
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, request.pathParams)
   const { dataApp: update } = parseRequestInput(UpdateProjectBodySchema, await readJsonBody(request.req))
   const summary = await projectSummary(await projectDir(request.rootDir, projectId))
   if (update) {
@@ -179,14 +179,14 @@ async function updateProject(request: RouteRequest): Promise<void> {
   sendJson(request.res, 200, body)
 }
 
-async function exportProject({ rootDir, res, pathId }: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: pathId })
+async function exportProject({ rootDir, res, pathParams }: RouteRequest): Promise<void> {
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, pathParams)
   const files = await readNotebookFiles(await projectDir(rootDir, projectId))
   sendBytes(res, 'application/zip', zipSync(Object.fromEntries(files.map(file => [file.filename, file.content]))))
 }
 
-async function importProject({ rootDir, req, res, requestUrl, pathId }: RouteRequest): Promise<void> {
-  const { projectId } = parseRequestInput(ProjectIdParamSchema, { projectId: pathId })
+async function importProject({ rootDir, req, res, requestUrl, pathParams }: RouteRequest): Promise<void> {
+  const { projectId } = parseRequestInput(ProjectIdParamSchema, pathParams)
   const options = parseRequestInput(ImportProjectQuerySchema, Object.fromEntries(requestUrl.searchParams))
   if (req.headers['content-type']?.split(';')[0]?.trim().toLowerCase() !== 'application/zip') {
     throw new HttpError(400, 'Content-Type must be application/zip')
@@ -360,8 +360,8 @@ async function createStreamlitApp({ rootDir, url, req, res, streamlitApps }: Rou
   sendJson(res, 201, body)
 }
 
-async function getStreamlitAppStatus({ res, pathId, streamlitApps }: RouteRequest): Promise<void> {
-  const { streamlitAppId } = parseRequestInput(StreamlitAppIdParamSchema, { streamlitAppId: pathId })
+async function getStreamlitAppStatus({ res, pathParams, streamlitApps }: RouteRequest): Promise<void> {
+  const { streamlitAppId } = parseRequestInput(StreamlitAppIdParamSchema, pathParams)
   if (!streamlitApps.some(app => app.id === streamlitAppId)) {
     throw new HttpError(404, 'Streamlit app not found')
   }
@@ -373,14 +373,14 @@ export const ROUTES: { method: string; pattern: RegExp; handle: (request: RouteR
   { method: 'GET', pattern: /^\/v2\/me$/, handle: async ({ res }) => sendJson(res, 200, ME) },
   { method: 'GET', pattern: /^\/v2\/projects$/, handle: listProjects },
   { method: 'POST', pattern: /^\/v2\/projects$/, handle: createProject },
-  { method: 'GET', pattern: /^\/v2\/projects\/([^/]+)$/, handle: getProject },
-  { method: 'PATCH', pattern: /^\/v2\/projects\/([^/]+)$/, handle: updateProject },
-  { method: 'GET', pattern: /^\/v2\/projects\/([^/]+)\/export$/, handle: exportProject },
-  { method: 'POST', pattern: /^\/v2\/projects\/([^/]+)\/import$/, handle: importProject },
+  { method: 'GET', pattern: /^\/v2\/projects\/(?<projectId>[^/]+)$/, handle: getProject },
+  { method: 'PATCH', pattern: /^\/v2\/projects\/(?<projectId>[^/]+)$/, handle: updateProject },
+  { method: 'GET', pattern: /^\/v2\/projects\/(?<projectId>[^/]+)\/export$/, handle: exportProject },
+  { method: 'POST', pattern: /^\/v2\/projects\/(?<projectId>[^/]+)\/import$/, handle: importProject },
   { method: 'GET', pattern: /^\/v2\/files\/download$/, handle: downloadFile },
   { method: 'POST', pattern: /^\/v2\/files$/, handle: uploadFile },
   { method: 'DELETE', pattern: /^\/v2\/files$/, handle: deleteFile },
   { method: 'GET', pattern: /^\/v2\/streamlit-apps$/, handle: listStreamlitApps },
   { method: 'POST', pattern: /^\/v2\/streamlit-apps$/, handle: createStreamlitApp },
-  { method: 'GET', pattern: /^\/v2\/streamlit-apps\/([^/]+)\/status$/, handle: getStreamlitAppStatus },
+  { method: 'GET', pattern: /^\/v2\/streamlit-apps\/(?<streamlitAppId>[^/]+)\/status$/, handle: getStreamlitAppStatus },
 ]

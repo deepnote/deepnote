@@ -48,7 +48,7 @@ async function handleRequest(
   for (const route of ROUTES) {
     const match = route.method === method ? route.pattern.exec(requestUrl.pathname) : null
     if (match) {
-      await route.handle({ ...context, req, res, requestUrl, pathId: match[1] })
+      await route.handle({ ...context, req, res, requestUrl, pathParams: match.groups ?? {} })
       return
     }
   }

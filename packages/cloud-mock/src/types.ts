@@ -16,7 +16,7 @@ export interface RouteRequest extends MockContext {
   req: IncomingMessage
   res: ServerResponse
   requestUrl: URL
-  pathId: string | undefined
+  pathParams: Record<string, string>
 }
 
 export interface NotebookFile {
