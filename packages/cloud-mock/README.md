@@ -54,6 +54,9 @@ Each project is a directory named by its UUID:
 - `GET /v2/projects/{projectId}` and `PATCH /v2/projects/{projectId}`
 - `GET /v2/projects/{projectId}/export` and `POST /v2/projects/{projectId}/import`
 - `GET /v2/files/download`, `POST /v2/files` and `DELETE /v2/files`
+- `GET /v2/streamlit-apps`, `POST /v2/streamlit-apps` and `GET /v2/streamlit-apps/{streamlitAppId}/status`
+
+Streamlit apps are kept in memory, not under `rootDir`, and report `running` as soon as they are created.
 
 ## Command line
 
