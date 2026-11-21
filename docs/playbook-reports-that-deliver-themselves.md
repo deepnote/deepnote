@@ -67,7 +67,7 @@ Snapshots are kept for 30 days on Team and 365 days on Enterprise. To keep editi
 ## Share it with the right people
 
 - **Inside the workspace:** share the project with readers at **View** access, or embed the report's blocks where they already read.
-- **Outside the workspace:** embedded blocks are visible to anyone with the link, so embed only what may be shared that widely. A data app can be shared only with people invited to its project.
+- **Outside the workspace:** embedded blocks are visible to anyone with the link, so embed only what may be shared that widely. A data app is shared only with people invited to its project, unless a project admin [makes it public](/docs/data-app-projects#sharing-an-app-publicly), which opens it to anyone with the link.
 - **Each reader's own data:** a scheduled edition runs as the schedule's owner with their access, and everyone who reads the notebook or its embedded blocks sees that edition. With per-user OAuth integrations (Enterprise), a data app runs with each reader's own account instead. A module block queries its own project's integrations, so check those too: one that uses shared credentials returns the same data to every reader.
 
 ## Example

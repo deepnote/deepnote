@@ -62,7 +62,7 @@ A new data app is unpublished, so only the project's editors can open it. Click 
 | The analysts who maintain the tool        | **Edit**                                                                              | Change the app and the notebook, and use the agent     |
 | Contractors or partners in your workspace | The **Restricted user** workspace role, plus App user on this project                 | Use only the projects shared with them                 |
 
-Restricted users see only projects shared with them, and can't duplicate or delete those projects or change their settings, even with higher project access. People outside your workspace who are invited to the project appear as guests. Data apps can't be shared with anyone who has the link.
+Restricted users see only projects shared with them, and can't duplicate or delete those projects or change their settings, even with higher project access. People outside your workspace who are invited to the project appear as guests. Anyone with the link can open a data app only once a project admin [makes it public](/docs/data-app-projects#sharing-an-app-publicly).
 
 App users can't open the notebook or its code. The app's own HTML and scripts are sent to their browser like any web page, so keep nothing secret in them.
 
