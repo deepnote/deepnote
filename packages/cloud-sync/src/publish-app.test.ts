@@ -943,6 +943,16 @@ describe('uploadWorkingFile', () => {
     expect(await fs.readFile(join(root, 'Alpha', '.files', 'apps', 'dashboard.py'), 'utf-8')).toBe(SCRIPT)
   })
 
+  it('uploads a file deleted in Deepnote since the last sync without force, as nothing there is overwritten', async () => {
+    const { root } = await writeWorkspace({ 'apps/dashboard.py': { size: 3, updatedAt: '2026-01-01T00:00:00.000Z' } })
+    mockedGetProject.mockResolvedValue({ id: 'p1', name: 'Project', files: [] })
+    const file = await writeScript(join(root, 'scratch'))
+
+    await upload({ file })
+
+    expect(mockedUpload).toHaveBeenCalledOnce()
+  })
+
   describe('a file that changed in Deepnote since the last sync', () => {
     async function setup() {
       const { root } = await writeWorkspace({ 'apps/dashboard.py': { size: 3, updatedAt: '2026-01-01T00:00:00.000Z' } })
