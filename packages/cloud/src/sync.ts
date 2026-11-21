@@ -74,6 +74,7 @@ const syncProjectSchema = z
   .object({
     id: z.string(),
     name: z.string(),
+    projectType: z.string().optional(),
     createdAt: z.string().optional(),
     updatedAt: z.string().nullish(),
     folder: folderSchema.nullish(),
@@ -108,6 +109,8 @@ const projectDetailSchema = z
   .object({
     project: syncProjectSchema.extend({
       files: z.array(projectFileEntrySchema),
+      /** Optional so a response without notebooks still parses; sync reads notebooks from the export. */
+      notebooks: z.array(z.object({ id: z.string(), name: z.string() }).passthrough()).optional(),
       /** `null` for projects that are not data apps. Optional so sync keeps working against servers
        * deployed before this field existed. */
       dataApp: projectDataAppSettingsSchema.nullable().optional(),
@@ -174,6 +177,7 @@ export interface ProjectFolder {
 export interface SyncProject {
   id: string
   name: string
+  projectType?: string
   createdAt?: string
   updatedAt?: string | null
   /** `null`/absent when the project sits at the workspace root. */
@@ -197,6 +201,8 @@ export interface ProjectDataAppSettings {
 export interface ProjectDetail extends SyncProject {
   /** Recursive file inventory (files only, no directories, no contents). */
   files: ProjectFileEntry[]
+  /** The project's notebooks. A data app project has exactly one: the notebook its page runs. */
+  notebooks?: { id: string; name: string }[]
   /** `null` when the project is not a data app; absent only on servers from before data app settings were exposed. */
   dataApp?: ProjectDataAppSettings | null
 }
@@ -614,10 +620,11 @@ export interface UploadedFile {
 export interface ProjectFileTransferOptions extends RequestOptions {
   /** Optional lower buffered-byte ceiling for this transfer. The hard limit is 100 MiB. */
   maxBytes?: number
-}
-
-export interface UploadProjectFileOptions extends ProjectFileTransferOptions {
-  /** Replace an existing file at `path` in place instead of storing the upload at a unique path. */
+  /**
+   * Replace the file at `path` if one exists, instead of letting the server store the upload at a
+   * unique path beside it. The file never disappears, so anything bound to its path, such as a
+   * Streamlit app serving it, stays in place.
+   */
   overwrite?: boolean
 }
 
@@ -678,11 +685,11 @@ async function readProjectFileBytes(response: Response, filePath: string, maxByt
 /**
  * Upload a working-directory file (`POST {baseUrl}/v2/files`, multipart).
  *
- * **Without `overwrite`, the server generates a *unique* path when `path` already exists.** With
- * `overwrite: true` it replaces the file in place, which keeps anything registered against the path,
- * such as a Streamlit app; {@link deleteProjectFile} followed by an upload does not. Either way the last
- * write wins: there is no content-hash or staleness check on the files surface. Buffered uploads are
- * limited to 100 MiB. Returns the stored file's inventory fields.
+ * **Without `options.overwrite`, the server generates a *unique* path when `path` already exists.**
+ * To replace a file, pass `overwrite: true` (last-write-wins; there is no content-hash or staleness
+ * check on the files surface). Deleting first and then uploading also replaces it, but leaves a gap
+ * with no file and drops anything bound to the path, such as a Streamlit app's registration.
+ * Buffered uploads are limited to 100 MiB. Returns the stored file's inventory fields.
  */
 export async function uploadProjectFile(
   baseUrl: string,
@@ -690,7 +697,7 @@ export async function uploadProjectFile(
   projectId: string,
   filePath: string,
   bytes: Uint8Array,
-  options: UploadProjectFileOptions = {}
+  options: ProjectFileTransferOptions = {}
 ): Promise<UploadedFile> {
   const maxBytes = projectFileTransferLimit(options)
   if (bytes.byteLength > maxBytes) {
@@ -720,8 +727,8 @@ export async function uploadProjectFile(
 /**
  * Delete a working-directory file (`DELETE {baseUrl}/v2/files?projectId=&path=`).
  *
- * Returns `true` when the file was deleted, `false` when it did not exist (a 404 is not an error for
- * the overwrite-by-delete-then-upload pattern). Other non-2xx responses throw {@link ApiError}.
+ * Returns `true` when the file was deleted, `false` when it did not exist (a 404 is not an error
+ * when the caller only needs the file gone). Other non-2xx responses throw {@link ApiError}.
  */
 export async function deleteProjectFile(
   baseUrl: string,

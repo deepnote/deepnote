@@ -16,6 +16,7 @@
     "biome:check:fix": "biome check --write .",
     "build": "pnpm -r run build",
     "example:gallery": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/gallery/serve.mjs",
+    "example:lindquett": "pnpm --filter @deepnote/local-runner... --filter @deepnote/cli... build && node examples/lindquett-software/local/serve.mjs",
     "example:local-runner": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/run-app/serve.mjs",
     "example:schedule-cloud": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/schedule-cloud.mjs",
     "example:snapshot-viewer": "pnpm --filter @deepnote/local-runner... build && node examples/local-runner/snapshot-viewer/serve.mjs",
@@ -42,7 +43,7 @@
     "**/package.json": "sort-package-json"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.2.7",
+    "@biomejs/biome": "2.6.5",
     "@types/node": "22.20.1",
     "@vitest/coverage-v8": "4.1.12",
     "@xterm/headless": "^6.0.0",
@@ -63,7 +64,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@hono/node-server": ">=2.1.3",
+      "@hono/node-server": ">=2.1.6",
       "@inquirer/checkbox": "5.0.6",
       "@inquirer/confirm": "6.0.6",
       "@inquirer/editor": "5.0.6",
@@ -88,7 +89,7 @@
       "fast-uri": ">=3.1.9 <4",
       "flatted": ">=3.4.2",
       "glob": ">=14.0.2",
-      "hono": ">=4.13.11",
+      "hono": ">=4.13.16",
       "ip-address": ">=10.7.4",
       "js-yaml": ">=4.3.2 <5",
       "lodash": ">=4.18.0",

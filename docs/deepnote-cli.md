@@ -23,7 +23,9 @@ Use the CLI when you want to:
   or `deepnote streamlit publish`.
 - **Give AI coding agents the Deepnote skill.** `deepnote install-skills` gives Claude Code, Codex,
   Cursor, Gemini CLI and other agents the `.deepnote` format and CLI reference, so they can write
-  notebooks and check their work with `deepnote lint` and `deepnote run -o llm`.
+  notebooks and check their work with `deepnote lint` and `deepnote run -o llm`. Agents that read a
+  single instructions file instead of discovering skills also get a pointer to it written into
+  `AGENTS.md`, `GEMINI.md` or `.github/copilot-instructions.md`.
 
 <Callout status="info">
 The CLI is under active development. Commands and output formats may change between minor

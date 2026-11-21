@@ -1,5 +1,5 @@
 import type { DeepnoteFile, DeepnoteSnapshot } from '@deepnote/blocks'
-import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml } from '@deepnote/blocks'
+import { deepnoteFileSchema, deepnoteSnapshotSchema, parseYaml, sortBlocksBySortingKey } from '@deepnote/blocks'
 import type { IOutput } from '@jupyterlab/nbformat'
 import type { InputBlockInfo } from './input-info'
 import { inputInfoFor } from './input-info'
@@ -85,7 +85,7 @@ export function toSnapshotView(file: DeepnoteFile | DeepnoteSnapshot): SnapshotV
   const notebooks = file.project.notebooks.map(notebook => ({
     id: notebook.id,
     name: notebook.name,
-    blocks: [...notebook.blocks].sort(bySortingKey).map(toSnapshotBlock),
+    blocks: sortBlocksBySortingKey(notebook.blocks).map(toSnapshotBlock),
   }))
 
   return {
@@ -114,11 +114,4 @@ function toSnapshotBlock(block: DeepnoteFile['project']['notebooks'][number]['bl
   }
 
   return snapshotBlock
-}
-
-function bySortingKey(
-  a: DeepnoteFile['project']['notebooks'][number]['blocks'][number],
-  b: DeepnoteFile['project']['notebooks'][number]['blocks'][number]
-): number {
-  return String(a.sortingKey ?? '').localeCompare(String(b.sortingKey ?? ''))
 }

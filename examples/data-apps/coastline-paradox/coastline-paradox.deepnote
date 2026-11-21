@@ -1,0 +1,135 @@
+metadata:
+  createdAt: 2026-11-12T16:55:28.243Z
+project:
+  id: c7ae2dc4-f62e-4081-9d1e-d64b683c1625
+  integrations: []
+  name: The coastline paradox
+  notebooks:
+    - blocks:
+        - id: b7ccfc617e704a84bcc2ecda2e0c8167
+          blockGroup: 79f77cf2945645c3bb23828ca15dca1a
+          sortingKey: "000000"
+          outputs: []
+          type: code
+          content: >-
+            import json, os, time, requests
+
+            import numpy as np
+
+
+            ISLANDS = ["Crete", "Rhodes", "Corfu", "Kefalonia", "Zakynthos", "Naxos", "Milos", "Santorini", "Mykonos"]
+
+            QUERIES = {
+                "Crete": "Crete island Greece", "Rhodes": "Rhodes island Greece", "Corfu": "Corfu island Greece",
+                "Kefalonia": "Kefalonia island Greece", "Zakynthos": "Zakynthos island Greece", "Naxos": "Naxos island Greece",
+                "Milos": "Milos island Greece", "Santorini": "Thira island Santorini Greece", "Mykonos": "Mykonos island Greece",
+            }
+
+            CACHE = "island_coasts.json"
+
+
+            def largest_ring(geom):
+                polys = [geom["coordinates"]] if geom["type"] == "Polygon" else geom["coordinates"]
+                rings = [p[0] for p in polys]
+                def area(r):
+                    a = np.array(r); x, y = a[:, 0], a[:, 1]
+                    return abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))) / 2
+                return max(rings, key=area)
+
+            if os.path.exists(CACHE):
+                raw = json.load(open(CACHE))
+            else:
+                raw = {}
+                for name in ISLANDS:
+                    r = requests.get("https://nominatim.openstreetmap.org/search",
+                                     params={"q": QUERIES[name], "format": "json", "polygon_geojson": 1, "limit": 5},
+                                     headers={"User-Agent": "deepnote-coastline-paradox-demo"}, timeout=60)
+                    cands = [c for c in r.json() if c.get("geojson", {}).get("type") in ("Polygon", "MultiPolygon")]
+                    cands.sort(key=lambda c: (c.get("type") != "island", -float(c.get("importance", 0))))
+                    c = cands[0]
+                    raw[name] = {"osm": f'{c["osm_type"]}/{c["osm_id"]}', "type": c.get("type"), "display": c["display_name"],
+                                 "ring": largest_ring(c["geojson"])}
+                    time.sleep(1.2)
+                json.dump(raw, open(CACHE, "w"))
+
+            for k, v in raw.items():
+                print(f'{k:10s} {v["type"]:14s} {len(v["ring"]):7d} pts  {v["display"][:70]}')
+          metadata: {}
+        - id: bb4e75d08cd948f683c2cd27a09de5ef
+          blockGroup: 03b2734bfe3e44b8936072b751f8357a
+          sortingKey: "000001"
+          outputs: []
+          type: code
+          content: >-
+            from shapely.geometry import LineString
+
+            from IPython.display import display
+
+
+            R = 6371008.8
+
+
+            def project(ring):
+                a = np.array(ring, dtype=float)
+                lon0, lat0 = a[:, 0].mean(), a[:, 1].mean()
+                x = np.radians(a[:, 0] - lon0) * R * np.cos(np.radians(lat0))
+                y = np.radians(a[:, 1] - lat0) * R
+                return np.column_stack([x, y]), lon0, lat0
+
+            def divider_length(P, eps):
+                """Richardson compass walk around a closed ring P (N x 2, first == last)."""
+                n = len(P); c = P[0]; i = 1; sticks = 0
+                while i < n:
+                    d = np.hypot(P[i, 0] - c[0], P[i, 1] - c[1])
+                    if d < eps:
+                        i += 1; continue
+                    a, b = P[i - 1], P[i]
+                    dx, dy = b - a; fx, fy = a - c
+                    A = dx * dx + dy * dy; B = 2 * (fx * dx + fy * dy); C = fx * fx + fy * fy - eps * eps
+                    t = (-B + np.sqrt(max(B * B - 4 * A * C, 0))) / (2 * A)
+                    c = a + t * (b - a); sticks += 1
+                return sticks * eps + np.hypot(*(P[-1] - c))
+
+            islands = []
+
+            for name in ISLANDS:
+                P, lon0, lat0 = project(raw[name]["ring"])
+                if not np.allclose(P[0], P[-1]): P = np.vstack([P, P[:1]])
+                perim = np.hypot(*np.diff(P, axis=0).T).sum()
+                area = abs(np.dot(P[:, 0], np.roll(P[:, 1], 1)) - np.dot(P[:, 1], np.roll(P[:, 0], 1))) / 2
+                span = np.ptp(P, axis=0).max()
+                # simplify to <= 7000 pts for the browser
+                tol = 2.0
+                while True:
+                    S = np.array(LineString(P).simplify(tol, preserve_topology=False).coords)
+                    if len(S) <= 7000: break
+                    tol *= 1.3
+                eps_min = max(25.0, 4 * tol)
+                eps_grid = np.geomspace(eps_min, span / 3, 14)
+                L = np.array([divider_length(P, e) for e in eps_grid])
+                fit = np.geomspace(eps_min, span / 12, 8)
+                Lf = np.array([divider_length(P, e) for e in fit])
+                slope = np.polyfit(np.log(fit), np.log(Lf), 1)[0]
+                D = float(np.clip(1 - slope, 1.05, 1.5))
+                lonlat = np.column_stack([lon0 + np.degrees(S[:, 0] / (R * np.cos(np.radians(lat0)))),
+                                          lat0 + np.degrees(S[:, 1] / R)])
+                islands.append({
+                    "name": name, "osm": raw[name]["osm"], "lon0": lon0, "lat0": lat0,
+                    "area_km2": round(area / 1e6, 1), "osm_perimeter_km": round(perim / 1000, 1),
+                    "span_m": round(float(span)), "eps_min_m": round(eps_min, 1), "fractal_dimension": round(D, 3),
+                    "richardson": [[round(float(e), 1), round(float(l), 1)] for e, l in zip(eps_grid, L)],
+                    "coords": np.round(lonlat, 5).tolist(),
+                })
+                print(f"{name:10s} pts={len(S):5d} tol={tol:6.1f}m eps_min={eps_min:6.1f}m D={D:.3f} "
+                      f"L(min)={L[0]/1000:8.1f}km area={area/1e6:7.1f}km²")
+
+            app_data = {"islands": islands}
+
+            display({'application/json': app_data}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 4e816d2eaff74817ae800f8cd09e972e
+      isModule: false
+      name: Build data
+  settings: {}
+version: 1.0.0

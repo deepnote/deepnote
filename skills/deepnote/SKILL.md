@@ -4,7 +4,7 @@ description: >-
   Work with Deepnote project files (.deepnote). Use when creating, editing,
   or understanding .deepnote files — YAML-based notebook projects containing
   Python code, SQL queries, markdown, visualizations, and input widgets.
-  Also use when building or publishing Deepnote apps or Streamlit apps, choosing a runtime,
+  Also use when building or publishing Deepnote data apps or Streamlit apps, choosing a runtime,
   or using the Deepnote CLI to run, sync, or publish project files.
 ---
 
@@ -62,7 +62,7 @@ Every block has these common fields:
 | `blockGroup` | Groups related blocks (same format as id)                       |
 | `type`       | Block type string                                               |
 | `content`    | Source code, text, or query (YAML multi-line `\|` syntax)       |
-| `sortingKey` | Determines display order (lexicographic, e.g. `a0`, `a1`, `a2`) |
+| `sortingKey` | Display and run order by character code (e.g. `a0`, `a1`, `a2`) |
 | `metadata`   | Type-specific configuration object                              |
 
 ### Block Types
@@ -268,15 +268,75 @@ deepnote run project.deepnote -o json                  # JSON output
 3. If errors, check snapshot for details
 4. Fix and re-run
 
-## Apps and Streamlit apps
+## Data apps and Streamlit apps
 
-Use **app** for HTML, CSS, and JavaScript hosted by Deepnote, and **Streamlit app** for a Python
-UI. Start with [Build and publish apps and Streamlit apps](references/apps.md):
+Use a **data app** for an HTML, CSS, and JavaScript page hosted by Deepnote, and a **Streamlit app**
+for a Python UI. The recipes below are the whole happy path. Read
+[Build and publish data apps and Streamlit apps](references/apps.md) and
+[Publish data apps and Streamlit apps](references/cli-publish.md) before going beyond them —
+choosing between the two, the local-server workflow, the viewer API, sync workspaces, and failure
+handling are there.
 
-1. Choose the workflow from the user's framework, hosting target, and audience.
-2. Prepare and verify its notebook, Streamlit entrypoint, or browser build.
-3. Follow [Publish apps and Streamlit apps](references/cli-publish.md) for an app or Streamlit app.
-4. Test the hosted URL as the intended viewer, including notebook runs and API access when used.
+### Publish a data app
+
+A data app needs a **data app project**. `deepnote publish` refuses any other project type with exit
+code 2, and a `.deepnote` file cannot create one. Set `DEEPNOTE_TOKEN` in the environment or a local
+`.env` first.
+
+```bash
+# 1. Build into a dedicated directory; everything inside it is uploaded
+npm run build                                   # produces ./dist
+
+# 2. First publish: create the data app project, and record the project ID it prints
+deepnote publish ./dist --create "Revenue review"
+
+# 3. Every publish after that targets the project created in step 2
+deepnote publish ./dist --project-id <uuid>
+```
+
+Every `--create` makes another project, so reuse `--project-id` rather than creating one per
+publish. `publish` refuses a build directory holding a `.env` or `.env.*` file at any depth, or a
+file over 100 MiB. Use `--prune` to delete remote files no longer in the build.
+
+Then open the URL it prints, signed in as a viewer with project access, and check the assets,
+navigation, and any notebook runs on that hosted page. The build must follow these rules:
+
+- **No local server.** A published data app is static files plus the browser — no `serveStatic`
+  routes and no Python. Replace local API calls before publishing a build that had them.
+- **Exact filenames.** `/`, and any path ending in `/`, serves that directory's `index.html`. Every
+  other path is an exact filename, so link to `about.html`, not `/about`.
+- **No tokens in the build.** A page that runs notebooks asks the Deepnote shell for a viewer token
+  over `postMessage`; see [viewer API access](references/apps.md#add-viewer-api-access). A local
+  preview with a personal token does not test viewer permissions or token refresh.
+
+A data app project holds exactly one notebook, and `publish` prints its ID. A page that starts runs
+must name that ID. Put a local notebook into the project with
+`deepnote run <file> --cloud --notebook-id <id> --push --yes`.
+
+### Publish a Streamlit app
+
+This command installs nothing, and uploads nothing unless you pass `--upload`, which uploads the
+entrypoint from the current directory first. Put the third-party packages the entrypoint imports in
+the project's `requirements.txt`, which the Init notebook installs on every machine start — an
+ad-hoc `!pip install` is gone after the restart below. The entrypoint's local dependencies must
+already be in the project's Files, and so must the entrypoint without `--upload`; the paths are
+project-relative:
+
+```bash
+deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+deepnote streamlit publish apps/dashboard.py --project-id <uuid> --upload
+```
+
+Creating a new Streamlit app restarts the project machine; re-publishing an existing entrypoint does
+not, so a package added afterwards reaches the app only when the project's shared machine restarts —
+never from a notebook or terminal install, which in a privately-run project lands on your own
+machine instead. Never delete and re-upload an entrypoint to change it: that drops the app
+registration and the next publish returns a new URL. To change an entrypoint, publish again with
+`--upload`, or upload the edited file to the same path in the project's Files in Deepnote; both keep
+the app and its URL. Through the MCP server, upload with `write_file` and `overwrite`, or Deepnote
+writes a uniquely named copy and the app goes on serving the old file. Open the printed URL and test it as the intended viewer.
+
+Apps published from notebook blocks are deprecated; do not build new ones.
 
 ## CLI Quick Reference
 
@@ -295,7 +355,7 @@ UI. Start with [Build and publish apps and Streamlit apps](references/apps.md):
 | `deepnote split <path>`                       | Split a multi-notebook file into one `.deepnote` per notebook. The init notebook (if any) becomes its own standalone file; each main file keeps `initNotebookId` so `deepnote run` resolves and runs the sibling init as a prelude.                                                                 |
 | `deepnote open <path>`                        | Open in Deepnote Cloud                                                                                                                                                                                                                                                                              |
 | `deepnote schedule <path>`                    | Create, update, or remove (`--remove`) a notebook's recurring Deepnote Cloud schedule                                                                                                                                                                                                               |
-| `deepnote publish <dir>`                      | Publish a build directory as a data app.                                                                                                                                                                                                                                                            |
+| `deepnote publish <dir>`                      | Publish a build directory as a data app. Needs a data app project; `--create <name>` makes one.                                                                                                                                                                                                     |
 | `deepnote unpublish`                          | Make a data app editor-only again without changing its files.                                                                                                                                                                                                                                       |
 | `deepnote streamlit publish <file>`           | Serve a project file as a Streamlit app, optionally uploading it first.                                                                                                                                                                                                                             |
 | `deepnote sync [dir]`                         | Sync Deepnote Cloud projects with a local directory, both ways: pull every project into `<folder path>/<project name>/` (one `.deepnote` per notebook), push local edits back (the exact-inverse ZIP import). State in `.deepnote-sync.json`; conflicts prompt (or `--on-conflict skip\|override`). |

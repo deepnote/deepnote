@@ -140,7 +140,7 @@ Each block in a notebook has the following structure:
 
 - **`id`**: Unique block identifier
 - **`type`**: Block type (`'code'`, `'markdown'`, `'sql'`, `'chart'`, `'input'`, etc.)
-- **`sortingKey`**: Base-36 encoded position for ordering blocks
+- **`sortingKey`**: Position of the block in its notebook. Blocks display and run in ascending `sortingKey` order, compared character by character by character code, so digits sort before uppercase letters and uppercase before lowercase (`Z0` runs before `a0`)
 - **`blockGroup`**: Optional grouping identifier for related blocks
 - **`content`**: The actual code, markdown, or query content
 - **`executionCount`**: Number of times the block has been executed

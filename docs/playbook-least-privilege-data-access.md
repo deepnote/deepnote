@@ -71,6 +71,12 @@ See [securing connections](/docs/securing-connections).
 - **In your database**, every query from a SQL block carries a comment with the workspace, project and notebook IDs, a link to the project, the email of the person who ran it, and what triggered it, such as a person, a schedule or the API. Use it to review Deepnote traffic in your warehouse's query history. Queries that Python code sends through its own database client don't carry the comment.
 - **In Deepnote (Enterprise)**, export the [audit log](/docs/audit-log) from **Settings & members** → **Security**.
 
+## Example
+
+The [Renewal deal desk](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/deal-desk) in the Lindquett Software example is meant to be shared at
+**App user** access: account managers can price renewals in the app without opening the notebook that
+holds the pricing rules.
+
 ## Plan requirements
 
 - **Private projects, Execute-level and App user sharing with individual people, turning off public app sharing:** Pro, Team and Enterprise.

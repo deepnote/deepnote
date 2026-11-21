@@ -111,6 +111,5 @@ export {
   type SyncProject,
   setDataAppPublished,
   type UploadedFile,
-  type UploadProjectFileOptions,
   uploadProjectFile,
 } from './sync'

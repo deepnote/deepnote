@@ -1,0 +1,156 @@
+metadata:
+  createdAt: 2026-11-12T16:55:27.825Z
+project:
+  id: f9dfd998-d48a-432a-b87a-f0db3dfba1f5
+  integrations: []
+  name: The Night Shift - bird migration over Europe
+  notebooks:
+    - blocks:
+        - id: d59a999832f341f6bf3d8c4b845027f3
+          blockGroup: 9b6ef605d98c4a90b1e7079ceea26028
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # The Night Shift: bird migration over Europe
+
+
+            Millions of songbirds cross Europe at night. Weather radars record them as "noise", and the Aloft project
+            turns that noise into bird density profiles. This notebook builds a data app that shows autumn 2026
+            (Sep–Oct) and how the wind shapes migration.
+
+
+            **Pipeline**
+
+            1. **Radar profiles**: Aloft VPTS CSVs from the public `s3://aloftdata` bucket (CC BY 4.0), cleaned and
+            reduced to per-profile metrics (VIR, MTR, bird velocity).
+
+            2. **Wind**: hourly 925/850 hPa wind (ECMWF IFS via Open-Meteo) at every radar and on a 2° grid.
+
+            3. **Build**: nights only (sunset → sunrise via `astral`), tailwind toward 225° (SW), story numbers.
+
+            4. **App**: one self-contained HTML page (D3 + canvas), rendered in the last block.
+
+
+            Steps 1–2 download about 3 GB and take around 20 minutes the first time. Their results are cached in
+            `birds/processed/`, so later runs only rebuild the page.
+          metadata: {}
+        - id: 4a29be4fbb6b4d2090a8cf8970d16ff0
+          blockGroup: 2975b7338f26476eb6185d26b1655c6a
+          sortingKey: "000001"
+          outputs: []
+          type: code
+          content: >-
+            # Setup: dependencies, basemap and JS libraries (cached after the first run)
+
+            import subprocess, sys, os
+
+            from pathlib import Path
+
+            import requests
+
+
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "astral", "pyarrow", "scipy"], check=True)
+
+
+            BIRDS = Path("birds").resolve()
+
+            (BIRDS / "raw").mkdir(exist_ok=True)
+
+            (BIRDS / "vendor").mkdir(exist_ok=True)
+
+            (BIRDS / "processed").mkdir(exist_ok=True)
+
+
+            downloads = {
+                "raw/coverage.csv": "https://aloftdata.s3-eu-west-1.amazonaws.com/coverage.csv",
+                "vendor/countries-50m.json": "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json",
+                "vendor/d3.min.js": "https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js",
+                "vendor/topojson.min.js": "https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js",
+            }
+
+            for rel, url in downloads.items():
+                f = BIRDS / rel
+                if not f.exists():
+                    r = requests.get(url, timeout=120); r.raise_for_status(); f.write_bytes(r.content)
+                print(f"{rel:28s} {f.stat().st_size/1e6:6.2f} MB")
+
+            def run(script, *args):
+                p = subprocess.run([sys.executable, str(BIRDS / script), *args], capture_output=True, text=True)
+                print(p.stdout[-3000:]); print(p.stderr[-3000:])
+                p.check_returncode()
+          metadata: {}
+        - id: 009af51e2890498b803551c25426e961
+          blockGroup: 14245e2f7c214c2bb21fc2904f852d4d
+          sortingKey: "000002"
+          outputs: []
+          type: code
+          content: >-
+            # 1. Radar profiles from Aloft (about 20 min the first time; skipped when cached)
+
+            P = BIRDS / "processed"
+
+            if (P / "radars.json").exists() and len(list(P.glob("prof_*.parquet"))) > 100:
+                print("cached:", len(list(P.glob("prof_*.parquet"))), "radars")
+            else:
+                run("fetch_vpts.py")
+          metadata: {}
+        - id: a1f5778b8f1c45f68f653b30ad8d805f
+          blockGroup: 14b7979d189e4c83814de4ee87c6d3ba
+          sortingKey: "000003"
+          outputs: []
+          type: code
+          content: >-
+            # 2. Wind at 925/850 hPa (ECMWF IFS via Open-Meteo; swap for ERA5 via fetch_wind.era5_cds() with a CDS key)
+
+            if (P / "wind_radars.parquet").exists() and (P / "wind_grid.parquet").exists():
+                print("cached wind")
+            else:
+                run("fetch_wind.py")
+          metadata: {}
+        - id: a8a562238ed44b1898aa95d9b8d7f06f
+          blockGroup: 0a45d684e7a34a5db09e18b2fce1ca25
+          sortingKey: "000004"
+          outputs: []
+          type: code
+          content: >-
+            # 3. Nights, metrics, story numbers -> data.json, then assemble the self-contained page
+
+            run("build_data.py")
+
+            run("build_html.py", str(BIRDS / "bird-migration.html"))
+
+
+            import json, pandas as pd
+
+            d = json.load(open(P / "data.json"))
+
+            pd.DataFrame(d["europe_nights"]).assign(peak_millions=lambda x: (x.peak / 1e6).round(1))[["n",
+            "peak_millions", "tw"]] \
+              .rename(columns={"n": "night", "tw": "mean_tailwind_ms"}).sort_values("peak_millions", ascending=False).head(10)
+          metadata: {}
+        - id: 80d10a08a095454cb3d8229d1c5366af
+          blockGroup: dfb2c75e820448e286edbaee144f3e3a
+          sortingKey: "000005"
+          outputs: []
+          type: code
+          content: >-
+            # 4. The app
+
+            from IPython.display import HTML, display
+
+            display(HTML((BIRDS / "bird-migration.html").read_text()))
+          metadata: {}
+        - id: 37f43b648f25424198f8c33cf6563b32
+          blockGroup: d480f15b03784fbbaf4993c38735ec30
+          sortingKey: "000006"
+          outputs: []
+          type: code
+          content: >
+            ! python birds/build_html.py
+          metadata: {}
+      executionMode: block
+      id: 06c1758750664918a0195e8a1db4cc70
+      isModule: false
+      name: Build data
+  settings: {}
+version: 1.0.0

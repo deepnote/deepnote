@@ -5,10 +5,6 @@ noIndex: true
 noContent: false
 ---
 
-<Callout status="info">
-Streamlit app projects are in beta. This is an early version, so expect it to change, and tell us what you'd like it to do.
-</Callout>
-
 A Streamlit app project is a [Streamlit](https://streamlit.io) app you build by chatting with [Deepnote Agent](/docs/deepnote-agent). Describe what you need, such as a forecasting tool, a CSV explorer, or a dashboard, and the agent writes the Python code, hosts the app, and adds controls that rerun your analysis as people use them. Refine it in chat and share it with your team.
 
 To host a Streamlit script in a regular project instead, see [Streamlit apps](/docs/streamlit).

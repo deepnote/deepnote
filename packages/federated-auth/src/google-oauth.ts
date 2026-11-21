@@ -65,7 +65,7 @@ const MAX_ATTEMPTS = 4
 const BASE_BACKOFF_MS = 250
 
 /**
- * The timeout reason carries a printable message because the CLI surfaces `error.message` verbatim,
+ * The timeout reason carries a printable message because callers surface `error.message` verbatim,
  * and `AbortSignal.timeout` names no operation.
  */
 function deadlineSignal(callerSignal: AbortSignal | undefined, timeoutMs: number): AbortSignal {

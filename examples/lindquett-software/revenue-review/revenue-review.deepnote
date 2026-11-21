@@ -1,0 +1,395 @@
+metadata:
+  createdAt: 2026-11-09T09:00:00.000Z
+  modifiedAt: 2026-11-09T09:00:00.000Z
+project:
+  id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4c01
+  name: Revenue review
+  notebooks:
+    - blocks:
+        - id: 0ff272ab590c9a0648968019bf69de70
+          blockGroup: 47e814c52ca426489d9c592339e91acf
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Revenue review
+
+
+            The notebook behind the Revenue review data app. Every number comes from the shared
+
+            **Revenue metrics** module, and the agent block writes the analyst note at the top of the app with the
+
+            same functions. The app runs this notebook with its filters and reads the `application/json` output.
+          metadata: {}
+        - id: 0d3445592a696a8e67da3cdd22021045
+          blockGroup: 93ada29b63103d3ed99075389d7d66bb
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: region
+            deepnote_input_label: Region
+            deepnote_variable_value: All
+            deepnote_variable_default_value: All
+            deepnote_variable_options:
+              - All
+              - North America
+              - EMEA
+              - APAC
+              - LATAM
+            deepnote_variable_custom_options:
+              - All
+              - North America
+              - EMEA
+              - APAC
+              - LATAM
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 8ed93a79b66a1f21c69116f58587705e
+          blockGroup: 7c0c11133d011f01bbb77c90ec7e5bf2
+          sortingKey: "000002"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: segment
+            deepnote_input_label: Segment
+            deepnote_variable_value: All
+            deepnote_variable_default_value: All
+            deepnote_variable_options:
+              - All
+              - Enterprise
+              - Mid-market
+              - SMB
+            deepnote_variable_custom_options:
+              - All
+              - Enterprise
+              - Mid-market
+              - SMB
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 28ab1f924f64e21938216132f54f7b86
+          blockGroup: 3268d579239480ad825cc00c1b0c51f1
+          sortingKey: "000003"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: quarter
+            deepnote_input_label: Quarter
+            deepnote_variable_value: 2026-Q3
+            deepnote_variable_default_value: 2026-Q3
+            deepnote_variable_options:
+              - 2025-Q2
+              - 2025-Q3
+              - 2025-Q4
+              - 2026-Q1
+              - 2026-Q2
+              - 2026-Q3
+            deepnote_variable_custom_options:
+              - 2025-Q2
+              - 2025-Q3
+              - 2025-Q4
+              - 2026-Q1
+              - 2026-Q2
+              - 2026-Q3
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: aecadd02d8904d8b770c214793d1dae0
+          blockGroup: 199f2869c6bf6410a516271985faed77
+          sortingKey: "000004"
+          type: input-textarea
+          content: ""
+          metadata:
+            deepnote_variable_name: question
+            deepnote_input_label: Question for the analyst
+            deepnote_variable_value: ""
+            deepnote_variable_default_value: ""
+        - id: a4e3690912c71dd6a70e5a9b6b21c898
+          blockGroup: 0962c8e0af9231ccb7828f5529774fff
+          sortingKey: "000005"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              accounts:
+                enabled: true
+                variable_name: accounts
+              mrr:
+                enabled: true
+                variable_name: mrr
+              opportunities:
+                enabled: true
+                variable_name: opportunities
+        - id: 723251c0e07bac4d53558b5e0b111642
+          blockGroup: e00d41c5d11848b9f915269f9b983ca6
+          sortingKey: "000006"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b02
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              arr_movements:
+                enabled: true
+                variable_name: arr_movements
+              arr_bridge:
+                enabled: true
+                variable_name: arr_bridge
+              retention:
+                enabled: true
+                variable_name: retention
+              retention_trend:
+                enabled: true
+                variable_name: retention_trend
+              top_movers:
+                enabled: true
+                variable_name: top_movers
+              pipeline_coverage:
+                enabled: true
+                variable_name: pipeline_coverage
+        - id: f367dbc787ff6ebeda8f2038ba6b07fa
+          blockGroup: 3f6f6f9972026ddd4046ed8c7c3198fe
+          sortingKey: "000007"
+          type: code
+          content: >-
+            import pandas as pd
+
+
+            # Everything the app shows, from the governed functions in the "Revenue metrics" module.
+
+            _q = pd.Period(quarter.replace("-", ""), freq="Q")
+
+            prior_quarter = f"{(_q - 1).year}-Q{(_q - 1).quarter}"
+
+            next_quarter = f"{(_q + 1).year}-Q{(_q + 1).quarter}"
+
+            recent_quarters = [f"{p.year}-Q{p.quarter}" for p in pd.period_range(_q - 5, _q, freq="Q")]
+
+
+            bridge = arr_bridge(mrr, quarter, region, segment)
+
+            prior_bridge = arr_bridge(mrr, prior_quarter, region, segment)
+
+            current = retention(mrr, quarter, region, segment)
+
+            previous = retention(mrr, prior_quarter, region, segment)
+
+            coverage_next = pipeline_coverage(opportunities, next_quarter, region, segment)
+
+            coverage_this = pipeline_coverage(opportunities, quarter, region, segment)
+
+
+            movements = arr_movements(mrr, region, segment)
+
+            movements = movements[movements["quarter"].isin(recent_quarters)]
+
+            nrr_by_region = retention_trend(mrr, segment, quarters=8)
+
+            nrr_by_region = nrr_by_region[nrr_by_region["quarter"] <= quarter]
+
+            all_movers = top_movers(mrr, quarter, region, segment, n=mrr["account_id"].nunique())
+
+            movers = all_movers.head(8)
+
+            bridge
+          metadata: {}
+        - id: ef4e051ab397540a2b6fe5f8d50bf8a8
+          blockGroup: a61804c6650bca831ce7ff7f843fa142
+          sortingKey: "000008"
+          type: code
+          content: >-
+            from IPython.display import display
+
+
+            # The app's data: one JSON output the page reads, locally and in Deepnote. Every sentence the page
+
+            # shows is built here from the numbers, so the page never carries copy about a particular quarter.
+
+            # The agent block below rewrites `story` with its own reading of the same numbers when it runs.
+
+            def _records(frame):
+                return frame.round(4).to_dict("records")
+
+            def _money(value):
+                value = abs(value)
+                return f"${value / 1e6:.2f}M" if value >= 1e6 else f"${value / 1e3:,.0f}K"
+
+            scope_name = region if region != "All" else "the company"
+
+            ending_arr = float(bridge["arr"].iloc[-1])
+
+            prior_ending_arr = float(prior_bridge["arr"].iloc[-1])
+
+            arr_change = ending_arr - prior_ending_arr
+
+            nrr_change_points = (current["nrr"] - previous["nrr"]) * 100
+
+
+            steps = bridge.set_index("step")["arr"]
+
+            biggest = max(["New", "Expansion", "Contraction", "Churn"], key=lambda step: abs(float(steps[step])))
+
+            biggest_name = {"New": "new business", "Expansion": "expansion", "Contraction": "contraction", "Churn":
+            "churn"}[biggest]
+
+
+            _latest = nrr_by_region[nrr_by_region["quarter"] == quarter].set_index("region")["nrr"]
+
+            _prior = nrr_by_region[nrr_by_region["quarter"] == prior_quarter].set_index("region")["nrr"]
+
+            region_moves = ((_latest - _prior.reindex(_latest.index)) * 100).dropna()
+
+            moved = region_moves[region_moves.abs() > 2]
+
+            fell, rose = moved[moved < 0], moved[moved > 0]
+
+            if len(moved) == 0:
+                regions_line = f"No region moved more than two points against {prior_quarter}"
+            elif len(fell) == 1 and len(rose) >= 1:
+                regions_line = f"Only {fell.index[0]} fell against {prior_quarter}; {len(rose)} other region{'s' if len(rose) > 1 else ''} rose"
+            elif len(rose) == 1 and len(fell) >= 1:
+                regions_line = f"Only {rose.index[0]} rose against {prior_quarter}; {len(fell)} other region{'s' if len(fell) > 1 else ''} fell"
+            elif len(moved) == 1:
+                regions_line = f"Only {moved.index[0]} moved more than two points against {prior_quarter}"
+            else:
+                regions_line = f"{len(moved)} of {len(region_moves)} regions moved more than two points against {prior_quarter}"
+
+            losses = all_movers[all_movers["arr_change"] < 0].sort_values("arr_change")
+
+            lost_total = float(-(steps["Contraction"] + steps["Churn"]))
+
+            top_losses = losses.head(3)
+
+            loss_share = float(-top_losses["arr_change"].sum() / lost_total) if lost_total else 0.0
+
+            accounts_line = (
+                f"{len(top_losses)} accounts explain {loss_share:.0%} of the lost ARR" if len(top_losses) else "No account lost ARR this quarter"
+            )
+
+
+            story = {
+                "title": f"Where {scope_name}'s revenue went in {quarter}",
+                "standfirst": (
+                    f"Net revenue retention {'fell' if nrr_change_points < 0 else 'rose'} {abs(nrr_change_points):.1f} points to "
+                    f"{current['nrr']:.1%} in {quarter}. {accounts_line.replace('accounts explain', 'accounts make up')}."
+                ),
+                "bridge": f"ARR {'fell' if arr_change < 0 else 'rose'} by {_money(arr_change)}, and {biggest_name} did most of it",
+                "regions": regions_line,
+                "accounts": accounts_line,
+                "analyst": None,
+            }
+
+
+            display({"application/json": {
+                "scope": {"region": region, "segment": segment, "quarter": quarter, "prior_quarter": prior_quarter, "as_of": f"{mrr['month'].max():%Y-%m}"},
+                "kpis": {
+                    "ending_arr": round(ending_arr, 2),
+                    "prior_ending_arr": round(prior_ending_arr, 2),
+                    "nrr": round(float(current["nrr"]), 4),
+                    "prior_nrr": round(float(previous["nrr"]), 4),
+                    "grr": round(float(current["grr"]), 4),
+                    "prior_grr": round(float(previous["grr"]), 4),
+                    "churned_arr": round(float(-steps["Churn"]), 2),
+                    "coverage": round(float(coverage_next["coverage"]), 2),
+                    "prior_coverage": round(float(coverage_this["coverage"]), 2),
+                    "next_quarter": next_quarter,
+                },
+                "story": story,
+                "bridge": _records(bridge),
+                "nrr_by_region": _records(nrr_by_region),
+                "region_moves": {name: round(float(points), 1) for name, points in region_moves.items()},
+                "movers": _records(movers),
+            }}, raw=True)
+          metadata: {}
+        - id: c5d2de288f83b2402440600260f39083
+          blockGroup: 0dc907271ccf5bca7b9ab045ec0bcb11
+          sortingKey: "000009"
+          type: markdown
+          content: >-
+            ### Analyst guide (hidden in the app; context for the agent)
+
+
+            Loaded by the module blocks above:
+
+
+            - `accounts` — account_id, account, region, segment, industry, customer_since, price_plan
+              (`"2026 price list"` or `"Legacy"`).
+            - `mrr` — account_id, account, region, segment, month (month start), mrr in USD. Rows exist only for
+              months with revenue; a churned account simply stops having rows.
+            - `opportunities` — quarter (`"2026-Q4"`), region, segment, opportunity_id, stage, probability,
+              amount, target (the new-business ARR target for that region and segment, repeated per row).
+
+            Metric functions (all accept `region="All"` and `segment="All"`):
+
+
+            - `arr_movements(mrr, region, segment)` → quarter, movement (New/Expansion/Contraction/Churn), arr_change
+
+            - `arr_bridge(mrr, quarter, region, segment)` → step, arr
+
+            - `retention(mrr, quarter, region, segment)` → dict: nrr, grr, cohort_arr, cohort_accounts
+
+            - `retention_trend(mrr, segment, quarters=6)` → quarter, region, nrr
+
+            - `top_movers(mrr, quarter, region, segment, n=8)` → account, region, segment, movement, arr_start, arr_end,
+            arr_change
+
+            - `pipeline_coverage(opportunities, quarter, region, segment)` → dict: pipeline, weighted_pipeline, target,
+            coverage
+          metadata: {}
+        - id: c1b00ff590fbdf857c9744a7012fa8d1
+          blockGroup: b2af9ced9e05756516ed3d4825afb504
+          sortingKey: "000010"
+          type: agent
+          content: >-
+            You write the words on the Revenue review app. The page is laid out as a title, three numbered chapters
+
+            (the ARR bridge, net revenue retention by region, the accounts that moved ARR most) and an analyst's
+
+            aside. The block above computed a plain `story` dict from the numbers; replace it with a better one.
+
+
+            Scope: the `region`, `segment` and `quarter` inputs. The title and the three chapters describe that
+
+            scope and nothing else, because the figures and charts beside them are drawn from it. If the `question`
+
+            input is not empty, the aside answers it; otherwise the aside explains what changed and why. A question
+
+            may name a different scope — only the aside may go there, and its headline must name the scope it used.
+
+
+            How to work:
+
+            - Use the governed metric functions from the "Revenue metrics" module, which are already loaded:
+              arr_movements, arr_bridge, retention, retention_trend, top_movers and pipeline_coverage. Never
+              re-implement ARR, NRR, GRR or coverage. For a cut the functions don't take as a parameter (for
+              example price_plan or industry), filter `mrr` first and pass the subset in.
+            - `accounts`, `mrr` and `opportunities` come from the "Revenue data" module; the analyst guide lists
+              their columns.
+            - Every sentence must state a number from the data or a conclusion drawn from one. No generalities.
+
+            - Add at most three blocks below this one. Never edit or delete existing blocks.
+
+            - Finish with one code block that runs exactly this, filled in:
+
+              from IPython.display import display
+              display({"application/json": {"story": {
+                  "title": "<a title in at most ten words that states the finding, like a headline>",
+                  "standfirst": "<two sentences: what changed, and the main reason, with numbers>",
+                  "bridge": "<one line on the ARR bridge: how much ARR moved and which movement drove it>",
+                  "regions": "<one line on retention by region: which regions moved and which did not>",
+                  "accounts": "<one line on the accounts: how concentrated the change is>",
+                  "analyst": {
+                      "headline": "<the answer to the question, or the main conclusion, in one sentence>",
+                      "evidence": ["<fact with a number>", "<fact with a number>", "<fact with a number>"],
+                      "next_step": "<one recommended action>"
+                  }
+              }}}, raw=True)
+          metadata:
+            deepnote_agent_model: auto
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d01
+      name: Revenue review
+version: 1.0.0

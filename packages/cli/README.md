@@ -673,9 +673,8 @@ API calls from a hosted Streamlit app work only when the project owner has enabl
 API access, and only for signed-in viewers with direct access to the project.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
-`--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and
-uploading them, so publish again after syncing an edited entrypoint and use the returned URL, which
-may change. See the
+`--upload` and sync both overwrite a changed entrypoint in place, so it keeps its app. Deleting and
+re-uploading the entrypoint removes the app; publish again after that and use the new URL. See the
 [publishing guide](../../docs/deepnote-cli-publish.md) for access requirements and failure handling.
 
 **Examples:**
@@ -978,6 +977,21 @@ deepnote install-skills
 | `--dry-run`           | Preview what would be installed without writing     |
 
 **Supported agents:** Claude Code, Cursor, Windsurf, GitHub Copilot, Cline, Roo Code, Augment, Continue, Antigravity, Trae, Goose, Junie, Kilo Code, Kiro, Codex, Gemini CLI, Amp, Kimi Code CLI, OpenCode.
+
+**Agents that do not discover skills on their own** read a single instructions file instead, so the
+command also writes a pointer to the installed skill into that file. It is a managed block between
+`<!-- BEGIN DEEPNOTE SKILL -->` and `<!-- END DEEPNOTE SKILL -->`, replaced in place on the next
+install; the rest of the file is left untouched. A global pointer names the skill by absolute path,
+since the agent reads that file from any project. A file holding markers that cannot be paired — one
+left behind by a hand edit, say — is reported and left alone rather than rewritten.
+
+| Agent              | Instructions file (project)       | Instructions file (`--global`) |
+| ------------------ | --------------------------------- | ------------------------------ |
+| Codex              | `AGENTS.md`                       | `~/.codex/AGENTS.md`           |
+| Amp, Kimi Code CLI | `AGENTS.md`                       | `~/.config/AGENTS.md`          |
+| OpenCode           | `AGENTS.md`                       | `~/.config/opencode/AGENTS.md` |
+| Gemini CLI         | `GEMINI.md`                       | `~/.gemini/GEMINI.md`          |
+| GitHub Copilot     | `.github/copilot-instructions.md` | —                              |
 
 **Examples:**
 

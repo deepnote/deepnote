@@ -1,0 +1,37 @@
+<p>Everything here comes from public data and fits in one notebook. The pipeline downloads the radar profiles, cleans them, keeps only night-time, adds wind, and reduces it all to the numbers on this page.</p>
+
+<h4>DATA</h4>
+<table>
+<tr><th>Source</th><th>What we used</th><th>Licence</th></tr>
+<tr><td><a href="https://aloftdata.eu">Aloft</a> bird profiles (vol2bird, OPERA/BALTRAD radars)</td><td>Monthly VPTS CSVs from <code>s3://aloftdata/baltrad/monthly/</code> for Sep–Oct 2026, {n_radars} radars, 200 m height bins every ~5 min. Columns: <code>dens</code>, <code>u</code>, <code>v</code>, <code>ff</code>, <code>sd_vvp</code>, <code>dbz_all</code>.</td><td>CC BY 4.0, cite Aloft and the national meteorological services that operate the radars</td></tr>
+<tr><td>Wind at 925 and 850 hPa</td><td>Hourly u/v from ECMWF IFS 0.25° via the Open-Meteo historical-forecast API, at every radar and on a 2° grid for the map. The two levels are averaged (≈ 0.8–1.5 km, where most nocturnal migrants fly). Swap in ERA5 (<code>reanalysis-era5-pressure-levels</code>, CDS API) once a key is in Deepnote secrets; the rest of the pipeline only needs u/v.</td><td>CC BY 4.0 (Open-Meteo / ECMWF)</td></tr>
+<tr><td>Coastlines and borders</td><td>Natural Earth 1:50m via world-atlas</td><td>Public domain</td></tr>
+</table>
+
+<h4>CLEANING (THRESHOLDS)</h4>
+<table>
+<tr><th>Step</th><th>Rule</th></tr>
+<tr><td>Duplicate scans</td><td>Profiles with the same radar, time and height (several scan tasks) are averaged.</td></tr>
+<tr><td>Non-bird scatter</td><td><code>dens</code> set to 0 where <code>sd_vvp</code> &lt; the radar's <code>sd_vvp_threshold</code> (2 m/s): uniform radial velocities indicate rain or insects, not birds.</td></tr>
+<tr><td>Ground clutter</td><td>Bins whose centre is less than 200 m above the antenna are dropped, and so is everything above 4 km over the antenna.</td></tr>
+<tr><td>Rain</td><td>A whole profile is dropped if ≥ 25% of its valid bins have total reflectivity <code>dbz_all</code> &gt; 15 dBZ. This removed about 9% of profiles (median per radar).</td></tr>
+<tr><td>Implausible density</td><td>A profile is dropped if any bin exceeds 1,000 birds/km³.</td></tr>
+<tr><td>Empty / gap bins</td><td>Missing <code>dens</code> inside the valid height range counts as 0 birds. Missing speeds are filled with that profile’s density-weighted mean speed.</td></tr>
+<tr><td>Excluded radars</td><td>{ex_n} Romanian radars ({excluded}) report densities 30–100× higher than every other network (99th-percentile VIR &gt; 500 birds/km², vs. 1–45 elsewhere). That points to calibration or clutter, not birds, so they are excluded.</td></tr>
+<tr><td>Low-sensitivity radars</td><td>{n_low} radars almost never detect birds: their 90th-percentile nightly VIR is below 1 bird/km², even though their neighbours see plenty. This includes all German radars, whose BALTRAD profiles appear to filter out bird echoes. They are drawn as hollow rings on the map and left out of every count and statistic: <code>{low}</code>.</td></tr>
+<tr><td>Night only</td><td>Profiles between local sunset and next sunrise at each radar (computed with <code>astral</code>). A radar-night needs data in ≥ 60% of its hours to count.</td></tr>
+</table>
+
+<h4>METRICS</h4>
+<table>
+<tr><th>Metric</th><th>Definition</th></tr>
+<tr><td>VIR, birds/km²</td><td>Σ dens × Δh over valid bins: how many birds are above each km² of ground.</td></tr>
+<tr><td>MTR, birds/km/h</td><td>Σ dens × ff × Δh: birds crossing a 1 km line perpendicular to their flight. Nightly traffic = mean night-time MTR × night length.</td></tr>
+<tr><td>Birds aloft (headline counter)</td><td>Each 0.25° cell within {cover} km of a reporting radar takes that nearest radar’s hourly VIR, multiplied by the cell area and summed. This is a lower bound: it covers only the area the radars observe, and it undercounts birds below the lowest valid bin.</td></tr>
+<tr><td>Relative traffic</td><td>A radar-night’s traffic ÷ that radar’s median night. It removes calibration differences between radars, so radars can be pooled.</td></tr>
+<tr><td>Tailwind, m/s</td><td>Wind vector · unit vector towards 225° (SW, the autumn migration direction). The direction is fixed, not the birds’ measured heading, so the wind measure doesn’t depend on the birds and the reasoning isn’t circular.</td></tr>
+<tr><td>Airspeed</td><td>|bird ground velocity − wind vector|, density-weighted per radar-night. Only radar-nights with mean VIR ≥ 2 birds/km² are used.</td></tr>
+</table>
+
+<h4>CAVEATS</h4>
+<p>Radar density depends on each radar’s calibration and on the assumed radar cross-section of 11 cm² per bird, so the absolute numbers are approximate. The pattern across nights is the robust part. The wind is IFS analysis, not ERA5 reanalysis; for 850–925 hPa winds the two agree closely. Insects can slip past the <code>sd_vvp</code> filter on warm September nights.</p>

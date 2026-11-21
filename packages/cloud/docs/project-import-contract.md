@@ -136,12 +136,12 @@ exports will emit), so a client can correlate the response with what it sent.
 
 The file half of push does **not** need new endpoints — it uses the public API as-is:
 
-- `POST /v2/files` (multipart `projectId`, `path`, `file`, optional `overwrite`) — upload. **Generates a
-  unique path when `path` already exists, unless `overwrite` is `'true'`, which replaces the file in
-  place.** The last write wins.
+- `POST /v2/files` (multipart `projectId`, `path`, `file`, optional `overwrite`) — upload. **Without
+  `overwrite`, generates a unique path when `path` already exists.** With `overwrite=true` it replaces
+  the file in place.
 - `DELETE /v2/files?projectId=&path=` — delete.
 
-`deepnote sync --all-files` uploads changed local files on push by delete-then-upload (last-write-wins;
+`deepnote sync --all-files` uploads changed local files on push with `overwrite=true` (last-write-wins;
 the files surface has no content hash or staleness check). Files removed locally are **not** deleted
 in the cloud — too destructive to infer. See `uploadProjectFile` / `deleteProjectFile` in
 `@deepnote/cloud`.

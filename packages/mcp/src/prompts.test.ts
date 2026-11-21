@@ -134,7 +134,7 @@ describe('prompts', () => {
       const promptTexts = prompts.map(prompt => {
         const result = getPrompt(prompt.name, undefined)
         const firstMessage = result.messages[0]
-        if (!firstMessage || firstMessage.content.type !== 'text') {
+        if (firstMessage?.content.type !== 'text') {
           return ''
         }
         return firstMessage.content.text

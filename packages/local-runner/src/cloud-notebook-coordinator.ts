@@ -42,7 +42,7 @@ export function coordinateCloudNotebook(
   const projectKey = JSON.stringify([options.baseUrl, options.token, options.projectName])
   const notebookKey = JSON.stringify([projectKey, options.notebookId, options.notebookName, options.allowCreate])
   const active = inFlightNotebooks.get(notebookKey)
-  if (active) {
+  if (active !== undefined) {
     return active
   }
 

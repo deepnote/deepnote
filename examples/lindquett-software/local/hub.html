@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lindquett apps</title>
+  <link rel="stylesheet" href="http://127.0.0.1:{{port+1}}/app.css">
+  <style>
+    .apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .app-card { display: flex; flex-direction: column; gap: 10px; }
+    .app-card h2 { font-size: 24px; }
+    .app-card .plays { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+    .app-card a.open { align-self: flex-start; text-decoration: none; }
+    .loop ol { margin: 8px 0 0; padding-left: 20px; color: var(--ink-2); display: grid; gap: 6px; }
+    code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--track); padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+<header class="title">
+  <div class="inner">
+    <div class="meta"><span>Lindquett Software · five apps, running on your machine</span></div>
+    <h1>One company, five data apps</h1>
+    <p class="standfirst">Each is a notebook with a page on top. Every number and every sentence on the pages is computed by the notebook or written by its agent, so what you see changes with the data.</p>
+  </div>
+</header>
+<main class="story">
+  <section class="chapter">
+    <div class="no">01</div>
+    <div class="body">
+      <h2>The apps</h2>
+      <div class="apps">
+        <article class="card app-card">
+          <h2>Revenue review</h2>
+          <p class="muted small">For leadership and RevOps</p>
+          <p>Where the revenue went this quarter: the ARR bridge, retention by region and the accounts behind the change, with the analyst's note.</p>
+          <p class="small muted">Analyst note: {{agent}}</p>
+          <div class="plays"><span class="badge plain">One definition of every metric</span><span class="badge plain">Trustworthy AI answers</span><span class="badge plain">Reports that deliver themselves</span></div>
+          <a class="open" href="http://127.0.0.1:{{port+1}}/"><button class="plain">Open</button></a>
+        </article>
+        <article class="card app-card">
+          <h2>Renewal deal desk</h2>
+          <p class="muted small">For account managers</p>
+          <p>Pick an account and a term, get the renewal price and the reasons. The CRM calls the same notebook through the API.</p>
+          <div class="plays"><span class="badge plain">Self-serve tools</span><span class="badge plain">Notebook as a backend</span><span class="badge plain">Least-privilege access</span></div>
+          <a class="open" href="http://127.0.0.1:{{port+2}}/"><button class="plain">Open</button></a>
+        </article>
+        <article class="card app-card">
+          <h2>Account health</h2>
+          <p class="muted small">For customer success</p>
+          <p>Churn-risk scores with their reasons. A scheduled run posts accounts that cross the threshold to Slack, linking back here.</p>
+          <div class="plays"><span class="badge plain">Business alerts</span><span class="badge plain">Orchestrator-triggered runs</span></div>
+          <a class="open" href="http://127.0.0.1:{{port+3}}/"><button class="plain">Open</button></a>
+        </article>
+        <article class="card app-card">
+          <h2>Data health</h2>
+          <p class="muted small">For anyone reading a dashboard</p>
+          <p>Whether today's numbers can be trusted, from the checks that also gate pull requests and warehouse loads.</p>
+          <div class="plays"><span class="badge plain">Data quality checks</span></div>
+          <a class="open" href="http://127.0.0.1:{{port+4}}/"><button class="plain">Open</button></a>
+        </article>
+        <article class="card app-card">
+          <h2>Pricing scenario planner</h2>
+          <p class="muted small">For finance</p>
+          <p>What moving legacy accounts to the 2026 price list does to ARR. A Streamlit app on a baseline a scheduled notebook writes.</p>
+          <p class="small muted">Status: {{planner}}</p>
+          <div class="plays"><span class="badge plain">Choosing an app type</span></div>
+          <a class="open" href="http://127.0.0.1:{{port+5}}/"><button class="plain">Open</button></a>
+        </article>
+      </div>
+    </div>
+  </section>
+  <section class="chapter">
+    <div class="no">02</div>
+    <div class="body loop">
+      <h2>How each one is built</h2>
+      <ol>
+        <li>Ask a coding agent with the Deepnote skill (<code>deepnote install-skills</code>) for the notebook, and run it with <code>node local/run.mjs &lt;app&gt;</code>.</li>
+        <li>Build the page in <code>&lt;app&gt;/app/</code> and try it here, against the same notebook.</li>
+        <li>Publish it: <code>deepnote publish local/build/&lt;app&gt;/site --create "&lt;name&gt;"</code>, then push the notebook to the ID it prints.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+</body>
+</html>

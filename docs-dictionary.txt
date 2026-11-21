@@ -315,6 +315,9 @@ foodpanda
 Shippit
 Webflow
 
+# Fictional company in examples/lindquett-software
+Lindquett
+
 # Notebook formats & libraries (docs refresh)
 Polars
 polars

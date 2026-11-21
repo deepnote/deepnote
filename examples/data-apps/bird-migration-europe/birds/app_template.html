@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+<script src="https://deepnote.com/static/app-client/v1.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Night Shift</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#060b14; --surface:#0b1520; --surface-2:#10192a; --border:#1d2a40; --border-strong:#334668;
+  --ink:#eef2f8; --ink-2:#b4c0d3; --ink-3:#7d8ba1; --ink-4:#56637a;
+  --land:#121d2e; --land-edge:#22324a; --sea:#070d18;
+  --bird-0:#3b2a0e; --bird-1:#a8650a; --bird-2:#f0a020; --bird-3:#ffd77a; --bird-4:#fff6dc;
+  --tail:#3793EF; --tail-2:#6AB3F4; --head:#e66767; --head-2:#f19a9a; --mid:#5b6b80;
+  --font-sans:"Bricolage Grotesque", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+a{color:var(--tail-2)}
+.mono{font-family:var(--font-mono)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- hero ---------- */
+#hero{position:relative;height:clamp(620px,62vw,920px);overflow:hidden;background:var(--sea)}
+#hero canvas{position:absolute;inset:0;width:100%;height:100%}
+.hud{position:absolute;pointer-events:none;z-index:5}
+.hud *{pointer-events:auto}
+.hud-title{left:32px;top:28px;max-width:440px}
+.eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--bird-2)}
+h1{font-size:clamp(40px,5.4vw,72px);line-height:.95;margin:.25em 0 .3em;font-weight:800;letter-spacing:-.02em}
+.lede{font-size:17px;line-height:1.45;color:var(--ink-2);margin:0;max-width:400px;text-shadow:0 1px 12px #000}
+.hud-count{right:32px;top:28px;text-align:right}
+.count-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.count-big{font-size:clamp(44px,6vw,84px);font-weight:800;line-height:1;letter-spacing:-.02em;color:var(--bird-3);text-shadow:0 0 30px rgba(240,160,32,.35)}
+.count-sub{font-family:var(--font-mono);font-size:13px;color:var(--ink-2);margin-top:6px}
+.clock{font-family:var(--font-mono);font-size:28px;color:var(--ink);margin-top:14px}
+.clock small{font-size:12px;color:var(--ink-3)}
+.hud-ctrl{left:32px;right:32px;bottom:24px;display:flex;flex-direction:column;gap:10px}
+.ctrl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{font-family:var(--font-mono);font-size:12px;background:rgba(16,25,42,.85);color:var(--ink);border:1px solid var(--border-strong);border-radius:8px;padding:8px 12px;cursor:pointer;backdrop-filter:blur(6px)}
+.btn:hover{border-color:var(--tail)}
+.btn.on{background:var(--tail);border-color:var(--tail);color:#fff}
+.btn.play{width:44px;height:36px;font-size:15px;padding:0}
+select.btn{appearance:none;padding-right:26px;background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);background-position:calc(100% - 14px) 15px,calc(100% - 9px) 15px;background-size:5px 5px;background-repeat:no-repeat}
+.scrub{flex:1;min-width:200px;position:relative;height:36px}
+.scrub input{width:100%;margin:0;height:36px;accent-color:var(--bird-2)}
+.legend{display:flex;gap:18px;align-items:center;font-size:12px;color:var(--ink-2);font-family:var(--font-mono);background:rgba(6,11,20,.6);padding:8px 12px;border-radius:8px;backdrop-filter:blur(6px)}
+.legend .ramp{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--bird-0),var(--bird-1),var(--bird-2),var(--bird-3),var(--bird-4))}
+.legend .wind-swatch{width:26px;height:2px;background:linear-gradient(90deg,transparent,#cfe3ff)}
+.scroll-cue{position:absolute;left:50%;bottom:140px;transform:translateX(-50%);font-family:var(--font-mono);font-size:11px;color:var(--ink-3);letter-spacing:.1em;z-index:4;pointer-events:none}
+.tip{position:fixed;z-index:50;pointer-events:none;background:rgba(11,21,32,.96);border:1px solid var(--border-strong);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5;color:var(--ink);font-family:var(--font-mono);box-shadow:0 8px 30px rgba(0,0,0,.5);opacity:0;transition:opacity .12s;max-width:280px}
+.tip b{font-family:var(--font-sans);font-size:14px}
+.tip .k{color:var(--ink-3)}
+
+/* ---------- story sections ---------- */
+main{max-width:1120px;margin:0 auto;padding:0 32px 80px}
+section.chapter{padding:96px 0 24px;border-top:1px solid var(--border)}
+section.chapter:first-child{border-top:none}
+.chapter-num{font-family:var(--font-mono);font-size:12px;color:var(--bird-2);letter-spacing:.14em}
+h2{font-size:clamp(30px,3.6vw,46px);line-height:1.05;margin:.3em 0 .4em;font-weight:800;letter-spacing:-.015em;max-width:820px}
+.prose{font-size:18px;line-height:1.55;color:var(--ink-2);max-width:720px}
+.prose strong{color:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:32px 0}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+.stat .v{font-size:40px;font-weight:800;line-height:1;letter-spacing:-.02em}
+.stat .l{font-size:13px;color:var(--ink-3);margin-top:8px;line-height:1.4}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 22px 16px;margin:24px 0}
+.card h3{margin:0 0 4px;font-size:17px;font-weight:600}
+.card .sub{font-size:13px;color:var(--ink-3);margin:0 0 12px;line-height:1.45}
+.chart{width:100%;position:relative}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.axis text{fill:var(--ink-3);font-family:var(--font-mono);font-size:11px}
+.axis line,.axis path{stroke:var(--border-strong)}
+.grid line{stroke:var(--border);stroke-dasharray:2 3}
+.grid path{display:none}
+.annot{fill:var(--ink-2);font-size:12px;font-family:var(--font-mono)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);font-family:var(--font-mono);margin:4px 0 10px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:6px}
+.method{font-size:14px;line-height:1.6;color:var(--ink-2)}
+.method h4{color:var(--ink);font-size:14px;margin:22px 0 6px;font-family:var(--font-mono);font-weight:600;letter-spacing:.04em}
+.method table{border-collapse:collapse;width:100%;font-size:13px;margin:6px 0}
+.method td,.method th{border-bottom:1px solid var(--border);padding:7px 8px;text-align:left;vertical-align:top}
+.method th{color:var(--ink-3);font-weight:400;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.method code{font-family:var(--font-mono);font-size:12px;color:var(--bird-3)}
+/* ---------- night picker ---------- */
+.night-wrap{position:relative;display:flex;gap:6px}
+.night-btn{display:flex;align-items:center;gap:10px;min-width:240px;text-align:left;padding:6px 12px}
+.night-btn .sw{width:8px;height:26px;border-radius:3px;flex:none}
+.night-btn .l1{font-size:13px;color:var(--ink)}
+.night-btn .l2{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.night-btn .chev{margin-left:auto;color:var(--ink-3)}
+.picker{position:absolute;left:0;bottom:calc(100% + 8px);z-index:20;width:min(560px,calc(100vw - 32px));background:rgba(11,21,32,.97);border:1px solid var(--border-strong);border-radius:12px;padding:14px 16px 16px;box-shadow:0 16px 50px rgba(0,0,0,.6);backdrop-filter:blur(8px);font-family:var(--font-mono)}
+.picker[hidden]{display:none}
+.pk-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.pk-head b{font-family:var(--font-sans);font-size:15px;color:var(--ink)}
+.pk-scale{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-3)}
+.pk-scale i{display:inline-block;width:70px;height:7px;border-radius:4px}
+.pk-months{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+.pk-month-name{font-size:11px;color:var(--ink-2);margin-bottom:6px;letter-spacing:.06em}
+.pk-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.pk-dow{font-size:9.5px;color:var(--ink-4);text-align:center;padding-bottom:2px}
+.pk-cell{position:relative;aspect-ratio:1;border-radius:5px;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid transparent;overflow:hidden}
+.pk-cell:hover{border-color:var(--ink-2)}
+.pk-cell.sel{border-color:#fff;box-shadow:0 0 0 1px #fff}
+.pk-cell .tw{position:absolute;left:3px;right:3px;bottom:2px;height:2px;border-radius:1px}
+.pk-cell .rk{position:absolute;top:1px;right:3px;font-size:8.5px;font-weight:600;opacity:.85}
+.pk-sub{font-size:10.5px;color:var(--ink-3);margin-top:14px}
+.pk-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pk-chips .btn{padding:5px 9px;font-size:11px}
+.pk-chips .btn span{color:var(--bird-2);margin-right:5px;font-weight:600}
+.legend .dot{width:4px;height:4px;border-radius:50%;background:#ffd77a;box-shadow:0 0 6px #ffb547}
+
+/* ---------- story chapter ---------- */
+.why{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:28px 0 8px}
+.why .card{margin:0}
+.why p{font-size:14px;line-height:1.55;color:var(--ink-2);margin:8px 0 4px}
+.sub-h{font-size:22px;font-weight:600;margin:44px 0 4px}
+.findings{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.finding{display:flex;gap:16px;margin:0}
+.finding .idx{font-family:var(--font-mono);font-size:13px;color:var(--ink-4);padding-top:3px}
+.finding h3{font-size:16px}
+.finding .big{font-size:34px;font-weight:800;line-height:1.05;letter-spacing:-.02em;color:var(--bird-3);margin-top:6px}
+.finding .unit{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.finding p{font-size:14px;line-height:1.55;color:var(--ink-2);margin:10px 0 0}
+.finding .see{font-size:12.5px;color:var(--ink-3);margin-top:8px}
+.finding .btn{margin-top:12px}
+.caveat{font-size:13px;line-height:1.55;color:var(--ink-3);max-width:760px;margin-top:22px}
+footer{color:var(--ink-4);font-size:12px;font-family:var(--font-mono);text-align:center;padding:40px 16px 60px}
+@media (max-width:820px){
+  .two{grid-template-columns:1fr}
+  .hud-title{left:16px;top:16px;right:16px;max-width:none}
+  .hud-count{right:16px;top:auto;bottom:150px;text-align:left;left:16px}
+  .hud-ctrl{left:16px;right:16px}
+  .lede{font-size:15px}
+  main{padding:0 16px 60px}
+  .legend{display:none}
+  .scroll-cue{display:none}
+  .findings{grid-template-columns:1fr}
+  .night-btn{min-width:0}
+}
+</style>
+</head>
+<body>
+<div id="hero">
+  <canvas id="c-base"></canvas>
+  <canvas id="c-birds"></canvas>
+  <canvas id="c-wind"></canvas>
+  <canvas id="c-top"></canvas>
+  <div class="hud hud-title">
+    <div class="eyebrow" id="eyebrow">Europe · autumn 2026</div>
+    <h1>The Night&nbsp;Shift</h1>
+    <p class="lede">Most songbirds migrate in the dark. Europe’s weather radars pick them up as “noise”. Each glow is a radar seeing birds overhead; the streaks are the wind at flight altitude.</p>
+  </div>
+  <div class="hud hud-count">
+    <div class="count-label">Birds aloft over radar coverage</div>
+    <div class="count-big num" id="count">–</div>
+    <div class="count-sub" id="count-sub">–</div>
+    <div class="clock num" id="clock">–</div>
+  </div>
+  <div class="scroll-cue">SCROLL FOR THE STORY ↓</div>
+  <div class="hud hud-ctrl">
+    <div class="ctrl-row">
+      <button class="btn play" id="play" aria-label="Play or pause">❚❚</button>
+      <div class="scrub"><input type="range" id="scrub" min="0" max="12" step="0.01" value="0" aria-label="Time of night"></div>
+    </div>
+    <div class="ctrl-row">
+      <div class="night-wrap">
+        <button class="btn" id="prev" aria-label="Previous night">←</button>
+        <button class="btn night-btn" id="night-btn" aria-haspopup="dialog" aria-label="Pick a night">
+          <span class="sw" id="night-sw"></span>
+          <span><div class="l1 num" id="night-l1">–</div><div class="l2" id="night-l2">–</div></span>
+          <svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 10l4-4 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="btn" id="next" aria-label="Next night">→</button>
+        <div class="picker" id="picker" role="dialog" aria-label="Pick a night" hidden>
+          <div class="pk-head"><b>Pick a night</b><span class="pk-scale">quiet <i id="pk-ramp"></i> busy · line = wind</span></div>
+          <div class="pk-months" id="pk-months"></div>
+          <div class="pk-sub">Busiest nights of the season</div>
+          <div class="pk-chips" id="pk-top"></div>
+        </div>
+      </div>
+      <button class="btn" data-preset="quiet">Quiet night</button>
+      <button class="btn on" id="tog-dots">Birds</button>
+      <button class="btn on" id="tog-wind">Wind</button>
+      <button class="btn on" id="tog-arrows">Flight direction</button>
+      <div class="legend" style="margin-left:auto">
+        <span>Birds/km² aloft</span><span class="num">0</span><span class="ramp"></span><span class="num" id="leg-max">200+</span>
+        <span class="dot"></span><span>birds in flight</span>
+        <span class="wind-swatch"></span><span>wind 850–925 hPa</span><span>○ low-sensitivity radar</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <section class="chapter" id="ch1">
+    <div class="chapter-num">01 — RHYTHM</div>
+    <h2 id="h-rhythm">Migration comes in waves, not a steady stream.</h2>
+    <p class="prose" id="p-rhythm"></p>
+    <div class="stats" id="stats-rhythm"></div>
+    <div class="card">
+      <h3>Peak number of birds aloft, every night of the autumn</h3>
+      <p class="sub">Each bar is one night: the highest hourly count over the area the radars cover. Bar colour shows the average wind along the migration direction (SW). <b>Click a bar</b> to play that night on the map.</p>
+      <div class="leg"><span><i style="background:var(--tail)"></i>tailwind</span><span><i style="background:var(--mid)"></i>calm / crosswind</span><span><i style="background:var(--head)"></i>headwind</span></div>
+      <div class="chart" id="chart-season"></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="ch2">
+    <div class="chapter-num">02 — WIND</div>
+    <h2 id="h-wind">The big nights are tailwind nights.</h2>
+    <p class="prose" id="p-wind"></p>
+    <div class="card">
+      <h3>Traffic relative to each radar’s typical night, by tailwind</h3>
+      <p class="sub">Tailwind = wind at 850–925 hPa projected onto a fixed 225° (SW) direction. We use that fixed seasonal heading rather than the birds’ own measured direction, so the wind measure doesn’t depend on the birds. Line = median per 1 m/s bin; band = middle 50% of radar-nights.</p>
+      <div class="chart" id="chart-tw"></div>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h3>With the wind behind them, they cover more ground…</h3>
+        <p class="sub" id="sub-gs"></p>
+        <div class="chart" id="chart-gs"></div>
+      </div>
+      <div class="card">
+        <h3>…for less effort of their own</h3>
+        <p class="sub" id="sub-as"></p>
+        <div class="chart" id="chart-as"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="chapter" id="ch3">
+    <div class="chapter-num">03 — THE STORY</div>
+    <h2>So what’s happening here?</h2>
+    <p class="prose">Every autumn, billions of birds leave northern and central Europe for the Mediterranean and Africa. Here’s the short version of why they travel the way they do, and what this one season of radar data actually shows.</p>
+    <div class="why">
+      <div class="card"><h3>Why at night</h3><p>Most small songbirds, like warblers, thrushes, flycatchers and robins, travel after dark. The air is cooler and calmer, so they lose less water and energy. Hawks are asleep, and daylight is left free for feeding.</p></div>
+      <div class="card"><h3>Why in waves</h3><p>A bird can’t fly every night. It has to refuel, sometimes almost doubling its weight in fat, and then wait for the weather to turn. When conditions are right over a large area, birds everywhere leave at once.</p></div>
+      <div class="card"><h3>Why the wind matters</h3><p>A songbird cruises at 30–40 km/h, so a good tailwind can nearly double its speed on the same fuel, while a headwind can wipe out its progress. Northerly winds behind cold fronts are the classic signal to go, especially before a sea crossing.</p></div>
+      <div class="card"><h3>How radar sees them</h3><p>Weather radars scan for rain, but birds bounce the signal back too. Processing software separates birds from rain and estimates how many there are, how high and fast they fly, and where to. It can’t tell a robin from a thrush, or a bird from a large insect.</p></div>
+    </div>
+    <h3 class="sub-h">What this season’s data shows</h3>
+    <div class="findings" id="findings"></div>
+    <p class="caveat">What it can’t show: this is one season from one radar network, with gaps where radars were off or it rained. The wind link is a correlation, not proof that wind is the cause; temperature, rain and the calendar all play a part. Read it as a picture of the patterns, not a scientific study.</p>
+  </section>
+
+  <section class="chapter" id="ch4">
+    <div class="chapter-num">04 — METHOD</div>
+    <h2>How this was made</h2>
+    <div class="method" id="method"></div>
+  </section>
+</main>
+<footer>Bird data: Aloft (aloftdata.eu), CC BY 4.0, vol2bird profiles from OPERA/BALTRAD radars · Wind: ECMWF IFS via Open-Meteo, CC BY 4.0 · Borders: Natural Earth · Built for a Deepnote demo</footer>
+<div class="tip" id="tip"></div>
+
+<script>/*__D3__*/</script>
+<script>/*__TOPOJSON__*/</script>
+<script>const WORLD = /*__WORLD__*/;</script>
+<script>const DATA = /*__DATA__*/;</script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const fmtM = x => x >= 1e6 ? (x/1e6).toFixed(x >= 1e8 ? 0 : 1) + "M" : x >= 1e3 ? Math.round(x/1e3) + "k" : Math.round(x).toString();
+const fmtInt = d3.format(",.0f");
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// ---------- decode ----------
+const NN = DATA.nights.length, NH = DATA.hours.length, NR = DATA.radars.length;
+const b64 = s => Int8Array.from(atob(s), c => c.charCodeAt(0) << 24 >> 24);
+const WU = b64(DATA.wind.u), WV = b64(DATA.wind.v);
+const WL = DATA.wind.lats, WO = DATA.wind.lons, WNY = WL.length, WNX = WO.length, WS = DATA.wind.scale;
+const radarIdx = Object.fromEntries(DATA.radars.map((r,i)=>[r.id,i]));
+const EN = DATA.europe_nights;
+const rnByNight = d3.group(DATA.radar_nights, d => d.n);
+
+// ---------- tooltip ----------
+const tip = $("#tip");
+function showTip(html, ev){ tip.innerHTML = html; tip.style.opacity = 1; moveTip(ev); }
+function moveTip(ev){ const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 16, y = ev.clientY + 16;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 16; if (y + h > innerHeight - 8) y = ev.clientY - h - 16;
+  tip.style.left = x + "px"; tip.style.top = y + "px"; }
+function hideTip(){ tip.style.opacity = 0; }
+
+// ---------- colour scales ----------
+const birdRamp = d3.interpolateRgbBasis([css("--bird-0"), css("--bird-1"), css("--bird-2"), css("--bird-3"), css("--bird-4")]);
+const VIRMAX = DATA.params.vir_scale_max;
+const birdT = v => Math.max(0, Math.min(1, Math.log1p(v) / Math.log1p(VIRMAX)));
+$("#leg-max").textContent = VIRMAX + "+";
+const twColor = d3.scaleLinear().domain([-6, 0, 6]).range([css("--head"), css("--mid"), css("--tail")]).clamp(true).interpolate(d3.interpolateLab);
+
+// =====================================================================
+// HERO MAP
+// =====================================================================
+const hero = $("#hero");
+const cBase = $("#c-base"), cBirds = $("#c-birds"), cWind = $("#c-wind"), cTop = $("#c-top");
+const xBase = cBase.getContext("2d"), xBirds = cBirds.getContext("2d"), xWind = cWind.getContext("2d"), xTop = cTop.getContext("2d");
+const land = topojson.feature(WORLD, WORLD.objects.land);
+const borders = topojson.mesh(WORLD, WORLD.objects.countries, (a,b) => a !== b);
+let W = 0, H = 0, DPR = 1, proj, path;
+const bbox = {type:"Polygon", coordinates:[[[-11,35],[-11,70],[33,70],[33,35],[-11,35]]]};
+
+const state = { night: 0, t: 0, playing: true, wind: true, arrows: true, dots: true, last: 0 };
+let dots = [], radarR = 18;
+
+function resize(){
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = hero.clientWidth; H = hero.clientHeight;
+  for (const c of [cBase, cBirds, cWind, cTop]) { c.width = W*DPR; c.height = H*DPR; c.getContext("2d").setTransform(DPR,0,0,DPR,0,0); }
+  const narrow = W < 820;
+  proj = d3.geoConicConformal().parallels([40, 62]).rotate([-11, 0]);
+  proj.fitExtent([[narrow ? 0 : W*0.08, narrow ? H*0.2 : 40], [W - (narrow?0:W*0.04), H - (narrow ? 170 : 70)]], bbox);
+  path = d3.geoPath(proj);
+  drawBase(); initParticles();
+}
+
+function drawBase(){
+  const g = xBase; g.clearRect(0,0,W,H);
+  g.fillStyle = css("--sea"); g.fillRect(0,0,W,H);
+  path.context(g);
+  // graticule
+  g.beginPath(); path(d3.geoGraticule().step([10,10])()); g.strokeStyle = "rgba(80,110,150,.10)"; g.lineWidth = 1; g.stroke();
+  g.beginPath(); path(land); g.fillStyle = css("--land"); g.fill();
+  g.beginPath(); path(borders); g.strokeStyle = "rgba(90,120,160,.22)"; g.lineWidth = .7; g.stroke();
+  g.beginPath(); path(land); g.strokeStyle = "rgba(110,140,180,.30)"; g.lineWidth = .8; g.stroke();
+  path.context(null);
+}
+
+// --- time helpers ---
+function frameTime(n, t){ // t in hours since 17:00 UTC of night n
+  const d = new Date(DATA.nights[n] + "T17:00:00Z"); return new Date(d.getTime() + t*3600e3);
+}
+function lerpFrame(arr, n, t, j){ // arr[frame][radar]
+  const f0 = Math.floor(t), f1 = Math.min(NH-1, f0+1), a = t - f0;
+  const v0 = arr[n*NH + f0][j], v1 = arr[n*NH + f1][j];
+  if (v0 == null && v1 == null) return null; if (v0 == null) return a > .5 ? v1 : null; if (v1 == null) return a < .5 ? v0 : null;
+  return v0 + (v1 - v0)*a;
+}
+function aloftAt(n, t){ const f0 = Math.floor(t), f1 = Math.min(NH-1, f0+1), a = t-f0; const A = DATA.aloft[n]; return A[f0] + (A[f1]-A[f0])*a; }
+
+// --- wind field (bilinear in space, linear in time) ---
+function windAt(lon, lat, n, t){
+  const fx = (lon - WO[0]) / (WO[1]-WO[0]), fy = (lat - WL[0]) / (WL[1]-WL[0]);
+  if (fx < 0 || fy < 0 || fx > WNX-1 || fy > WNY-1) return null;
+  const x0 = Math.floor(fx), y0 = Math.floor(fy), x1 = Math.min(WNX-1,x0+1), y1 = Math.min(WNY-1,y0+1), ax = fx-x0, ay = fy-y0;
+  const f0 = Math.floor(t), f1 = Math.min(NH-1, f0+1), at = t - f0;
+  let u = 0, v = 0;
+  for (const [f, wt] of [[f0, 1-at],[f1, at]]) {
+    const base = (n*NH + f) * WNY * WNX;
+    const s = (A, y, x) => A[base + y*WNX + x];
+    const bu = (s(WU,y0,x0)*(1-ax) + s(WU,y0,x1)*ax)*(1-ay) + (s(WU,y1,x0)*(1-ax) + s(WU,y1,x1)*ax)*ay;
+    const bv = (s(WV,y0,x0)*(1-ax) + s(WV,y0,x1)*ax)*(1-ay) + (s(WV,y1,x0)*(1-ax) + s(WV,y1,x1)*ax)*ay;
+    u += bu*wt; v += bv*wt;
+  }
+  return [u*WS, v*WS];
+}
+
+// --- particles ---
+let parts = [];
+function initParticles(){
+  const N = Math.round(Math.min(2400, W*H/650));
+  parts = d3.range(N).map(() => newPart());
+  xWind.clearRect(0,0,W,H);
+}
+function newPart(){ return { x: Math.random()*W, y: Math.random()*H, age: Math.floor(Math.random()*80) }; }
+function stepWind(dt){
+  const g = xWind;
+  g.globalCompositeOperation = "destination-out"; g.fillStyle = "rgba(0,0,0,0.075)"; g.fillRect(0,0,W,H);
+  g.globalCompositeOperation = "source-over";
+  if (!state.wind) { g.clearRect(0,0,W,H); return; }
+  g.lineWidth = 0.9; g.strokeStyle = "rgba(190,215,255,0.30)"; g.beginPath();
+  const k = 0.32 * Math.min(2, dt/16);
+  for (const p of parts) {
+    const ll = proj.invert([p.x, p.y]); const w = ll && windAt(ll[0], ll[1], state.night, state.t);
+    if (!w || p.age++ > 90) { Object.assign(p, newPart(), {age:0}); continue; }
+    // convert m/s east/north to screen: sample projection a small step away
+    const q = proj([ll[0] + w[0]*0.012/Math.cos(ll[1]*Math.PI/180), ll[1] + w[1]*0.012]);
+    const dx = (q[0]-p.x)*k*3, dy = (q[1]-p.y)*k*3;
+    g.moveTo(p.x, p.y); p.x += dx; p.y += dy; g.lineTo(p.x, p.y);
+    if (p.x < 0 || p.y < 0 || p.x > W || p.y > H) Object.assign(p, newPart(), {age:0});
+  }
+  g.stroke();
+}
+
+// --- solar terminator ---
+function antisolar(date){
+  const d = (date - Date.UTC(2000,0,1,12)) / 864e5;
+  const g = (357.529 + 0.98560028*d) * Math.PI/180, q = 280.459 + 0.98564736*d;
+  const L = (q + 1.915*Math.sin(g) + 0.020*Math.sin(2*g)) * Math.PI/180, e = (23.439 - 0.00000036*d) * Math.PI/180;
+  const dec = Math.asin(Math.sin(e)*Math.sin(L)) * 180/Math.PI;
+  const ra = Math.atan2(Math.cos(e)*Math.sin(L), Math.cos(L)) * 180/Math.PI;
+  const gmst = (18.697374558 + 24.06570982441908*d) % 24 * 15;
+  const lon = ((ra - gmst + 540) % 360) - 180;
+  return [lon + 180 > 180 ? lon - 180 : lon + 180, -dec];
+}
+
+// --- birds layer ---
+function drawBirds(){
+  const g = xBirds; g.clearRect(0,0,W,H);
+  const date = frameTime(state.night, state.t);
+  // daylight wash (outside night circle)
+  const night = d3.geoCircle().center(antisolar(date)).radius(90)();
+  path.context(g); g.save();
+  g.beginPath(); g.rect(0,0,W,H); path(night); g.fillStyle = "rgba(120,150,190,0.10)"; g.fill("evenodd");
+  g.beginPath(); path(night); g.strokeStyle = "rgba(255,200,120,0.22)"; g.lineWidth = 1; g.setLineDash([3,4]); g.stroke(); g.setLineDash([]);
+  g.restore(); path.context(null);
+
+  const kmPx = Math.abs(proj([11, 50.9])[1] - proj([11, 50])[1]) / 100; // px per km
+  const R = Math.max(18, 170 * kmPx); radarR = R;
+  g.globalCompositeOperation = "lighter";
+  hits = [];
+  for (let j = 0; j < NR; j++) {
+    const r = DATA.radars[j], p = proj([r.lon, r.lat]); if (!p) continue;
+    const v = lerpFrame(DATA.vir, state.night, state.t, j);
+    hits.push({j, x:p[0], y:p[1], v});
+    if (v == null) continue;
+    const tt = birdT(v); if (tt <= 0.01) continue;
+    const col = d3.color(birdRamp(tt));
+    const rad = R * (0.55 + 0.75*tt);
+    const grd = g.createRadialGradient(p[0], p[1], 0, p[0], p[1], rad);
+    grd.addColorStop(0, `rgba(${col.r},${col.g},${col.b},${0.55*tt + 0.15})`);
+    grd.addColorStop(0.45, `rgba(${col.r},${col.g},${col.b},${0.25*tt + 0.04})`);
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = grd; g.beginPath(); g.arc(p[0], p[1], rad, 0, 2*Math.PI); g.fill();
+  }
+  g.globalCompositeOperation = "source-over";
+}
+
+let hits = [];
+// --- moving bird dots: spawned at radars in proportion to density, flying along the measured track ---
+function stepDots(dt){
+  if (!state.dots) { dots.length = 0; return; }
+  const g = xTop, k = Math.min(3, dt/16), MAX = 2600;
+  g.globalCompositeOperation = "lighter";
+  const n0 = hits.length, off = Math.floor(Math.random() * Math.max(1, n0));
+  for (let q = 0; q < n0 && dots.length < MAX; q++) {
+    const h = hits[(q + off) % n0]; if (h.v == null) continue;
+    const tt = birdT(h.v); if (tt < 0.05) continue;
+    const u = lerpFrame(DATA.bu, state.night, state.t, h.j), v = lerpFrame(DATA.bv, state.night, state.t, h.j);
+    if (u == null || v == null) continue;
+    const sp = Math.hypot(u, v); if (sp < 1) continue;
+    const r = DATA.radars[h.j], p2 = proj([r.lon + u*0.01/Math.cos(r.lat*Math.PI/180), r.lat + v*0.01]); if (!p2) continue;
+    let dx = p2[0]-h.x, dy = p2[1]-h.y; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+    const spread = radarR * (0.55 + 0.75*tt) * 0.45;
+    let n = tt * tt * 0.55 * k * (state.playing ? 1 : 0.35);
+    while (n > 0) {
+      if (Math.random() < n) { const a = Math.random()*2*Math.PI, rr = Math.sqrt(Math.random())*spread;
+        dots.push({ x: h.x + Math.cos(a)*rr, y: h.y + Math.sin(a)*rr, vx: dx*sp*0.055 + (Math.random()-.5)*0.12, vy: dy*sp*0.055 + (Math.random()-.5)*0.12, age: 0, life: 60 + Math.random()*80, h: tt }); }
+      n -= 1;
+    }
+  }
+  const alive = [];
+  for (const b of dots) {
+    b.age += k; if (b.age > b.life) continue;
+    b.x += b.vx*k; b.y += b.vy*k;
+    g.fillStyle = `rgba(255,${200 + Math.round(b.h*40)},${120 + Math.round(b.h*90)},${(Math.sin(b.age/b.life*Math.PI)*0.85).toFixed(3)})`;
+    g.fillRect(b.x - .75, b.y - .75, 1.5, 1.5); alive.push(b);
+  }
+  dots = alive;
+  g.globalCompositeOperation = "source-over";
+}
+function drawTop(dt){
+  const g = xTop; g.clearRect(0,0,W,H);
+  stepDots(dt || 16);
+  for (const h of hits) {
+    const r = DATA.radars[h.j];
+    if (h.v == null) { g.beginPath(); g.arc(h.x, h.y, 2, 0, 2*Math.PI); g.strokeStyle = "rgba(125,139,161,.5)"; g.lineWidth = 1; g.stroke(); continue; }
+    g.beginPath(); g.arc(h.x, h.y, 1.8, 0, 2*Math.PI); g.fillStyle = h.v > 2 ? "#fff6dc" : "rgba(180,192,211,.7)"; g.fill();
+    if (state.arrows && h.v > 3) {
+      const u = lerpFrame(DATA.bu, state.night, state.t, h.j), v = lerpFrame(DATA.bv, state.night, state.t, h.j);
+      if (u == null || v == null) continue;
+      const sp = Math.hypot(u, v); if (sp < 2) continue;
+      const L = 6 + sp*1.6, ang = Math.atan2(-v, u);
+      const x2 = h.x + Math.cos(ang)*L, y2 = h.y + Math.sin(ang)*L;
+      g.strokeStyle = "rgba(255,246,220,.9)"; g.lineWidth = 1.6; g.beginPath(); g.moveTo(h.x, h.y); g.lineTo(x2, y2); g.stroke();
+      g.beginPath(); g.moveTo(x2, y2); g.lineTo(x2 - Math.cos(ang-0.5)*5, y2 - Math.sin(ang-0.5)*5); g.lineTo(x2 - Math.cos(ang+0.5)*5, y2 - Math.sin(ang+0.5)*5); g.closePath(); g.fillStyle = "rgba(255,246,220,.9)"; g.fill();
+    }
+  }
+  if (hover != null) { const h = hits.find(d => d.j === hover); if (h) { g.beginPath(); g.arc(h.x, h.y, 9, 0, 2*Math.PI); g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke(); } }
+}
+
+function updateHud(){
+  const n = state.night, t = state.t, date = frameTime(n, t);
+  const a = aloftAt(n, t);
+  $("#count").textContent = fmtM(a);
+  const en = EN[n];
+  $("#count-sub").innerHTML = `night peak ${fmtM(en.peak)} · ${d3.utcFormat("%a %-d %b")(new Date(DATA.nights[n]+"T12:00Z"))}`;
+  $("#clock").innerHTML = `${d3.utcFormat("%H:%M")(date)} <small>UTC</small>`;
+  $("#scrub").value = t;
+}
+
+let hover = null;
+cTop.addEventListener("mousemove", ev => {
+  const rect = cTop.getBoundingClientRect(), x = ev.clientX - rect.left, y = ev.clientY - rect.top;
+  let best = null, bd = 18;
+  for (const h of hits) { const d = Math.hypot(h.x - x, h.y - y); if (d < bd) { bd = d; best = h; } }
+  if (!best) { hover = null; hideTip(); return; }
+  hover = best.j; const r = DATA.radars[best.j];
+  const rn = (rnByNight.get(DATA.nights[state.night]) || []).find(d => d.r === r.id);
+  const u = lerpFrame(DATA.bu, state.night, state.t, best.j), v = lerpFrame(DATA.bv, state.night, state.t, best.j);
+  const dir = (u != null && v != null && Math.hypot(u,v) > 1) ? compass((Math.atan2(u, v)*180/Math.PI + 360) % 360) : "–";
+  showTip(`<b>${r.id}</b> <span class="k">${r.lat.toFixed(2)}°N ${r.lon.toFixed(2)}°E</span><br>
+    <span class="k">now</span> ${r.low ? "low sensitivity: excluded" : best.v == null ? "no data / daylight" : best.v.toFixed(1) + " birds/km² aloft"}<br>
+    <span class="k">flying towards</span> ${dir}${u!=null&&v!=null ? " at " + Math.hypot(u,v).toFixed(0) + " m/s" : ""}<br>
+    <span class="k">whole night</span> ${rn && rn.mtr != null ? fmtInt(rn.mtr) + " birds crossed each km" : "–"}<br>
+    <span class="k">tailwind</span> ${rn && rn.tw != null ? (rn.tw > 0 ? "+" : "") + rn.tw.toFixed(1) + " m/s" : "–"}`, ev);
+});
+cTop.addEventListener("mouseleave", () => { hover = null; hideTip(); });
+function compass(deg){ return ["N","NE","E","SE","S","SW","W","NW"][Math.round(deg/45) % 8]; }
+
+// --- animation loop ---
+let lastBirds = -1;
+function tick(ts){
+  const dt = state.last ? Math.min(64, ts - state.last) : 16; state.last = ts;
+  if (state.playing) {
+    state.t += dt / 1300;   // ~1.3 s per hour → one night ≈ 16 s
+    if (state.t > NH - 1) { state.t = 0; }
+  }
+  const key = state.night*1000 + Math.round(state.t*30);
+  if (key !== lastBirds) { drawBirds(); lastBirds = key; updateHud(); }
+  drawTop(dt);
+  stepWind(dt);
+  requestAnimationFrame(tick);
+}
+
+// --- controls ---
+const nightBtn = $("#night-btn"), picker = $("#picker");
+const peakArr = EN.map(d => d.peak);
+const byPeak = d3.range(NN).sort((a, b) => peakArr[b] - peakArr[a]);
+const rankOf = new Array(NN); byPeak.forEach((i, k) => rankOf[i] = k + 1);
+const pkT = d3.scaleLog().domain([Math.max(1, d3.min(peakArr.filter(v => v > 0)) || 1), Math.max(2, d3.max(peakArr) || 2)]).range([0.06, 1]).clamp(true);
+const nightColor = i => peakArr[i] > 0 ? birdRamp(pkT(peakArr[i])) : "#0b1520";
+const dayF = d3.utcFormat("%a %-d %b"), dF = d3.utcFormat("%-d %b"), longF = d3.utcFormat("%A %-d %B");
+const nd = i => new Date(DATA.nights[i] + "T12:00Z");
+$("#pk-ramp").style.background = `linear-gradient(90deg, ${d3.range(0, 1.01, .2).map(s => birdRamp(0.06 + 0.94*s)).join(",")})`;
+function updateNightBtn(){
+  const i = state.night;
+  $("#night-l1").textContent = `${dayF(nd(i))} → ${dF(new Date(+nd(i) + 864e5))}`;
+  $("#night-l2").textContent = (rankOf[i] === 1 ? "Busiest night" : `#${rankOf[i]} of ${NN} nights`) + ` · ${fmtM(peakArr[i])} birds aloft at peak`;
+  $("#night-sw").style.background = nightColor(i);
+}
+function renderPicker(){
+  const byMonth = d3.groups(d3.range(NN), i => DATA.nights[i].slice(0, 7));
+  $("#pk-months").innerHTML = byMonth.map(([m, idx]) => {
+    const first = nd(idx[0]), pad = (first.getUTCDay() + 6) % 7;
+    const cells = idx.map(i => { const t = peakArr[i] > 0 ? pkT(peakArr[i]) : 0, tw = EN[i].tw;
+      return `<div class="pk-cell${i === state.night ? " sel" : ""}" data-i="${i}" style="background:${nightColor(i)};color:${t > 0.6 ? "#1a1203" : "var(--ink)"}">${nd(i).getUTCDate()}${rankOf[i] <= 5 ? `<span class="rk">${rankOf[i]}</span>` : ""}${tw != null ? `<span class="tw" style="background:${twColor(tw)}"></span>` : ""}</div>`; });
+    return `<div><div class="pk-month-name">${d3.utcFormat("%B %Y")(first)}</div><div class="pk-grid">${["M","T","W","T","F","S","S"].map(d => `<div class="pk-dow">${d}</div>`).join("")}${"<div></div>".repeat(pad)}${cells.join("")}</div></div>`;
+  }).join("");
+  $("#pk-top").innerHTML = byPeak.slice(0, 6).map((i, k) => `<button class="btn" data-i="${i}"><span>#${k + 1}</span>${dayF(nd(i))}</button>`).join("");
+  picker.querySelectorAll("[data-i]").forEach(c => { const i = +c.dataset.i;
+    c.onclick = e => { e.stopPropagation(); setNight(i); closePicker(); hideTip(); };
+    c.onmousemove = ev => showTip(`<b>${longF(nd(i))}</b><br><span class="k">peak aloft</span> ${fmtM(peakArr[i])} birds<br><span class="k">rank</span> #${rankOf[i]} of ${NN} nights<br><span class="k">mean tailwind</span> ${EN[i].tw != null ? (EN[i].tw > 0 ? "+" : "") + EN[i].tw.toFixed(1) + " m/s" : "–"}`, ev);
+    c.onmouseleave = hideTip; });
+}
+function openPicker(){ renderPicker(); picker.hidden = false; nightBtn.setAttribute("aria-expanded", "true"); }
+function closePicker(){ if (picker.hidden) return; picker.hidden = true; nightBtn.setAttribute("aria-expanded", "false"); hideTip(); }
+nightBtn.onclick = e => { e.stopPropagation(); picker.hidden ? openPicker() : closePicker(); };
+picker.addEventListener("click", e => e.stopPropagation());
+document.addEventListener("click", closePicker);
+function setNight(i, play = true){ state.night = (i + NN) % NN; state.t = 0; updateNightBtn(); dots = []; lastBirds = -1; xWind.clearRect(0,0,W,H); if (play) setPlaying(true); highlightSeason(); }
+function setPlaying(p){ state.playing = p; $("#play").textContent = p ? "❚❚" : "▶"; }
+$("#prev").onclick = () => setNight(state.night - 1);
+$("#next").onclick = () => setNight(state.night + 1);
+$("#play").onclick = () => setPlaying(!state.playing);
+$("#scrub").oninput = e => { state.t = +e.target.value; setPlaying(false); lastBirds = -1; };
+$("#tog-dots").onclick = e => { state.dots = !state.dots; e.currentTarget.classList.toggle("on", state.dots); };
+$("#tog-wind").onclick = e => { state.wind = !state.wind; e.target.classList.toggle("on", state.wind); };
+$("#tog-arrows").onclick = e => { state.arrows = !state.arrows; e.target.classList.toggle("on", state.arrows); };
+const busiest = d3.maxIndex(EN, d => d.peak);
+const quietIdx = DATA.params.quiet_night;
+document.querySelector('[data-preset="quiet"]').onclick = () => setNight(quietIdx);
+window.addEventListener("keydown", e => { if (e.key === "Escape") { closePicker(); return; }
+  if (e.target.tagName === "INPUT" && e.target.type !== "range") return;
+  if (e.key === " ") { e.preventDefault(); setPlaying(!state.playing); } if (e.key === "ArrowRight") setNight(state.night+1); if (e.key === "ArrowLeft") setNight(state.night-1); });
+
+// =====================================================================
+// CHARTS
+// =====================================================================
+const S = DATA.story;
+function svgFor(sel, w, h){ const el = $(sel); el.innerHTML = ""; return d3.select(el).append("svg").attr("viewBox", `0 0 ${w} ${h}`); }
+
+// ---- 1. season bars ----
+let seasonBars;
+function chartSeason(){
+  const w = 1060, h = 300, m = {t:16, r:10, b:34, l:52};
+  const svg = svgFor("#chart-season", w, h);
+  const x = d3.scaleBand().domain(d3.range(NN)).range([m.l, w-m.r]).paddingInner(0.18);
+  const y = d3.scaleLinear().domain([0, d3.max(EN, d => d.peak)*1.08]).nice().range([h-m.b, m.t]);
+  svg.append("g").attr("class","grid").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(w-m.l-m.r)).tickFormat(""));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => fmtM(d)).tickSize(0).tickPadding(8)).select(".domain").remove();
+  const xt = d3.range(NN).filter(i => DATA.nights[i].endsWith("-01") || DATA.nights[i].endsWith("-08") || DATA.nights[i].endsWith("-15") || DATA.nights[i].endsWith("-22"));
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickValues(xt).tickFormat(i => d3.utcFormat("%-d %b")(new Date(DATA.nights[i]+"T12:00Z"))).tickSize(0).tickPadding(10)).select(".domain").attr("stroke", "var(--border-strong)");
+  const r = 3;
+  seasonBars = svg.append("g").selectAll("path").data(EN).join("path")
+    .attr("d", (d,i) => { const x0 = x(i), bw = x.bandwidth(), y0 = y(0), y1 = Math.min(y(d.peak), y0 - 1); const rr = Math.min(r, (y0-y1), bw/2);
+      return `M${x0},${y0}V${y1+rr}Q${x0},${y1} ${x0+rr},${y1}H${x0+bw-rr}Q${x0+bw},${y1} ${x0+bw},${y1+rr}V${y0}Z`; })
+    .attr("fill", d => d.tw == null ? "var(--mid)" : twColor(d.tw)).style("cursor","pointer");
+  // hit targets
+  svg.append("g").selectAll("rect").data(EN).join("rect").attr("x",(d,i)=>x(i)-1).attr("width",x.step()).attr("y",m.t).attr("height",h-m.t-m.b).attr("fill","transparent").style("cursor","pointer")
+    .on("mousemove", (ev,d) => { const i = EN.indexOf(d); seasonBars.attr("opacity", (e,k) => k===i || k===state.night ? 1 : .55);
+      showTip(`<b>${d3.utcFormat("%A %-d %B")(new Date(d.n+"T12:00Z"))}</b><br><span class="k">peak aloft</span> ${fmtM(d.peak)} birds<br><span class="k">median radar</span> ${d.mtr_med != null ? fmtInt(d.mtr_med) : "–"} birds / km / night<br><span class="k">mean tailwind</span> ${d.tw != null ? (d.tw>0?"+":"")+d.tw.toFixed(1)+" m/s" : "–"}<br><span class="k">click to play on map</span>`, ev); })
+    .on("mouseleave", () => { hideTip(); highlightSeason(); })
+    .on("click", (ev,d) => { setNight(EN.indexOf(d)); hero.scrollIntoView({behavior:"smooth"}); });
+  // annotate busiest
+  const bi = busiest; svg.append("text").attr("class","annot").attr("x", x(bi)+x.bandwidth()/2).attr("y", y(EN[bi].peak)-8).attr("text-anchor","middle").text("busiest: " + fmtM(EN[bi].peak));
+  highlightSeason();
+}
+function highlightSeason(){ if (seasonBars) seasonBars.attr("opacity", (d,k) => k === state.night ? 1 : .8).attr("stroke", (d,k) => k === state.night ? "#fff" : "none").attr("stroke-width", 1.2); }
+
+// ---- 2. binned tailwind curve ----
+function binned(sel, rows, yKey, opts){
+  const w = opts.w || 1060, h = opts.h || 340, m = {t:18, r:16, b:44, l:64};
+  const svg = svgFor(sel, w, h);
+  const bins = rows; // [{x, med, q1, q3, n}]
+  const x = d3.scaleLinear().domain(d3.extent(bins, d => d.x)).nice().range([m.l, w-m.r]);
+  const y0_ = (opts.log ? d3.scaleLog().domain([Math.max(1, d3.min(bins, d => d.q1)*.8), d3.max(bins, d => d.q3)*1.15]) : d3.scaleLinear().domain(opts.ydom || [0, d3.max(bins, d => d.q3)*1.1])).nice().range([h-m.b, m.t]);
+  const y = opts.ydom ? y0_.clamp(true) : y0_;
+  svg.append("g").attr("class","grid").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(w-m.l-m.r)).tickFormat(""));
+  svg.append("g").attr("class","axis").attr("transform",`translate(${m.l},0)`).call(d3.axisLeft(y).ticks(opts.log ? 4 : 5, opts.log ? "~s" : undefined).tickFormat(opts.yfmt || null).tickSize(0).tickPadding(8)).select(".domain").remove();
+  svg.append("g").attr("class","axis").attr("transform",`translate(0,${h-m.b})`).call(d3.axisBottom(x).ticks(8).tickFormat(d => (d>0?"+":"") + d).tickSize(0).tickPadding(10)).select(".domain").attr("stroke","var(--border-strong)");
+  svg.append("text").attr("class","annot").attr("x", w-m.r).attr("y", h-6).attr("text-anchor","end").text("tailwind, m/s →");
+  svg.append("text").attr("class","annot").attr("x", m.l).attr("y", h-6).text("← headwind");
+  if (opts.ylab) svg.append("text").attr("class","annot").attr("x", m.l+6).attr("y", m.t+4).attr("dy", "0.7em").text(opts.ylab);
+  svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", m.t).attr("y2", h-m.b).attr("stroke","var(--border-strong)").attr("stroke-dasharray","3 3");
+  // gradient for line: head→tail
+  const gid = "g" + Math.random().toString(36).slice(2);
+  const grad = svg.append("defs").append("linearGradient").attr("id", gid).attr("gradientUnits","userSpaceOnUse").attr("x1", x(-6)).attr("x2", x(6));
+  grad.append("stop").attr("offset", 0).attr("stop-color", css("--head")); grad.append("stop").attr("offset", .5).attr("stop-color", css("--mid")); grad.append("stop").attr("offset", 1).attr("stop-color", css("--tail"));
+  svg.append("path").datum(bins).attr("fill", `url(#${gid})`).attr("opacity", .18).attr("d", d3.area().x(d => x(d.x)).y0(d => y(d.q1)).y1(d => y(d.q3)).curve(d3.curveMonotoneX));
+  svg.append("path").datum(bins).attr("fill","none").attr("stroke", `url(#${gid})`).attr("stroke-width", 2.5).attr("d", d3.line().x(d => x(d.x)).y(d => y(d.med)).curve(d3.curveMonotoneX));
+  const dots = svg.append("g").selectAll("circle").data(bins).join("circle").attr("cx", d => x(d.x)).attr("cy", d => y(d.med)).attr("r", 4).attr("fill", d => twColor(d.x)).attr("stroke", "var(--surface)").attr("stroke-width", 2);
+  svg.append("g").selectAll("rect").data(bins).join("rect").attr("x", d => x(d.x) - (x(1)-x(0))/2).attr("width", x(1)-x(0)).attr("y", m.t).attr("height", h-m.t-m.b).attr("fill","transparent")
+    .on("mousemove", (ev, d) => { dots.attr("r", e => e === d ? 6 : 4); showTip(`<b>tailwind ${d.x>0?"+":""}${d.x} m/s</b><br><span class="k">median</span> ${opts.tipfmt(d.med)}<br><span class="k">middle 50%</span> ${opts.tipfmt(d.q1)} – ${opts.tipfmt(d.q3)}<br><span class="k">radar-nights</span> ${fmtInt(d.n)}`, ev); })
+    .on("mouseleave", () => { dots.attr("r", 4); hideTip(); });
+  if (opts.after) opts.after(svg, x, y);
+}
+
+// ---- story findings ----
+function renderFindings(){
+  const F = S.findings || [];
+  $("#findings").innerHTML = F.map((f, k) => `<div class="card finding"><div class="idx">${String(k + 1).padStart(2, "0")}</div><div>
+    <h3>${f.title}</h3><div class="big num">${f.big}</div><div class="unit">${f.unit}</div><p>${f.body}</p>
+    ${f.see ? `<div class="see">${f.see}</div>` : ""}${f.action ? `<button class="btn" data-action="${f.action}">${f.action_label} →</button>` : ""}</div></div>`).join("");
+  $("#findings").querySelectorAll("[data-action]").forEach(b => b.onclick = () => { setNight(busiest); hero.scrollIntoView({ behavior: "smooth" }); });
+}
+
+// ---- story text ----
+function fillStory(){
+  $("#eyebrow").textContent = `Europe · Sep–Oct 2026 · ${DATA.radars.filter(r => !r.low).length} weather radars`;
+  $("#p-rhythm").innerHTML = S.rhythm_text;
+  $("#stats-rhythm").innerHTML = S.rhythm_stats.map(s => `<div class="stat"><div class="v num" style="color:${s.c||"var(--ink)"}">${s.v}</div><div class="l">${s.l}</div></div>`).join("");
+  $("#h-wind").textContent = S.wind_head; $("#p-wind").innerHTML = S.wind_text;
+  $("#sub-gs").textContent = S.speed_gs; $("#sub-as").textContent = S.speed_as;
+  renderFindings();
+  $("#method").innerHTML = S.method_html;
+}
+
+function renderCharts(){
+  chartSeason();
+  binned("#chart-tw", DATA.bins.mtr, "mtr", { ylab: "× a typical night", ydom: [0, 4], yfmt: d => d + "×", tipfmt: v => v.toFixed(2) + "× typical",
+    after: (svg, x, y) => { svg.append("line").attr("x1", x.range()[0]).attr("x2", x.range()[1]).attr("y1", y(1)).attr("y2", y(1)).attr("stroke", "var(--ink-3)").attr("stroke-dasharray", "4 4");
+      svg.append("text").attr("class","annot").attr("x", x.range()[1]).attr("y", y(1) - 6).attr("text-anchor","end").text("typical night = 1×"); } });
+  binned("#chart-gs", DATA.bins.gs, "gs", { w: 520, h: 300, ydom: DATA.bins.speed_dom, ylab: "ground speed, m/s", tipfmt: v => v.toFixed(1) + " m/s" });
+  binned("#chart-as", DATA.bins.as, "as", { w: 520, h: 300, ydom: DATA.bins.speed_dom, ylab: "airspeed, m/s", tipfmt: v => v.toFixed(1) + " m/s" });
+}
+
+fillStory();
+resize(); renderCharts();
+setNight(busiest);
+requestAnimationFrame(tick);
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { resize(); lastBirds = -1; dots = []; }, 150); });
+</script>
+</body>
+</html>

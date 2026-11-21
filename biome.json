@@ -1,12 +1,16 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.2.7/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.6.5/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": false,
     "includes": [
       "**",
       "!skills/deepnote/references/schema.ts",
-      "!packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts"
+      "!packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts",
+      "!**/*.html",
+      "!**/*.md",
+      "!**/*.yaml",
+      "!**/*.yml"
     ]
   },
   "formatter": {
@@ -26,12 +30,12 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "a11y": {
-        "recommended": true
+        "preset": "recommended"
       },
       "complexity": {
-        "recommended": true,
+        "preset": "recommended",
         "noBannedTypes": "error",
         "noUselessTypeConstraint": "error",
         "noCommaOperator": "error",
@@ -42,7 +46,7 @@
         "useOptionalChain": "error"
       },
       "correctness": {
-        "recommended": true,
+        "preset": "recommended",
         "noUnusedImports": "error",
         "noUnusedFunctionParameters": "error",
         "noUnusedPrivateClassMembers": "error",
@@ -57,13 +61,13 @@
         "noUnusedLabels": "error"
       },
       "performance": {
-        "recommended": true
+        "preset": "recommended"
       },
       "security": {
-        "recommended": true
+        "preset": "recommended"
       },
       "style": {
-        "recommended": true,
+        "preset": "recommended",
         "noNonNullAssertion": "error",
         "useArrayLiterals": "error",
         "useConst": "error",
@@ -83,10 +87,11 @@
         "useShorthandFunctionType": "error",
         "useExportType": "error",
         "useLiteralEnumMembers": "error",
-        "useUnifiedTypeSignatures": "error"
+        "useUnifiedTypeSignatures": "error",
+        "useConsistentTypeDefinitions": "error"
       },
       "suspicious": {
-        "recommended": true,
+        "preset": "recommended",
         "noEmptyInterface": "error",
         "noExplicitAny": "error",
         "noConsole": "warn",
@@ -103,13 +108,12 @@
         "noUnsafeDeclarationMerging": "error",
         "noUnsafeNegation": "error",
         "useAdjacentOverloadSignatures": "error",
-        "useNamespaceKeyword": "error"
+        "useNamespaceKeyword": "error",
+        "noNonNullAssertedOptionalChain": "error"
       },
       "nursery": {
         "noFloatingPromises": "error",
-        "noMisusedPromises": "error",
-        "noNonNullAssertedOptionalChain": "error",
-        "useConsistentTypeDefinitions": "error"
+        "noMisusedPromises": "error"
       }
     }
   },

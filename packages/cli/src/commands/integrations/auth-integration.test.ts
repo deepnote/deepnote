@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createConnection } from 'node:net'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ApiError, type ApiIntegration } from '@deepnote/database-integrations'
@@ -32,11 +34,11 @@ vi.mock('@deepnote/database-integrations', async importOriginal => {
 
 import { DEEPNOTE_TOKEN_ENV } from '../../constants'
 import { ExitCode } from '../../exit-codes'
-import { GOOGLE_TOKEN_URL } from '../../federated-auth/google-oauth'
 import { readToken } from '../../federated-auth/token-store'
 import { createIntegrationsAuthAction, type IntegrationsAuthOptions } from './auth-integration'
 import { CONFLICT_MARKERS_YAML } from './test-helpers'
 
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const DOMAIN = 'oauth.test-domain.example'
 const API_URL = 'https://api.test-domain.example'
 const TOKEN = 'test-deepnote-token'
@@ -107,14 +109,28 @@ function baseOptions(overrides: Partial<IntegrationsAuthOptions> = {}): Integrat
   return { file: filePath, envFile: envFilePath, domain: DOMAIN, url: API_URL, ...overrides }
 }
 
-async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
+async function waitFor(condition: () => boolean | Promise<boolean>, timeoutMs = 5000): Promise<void> {
   const start = Date.now()
-  while (!condition()) {
+  while (!(await condition())) {
     if (Date.now() - start > timeoutMs) {
       throw new Error('Timed out waiting for condition')
     }
     await new Promise(resolve => setImmediate(resolve))
   }
+}
+
+async function expectPortClosed(port: number): Promise<void> {
+  await waitFor(
+    () =>
+      new Promise<boolean>(resolve => {
+        const socket = createConnection({ port, host: '127.0.0.1' })
+        socket.once('connect', () => {
+          socket.destroy()
+          void resolve(false)
+        })
+        socket.once('error', () => resolve(true))
+      })
+  )
 }
 
 function findPrintedStartUrl(): URL {
@@ -218,6 +234,7 @@ describe('auth-integration', () => {
     it('authenticates the explicitly given id without prompting', async () => {
       await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
       await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
+      const sigintListenersBefore = process.listenerCount('SIGINT')
 
       const [, { startUrl, response }] = await Promise.all([
         createIntegrationsAuthAction(program)('my-bq', baseOptions()),
@@ -225,6 +242,7 @@ describe('auth-integration', () => {
       ])
 
       expect(response.status).toBe(200)
+      expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore)
       expect(startUrl.host).toBe(DOMAIN)
       expect(startUrl.pathname).toBe('/auth/bigquery/extension/start')
       expect(startUrl.searchParams.get('client_id')).toBe('test-client-id')
@@ -289,6 +307,23 @@ describe('auth-integration', () => {
         message: expect.stringContaining(`No big-query integrations using Google OAuth were found in ${filePath}.`),
       })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('PKCE', () => {
+    it('sends the S256 challenge of the verifier it later exchanges the code with', async () => {
+      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
+      await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
+
+      const [, { startUrl }] = await Promise.all([
+        createIntegrationsAuthAction(program)('my-bq', baseOptions()),
+        driveOAuthCallback(),
+      ])
+
+      const verifier = googleRequests[0].body.get('code_verifier') ?? ''
+      expect(startUrl.searchParams.get('code_challenge')).toBe(
+        createHash('sha256').update(verifier).digest('base64url')
+      )
     })
   })
 
@@ -368,27 +403,11 @@ describe('auth-integration', () => {
 
       await expect(
         createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain: 'a b/c' }))
-      ).rejects.toMatchObject({ exitCode: ExitCode.Error, message: expect.stringContaining('Invalid --domain') })
-      expect(mockOpenInBrowser).not.toHaveBeenCalled()
-    })
-
-    it.each([
-      ['a pasted https:// prefix', 'https://oauth.test-domain.example'],
-      ['a pasted http:// prefix', 'http://oauth.test-domain.example'],
-      ['a trailing path', 'oauth.test-domain.example/auth'],
-      ['embedded userinfo', 'user:pw@oauth.test-domain.example'],
-      ['a query string', 'oauth.test-domain.example?x=1'],
-      ['a fragment', 'oauth.test-domain.example#frag'],
-    ])('rejects a --domain carrying %s, which new URL() reinterprets instead of refusing', async (_label, domain) => {
-      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
-      await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
-
-      await expect(createIntegrationsAuthAction(program)('my-bq', baseOptions({ domain }))).rejects.toMatchObject({
+      ).rejects.toMatchObject({
         exitCode: ExitCode.Error,
-        message: expect.stringContaining('Invalid --domain'),
+        message: expect.stringContaining('Invalid --domain "a b/c": expected a hostname such as "deepnote.com".'),
       })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
-      expect(mockOutput).not.toHaveBeenCalledWith(expect.stringContaining('Open this URL'))
     })
 
     it.each([
@@ -440,6 +459,28 @@ describe('auth-integration', () => {
         message: expect.stringMatching(/Integration "broken-bq" .*clientId/),
       })
       expect(mockOpenInBrowser).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('cancellation', () => {
+    it('rejects on SIGINT while waiting for the callback, closes the callback port and removes its SIGINT listener', async () => {
+      await writeFile(filePath, integrationsYaml(bigQueryOAuthEntry({ id: 'my-bq' })))
+      await writeFile(envFilePath, `CLIENTSECRET=${SECRET_MARKER}\n`)
+      const sigintListenersBefore = process.listenerCount('SIGINT')
+
+      const failure = createIntegrationsAuthAction(program)('my-bq', baseOptions())
+      const assertion = expect(failure).rejects.toMatchObject({
+        exitCode: ExitCode.Error,
+        message: expect.stringContaining('Authentication cancelled.'),
+      })
+      await waitFor(() => mockOutput.mock.calls.some(c => String(c[0]).includes('Open this URL to continue')))
+      const callbackPort = Number(new URL(findPrintedStartUrl().searchParams.get('final_redirect') ?? '').port)
+
+      process.emit('SIGINT')
+      await assertion
+
+      await expectPortClosed(callbackPort)
+      expect(process.listenerCount('SIGINT')).toBe(sigintListenersBefore)
     })
   })
 

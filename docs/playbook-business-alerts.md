@@ -85,6 +85,13 @@ This works well for a small team, but has three limits:
 - The webhook URL or bot token is a secret. Keep it in an environment variables integration, which stores it encrypted, rather than in a code block.
 - The scheduled run executes as the schedule's owner. If they leave the workspace, the schedule pauses until someone else saves it and becomes its owner. A paused alert is silent, and the pause doesn't trigger a failure notification: the pause email goes only to the owner and, unless the project is private, the workspace admins. Agree who takes the schedule over before its owner leaves, and have the admins watch for pause emails.
 
+## Example
+
+The [Account health app](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/account-health) in the Lindquett Software example scores every account for
+churn risk with the reasons behind the score. After each warehouse load, its notebook posts the accounts
+that crossed the threshold to Slack, and each one links to that account's page in the app. Viewers who
+open the app run the same notebook with posting turned off.
+
 ## Plan requirements
 
 - **Scheduling:** Pro, Team and Enterprise. Hourly and custom cron schedules need Team or Enterprise.

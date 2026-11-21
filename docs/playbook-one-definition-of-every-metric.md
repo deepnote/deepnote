@@ -83,6 +83,15 @@ With the setup above:
 
 Version history is kept for 7 days on Free, 30 days on Team and without limit on Enterprise.
 
+## Example
+
+The [Lindquett Software example](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software) runs five apps on one pair of modules in a
+[shared metrics project](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/metrics). `Revenue data` exports the governed tables, and every
+notebook imports it: the revenue dashboard, the renewal pricing desk, the churn-risk scores, the data
+checks and the pricing baseline. `Revenue metrics` exports ARR, NRR, GRR and pipeline coverage as
+functions, and the dashboard, the pricing desk and the churn-risk scores all calculate with them, so no
+two apps disagree about a number.
+
 ## Plan requirements
 
 - **Modules:** all plans.

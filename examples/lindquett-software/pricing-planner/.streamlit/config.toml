@@ -1,0 +1,10 @@
+# The Lindquett "story poster" look, shared with the four data apps.
+[theme]
+base = "light"
+primaryColor = "#f2b134"
+backgroundColor = "#fafaf7"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#14231e"
+
+[browser]
+gatherUsageStats = false

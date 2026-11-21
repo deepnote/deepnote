@@ -35,7 +35,14 @@ deepnote publish ./dist --create "Revenue review"
 
 `--create` validates the build before creating anything and prints the new project ID. Record it and
 use `--project-id` from then on; every `--create` makes another project. It never updates a sync
-workspace and refuses `--sync-root`.
+workspace and refuses `--sync-root`. If a publish fails after `--create`, the error names the
+created project; retry with `--project-id` rather than creating another.
+
+A data app project has exactly one notebook, and `publish` prints its ID. A page that starts runs
+must name it. Put a local notebook into the project with
+`deepnote run <file> --cloud --notebook-id <id> --push --yes`, which also runs it; the project cannot
+hold a second notebook. Module blocks must name the module notebooks' IDs in Deepnote, which can
+differ from the IDs in the file the modules were imported from.
 
 Matching files under `_deepnote_static` are replaced. Files absent from the local build are retained,
 and the app is published after uploads succeed, so people with project access can open it. Use the
@@ -112,9 +119,9 @@ check requires a sync workspace at or above the file that tracks the project and
 file uploaded from another folder: merge the Deepnote changes into it before you upload again.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
-`--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and
-uploading them. After syncing an edited entrypoint, publish again and use the returned URL, which
-may change.
+`--upload` and sync both overwrite a changed entrypoint in place, so it keeps its app and URL. Never
+delete and re-upload an entrypoint to change it: that removes the app, and publishing again creates
+a new one with a new URL.
 
 ### Handle failures
 
@@ -178,9 +185,9 @@ Authentication and the API origin match `publish`.
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. After an upload fails, the app keeps its previous publish state
 and remaining stale files are not pruned; an app that was already published serves the partly updated
-files. Replacement deletes the remote file before uploading the new one, so a file whose upload failed
-is missing until a later publish succeeds; a missing `index.html` stops the app from loading. Retry
-promptly.
+files, which can leave it unable to load. Replacement overwrites the remote file in place rather than
+deleting it first, so the path is never empty, but a request that failed after the server committed
+the replacement leaves the new version in place.
 
 For `unpublish`, exit codes are `0` for success, `1` for a request failure (including a project that
 is not a data app), and `2` for invalid arguments or a missing token.

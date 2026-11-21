@@ -1,6 +1,7 @@
+import { getEventListeners } from 'node:events'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { type AddressInfo, createConnection, type Socket } from 'node:net'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { runOAuthFlow } from './oauth-loopback-server'
 
 const CLIENT_ID = 'test-client-id-123'
@@ -17,6 +18,7 @@ type TokenStubAction =
 
 interface TokenStub {
   readonly attemptCount: number
+  readonly abortedCount: number
   readonly url: string
   release(): void
   close(): Promise<void>
@@ -24,6 +26,7 @@ interface TokenStub {
 
 async function startTokenStub(action: TokenStubAction): Promise<TokenStub> {
   let attemptCount = 0
+  let abortedCount = 0
   let releaseGate: () => void = () => {}
   const gate = new Promise<void>(resolve => {
     releaseGate = resolve
@@ -33,6 +36,9 @@ async function startTokenStub(action: TokenStubAction): Promise<TokenStub> {
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     attemptCount++
     req.resume()
+    res.on('close', () => {
+      if (!res.writableEnded) abortedCount++
+    })
     const respond = (): void => {
       res.writeHead(action.status, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify(action.body))
@@ -54,6 +60,9 @@ async function startTokenStub(action: TokenStubAction): Promise<TokenStub> {
   return {
     get attemptCount() {
       return attemptCount
+    },
+    get abortedCount() {
+      return abortedCount
     },
     url: `http://127.0.0.1:${port}/token`,
     release: () => releaseGate(),
@@ -108,6 +117,7 @@ interface FlowOverrides {
   redirectUri?: string
   timeoutMs?: number
   tokenUrl?: string
+  signal?: AbortSignal
 }
 
 async function startFlow(overrides: FlowOverrides = {}): Promise<{
@@ -150,6 +160,8 @@ describe('runOAuthFlow', () => {
 
     expect(response.status).toBe(200)
     expect(body).toContain('Authorization complete')
+    expect(body).toContain('You can close this tab.')
+    expect(body).not.toContain('terminal')
     expect(body).not.toContain(REFRESH_TOKEN)
     expect(body).not.toContain(AUTH_CODE)
     expect(body).not.toContain(CLIENT_SECRET)
@@ -191,7 +203,9 @@ describe('runOAuthFlow', () => {
 
     expect(response.status).toBe(400)
     const error: unknown = await rejection
-    expect((error as Error).message).toContain('state did not match')
+    expect((error as Error).message).toBe(
+      'The OAuth callback state did not match the expected value. Start the sign-in again.'
+    )
     await expectPortClosed(Number(new URL(callbackUrl).port))
   })
 
@@ -371,17 +385,99 @@ describe('runOAuthFlow', () => {
     ).rejects.toBe(opener)
   })
 
-  it('rejects on SIGINT and releases the port, instead of leaving the flow armed', async () => {
-    const { flow, callbackUrl } = await startFlow()
-    const assertion = expect(flow).rejects.toThrow('Authentication cancelled.')
+  it('rejects with the abort reason, aborts the in-flight exchange and releases the port when the signal aborts', async () => {
+    const stub = await startTokenStub({
+      type: 'gated',
+      status: 200,
+      body: { access_token: 'unused', refresh_token: REFRESH_TOKEN },
+    })
+    activeStub = stub
+    const controller = new AbortController()
+    const reason = new Error('Authentication cancelled.')
+    const { flow, callbackUrl } = await startFlow({ tokenUrl: stub.url, signal: controller.signal })
+    const rejection = flow.catch(caught => caught)
+    const callbackResponse = fetch(withParams(callbackUrl, { state: STATE, code: AUTH_CODE })).catch(() => undefined)
+    await waitFor(() => stub.attemptCount === 1)
 
-    const before = process.listenerCount('SIGINT')
-    expect(before).toBeGreaterThan(0)
-    process.emit('SIGINT')
-    await assertion
+    controller.abort(reason)
 
-    expect(process.listenerCount('SIGINT')).toBe(before - 1)
+    expect(await rejection).toBe(reason)
+    await waitFor(() => stub.abortedCount === 1, 1000)
+    await callbackResponse
     await expectPortClosed(Number(new URL(callbackUrl).port))
+  })
+
+  it('rejects with the abort reason without calling onListening when the signal is already aborted', async () => {
+    const reason = new Error('cancelled before start')
+    const onListening = vi.fn()
+
+    await expect(
+      runOAuthFlow({
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+        codeVerifier: CODE_VERIFIER,
+        state: STATE,
+        redirectUri: REDIRECT_URI,
+        onListening,
+        signal: AbortSignal.abort(reason),
+      })
+    ).rejects.toBe(reason)
+    expect(onListening).not.toHaveBeenCalled()
+  })
+
+  it('rejects with the abort reason and binds no port when aborted right after the call, before the server is listening', async () => {
+    const countListeningServers = (): number =>
+      process.getActiveResourcesInfo().filter(resource => resource === 'TCPServerWrap').length
+    // A server the previous test closed leaves the active resources only in the closing phase that
+    // follows a turn's check phase. Sampling before that inflates the baseline and can hide a leaked port.
+    await new Promise(resolve => setImmediate(resolve))
+    await new Promise(resolve => setImmediate(resolve))
+    const before = countListeningServers()
+    const controller = new AbortController()
+    const reason = new Error('cancelled right away')
+    const onListening = vi.fn()
+
+    const flow = runOAuthFlow({
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+      codeVerifier: CODE_VERIFIER,
+      state: STATE,
+      redirectUri: REDIRECT_URI,
+      onListening,
+      signal: controller.signal,
+    })
+    controller.abort(reason)
+
+    await expect(flow).rejects.toBe(reason)
+    await new Promise(resolve => setImmediate(resolve))
+    await waitFor(() => countListeningServers() <= before, 1000)
+    expect(onListening).not.toHaveBeenCalled()
+  })
+
+  it("leaves no abort listener on the caller's signal once the flow settles", async () => {
+    const controller = new AbortController()
+    const { flow, callbackUrl } = await startFlow({ signal: controller.signal })
+    const rejection = flow.catch(caught => caught)
+
+    await fetch(withParams(callbackUrl, { code: AUTH_CODE }))
+    await rejection
+
+    expect(getEventListeners(controller.signal, 'abort')).toHaveLength(0)
+  })
+
+  it('fails the flow when onListening returns a rejected promise', async () => {
+    const failure = new Error('listener failed')
+
+    await expect(
+      runOAuthFlow({
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+        codeVerifier: CODE_VERIFIER,
+        state: STATE,
+        redirectUri: REDIRECT_URI,
+        onListening: () => Promise.reject(failure),
+      })
+    ).rejects.toBe(failure)
   })
 
   it('rejects on its timeoutMs deadline and tears the server down, without waiting for a callback', async () => {

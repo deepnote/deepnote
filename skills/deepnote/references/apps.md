@@ -25,8 +25,18 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
 
 ## Prepare a Streamlit app
 
-1. Write the `.py` entrypoint and install its dependencies in the project environment. The app
-   inherits the project's integrations and sharing settings and sleeps when its hardware is inactive.
+1. Write the `.py` entrypoint and install its dependencies so they survive a machine restart: list
+   them in the project's `requirements.txt`, which the Init notebook installs on every start. An
+   ad-hoc `!pip install` is gone after the restart that creating the app triggers. A customized Init
+   notebook can drop that install, so check it still runs before publishing. Adding a package for an
+   app that already exists installs nothing by itself, because re-publishing does not restart the
+   machine; the app picks it up when the project's shared machine restarts and Init runs again. A
+   hosted Streamlit app stays on that shared machine, so in a privately-run project an install from
+   the editor, a terminal or `POST /v2/projects/{projectId}/machine/restart` hits the caller's own
+   machine and never reaches the app; the shared machine is the one `PATCH …/machine` with
+   `"restart": true` acts on (see [machines](https://deepnote.com/docs/deepnote-api-machines)). The
+   app inherits the project's integrations and sharing settings and sleeps when its hardware is
+   inactive.
 2. If the app runs a notebook, deploy that notebook before publishing. Keep the local `.deepnote`
    file's block IDs aligned with the deployed notebook; preview with
    `deepnote run <file> --cloud --push --dry-run`, then apply the intended changes with
@@ -37,10 +47,11 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
 4. Follow [Publish a Streamlit app](cli-publish.md#publish-a-streamlit-app), then open the returned
    URL and test the app as its intended viewer.
 
-Creating a Streamlit app restarts the project machine and interrupts active work. Replacing the
-entrypoint through file sync can remove its app registration; publish again and use the returned
-URL, which may change. `deepnote streamlit publish --upload` replaces the file in place and keeps
-the app. Some Streamlit apps created in the UI retain their registration.
+Creating a Streamlit app restarts the project machine and interrupts active work. Sync overwrites a
+changed entrypoint in place, so it keeps its app and URL. `deepnote streamlit publish --upload` also
+replaces the file in place and keeps the app. Deleting and re-uploading an entrypoint can remove its
+app registration instead; publish again after that and use the new URL. Some Streamlit apps created
+in the UI retain their registration.
 
 For ordinary Python integration access, use the project's integrations. Federated-auth integrations
 require each viewer to authenticate; see [Streamlit apps](https://deepnote.com/docs/streamlit).
@@ -55,8 +66,7 @@ Do not substitute the publisher's personal token.
 
 1. Use a data app project. Publishing refuses any other project type, and a `.deepnote` file cannot
    create one. Create it on the first publish with `deepnote publish <dir> --create <name>`, or have
-   the user create it in Deepnote with **Create new → New data app**. Data app projects are in beta
-   and may not be enabled for the workspace yet.
+   the user create it in Deepnote with **Create new → New data app**.
 2. Build the HTML, CSS, JavaScript, and assets into a dedicated output directory such as `dist`.
    Exclude credentials and files that viewers should not receive.
 3. Use browser-compatible code. A published app has no local `serveStatic` routes or Python

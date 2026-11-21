@@ -106,6 +106,34 @@ describe('listAllProjects', () => {
     )
   })
 
+  it('reports the type of each project, including unknown types and projects without one', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({
+        projects: [
+          { id: 'p1', name: 'App', projectType: 'data_app' },
+          { id: 'p2', name: 'Legacy' },
+          { id: 'p3', name: 'Next', projectType: 'future-type' },
+        ],
+        pagination: { nextPageToken: null },
+      })
+    )
+
+    const projects = await listAllProjects(BASE_URL, TOKEN)
+
+    expect(projects.map(project => project.projectType)).toEqual(['data_app', undefined, 'future-type'])
+  })
+
+  it('rejects a project whose type is not a string', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+      response({ projects: [{ id: 'p1', name: 'One', projectType: 42 }], pagination: { nextPageToken: null } })
+    )
+
+    await expect(listAllProjects(BASE_URL, TOKEN)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('Invalid Deepnote response for list projects'),
+    })
+  })
+
   it('throws rather than truncating when the server never stops paging', async () => {
     vi.spyOn(global, 'fetch').mockResolvedValue(
       response({ projects: [{ id: 'p', name: 'P' }], pagination: { nextPageToken: 'again' } })
@@ -152,6 +180,7 @@ describe('getProjectDetail', () => {
         project: {
           id: 'p1',
           name: 'One',
+          projectType: 'data_app',
           folder: null,
           files: [{ path: 'data/input.csv', size: 42, updatedAt: '2026-01-01T00:00:00.000Z' }],
           dataApp: { published: true, url: 'https://deepnote.example.com/apps/One-p1/' },
@@ -168,6 +197,7 @@ describe('getProjectDetail', () => {
         dataApp: { published: true, url: 'https://deepnote.example.com/apps/One-p1/' },
       })
     )
+    expect(detail.projectType).toBe('data_app')
   })
 
   it('returns null data app settings for a project that is not a data app', async () => {
