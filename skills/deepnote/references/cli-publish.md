@@ -106,9 +106,10 @@ recorded in `.deepnote-sync.json`, and a path through a symbolic link inside tha
 refused. A file changed in Deepnote since the last sync is not
 overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
 project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
-holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. Sync
-does not change a file uploaded from another folder: merge the Deepnote changes into it before you
-upload again.
+holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. This
+check requires a sync workspace at or above the file that tracks the project and a recorded server
+`updatedAt` for the file; otherwise `--upload` overwrites the Deepnote copy. Sync does not change a
+file uploaded from another folder: merge the Deepnote changes into it before you upload again.
 
 Deleting the entrypoint can remove its app registration; some apps created in the UI retain it.
 `--upload` replaces the file in place and keeps the app. Sync replaces changed files by deleting and

@@ -661,7 +661,8 @@ project's Files. When a sync workspace at or above that file tracks the project,
 recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
 overwritten: run `deepnote sync <workspace> --all-files` first, or pass `--force`. `<workspace>` is
 the folder that holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you
-upload from.
+upload from. This check requires a sync workspace at or above the file that tracks the project and
+a recorded server `updatedAt` for the file; otherwise `--upload` overwrites the Deepnote copy.
 
 Creating a Streamlit app restarts the project machine and interrupts active work. The command
 prints the app URL and waits up to 10 minutes for it to start. An existing Streamlit app keeps its
