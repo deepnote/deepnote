@@ -10,7 +10,7 @@ import {
   uploadProjectFile,
 } from '@deepnote/cloud'
 import { DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
-import { isErrnoENOENT } from './fs-errors'
+import { isErrnoENOENT, isErrnoENOTDIR } from './fs-errors'
 import {
   findDivergedPublishPaths,
   PUBLISH_ERROR_HINTS,
@@ -546,13 +546,13 @@ export interface UploadWorkingFileResult {
  * such as a Streamlit app. When a sync folder at or above `file` tracks the project, the upload is recorded
  * in it and the bytes are written to the project's `.files` copy there.
  *
- * @throws {PublishError} `invalid-input`: an unsafe `path`, a `file` that is missing, cannot be inspected or is
+ * @throws {PublishError} `invalid-input`: an unsafe `path`, a `file` that is missing, below a non-directory or
  * not a regular file, a file over the upload limit, an unusable sync folder, or a `file` inside the sync folder
  * reached through a symbolic link.
  * @throws {PublishDivergedError} unless `options.force`, before the upload.
  * @throws {ApiError} the project could not be loaded or the upload failed.
- * @throws {Error} `file` could not be read (permission denied, I/O failure), or Deepnote stored the file at
- * another path; that copy is removed.
+ * @throws {Error} `file` could not be inspected or read (permission denied, I/O failure), or Deepnote stored the
+ * file at another path; that copy is removed.
  */
 export async function uploadWorkingFile(options: UploadWorkingFileOptions): Promise<UploadWorkingFileResult> {
   const { file, path, projectId, baseUrl, token } = options
@@ -560,10 +560,13 @@ export async function uploadWorkingFile(options: UploadWorkingFileOptions): Prom
     throw new PublishError('invalid-input', `Not a valid project file path: "${path}"`)
   }
   const stat = await fs.stat(file).catch(error => {
-    throw new PublishError(
-      'invalid-input',
-      isErrnoENOENT(error) ? `File not found: ${file}` : `Could not read ${file}: ${errorMessage(error)}`
-    )
+    if (isErrnoENOENT(error)) {
+      throw new PublishError('invalid-input', `File not found: ${file}`)
+    }
+    if (isErrnoENOTDIR(error)) {
+      throw new PublishError('invalid-input', `Could not read ${file}: ${errorMessage(error)}`)
+    }
+    throw error
   })
   if (!stat.isFile()) {
     throw new PublishError('invalid-input', `Not a file: ${file}`)

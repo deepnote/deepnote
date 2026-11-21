@@ -1069,7 +1069,7 @@ describe('uploadWorkingFile', () => {
       }
     )
 
-    it('reports a file that cannot be inspected with the underlying error, not as missing', async () => {
+    it('reports a path below a regular file with the underlying error, not as missing', async () => {
       const file = join(await writeScript(join(tempDir, 'src')), 'child')
 
       const error = await rejection(upload({ file }))
@@ -1081,6 +1081,17 @@ describe('uploadWorkingFile', () => {
       })
       expectNoRequests()
     })
+  })
+
+  it('lets a failure to inspect the file through as the underlying error, before any request', async () => {
+    const file = await writeScript(join(tempDir, 'src'))
+    const statError = Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' })
+    vi.spyOn(fs, 'stat').mockRejectedValueOnce(statError)
+
+    const error = await rejection(upload({ file }))
+
+    expect(error).toBe(statError)
+    expectNoRequests()
   })
 
   it('lets a failure to read the file through as the underlying error, before any request', async () => {
