@@ -113,6 +113,6 @@ describe('deepnote streamlit publish --upload against the Deepnote Cloud mock', 
 
     expect(process.exitCode).toBe(1)
     expect(await fs.readFile(cloudFile, 'utf8')).toBe(CLOUD_EDIT)
-    expect(output.join('\n')).toContain(`Run \`deepnote sync ${workspace} --all-files\``)
+    expect(output.join('\n')).toContain(`Run \`deepnote sync "${workspace}" --all-files\``)
   })
 })

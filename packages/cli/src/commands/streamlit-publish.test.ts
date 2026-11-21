@@ -414,7 +414,7 @@ describe('deepnote streamlit publish', () => {
 
       const message = String(errorSpy.mock.calls.at(-1)?.[0])
       expect(message).toContain('1 file changed in Deepnote since')
-      expect(message).toContain(`deepnote sync ${await fs.realpath(tempDir)} --all-files`)
+      expect(message).toContain(`deepnote sync "${await fs.realpath(tempDir)}" --all-files`)
       expect(message).toContain('--force')
       expect(process.exitCode).toBe(1)
       expect(mockedCreateStreamlitApp).not.toHaveBeenCalled()
@@ -432,7 +432,7 @@ describe('deepnote streamlit publish', () => {
       await run('apps/dashboard.py', '--project-id', 'p1', '--token', 'tok', '--upload')
 
       expect(String(errorSpy.mock.calls.at(-1)?.[0])).toContain(
-        `Run \`deepnote sync ${await fs.realpath(tempDir)} --all-files\``
+        `Run \`deepnote sync "${await fs.realpath(tempDir)}" --all-files\``
       )
       expect(mockedUploadProjectFile).not.toHaveBeenCalled()
     })
