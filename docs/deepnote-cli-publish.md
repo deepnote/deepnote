@@ -195,7 +195,8 @@ deepnote streamlit publish apps/dashboard.py --project-id <project-id> --upload
 `--upload` reads the entrypoint relative to the current directory (in a sync workspace, the
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
-recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
+recorded in `.deepnote-sync.json`, and a path through a symbolic link inside that workspace is
+refused. A file changed in Deepnote since the last sync is not
 overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
 project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
 holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. Sync
@@ -258,11 +259,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                                           | `deepnote streamlit publish`                                                                                                       |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | Files uploaded and the app published                                                                                                         | App running, or created/found with `--no-wait`                                                                                     |
-| `1`  | A request, upload, prune, or publishing failed; or unsynced remote changes                                                                   | A request or upload failed, a file changed in Deepnote, or startup timed out                                                       |
-| `2`  | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token, `--force` without `--upload`, a missing or over-100 MiB local file, or unusable sync workspace |
+| Code | `deepnote publish`                                                                                                                           | `deepnote streamlit publish`                                                                                                                                                                    |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Files uploaded and the app published                                                                                                         | App running, or created/found with `--no-wait`                                                                                                                                                  |
+| `1`  | A request, upload, prune, or publishing failed; or unsynced remote changes                                                                   | A request or upload failed, a file changed in Deepnote, or startup timed out                                                                                                                    |
+| `2`  | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token, `--force` without `--upload`, a missing or over-100 MiB local file, an unusable sync workspace, or a path through a symbolic link inside the sync workspace |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.

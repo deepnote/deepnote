@@ -102,7 +102,8 @@ It waits for that app too; `unavailable` can be a temporary state during a resta
 `--upload` reads the entrypoint relative to the current directory (in a sync workspace, the
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
-recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
+recorded in `.deepnote-sync.json`, and a path through a symbolic link inside that workspace is
+refused. A file changed in Deepnote since the last sync is not
 overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
 project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
 holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. Sync
@@ -167,11 +168,11 @@ Authentication and the API origin match `publish`.
 
 ## Interpret the result
 
-| Exit code | `deepnote publish`                                                                                                                                    | `deepnote streamlit publish`                                                                                                     |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `0`       | Files uploaded and the app published                                                                                                                  | App running, or created/found with `--no-wait`                                                                                   |
-| `1`       | Request, upload, prune, or publishing failure; or unsynced remote changes                                                                             | Request or upload failure, file changed in Deepnote, or startup timeout                                                          |
-| `2`       | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token, `--force` without `--upload`, missing or over-100 MiB local file, or unusable sync workspace |
+| Exit code | `deepnote publish`                                                                                                                                    | `deepnote streamlit publish`                                                                                                                                                               |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `0`       | Files uploaded and the app published                                                                                                                  | App running, or created/found with `--no-wait`                                                                                                                                             |
+| `1`       | Request, upload, prune, or publishing failure; or unsynced remote changes                                                                             | Request or upload failure, file changed in Deepnote, or startup timeout                                                                                                                    |
+| `2`       | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync manifest/workspace | Invalid arguments or missing token, `--force` without `--upload`, missing or over-100 MiB local file, unusable sync workspace, or a path through a symbolic link inside the sync workspace |
 
 A failed app upload can leave partial changes; successful uploads are not rolled back. Fix the
 reported failures and publish again. After an upload fails, the app keeps its previous publish state

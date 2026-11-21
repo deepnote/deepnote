@@ -24,7 +24,7 @@ import {
   type SyncRootOption,
   savePublishMirror,
 } from './publish-mirror'
-import { SYNC_MANIFEST_FILENAME } from './sync-manifest'
+import { assertNoSymbolicLinkAncestors, SYNC_MANIFEST_FILENAME } from './sync-manifest'
 import { isSafeRelativeFilePath } from './sync-paths'
 
 export interface PublishAppOptions {
@@ -547,7 +547,8 @@ export interface UploadWorkingFileResult {
  * in it and the bytes are written to the project's `.files` copy there.
  *
  * @throws {PublishError} `invalid-input`: an unsafe `path`, a `file` that is missing, cannot be inspected or is
- * not a regular file, a file over the upload limit, or an unusable sync folder.
+ * not a regular file, a file over the upload limit, an unusable sync folder, or a `file` inside the sync folder
+ * reached through a symbolic link.
  * @throws {PublishDivergedError} unless `options.force`, before the upload.
  * @throws {ApiError} the project could not be loaded or the upload failed.
  * @throws {Error} `file` could not be read (permission denied, I/O failure), or Deepnote stored the file at
@@ -580,6 +581,16 @@ export async function uploadWorkingFile(options: UploadWorkingFileOptions): Prom
       throw new PublishError('invalid-input', error.message)
     }
     throw error
+  }
+  if (mirror) {
+    const { rootDir } = mirror
+    await assertNoSymbolicLinkAncestors(rootDir, relative(rootDir, file).split(sep).join('/')).catch(error => {
+      throw new PublishError(
+        'invalid-input',
+        `${file} goes through a symbolic link inside the sync folder ${rootDir} (${errorMessage(error)}). ` +
+          'Use the path the link points to.'
+      )
+    })
   }
 
   if (mirror && !options.force) {

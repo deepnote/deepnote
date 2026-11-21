@@ -1044,6 +1044,31 @@ describe('uploadWorkingFile', () => {
       expectNoRequests()
     })
 
+    it.each([
+      ['a symbolically linked directory', 'scratch/apps', 'Alpha/.files/apps', false],
+      ['a symbolic link, with force', 'scratch/apps/dashboard.py', 'Alpha/.files/apps/dashboard.py', true],
+    ])(
+      'rejects a file in the sync folder reached through %s before any request',
+      async (_name, link, target, force) => {
+        const { root } = await writeWorkspace()
+        await writeScript(join(root, 'Alpha', '.files'))
+        await fs.mkdir(join(root, link, '..'), { recursive: true })
+        await fs.symlink(join(root, target), join(root, link))
+        const file = join(root, 'scratch', 'apps', 'dashboard.py')
+
+        const error = await rejection(upload({ file, force }))
+
+        expect(error).toBeInstanceOf(PublishError)
+        expect(error).toMatchObject({
+          reason: 'invalid-input',
+          message:
+            `${file} goes through a symbolic link inside the sync folder ${root} ` +
+            '(Path "scratch/apps/dashboard.py" contains a symbolic-link ancestor). Use the path the link points to.',
+        })
+        expectNoRequests()
+      }
+    )
+
     it('reports a file that cannot be inspected with the underlying error, not as missing', async () => {
       const file = join(await writeScript(join(tempDir, 'src')), 'child')
 
