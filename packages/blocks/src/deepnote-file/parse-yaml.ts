@@ -51,21 +51,14 @@ function validateNoBomPrefix(yamlContent: string): void {
 /**
  * Validates that the YAML document doesn't contain prohibited features:
  * - No anchors/aliases (&anchor, *alias)
- * - No merge keys: plain `<<` keys and keys tagged `!!merge`.
- *   A quoted `"<<"` key without a tag is an ordinary key.
- * - No custom tags. Tags in the `tag:yaml.org,2002:` namespace (such as `!!str`) and the
- *   non-specific `!` tag are allowed.
- *
- * It checks parsed nodes, so text inside a scalar never counts.
- *
- * @throws ProhibitedYamlFeatureError for the first feature found, in the order anchor, alias,
- * merge key, tag
+ * - No merge keys (<<)
+ * - No tags (!tag, !!tag)
  */
 function validateYamlStructure(doc: Document): void {
   let hasAnchor = false
   let hasAlias = false
   let hasMergeKey = false
-  const customTags: string[] = []
+  const tags: string[] = []
 
   visit(doc, (_key, node) => {
     if (isAlias(node)) {
@@ -74,8 +67,8 @@ function validateYamlStructure(doc: Document): void {
       if (node.anchor) {
         hasAnchor = true
       }
-      if (node.tag && node.tag !== '!' && !node.tag.startsWith('tag:yaml.org,2002:')) {
-        customTags.push(node.tag)
+      if (node.tag) {
+        tags.push(node.tag)
       }
     }
     // A key that resolves to the merge type holds Symbol('<<'), not the string '<<'.
@@ -99,8 +92,8 @@ function validateYamlStructure(doc: Document): void {
       feature: 'merge-key',
     })
   }
-  if (customTags.length > 0) {
-    throw new ProhibitedYamlFeatureError(`YAML tags are not allowed in Deepnote files: ${customTags.join(', ')}`, {
+  if (tags.length > 0) {
+    throw new ProhibitedYamlFeatureError(`YAML tags are not allowed in Deepnote files: ${tags.join(', ')}`, {
       feature: 'tag',
     })
   }
@@ -108,8 +101,7 @@ function validateYamlStructure(doc: Document): void {
 
 /**
  * Parse and validate YAML document in a single pass.
- * Rejects prohibited YAML features, then checks for duplicate keys and other parsing errors,
- * then converts to JavaScript object.
+ * Checks for prohibited features, duplicate keys and other parsing errors, then converts to JavaScript object.
  */
 function parseAndValidate(yamlContent: string): unknown {
   const doc = parseDocument(yamlContent, {
@@ -137,7 +129,7 @@ function parseAndValidate(yamlContent: string): unknown {
  * - UTF-8 only
  * - No duplicate keys
  * - No anchors/aliases/merge keys
- * - No custom tags
+ * - No tags
  * - Explicit typing enforced by schema
  */
 export function parseYaml(yamlContent: string): unknown {

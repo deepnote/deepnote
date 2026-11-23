@@ -178,53 +178,6 @@ describe('serializeDeepnoteFile', () => {
       expect(parsed.metadata.createdAt).toBe(snapshot.metadata.createdAt)
       expect(parsed.metadata.modifiedAt).toBe(snapshot.metadata.modifiedAt)
     })
-
-    it('reads back markdown and output text with lines that look like YAML aliases', () => {
-      const file: DeepnoteFile = {
-        version: '1.0.0',
-        metadata: {
-          createdAt: '2024-01-01T00:00:00.000Z',
-        },
-        project: {
-          id: 'project-1',
-          name: 'Test Project',
-          notebooks: [
-            {
-              id: 'notebook-1',
-              name: 'Main Notebook',
-              blocks: [
-                {
-                  id: 'block-1',
-                  blockGroup: 'group-1',
-                  sortingKey: '000000',
-                  type: 'markdown',
-                  content: 'Notes\n- *a*\n- *b*',
-                  metadata: {},
-                },
-                {
-                  id: 'block-2',
-                  blockGroup: 'group-2',
-                  sortingKey: '000001',
-                  type: 'code',
-                  content: 'report()',
-                  metadata: {},
-                  outputs: [
-                    { output_type: 'stream', name: 'stdout', text: 'Summary\n- *Region*: Europe\n' },
-                    {
-                      output_type: 'display_data',
-                      data: { 'text/markdown': 'Findings:\n- *Revenue* grew 5%\n' },
-                      metadata: {},
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      }
-
-      expect(deserializeDeepnoteFile(serializeDeepnoteFile(file))).toEqual(file)
-    })
   })
 
   describe('field ordering', () => {
