@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>App studio</title>
+    <link rel="stylesheet" href="app-kit.css" />
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.30.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.21.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.26.0"></script>
+    <style>
+      .studio { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgb(16 24 40 / 0.04); }
+      .studio-inner { max-width: 1280px; margin: 0 auto; padding: 24px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+      .studio textarea { font: inherit; font-size: 14px; line-height: 1.5; width: 100%; min-height: 68px; resize: vertical; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--fg); }
+      .studio textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset: 1px; border-color: var(--accent); }
+      .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+      .actions { display: flex; align-items: center; gap: 8px; }
+      .studio button { font: inherit; font-size: 13px; font-weight: 600; height: 36px; padding: 0 16px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; white-space: nowrap; }
+      .studio button.secondary { background: var(--surface); color: var(--accent); }
+      .studio button:disabled { opacity: 0.5; cursor: default; }
+      .sources { font-size: 12px; color: var(--fg-muted); }
+      .tip { position: relative; display: inline-flex; align-items: center; gap: 6px; cursor: help; outline: none; }
+      .tip-icon { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid currentColor; font-size: 9px; font-weight: 700; font-style: italic; }
+      .tip-body { visibility: hidden; opacity: 0; position: absolute; top: calc(100% + 8px); left: 0; z-index: 20; width: 420px; max-width: 80vw; padding: 10px 12px; border-radius: 8px; background: var(--heading); color: var(--surface); font-size: 12px; line-height: 1.5; box-shadow: 0 8px 24px rgb(0 0 0 / 0.15); transition: opacity 0.12s; }
+      .tip-body b { color: inherit; }
+      .tip:hover .tip-body, .tip:focus .tip-body { visibility: visible; opacity: 1; }
+      .timings { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; font-size: 13px; color: var(--fg-muted); padding-top: 10px; border-top: 1px solid var(--border); }
+      .timings:empty { display: none; }
+      .timings b { color: var(--fg); font-variant-numeric: tabular-nums; }
+      .timings .live b { color: var(--accent); }
+    </style>
+  </head>
+  <body>
+    <div class="studio">
+      <div class="studio-inner">
+        <textarea id="request" placeholder="Describe the app you want, e.g. who it is for and what it should answer"></textarea>
+        <div class="toolbar">
+          <div class="sources" id="sources">Loading data sources…</div>
+          <div class="actions">
+            <button id="rerun" class="secondary" hidden title="Rerun the notebooks now and show this app with their latest data">Run notebooks</button>
+            <button id="iterate" class="secondary" hidden title="Edit the current app to match what you changed in the prompt">Iterate</button>
+            <button id="go">Generate</button>
+          </div>
+        </div>
+        <div class="timings" id="timings"></div>
+      </div>
+    </div>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp } from './app-kit.js'
+      const $ = id => document.getElementById(id)
+      const fetchSnapshots = () => fetch('snapshot.json').then(r => r.json())
+      let snapshotData = fetchSnapshots()
+      const human = n => n.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase())
+      const when = iso => (iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'never run')
+      async function showSources() {
+        const sources = await fetch('api/sources').then(r => r.json())
+        const tip = `<b>Data:</b> Generate builds from the available notebooks' snapshots of their last run: ${sources
+          .map(s => `${human(s.name)} (last run ${when(s.snapshotUpdated)})`)
+          .join(', ')}. <b>Run notebooks</b> reruns those notebooks now for the latest data.`
+        $('sources').innerHTML = `<span class="tip" tabindex="0">Data: ${sources.length} notebook snapshots <span class="tip-icon">i</span><span class="tip-body" role="tooltip">${tip}</span></span>`
+      }
+      showSources()
+      const fmt = ms => (ms == null ? '…' : `${(ms / 1000).toFixed(2)}s`)
+      let es = null
+
+      function showTimings(t, done) {
+        $('timings').innerHTML = [
+          ['Request → skeleton', t.skeleton],
+          ['Request → first component', t.first],
+          ['Request → fully rendered', t.rendered],
+        ]
+          .map(([k, v]) => `<span class="${v == null && !done ? 'live' : ''}">${k} <b>${fmt(v)}</b></span>`)
+          .join('') + (t.extra ? `<span>${t.extra}</span>` : '')
+      }
+
+      let app = null
+      let lastRequest = null
+
+      // mode: 'generate' rewrites the page from scratch; 'iterate' edits the page in place.
+      async function run(mode) {
+        const request = $('request').value.trim()
+        if (!request) return
+        es?.close()
+        $('go').disabled = $('iterate').disabled = $('rerun').disabled = true
+        const t0 = performance.now()
+        const t = {}
+        const since = () => performance.now() - t0
+        const label = mode === 'iterate' ? ['Request → first change', 'Request → fully rendered'] : null
+        const show = (done, extra) => {
+          const rows = mode === 'iterate'
+            ? [[label[0], t.first], [label[1], t.rendered]]
+            : [['Request → skeleton', t.skeleton], ['Request → first component', t.first], ['Request → fully rendered', t.rendered]]
+          $('timings').innerHTML = `<span><b>${mode === 'iterate' ? 'Iterate' : 'Generate'}</b></span>` + rows.map(([k, v]) => `<span class="${v == null && !done ? 'live' : ''}">${k} <b>${fmt(v)}</b></span>`).join('') + (extra ? `<span>${extra}</span>` : '')
+        }
+        const tick = setInterval(() => show(false, `elapsed ${fmt(since())}`), 50)
+        const body = { request, mode }
+        if (mode === 'iterate') {
+          body.previousRequest = lastRequest
+          body.spec = app.spec()
+        } else {
+          $('app').replaceChildren()
+          // Snapshots are re-read for each new app, so it always sees the notebooks' latest runs.
+          snapshotData = fetchSnapshots()
+          app = createApp($('app'), { snapshot: () => snapshotData })
+          window.__app = app
+        }
+        const { id } = await fetch('api/generate', { method: 'POST', body: JSON.stringify(body) }).then(r => r.json())
+        es = new EventSource(`events/${id}`)
+        es.addEventListener('plan', e => {
+          app.setPlan(JSON.parse(e.data))
+          app.ready.then(() => requestAnimationFrame(() => (t.skeleton ??= since())))
+        })
+        es.addEventListener('op', e => {
+          app.apply(e.data)
+          t.first ??= since()
+        })
+        es.addEventListener('partdone', e => app.partDone(Number(e.data)))
+        es.addEventListener('done', async e => {
+          es.close()
+          const info = JSON.parse(e.data)
+          await app.settled()
+          t.rendered = since()
+          clearInterval(tick)
+          show(true, `${info.outputTokens} output tokens${info.repairMs ? ` · incl. ${fmt(info.repairMs)} repair` : ''}`)
+          app.setStatus(mode === 'iterate' ? `Edited in ${fmt(t.rendered)}` : `Started rendering in ${fmt(t.skeleton)} · built in ${fmt(t.rendered)}`)
+          lastRequest = request
+          $('go').textContent = 'Regenerate'
+          $('go').title = 'Rewrite the whole app from scratch from the current prompt'
+          $('iterate').hidden = $('rerun').hidden = false
+          $('go').disabled = $('iterate').disabled = $('rerun').disabled = false
+        })
+        es.addEventListener('failed', e => {
+          clearInterval(tick)
+          $('timings').textContent = `Failed: ${e.data}`
+          $('go').disabled = $('iterate').disabled = $('rerun').disabled = false
+        })
+      }
+
+      // Rerun the notebooks for real, then show the same app (same spec) with their latest data.
+      async function rerun() {
+        es?.close()
+        $('go').disabled = $('iterate').disabled = $('rerun').disabled = true
+        const t0 = performance.now()
+        const since = () => performance.now() - t0
+        const progress = new Map()
+        const show = extra => {
+          $('timings').innerHTML = `<span><b>Run notebooks</b></span>${[...progress]
+            .map(([n, p]) => `<span class="${p.status === 'running' ? 'live' : ''}">${human(n)} <b>${p.status === 'running' ? 'running…' : p.status === 'done' ? `✓ ${fmt(p.ms)}${p.warning ? ' <span title="' + p.warning.replaceAll('"', '&quot;') + '">(with a warning)</span>' : ''}` : p.status === 'failed' ? '✗ failed' : 'queued'}</b></span>`)
+            .join('')}${extra ? `<span>${extra}</span>` : ''}`
+        }
+        const tick = setInterval(() => show(`elapsed ${fmt(since())}`), 100)
+        const { id, sources } = await fetch('api/run', { method: 'POST' }).then(r => r.json())
+        for (const n of sources) progress.set(n, { status: 'queued' })
+        es = new EventSource(`events/${id}`)
+        es.addEventListener('progress', e => {
+          const p = JSON.parse(e.data)
+          progress.set(p.name, p)
+          if (p.error) console.warn(p.name, p.error)
+        })
+        es.addEventListener('done', async e => {
+          es.close()
+          const info = JSON.parse(e.data)
+          const spec = app.spec()
+          const tRender = performance.now()
+          snapshotData = fetchSnapshots()
+          $('app').replaceChildren()
+          app = createApp($('app'), { snapshot: () => snapshotData })
+          window.__app = app
+          app.applyText(spec)
+          await app.settled()
+          clearInterval(tick)
+          show(`ran in ${fmt(info.ms)}${info.failed ? ` · ${info.failed} failed (kept their last run)` : ''} · re-rendered in ${fmt(performance.now() - tRender)}`)
+          app.setStatus(`Latest data · notebooks ran in ${fmt(info.ms)}`)
+          showSources()
+          $('go').disabled = $('iterate').disabled = $('rerun').disabled = false
+        })
+      }
+      $('go').onclick = () => run('generate')
+      $('iterate').onclick = () => run('iterate')
+      $('rerun').onclick = rerun
+    </script>
+  </body>
+</html>

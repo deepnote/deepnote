@@ -1,0 +1,66 @@
+{
+  "status": "pass",
+  "expected_month": "2026-09",
+  "last_good_month": "2026-09",
+  "simulated_issue": null,
+  "tables": [
+    {
+      "table": "accounts",
+      "rows": 1173,
+      "latest": "2026-09",
+      "description": "Customer accounts",
+      "status": "pass"
+    },
+    {
+      "table": "mrr",
+      "rows": 24622,
+      "latest": "2026-09",
+      "description": "Monthly recurring revenue",
+      "status": "pass"
+    },
+    {
+      "table": "opportunities",
+      "rows": 1485,
+      "latest": "2026-Q4",
+      "description": "Pipeline by quarter",
+      "status": "pass"
+    }
+  ],
+  "checks": [
+    {
+      "table": "mrr",
+      "check": "Revenue loaded through the expected month",
+      "failures": 0,
+      "detail": "latest month is 2026-09, expected 2026-09",
+      "status": "pass"
+    },
+    {
+      "table": "mrr",
+      "check": "One row per account and month",
+      "failures": 0,
+      "detail": "0 duplicate account-months",
+      "status": "pass"
+    },
+    {
+      "table": "mrr",
+      "check": "MRR is positive",
+      "failures": 0,
+      "detail": "0 rows with zero, negative or missing MRR",
+      "status": "pass"
+    },
+    {
+      "table": "mrr",
+      "check": "Every row has a known account",
+      "failures": 0,
+      "detail": "0 unknown account IDs",
+      "status": "pass"
+    },
+    {
+      "table": "opportunities",
+      "check": "Pipeline values are valid",
+      "failures": 0,
+      "detail": "0 invalid opportunities",
+      "status": "pass"
+    }
+  ]
+}

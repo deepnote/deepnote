@@ -1,0 +1,277 @@
+{
+  "scope": {
+    "region": "All",
+    "segment": "All",
+    "quarter": "2026-Q3",
+    "prior_quarter": "2026-Q2",
+    "as_of": "2026-09"
+  },
+  "kpis": {
+    "ending_arr": 50425905.72,
+    "prior_ending_arr": 48628379.28,
+    "nrr": 0.9983,
+    "prior_nrr": 0.9952,
+    "grr": 0.8786,
+    "prior_grr": 0.897,
+    "churned_arr": 1686444.48,
+    "coverage": 2.89,
+    "prior_coverage": 3.08,
+    "next_quarter": "2026-Q4"
+  },
+  "story": {
+    "title": "Where the company's revenue went in 2026-Q3",
+    "standfirst": "Net revenue retention rose 0.3 points to 99.8% in 2026-Q3. 3 accounts make up 50% of the lost ARR.",
+    "bridge": "ARR rose by $1.80M, and new business did most of it",
+    "regions": "Only EMEA fell against 2026-Q2; 3 other regions rose",
+    "accounts": "3 accounts explain 50% of the lost ARR",
+    "analyst": null
+  },
+  "bridge": [
+    {
+      "step": "Starting ARR",
+      "arr": 48628379.28
+    },
+    {
+      "step": "New",
+      "arr": 2538628.56
+    },
+    {
+      "step": "Expansion",
+      "arr": 1848503.64
+    },
+    {
+      "step": "Contraction",
+      "arr": -903161.28
+    },
+    {
+      "step": "Churn",
+      "arr": -1686444.48
+    },
+    {
+      "step": "Ending ARR",
+      "arr": 50425905.72
+    }
+  ],
+  "nrr_by_region": [
+    {
+      "quarter": "2025-Q1",
+      "region": "APAC",
+      "nrr": 1.1098
+    },
+    {
+      "quarter": "2025-Q1",
+      "region": "EMEA",
+      "nrr": 1.0084
+    },
+    {
+      "quarter": "2025-Q1",
+      "region": "LATAM",
+      "nrr": 1.157
+    },
+    {
+      "quarter": "2025-Q1",
+      "region": "North America",
+      "nrr": 1.0618
+    },
+    {
+      "quarter": "2025-Q2",
+      "region": "APAC",
+      "nrr": 1.1038
+    },
+    {
+      "quarter": "2025-Q2",
+      "region": "EMEA",
+      "nrr": 1.0098
+    },
+    {
+      "quarter": "2025-Q2",
+      "region": "LATAM",
+      "nrr": 1.0473
+    },
+    {
+      "quarter": "2025-Q2",
+      "region": "North America",
+      "nrr": 1.1033
+    },
+    {
+      "quarter": "2025-Q3",
+      "region": "APAC",
+      "nrr": 1.0169
+    },
+    {
+      "quarter": "2025-Q3",
+      "region": "EMEA",
+      "nrr": 0.9729
+    },
+    {
+      "quarter": "2025-Q3",
+      "region": "LATAM",
+      "nrr": 1.0156
+    },
+    {
+      "quarter": "2025-Q3",
+      "region": "North America",
+      "nrr": 1.0458
+    },
+    {
+      "quarter": "2025-Q4",
+      "region": "APAC",
+      "nrr": 1.026
+    },
+    {
+      "quarter": "2025-Q4",
+      "region": "EMEA",
+      "nrr": 0.976
+    },
+    {
+      "quarter": "2025-Q4",
+      "region": "LATAM",
+      "nrr": 0.9948
+    },
+    {
+      "quarter": "2025-Q4",
+      "region": "North America",
+      "nrr": 1.0587
+    },
+    {
+      "quarter": "2026-Q1",
+      "region": "APAC",
+      "nrr": 0.9771
+    },
+    {
+      "quarter": "2026-Q1",
+      "region": "EMEA",
+      "nrr": 0.9707
+    },
+    {
+      "quarter": "2026-Q1",
+      "region": "LATAM",
+      "nrr": 1.0046
+    },
+    {
+      "quarter": "2026-Q1",
+      "region": "North America",
+      "nrr": 1.0483
+    },
+    {
+      "quarter": "2026-Q2",
+      "region": "APAC",
+      "nrr": 0.9861
+    },
+    {
+      "quarter": "2026-Q2",
+      "region": "EMEA",
+      "nrr": 0.9975
+    },
+    {
+      "quarter": "2026-Q2",
+      "region": "LATAM",
+      "nrr": 1.1273
+    },
+    {
+      "quarter": "2026-Q2",
+      "region": "North America",
+      "nrr": 0.9826
+    },
+    {
+      "quarter": "2026-Q3",
+      "region": "APAC",
+      "nrr": 1.064
+    },
+    {
+      "quarter": "2026-Q3",
+      "region": "EMEA",
+      "nrr": 0.8777
+    },
+    {
+      "quarter": "2026-Q3",
+      "region": "LATAM",
+      "nrr": 1.1709
+    },
+    {
+      "quarter": "2026-Q3",
+      "region": "North America",
+      "nrr": 1.0321
+    }
+  ],
+  "region_moves": {
+    "APAC": 7.8,
+    "EMEA": -12,
+    "LATAM": 4.4,
+    "North America": 4.9
+  },
+  "movers": [
+    {
+      "account": "Vireo Retail Group",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "movement": "Churn",
+      "arr_start": 888000,
+      "arr_end": 0,
+      "arr_change": -888000
+    },
+    {
+      "account": "Halcyon Health",
+      "region": "North America",
+      "segment": "Enterprise",
+      "movement": "Expansion",
+      "arr_start": 696000,
+      "arr_end": 1113600,
+      "arr_change": 417600
+    },
+    {
+      "account": "Calder Health",
+      "region": "North America",
+      "segment": "Enterprise",
+      "movement": "New",
+      "arr_start": 0,
+      "arr_end": 370572.96,
+      "arr_change": 370572.96
+    },
+    {
+      "account": "Nordhafen Logistics",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "movement": "Contraction",
+      "arr_start": 1152000,
+      "arr_end": 864000,
+      "arr_change": -288000
+    },
+    {
+      "account": "Meridian Energy Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "movement": "New",
+      "arr_start": 0,
+      "arr_end": 230907.36,
+      "arr_change": 230907.36
+    },
+    {
+      "account": "Granite Labs International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "movement": "New",
+      "arr_start": 0,
+      "arr_end": 224173.32,
+      "arr_change": 224173.32
+    },
+    {
+      "account": "Kinetic Studios International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "movement": "New",
+      "arr_start": 0,
+      "arr_end": 223621.44,
+      "arr_change": 223621.44
+    },
+    {
+      "account": "Harbor Works International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "movement": "New",
+      "arr_start": 0,
+      "arr_end": 186653.04,
+      "arr_change": 186653.04
+    }
+  ]
+}

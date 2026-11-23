@@ -1,0 +1,32 @@
+[
+  {
+    "name": "revenue_review",
+    "snapshot": "snapshots/revenue-review.json",
+    "notebook": "snapshots/.build/revenue-review/revenue-review.deepnote",
+    "inputs": { "region": "All", "segment": "All", "quarter": "2026-Q3", "question": "" }
+  },
+  {
+    "name": "account_health",
+    "snapshot": "snapshots/account-health.json",
+    "notebook": "snapshots/.build/account-health/account-health.deepnote",
+    "inputs": { "region": "All", "risk_threshold": "60", "notify": false }
+  },
+  {
+    "name": "deal_desk",
+    "snapshot": "snapshots/deal-desk.json",
+    "notebook": "snapshots/.build/deal-desk/deal-desk.deepnote",
+    "inputs": { "account_id": "ACC-1003", "term_years": "1" }
+  },
+  {
+    "name": "data_health",
+    "snapshot": "snapshots/data-health.json",
+    "notebook": "snapshots/.build/data-health/data-health.deepnote",
+    "inputs": { "simulate_issue": "None", "fail_on_issue": false }
+  },
+  {
+    "name": "pricing_planner",
+    "snapshot": "snapshots/pricing-planner.json",
+    "notebook": "snapshots/.build/pricing-planner/pricing-planner.deepnote",
+    "outputFile": "baseline.json"
+  }
+]

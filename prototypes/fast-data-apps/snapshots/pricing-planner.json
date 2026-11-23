@@ -1,0 +1,50 @@
+{
+  "as_of": "2026-09",
+  "groups": [
+    {
+      "segment": "Enterprise",
+      "price_plan": "Legacy",
+      "accounts": 116,
+      "arr": 30083265,
+      "monthly_churn": 0.00503,
+      "monthly_contraction": 0.00528,
+      "monthly_expansion": 0.01297
+    },
+    {
+      "segment": "Mid-market",
+      "price_plan": "2026 price list",
+      "accounts": 58,
+      "arr": 2557956,
+      "monthly_churn": 0.01295,
+      "monthly_contraction": 0.00867,
+      "monthly_expansion": 0.00935
+    },
+    {
+      "segment": "Mid-market",
+      "price_plan": "Legacy",
+      "accounts": 296,
+      "arr": 13336210,
+      "monthly_churn": 0.0084,
+      "monthly_contraction": 0.0029,
+      "monthly_expansion": 0.01288
+    },
+    {
+      "segment": "SMB",
+      "price_plan": "2026 price list",
+      "accounts": 73,
+      "arr": 688383,
+      "monthly_churn": 0.01663,
+      "monthly_contraction": 0.00628,
+      "monthly_expansion": 0.00471
+    },
+    {
+      "segment": "SMB",
+      "price_plan": "Legacy",
+      "accounts": 405,
+      "arr": 3760092,
+      "monthly_churn": 0.01214,
+      "monthly_contraction": 0.00311,
+      "monthly_expansion": 0.00585
+    }
+  ]
+}

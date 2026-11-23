@@ -1,0 +1,6661 @@
+{
+  "as_of": "2026-09",
+  "accounts": [
+    {
+      "account_id": "ACC-1003",
+      "account": "Halcyon Health",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 1113600
+    },
+    {
+      "account_id": "ACC-1001",
+      "account": "Nordhafen Logistics",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 864000
+    },
+    {
+      "account_id": "ACC-1265",
+      "account": "Beacon Systems Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 772008
+    },
+    {
+      "account_id": "ACC-1004",
+      "account": "Sakura Mobility",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 631800
+    },
+    {
+      "account_id": "ACC-1002",
+      "account": "Kestrel Bank",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 622200
+    },
+    {
+      "account_id": "ACC-1469",
+      "account": "Halden Logistics",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 593112
+    },
+    {
+      "account_id": "ACC-1446",
+      "account": "Ardent Retail Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 546789
+    },
+    {
+      "account_id": "ACC-1017",
+      "account": "Crescent Group International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 526865
+    },
+    {
+      "account_id": "ACC-1300",
+      "account": "Orchard Systems International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 504741
+    },
+    {
+      "account_id": "ACC-1600",
+      "account": "Alder Retail",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 469777
+    },
+    {
+      "account_id": "ACC-1120",
+      "account": "Summit Mobility Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 463989
+    },
+    {
+      "account_id": "ACC-1388",
+      "account": "Quarry Studios Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 455914
+    },
+    {
+      "account_id": "ACC-1285",
+      "account": "Larkspur Freight International",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 445958
+    },
+    {
+      "account_id": "ACC-1194",
+      "account": "Brightwater Bio Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 436005
+    },
+    {
+      "account_id": "ACC-1436",
+      "account": "Pinecrest Analytics International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 430895
+    },
+    {
+      "account_id": "ACC-1195",
+      "account": "Harbor Analytics International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 424350
+    },
+    {
+      "account_id": "ACC-1006",
+      "account": "Silverline Insurance",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 420968
+    },
+    {
+      "account_id": "ACC-1135",
+      "account": "Harbor Labs Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 416195
+    },
+    {
+      "account_id": "ACC-1936",
+      "account": "Granite Mobility International",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 408825
+    },
+    {
+      "account_id": "ACC-1626",
+      "account": "Ember Studios Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 401795
+    },
+    {
+      "account_id": "ACC-2098",
+      "account": "Corvid Labs International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 393478
+    },
+    {
+      "account_id": "ACC-2165",
+      "account": "Calder Health",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 370573
+    },
+    {
+      "account_id": "ACC-1407",
+      "account": "Crescent Labs Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 359615
+    },
+    {
+      "account_id": "ACC-1806",
+      "account": "Calder Media Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 342884
+    },
+    {
+      "account_id": "ACC-1223",
+      "account": "Silverline Foods International",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 340914
+    },
+    {
+      "account_id": "ACC-2001",
+      "account": "Crescent Group Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 340642
+    },
+    {
+      "account_id": "ACC-1067",
+      "account": "Larkspur Insurance Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 335310
+    },
+    {
+      "account_id": "ACC-1317",
+      "account": "Lattice Health International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 329735
+    },
+    {
+      "account_id": "ACC-1962",
+      "account": "Corvid Media Holdings",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 320759
+    },
+    {
+      "account_id": "ACC-1750",
+      "account": "Meridian Retail International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 318247
+    },
+    {
+      "account_id": "ACC-1438",
+      "account": "Pinecrest Works",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 306737
+    },
+    {
+      "account_id": "ACC-1965",
+      "account": "Bluepeak Insurance Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 303942
+    },
+    {
+      "account_id": "ACC-1785",
+      "account": "Quarry Systems",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 302471
+    },
+    {
+      "account_id": "ACC-1723",
+      "account": "Tidewater Media",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 297657
+    },
+    {
+      "account_id": "ACC-1525",
+      "account": "Alder Foods Holdings",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 289335
+    },
+    {
+      "account_id": "ACC-1899",
+      "account": "Ardent Works International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 289086
+    },
+    {
+      "account_id": "ACC-1913",
+      "account": "Brightwater Supply",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 282126
+    },
+    {
+      "account_id": "ACC-1576",
+      "account": "Meridian Systems Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 273496
+    },
+    {
+      "account_id": "ACC-2011",
+      "account": "Ridgeway Capital Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 271479
+    },
+    {
+      "account_id": "ACC-1053",
+      "account": "Alder Capital Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 265855
+    },
+    {
+      "account_id": "ACC-1568",
+      "account": "Ember Retail",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 265066
+    },
+    {
+      "account_id": "ACC-1777",
+      "account": "Crescent Labs International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 257656
+    },
+    {
+      "account_id": "ACC-1181",
+      "account": "Solano Bio Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 252882
+    },
+    {
+      "account_id": "ACC-1680",
+      "account": "Silverline Insurance International",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 249452
+    },
+    {
+      "account_id": "ACC-1336",
+      "account": "Halden Foods International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 246345
+    },
+    {
+      "account_id": "ACC-2048",
+      "account": "Marlow Systems Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 242959
+    },
+    {
+      "account_id": "ACC-1790",
+      "account": "Summit Freight International",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 240195
+    },
+    {
+      "account_id": "ACC-2042",
+      "account": "Solano Mobility",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 238652
+    },
+    {
+      "account_id": "ACC-2032",
+      "account": "Brightwater Partners",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 233620
+    },
+    {
+      "account_id": "ACC-2169",
+      "account": "Meridian Energy Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 230907
+    },
+    {
+      "account_id": "ACC-2138",
+      "account": "Granite Labs International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 224173
+    },
+    {
+      "account_id": "ACC-2113",
+      "account": "Kinetic Studios International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 223621
+    },
+    {
+      "account_id": "ACC-1221",
+      "account": "Calder Bio Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 222318
+    },
+    {
+      "account_id": "ACC-1733",
+      "account": "Corvid Insurance International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 221756
+    },
+    {
+      "account_id": "ACC-1252",
+      "account": "Beacon Insurance Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 218318
+    },
+    {
+      "account_id": "ACC-2077",
+      "account": "Tessel Logistics",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 216718
+    },
+    {
+      "account_id": "ACC-1163",
+      "account": "Summit Labs",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 214392
+    },
+    {
+      "account_id": "ACC-1854",
+      "account": "Pinecrest Media Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 213473
+    },
+    {
+      "account_id": "ACC-1693",
+      "account": "Orchard Labs",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 208091
+    },
+    {
+      "account_id": "ACC-1203",
+      "account": "Oakmont Bio Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 204508
+    },
+    {
+      "account_id": "ACC-1492",
+      "account": "Silverline Bio International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 204281
+    },
+    {
+      "account_id": "ACC-2039",
+      "account": "Tessel Insurance Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 202970
+    },
+    {
+      "account_id": "ACC-1094",
+      "account": "Beacon Labs Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 201055
+    },
+    {
+      "account_id": "ACC-1886",
+      "account": "Ardent Health International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 200880
+    },
+    {
+      "account_id": "ACC-1731",
+      "account": "Juniper Capital International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 195411
+    },
+    {
+      "account_id": "ACC-1868",
+      "account": "Granite Energy International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 193012
+    },
+    {
+      "account_id": "ACC-1737",
+      "account": "Kinetic Systems International",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 191086
+    },
+    {
+      "account_id": "ACC-1029",
+      "account": "Ridgeway Media",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 189960
+    },
+    {
+      "account_id": "ACC-1268",
+      "account": "Corvid Freight International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 188477
+    },
+    {
+      "account_id": "ACC-1677",
+      "account": "Brightwater Retail",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 186839
+    },
+    {
+      "account_id": "ACC-2126",
+      "account": "Harbor Works International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 186653
+    },
+    {
+      "account_id": "ACC-2015",
+      "account": "Bluepeak Mobility Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 182117
+    },
+    {
+      "account_id": "ACC-1472",
+      "account": "Ember Supply International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 181965
+    },
+    {
+      "account_id": "ACC-1401",
+      "account": "Copperleaf Retail Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 179944
+    },
+    {
+      "account_id": "ACC-2083",
+      "account": "Bluepeak Media International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 178927
+    },
+    {
+      "account_id": "ACC-2081",
+      "account": "Juniper Supply",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 177961
+    },
+    {
+      "account_id": "ACC-1912",
+      "account": "Corvid Studios",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 176542
+    },
+    {
+      "account_id": "ACC-1614",
+      "account": "Crescent Systems International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 176090
+    },
+    {
+      "account_id": "ACC-1658",
+      "account": "Kinetic Capital International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 174752
+    },
+    {
+      "account_id": "ACC-2014",
+      "account": "Marlow Foods Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 173197
+    },
+    {
+      "account_id": "ACC-1494",
+      "account": "Ridgeway Systems Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 171614
+    },
+    {
+      "account_id": "ACC-1217",
+      "account": "Bluepeak Energy International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 171137
+    },
+    {
+      "account_id": "ACC-1657",
+      "account": "Pinecrest Energy International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 165876
+    },
+    {
+      "account_id": "ACC-2004",
+      "account": "Silverline Partners Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 165671
+    },
+    {
+      "account_id": "ACC-1707",
+      "account": "Tessel Partners",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 164167
+    },
+    {
+      "account_id": "ACC-1722",
+      "account": "Oakmont Bio International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 162740
+    },
+    {
+      "account_id": "ACC-2129",
+      "account": "Tessel Works",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 160894
+    },
+    {
+      "account_id": "ACC-1413",
+      "account": "Kinetic Foods International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 156248
+    },
+    {
+      "account_id": "ACC-1742",
+      "account": "Westbrook Analytics",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 152270
+    },
+    {
+      "account_id": "ACC-1408",
+      "account": "Lattice Systems",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 147710
+    },
+    {
+      "account_id": "ACC-1781",
+      "account": "Juniper Analytics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 147611
+    },
+    {
+      "account_id": "ACC-1350",
+      "account": "Tessel Mobility Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 147496
+    },
+    {
+      "account_id": "ACC-1897",
+      "account": "Lattice Energy",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 146772
+    },
+    {
+      "account_id": "ACC-1681",
+      "account": "Aster Insurance",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 142963
+    },
+    {
+      "account_id": "ACC-1291",
+      "account": "Larkspur Partners International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 141670
+    },
+    {
+      "account_id": "ACC-2043",
+      "account": "Oakmont Group International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 138924
+    },
+    {
+      "account_id": "ACC-1114",
+      "account": "Marlow Logistics International",
+      "region": "LATAM",
+      "segment": "Enterprise",
+      "arr": 136941
+    },
+    {
+      "account_id": "ACC-1466",
+      "account": "Fernhill Health International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 136375
+    },
+    {
+      "account_id": "ACC-1180",
+      "account": "Juniper Media International",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 135753
+    },
+    {
+      "account_id": "ACC-1519",
+      "account": "Tessel Group Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 135006
+    },
+    {
+      "account_id": "ACC-2092",
+      "account": "Silverline Analytics",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 133959
+    },
+    {
+      "account_id": "ACC-1660",
+      "account": "Westbrook Retail International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 133289
+    },
+    {
+      "account_id": "ACC-1170",
+      "account": "Brightwater Works",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 132358
+    },
+    {
+      "account_id": "ACC-1412",
+      "account": "Harbor Works",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 127229
+    },
+    {
+      "account_id": "ACC-2076",
+      "account": "Lattice Bio Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 124972
+    },
+    {
+      "account_id": "ACC-1110",
+      "account": "Pinecrest Freight International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 124081
+    },
+    {
+      "account_id": "ACC-1280",
+      "account": "Ardent Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 121790
+    },
+    {
+      "account_id": "ACC-1108",
+      "account": "Copperleaf Insurance Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 119234
+    },
+    {
+      "account_id": "ACC-1258",
+      "account": "Silverline Supply",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 117024
+    },
+    {
+      "account_id": "ACC-1646",
+      "account": "Beacon Mobility Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 116987
+    },
+    {
+      "account_id": "ACC-1535",
+      "account": "Alder Retail International",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 116325
+    },
+    {
+      "account_id": "ACC-1671",
+      "account": "Larkspur Mobility International",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 113660
+    },
+    {
+      "account_id": "ACC-1374",
+      "account": "Driftwood Capital Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 112148
+    },
+    {
+      "account_id": "ACC-1481",
+      "account": "Northwind Insurance Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 107610
+    },
+    {
+      "account_id": "ACC-1560",
+      "account": "Halden Energy",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 105614
+    },
+    {
+      "account_id": "ACC-1398",
+      "account": "Halden Health",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 104251
+    },
+    {
+      "account_id": "ACC-1561",
+      "account": "Lattice Logistics",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 101740
+    },
+    {
+      "account_id": "ACC-1477",
+      "account": "Fernhill Analytics",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 100041
+    },
+    {
+      "account_id": "ACC-1384",
+      "account": "Kinetic Analytics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 99072
+    },
+    {
+      "account_id": "ACC-1844",
+      "account": "Ardent Group Holdings",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 98302
+    },
+    {
+      "account_id": "ACC-2003",
+      "account": "Driftwood Insurance International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 97206
+    },
+    {
+      "account_id": "ACC-1602",
+      "account": "Harbor Health Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 94306
+    },
+    {
+      "account_id": "ACC-1319",
+      "account": "Silverline Foods",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 92447
+    },
+    {
+      "account_id": "ACC-1771",
+      "account": "Halden Foods Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 92385
+    },
+    {
+      "account_id": "ACC-1041",
+      "account": "Alder Media",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 92306
+    },
+    {
+      "account_id": "ACC-1775",
+      "account": "Fernhill Systems",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 92199
+    },
+    {
+      "account_id": "ACC-1559",
+      "account": "Silverline Systems Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 92045
+    },
+    {
+      "account_id": "ACC-1297",
+      "account": "Marlow Group",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 91617
+    },
+    {
+      "account_id": "ACC-1590",
+      "account": "Northwind Supply International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 90698
+    },
+    {
+      "account_id": "ACC-1583",
+      "account": "Brightwater Logistics Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 90060
+    },
+    {
+      "account_id": "ACC-1538",
+      "account": "Vantage Retail",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 89632
+    },
+    {
+      "account_id": "ACC-1239",
+      "account": "Fernhill Supply International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 89149
+    },
+    {
+      "account_id": "ACC-1124",
+      "account": "Ardent Insurance Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 88280
+    },
+    {
+      "account_id": "ACC-1628",
+      "account": "Vantage Insurance",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 87869
+    },
+    {
+      "account_id": "ACC-1512",
+      "account": "Granite Logistics International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 87422
+    },
+    {
+      "account_id": "ACC-1340",
+      "account": "Tessel Studios Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 87076
+    },
+    {
+      "account_id": "ACC-1842",
+      "account": "Brightwater Media Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 85298
+    },
+    {
+      "account_id": "ACC-1376",
+      "account": "Beacon Media International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 83722
+    },
+    {
+      "account_id": "ACC-1362",
+      "account": "Alder Capital International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 83463
+    },
+    {
+      "account_id": "ACC-1500",
+      "account": "Pinecrest Bio Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 83121
+    },
+    {
+      "account_id": "ACC-1776",
+      "account": "Westbrook Mobility International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 82351
+    },
+    {
+      "account_id": "ACC-1516",
+      "account": "Corvid Mobility International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 80594
+    },
+    {
+      "account_id": "ACC-1332",
+      "account": "Oakmont Health Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 80588
+    },
+    {
+      "account_id": "ACC-1409",
+      "account": "Lattice Group Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 80524
+    },
+    {
+      "account_id": "ACC-1270",
+      "account": "Marlow Group Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 79691
+    },
+    {
+      "account_id": "ACC-1741",
+      "account": "Copperleaf Labs International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 79364
+    },
+    {
+      "account_id": "ACC-1648",
+      "account": "Harbor Media Holdings",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 79237
+    },
+    {
+      "account_id": "ACC-1125",
+      "account": "Quarry Mobility International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 76745
+    },
+    {
+      "account_id": "ACC-1231",
+      "account": "Westbrook Capital Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 76686
+    },
+    {
+      "account_id": "ACC-2013",
+      "account": "Pinecrest Studios Holdings",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 76141
+    },
+    {
+      "account_id": "ACC-1313",
+      "account": "Silverline Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 75753
+    },
+    {
+      "account_id": "ACC-1368",
+      "account": "Westbrook Labs Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 75609
+    },
+    {
+      "account_id": "ACC-1755",
+      "account": "Westbrook Capital",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 75585
+    },
+    {
+      "account_id": "ACC-1443",
+      "account": "Crescent Studios",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 73623
+    },
+    {
+      "account_id": "ACC-1615",
+      "account": "Meridian Media",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 73059
+    },
+    {
+      "account_id": "ACC-1061",
+      "account": "Lattice Studios International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 72718
+    },
+    {
+      "account_id": "ACC-1684",
+      "account": "Silverline Group",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 72524
+    },
+    {
+      "account_id": "ACC-1429",
+      "account": "Halden Supply International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 71733
+    },
+    {
+      "account_id": "ACC-1456",
+      "account": "Brightwater Supply International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 71724
+    },
+    {
+      "account_id": "ACC-2114",
+      "account": "Oakmont Health",
+      "region": "North America",
+      "segment": "Enterprise",
+      "arr": 71196
+    },
+    {
+      "account_id": "ACC-1295",
+      "account": "Ardent Insurance International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 70468
+    },
+    {
+      "account_id": "ACC-1155",
+      "account": "Alder Systems",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 70433
+    },
+    {
+      "account_id": "ACC-1107",
+      "account": "Harbor Works Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 68990
+    },
+    {
+      "account_id": "ACC-2121",
+      "account": "Solano Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 68982
+    },
+    {
+      "account_id": "ACC-1937",
+      "account": "Meridian Works International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 67664
+    },
+    {
+      "account_id": "ACC-1998",
+      "account": "Larkspur Supply Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 67139
+    },
+    {
+      "account_id": "ACC-1057",
+      "account": "Lattice Labs International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 67009
+    },
+    {
+      "account_id": "ACC-1557",
+      "account": "Silverline Logistics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 65702
+    },
+    {
+      "account_id": "ACC-1977",
+      "account": "Ridgeway Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 65610
+    },
+    {
+      "account_id": "ACC-2090",
+      "account": "Silverline Labs International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 65269
+    },
+    {
+      "account_id": "ACC-1798",
+      "account": "Marlow Media International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 65152
+    },
+    {
+      "account_id": "ACC-1729",
+      "account": "Orchard Retail Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 65083
+    },
+    {
+      "account_id": "ACC-1448",
+      "account": "Orchard Insurance International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 65042
+    },
+    {
+      "account_id": "ACC-1445",
+      "account": "Pinecrest Labs Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 64650
+    },
+    {
+      "account_id": "ACC-2086",
+      "account": "Larkspur Logistics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 64291
+    },
+    {
+      "account_id": "ACC-2005",
+      "account": "Ardent Mobility Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 64089
+    },
+    {
+      "account_id": "ACC-1382",
+      "account": "Crescent Partners International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 63884
+    },
+    {
+      "account_id": "ACC-1065",
+      "account": "Granite Studios Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 63581
+    },
+    {
+      "account_id": "ACC-1467",
+      "account": "Copperleaf Foods International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 63169
+    },
+    {
+      "account_id": "ACC-1035",
+      "account": "Pinecrest Insurance International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 62978
+    },
+    {
+      "account_id": "ACC-1712",
+      "account": "Westbrook Supply",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 62860
+    },
+    {
+      "account_id": "ACC-1312",
+      "account": "Corvid Studios Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 62418
+    },
+    {
+      "account_id": "ACC-1209",
+      "account": "Ardent Capital",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 61558
+    },
+    {
+      "account_id": "ACC-1076",
+      "account": "Vantage Media International",
+      "region": "APAC",
+      "segment": "Enterprise",
+      "arr": 61375
+    },
+    {
+      "account_id": "ACC-1730",
+      "account": "Harbor Partners Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 60813
+    },
+    {
+      "account_id": "ACC-1537",
+      "account": "Oakmont Freight",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 60229
+    },
+    {
+      "account_id": "ACC-1171",
+      "account": "Summit Capital Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 60208
+    },
+    {
+      "account_id": "ACC-1635",
+      "account": "Lattice Capital International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 60127
+    },
+    {
+      "account_id": "ACC-1871",
+      "account": "Larkspur Systems Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 59905
+    },
+    {
+      "account_id": "ACC-1880",
+      "account": "Orchard Logistics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 59750
+    },
+    {
+      "account_id": "ACC-1493",
+      "account": "Alder Analytics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 59208
+    },
+    {
+      "account_id": "ACC-1196",
+      "account": "Granite Analytics International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 58141
+    },
+    {
+      "account_id": "ACC-1739",
+      "account": "Granite Supply International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 57913
+    },
+    {
+      "account_id": "ACC-1786",
+      "account": "Ridgeway Logistics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 57347
+    },
+    {
+      "account_id": "ACC-1872",
+      "account": "Ridgeway Energy International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 56829
+    },
+    {
+      "account_id": "ACC-1650",
+      "account": "Tessel Energy Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 56294
+    },
+    {
+      "account_id": "ACC-1759",
+      "account": "Meridian Group Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 55744
+    },
+    {
+      "account_id": "ACC-1619",
+      "account": "Tidewater Media Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 55518
+    },
+    {
+      "account_id": "ACC-1315",
+      "account": "Bluepeak Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 54933
+    },
+    {
+      "account_id": "ACC-1630",
+      "account": "Quarry Insurance Holdings",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 54672
+    },
+    {
+      "account_id": "ACC-1531",
+      "account": "Larkspur Foods",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 54031
+    },
+    {
+      "account_id": "ACC-1069",
+      "account": "Summit Supply Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 53970
+    },
+    {
+      "account_id": "ACC-2142",
+      "account": "Lattice Health Holdings",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 53925
+    },
+    {
+      "account_id": "ACC-1950",
+      "account": "Kinetic Group",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 53818
+    },
+    {
+      "account_id": "ACC-1179",
+      "account": "Harbor Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 53800
+    },
+    {
+      "account_id": "ACC-1782",
+      "account": "Marlow Media Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 52873
+    },
+    {
+      "account_id": "ACC-1833",
+      "account": "Ember Foods International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 52867
+    },
+    {
+      "account_id": "ACC-1007",
+      "account": "Ridgeway Health",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 52710
+    },
+    {
+      "account_id": "ACC-2078",
+      "account": "Juniper Foods International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 52613
+    },
+    {
+      "account_id": "ACC-1757",
+      "account": "Lattice Logistics International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 52545
+    },
+    {
+      "account_id": "ACC-1145",
+      "account": "Bluepeak Labs Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 52361
+    },
+    {
+      "account_id": "ACC-1710",
+      "account": "Granite Media International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 52253
+    },
+    {
+      "account_id": "ACC-1727",
+      "account": "Driftwood Systems",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 52188
+    },
+    {
+      "account_id": "ACC-1490",
+      "account": "Westbrook Health Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 51966
+    },
+    {
+      "account_id": "ACC-1665",
+      "account": "Crescent Bio Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 51933
+    },
+    {
+      "account_id": "ACC-1009",
+      "account": "Meridian Retail Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 51779
+    },
+    {
+      "account_id": "ACC-1761",
+      "account": "Calder Supply",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 51615
+    },
+    {
+      "account_id": "ACC-1952",
+      "account": "Copperleaf Insurance",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 51548
+    },
+    {
+      "account_id": "ACC-1282",
+      "account": "Quarry Retail International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 51364
+    },
+    {
+      "account_id": "ACC-1585",
+      "account": "Ember Systems International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 50881
+    },
+    {
+      "account_id": "ACC-1620",
+      "account": "Brightwater Bio International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 50857
+    },
+    {
+      "account_id": "ACC-1476",
+      "account": "Marlow Studios",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 50809
+    },
+    {
+      "account_id": "ACC-1314",
+      "account": "Calder Freight",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 50682
+    },
+    {
+      "account_id": "ACC-1283",
+      "account": "Calder Health International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 50495
+    },
+    {
+      "account_id": "ACC-1984",
+      "account": "Oakmont Media Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 50442
+    },
+    {
+      "account_id": "ACC-2057",
+      "account": "Marlow Partners Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 50348
+    },
+    {
+      "account_id": "ACC-1573",
+      "account": "Alder Mobility Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 50229
+    },
+    {
+      "account_id": "ACC-1005",
+      "account": "Halden Media Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 49060
+    },
+    {
+      "account_id": "ACC-1900",
+      "account": "Northwind Insurance",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 48786
+    },
+    {
+      "account_id": "ACC-1169",
+      "account": "Ember Capital International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 48679
+    },
+    {
+      "account_id": "ACC-2110",
+      "account": "Calder Capital",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 48157
+    },
+    {
+      "account_id": "ACC-1027",
+      "account": "Quarry Partners Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 47813
+    },
+    {
+      "account_id": "ACC-1802",
+      "account": "Marlow Group International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 46975
+    },
+    {
+      "account_id": "ACC-1383",
+      "account": "Marlow Works International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 46902
+    },
+    {
+      "account_id": "ACC-1818",
+      "account": "Quarry Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 46732
+    },
+    {
+      "account_id": "ACC-1457",
+      "account": "Ember Media Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 46692
+    },
+    {
+      "account_id": "ACC-2143",
+      "account": "Northwind Foods International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 46416
+    },
+    {
+      "account_id": "ACC-1371",
+      "account": "Kinetic Foods",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 45905
+    },
+    {
+      "account_id": "ACC-1026",
+      "account": "Marlow Health International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 45806
+    },
+    {
+      "account_id": "ACC-1334",
+      "account": "Tessel Insurance",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 45709
+    },
+    {
+      "account_id": "ACC-2136",
+      "account": "Ardent Energy International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 45440
+    },
+    {
+      "account_id": "ACC-1792",
+      "account": "Harbor Mobility International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 45162
+    },
+    {
+      "account_id": "ACC-1858",
+      "account": "Orchard Insurance",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 44866
+    },
+    {
+      "account_id": "ACC-1760",
+      "account": "Aster Works International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 44830
+    },
+    {
+      "account_id": "ACC-2132",
+      "account": "Tessel Foods",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 44425
+    },
+    {
+      "account_id": "ACC-1784",
+      "account": "Halden Media",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 44208
+    },
+    {
+      "account_id": "ACC-2071",
+      "account": "Bluepeak Logistics International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 44084
+    },
+    {
+      "account_id": "ACC-1373",
+      "account": "Harbor Studios Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 43914
+    },
+    {
+      "account_id": "ACC-1487",
+      "account": "Pinecrest Capital International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 43669
+    },
+    {
+      "account_id": "ACC-1185",
+      "account": "Copperleaf Studios",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 43650
+    },
+    {
+      "account_id": "ACC-1921",
+      "account": "Vantage Works International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 43477
+    },
+    {
+      "account_id": "ACC-2026",
+      "account": "Crescent Media",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 43191
+    },
+    {
+      "account_id": "ACC-1521",
+      "account": "Ridgeway Retail International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 43167
+    },
+    {
+      "account_id": "ACC-1010",
+      "account": "Summit Supply",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 43126
+    },
+    {
+      "account_id": "ACC-1997",
+      "account": "Kinetic Retail International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 43109
+    },
+    {
+      "account_id": "ACC-1849",
+      "account": "Pinecrest Analytics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 43054
+    },
+    {
+      "account_id": "ACC-1431",
+      "account": "Bluepeak Health",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 42674
+    },
+    {
+      "account_id": "ACC-2155",
+      "account": "Silverline Supply International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 42526
+    },
+    {
+      "account_id": "ACC-1287",
+      "account": "Pinecrest Mobility",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 42374
+    },
+    {
+      "account_id": "ACC-1342",
+      "account": "Corvid Freight",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 42317
+    },
+    {
+      "account_id": "ACC-1768",
+      "account": "Orchard Health",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 42081
+    },
+    {
+      "account_id": "ACC-1241",
+      "account": "Northwind Systems Holdings",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 41876
+    },
+    {
+      "account_id": "ACC-1862",
+      "account": "Westbrook Systems",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 41870
+    },
+    {
+      "account_id": "ACC-1971",
+      "account": "Vantage Logistics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 41740
+    },
+    {
+      "account_id": "ACC-1999",
+      "account": "Pinecrest Health International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 41659
+    },
+    {
+      "account_id": "ACC-1326",
+      "account": "Tidewater Partners Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 41598
+    },
+    {
+      "account_id": "ACC-2112",
+      "account": "Halden Insurance Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 41222
+    },
+    {
+      "account_id": "ACC-1032",
+      "account": "Westbrook Partners",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 41123
+    },
+    {
+      "account_id": "ACC-1036",
+      "account": "Westbrook Labs International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 41015
+    },
+    {
+      "account_id": "ACC-1887",
+      "account": "Oakmont Media International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 40868
+    },
+    {
+      "account_id": "ACC-2033",
+      "account": "Brightwater Analytics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 40724
+    },
+    {
+      "account_id": "ACC-1584",
+      "account": "Granite Freight International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 40527
+    },
+    {
+      "account_id": "ACC-2052",
+      "account": "Corvid Works Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 40455
+    },
+    {
+      "account_id": "ACC-2128",
+      "account": "Quarry Logistics Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 40404
+    },
+    {
+      "account_id": "ACC-1173",
+      "account": "Summit Analytics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 40137
+    },
+    {
+      "account_id": "ACC-1640",
+      "account": "Driftwood Retail",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 40058
+    },
+    {
+      "account_id": "ACC-1359",
+      "account": "Juniper Labs",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 39977
+    },
+    {
+      "account_id": "ACC-1756",
+      "account": "Larkspur Energy",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 39786
+    },
+    {
+      "account_id": "ACC-1878",
+      "account": "Summit Foods",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 39733
+    },
+    {
+      "account_id": "ACC-1839",
+      "account": "Summit Health Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 39578
+    },
+    {
+      "account_id": "ACC-2072",
+      "account": "Alder Bio International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 39553
+    },
+    {
+      "account_id": "ACC-1910",
+      "account": "Meridian Partners",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 39457
+    },
+    {
+      "account_id": "ACC-1471",
+      "account": "Pinecrest Systems Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 39388
+    },
+    {
+      "account_id": "ACC-1669",
+      "account": "Ember Media International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 39164
+    },
+    {
+      "account_id": "ACC-1581",
+      "account": "Ridgeway Foods International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 39035
+    },
+    {
+      "account_id": "ACC-1361",
+      "account": "Corvid Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38760
+    },
+    {
+      "account_id": "ACC-1745",
+      "account": "Alder Labs",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38661
+    },
+    {
+      "account_id": "ACC-1713",
+      "account": "Alder Energy International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38612
+    },
+    {
+      "account_id": "ACC-2156",
+      "account": "Ember Mobility",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38569
+    },
+    {
+      "account_id": "ACC-1339",
+      "account": "Driftwood Supply Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 38512
+    },
+    {
+      "account_id": "ACC-1206",
+      "account": "Westbrook Health",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38320
+    },
+    {
+      "account_id": "ACC-1840",
+      "account": "Corvid Group Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38286
+    },
+    {
+      "account_id": "ACC-1134",
+      "account": "Lattice Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38273
+    },
+    {
+      "account_id": "ACC-1327",
+      "account": "Harbor Supply Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38166
+    },
+    {
+      "account_id": "ACC-1449",
+      "account": "Beacon Foods International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 38144
+    },
+    {
+      "account_id": "ACC-1970",
+      "account": "Tessel Bio Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 38131
+    },
+    {
+      "account_id": "ACC-1711",
+      "account": "Ardent Insurance",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 38123
+    },
+    {
+      "account_id": "ACC-1553",
+      "account": "Corvid Analytics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 38093
+    },
+    {
+      "account_id": "ACC-1932",
+      "account": "Meridian Labs Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 38090
+    },
+    {
+      "account_id": "ACC-2064",
+      "account": "Calder Insurance International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 37993
+    },
+    {
+      "account_id": "ACC-1008",
+      "account": "Juniper Insurance Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 37949
+    },
+    {
+      "account_id": "ACC-1705",
+      "account": "Vantage Energy Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 37865
+    },
+    {
+      "account_id": "ACC-1072",
+      "account": "Summit Media International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 37860
+    },
+    {
+      "account_id": "ACC-1284",
+      "account": "Westbrook Logistics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 37728
+    },
+    {
+      "account_id": "ACC-1687",
+      "account": "Ardent Analytics International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 37637
+    },
+    {
+      "account_id": "ACC-1200",
+      "account": "Orchard Energy",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 37617
+    },
+    {
+      "account_id": "ACC-1518",
+      "account": "Brightwater Foods",
+      "region": "EMEA",
+      "segment": "Enterprise",
+      "arr": 37602
+    },
+    {
+      "account_id": "ACC-1042",
+      "account": "Harbor Foods Holdings",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 37587
+    },
+    {
+      "account_id": "ACC-1642",
+      "account": "Quarry Media",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 37317
+    },
+    {
+      "account_id": "ACC-1426",
+      "account": "Crescent Media International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 37279
+    },
+    {
+      "account_id": "ACC-1749",
+      "account": "Ardent Studios",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 36938
+    },
+    {
+      "account_id": "ACC-1256",
+      "account": "Alder Group Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 36906
+    },
+    {
+      "account_id": "ACC-1321",
+      "account": "Fernhill Studios",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 36561
+    },
+    {
+      "account_id": "ACC-1863",
+      "account": "Kinetic Group International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 36449
+    },
+    {
+      "account_id": "ACC-1517",
+      "account": "Ridgeway Health International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 36298
+    },
+    {
+      "account_id": "ACC-2079",
+      "account": "Ridgeway Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 36145
+    },
+    {
+      "account_id": "ACC-1616",
+      "account": "Aster Group International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 36062
+    },
+    {
+      "account_id": "ACC-1253",
+      "account": "Oakmont Group",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 36057
+    },
+    {
+      "account_id": "ACC-1251",
+      "account": "Solano Analytics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 36042
+    },
+    {
+      "account_id": "ACC-1612",
+      "account": "Granite Foods International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 36039
+    },
+    {
+      "account_id": "ACC-2038",
+      "account": "Larkspur Bio International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 35791
+    },
+    {
+      "account_id": "ACC-1809",
+      "account": "Silverline Health International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 35775
+    },
+    {
+      "account_id": "ACC-1328",
+      "account": "Pinecrest Mobility Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 35696
+    },
+    {
+      "account_id": "ACC-1381",
+      "account": "Bluepeak Mobility",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 35429
+    },
+    {
+      "account_id": "ACC-1322",
+      "account": "Tidewater Labs Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 35411
+    },
+    {
+      "account_id": "ACC-1948",
+      "account": "Solano Mobility Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 35306
+    },
+    {
+      "account_id": "ACC-2161",
+      "account": "Vantage Labs",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 35113
+    },
+    {
+      "account_id": "ACC-2119",
+      "account": "Silverline Mobility",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 34905
+    },
+    {
+      "account_id": "ACC-2091",
+      "account": "Tessel Labs",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 34875
+    },
+    {
+      "account_id": "ACC-1721",
+      "account": "Copperleaf Foods Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 34815
+    },
+    {
+      "account_id": "ACC-1944",
+      "account": "Tidewater Insurance",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 34594
+    },
+    {
+      "account_id": "ACC-1330",
+      "account": "Solano Retail Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 34025
+    },
+    {
+      "account_id": "ACC-1498",
+      "account": "Aster Logistics International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 33998
+    },
+    {
+      "account_id": "ACC-2062",
+      "account": "Tessel Studios International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 33930
+    },
+    {
+      "account_id": "ACC-1410",
+      "account": "Quarry Health Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 33929
+    },
+    {
+      "account_id": "ACC-1558",
+      "account": "Harbor Mobility",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 33612
+    },
+    {
+      "account_id": "ACC-2022",
+      "account": "Crescent Foods International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 33396
+    },
+    {
+      "account_id": "ACC-2097",
+      "account": "Juniper Supply Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 33269
+    },
+    {
+      "account_id": "ACC-2017",
+      "account": "Marlow Bio International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 33234
+    },
+    {
+      "account_id": "ACC-1894",
+      "account": "Ember Group",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 33230
+    },
+    {
+      "account_id": "ACC-1592",
+      "account": "Northwind Foods",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 33128
+    },
+    {
+      "account_id": "ACC-1883",
+      "account": "Marlow Freight",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 33038
+    },
+    {
+      "account_id": "ACC-1796",
+      "account": "Vantage Insurance Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 33020
+    },
+    {
+      "account_id": "ACC-1403",
+      "account": "Halden Bio International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 32786
+    },
+    {
+      "account_id": "ACC-1649",
+      "account": "Driftwood Analytics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 32776
+    },
+    {
+      "account_id": "ACC-1885",
+      "account": "Vantage Retail International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 32764
+    },
+    {
+      "account_id": "ACC-1172",
+      "account": "Marlow Supply",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 32658
+    },
+    {
+      "account_id": "ACC-1826",
+      "account": "Tessel Systems",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 32524
+    },
+    {
+      "account_id": "ACC-1706",
+      "account": "Quarry Energy International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 32501
+    },
+    {
+      "account_id": "ACC-1588",
+      "account": "Oakmont Health International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 32478
+    },
+    {
+      "account_id": "ACC-2009",
+      "account": "Calder Supply International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 32191
+    },
+    {
+      "account_id": "ACC-1685",
+      "account": "Bluepeak Retail",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 32075
+    },
+    {
+      "account_id": "ACC-1510",
+      "account": "Driftwood Group",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 31806
+    },
+    {
+      "account_id": "ACC-1940",
+      "account": "Pinecrest Bio",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 31769
+    },
+    {
+      "account_id": "ACC-2041",
+      "account": "Ardent Labs Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 31721
+    },
+    {
+      "account_id": "ACC-1679",
+      "account": "Aster Health Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 31454
+    },
+    {
+      "account_id": "ACC-1434",
+      "account": "Driftwood Insurance Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 31336
+    },
+    {
+      "account_id": "ACC-1245",
+      "account": "Beacon Group Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 31196
+    },
+    {
+      "account_id": "ACC-2045",
+      "account": "Oakmont Logistics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 31132
+    },
+    {
+      "account_id": "ACC-1651",
+      "account": "Ridgeway Health Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 31089
+    },
+    {
+      "account_id": "ACC-1099",
+      "account": "Silverline Mobility International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 30931
+    },
+    {
+      "account_id": "ACC-1175",
+      "account": "Westbrook Bio International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 30809
+    },
+    {
+      "account_id": "ACC-2093",
+      "account": "Beacon Media",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 30754
+    },
+    {
+      "account_id": "ACC-1779",
+      "account": "Crescent Bio International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 30660
+    },
+    {
+      "account_id": "ACC-1485",
+      "account": "Aster Studios Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 30631
+    },
+    {
+      "account_id": "ACC-1424",
+      "account": "Crescent Group",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 30502
+    },
+    {
+      "account_id": "ACC-1013",
+      "account": "Corvid Analytics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 30439
+    },
+    {
+      "account_id": "ACC-1463",
+      "account": "Copperleaf Analytics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 30314
+    },
+    {
+      "account_id": "ACC-1144",
+      "account": "Tidewater Analytics International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 30266
+    },
+    {
+      "account_id": "ACC-1709",
+      "account": "Pinecrest Systems International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 30173
+    },
+    {
+      "account_id": "ACC-1167",
+      "account": "Copperleaf Health Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29961
+    },
+    {
+      "account_id": "ACC-1716",
+      "account": "Vantage Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 29911
+    },
+    {
+      "account_id": "ACC-1088",
+      "account": "Driftwood Capital",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29740
+    },
+    {
+      "account_id": "ACC-1058",
+      "account": "Halden Insurance International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29710
+    },
+    {
+      "account_id": "ACC-1390",
+      "account": "Ardent Partners International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 29595
+    },
+    {
+      "account_id": "ACC-2122",
+      "account": "Bluepeak Retail International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 29479
+    },
+    {
+      "account_id": "ACC-2171",
+      "account": "Pinecrest Logistics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29189
+    },
+    {
+      "account_id": "ACC-1355",
+      "account": "Northwind Group International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 29165
+    },
+    {
+      "account_id": "ACC-1882",
+      "account": "Oakmont Works",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29103
+    },
+    {
+      "account_id": "ACC-1118",
+      "account": "Lattice Logistics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29037
+    },
+    {
+      "account_id": "ACC-1907",
+      "account": "Oakmont Retail Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 29007
+    },
+    {
+      "account_id": "ACC-1929",
+      "account": "Ember Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 28922
+    },
+    {
+      "account_id": "ACC-1753",
+      "account": "Vantage Mobility Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 28909
+    },
+    {
+      "account_id": "ACC-1794",
+      "account": "Larkspur Analytics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 28845
+    },
+    {
+      "account_id": "ACC-1363",
+      "account": "Solano Energy Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 28808
+    },
+    {
+      "account_id": "ACC-1891",
+      "account": "Larkspur Health Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 28767
+    },
+    {
+      "account_id": "ACC-2063",
+      "account": "Oakmont Energy",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 28665
+    },
+    {
+      "account_id": "ACC-1504",
+      "account": "Brightwater Systems",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 28499
+    },
+    {
+      "account_id": "ACC-1189",
+      "account": "Alder Health",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 28425
+    },
+    {
+      "account_id": "ACC-1609",
+      "account": "Northwind Studios International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 28394
+    },
+    {
+      "account_id": "ACC-1484",
+      "account": "Granite Analytics Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 28369
+    },
+    {
+      "account_id": "ACC-1554",
+      "account": "Lattice Foods International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 28313
+    },
+    {
+      "account_id": "ACC-1653",
+      "account": "Crescent Analytics Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 28135
+    },
+    {
+      "account_id": "ACC-1925",
+      "account": "Beacon Insurance",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 28084
+    },
+    {
+      "account_id": "ACC-1604",
+      "account": "Silverline Supply Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 28034
+    },
+    {
+      "account_id": "ACC-1861",
+      "account": "Aster Group",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 28034
+    },
+    {
+      "account_id": "ACC-1143",
+      "account": "Summit Capital International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 27870
+    },
+    {
+      "account_id": "ACC-1935",
+      "account": "Larkspur Freight Holdings",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 27664
+    },
+    {
+      "account_id": "ACC-2068",
+      "account": "Northwind Retail Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 27585
+    },
+    {
+      "account_id": "ACC-1908",
+      "account": "Marlow Insurance",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 27487
+    },
+    {
+      "account_id": "ACC-1890",
+      "account": "Crescent Foods Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 27330
+    },
+    {
+      "account_id": "ACC-1511",
+      "account": "Larkspur Studios",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 27282
+    },
+    {
+      "account_id": "ACC-2164",
+      "account": "Copperleaf Logistics",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 27228
+    },
+    {
+      "account_id": "ACC-1864",
+      "account": "Juniper Systems Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 26965
+    },
+    {
+      "account_id": "ACC-1385",
+      "account": "Copperleaf Mobility",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 26836
+    },
+    {
+      "account_id": "ACC-1819",
+      "account": "Larkspur Retail Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 26827
+    },
+    {
+      "account_id": "ACC-1038",
+      "account": "Juniper Insurance",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 26758
+    },
+    {
+      "account_id": "ACC-1220",
+      "account": "Oakmont Studios",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 26733
+    },
+    {
+      "account_id": "ACC-1808",
+      "account": "Meridian Studios International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 26660
+    },
+    {
+      "account_id": "ACC-1875",
+      "account": "Meridian Analytics",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 26417
+    },
+    {
+      "account_id": "ACC-1439",
+      "account": "Pinecrest Logistics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 26406
+    },
+    {
+      "account_id": "ACC-1766",
+      "account": "Quarry Studios International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 26281
+    },
+    {
+      "account_id": "ACC-2080",
+      "account": "Oakmont Bio",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 26141
+    },
+    {
+      "account_id": "ACC-2006",
+      "account": "Orchard Energy International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 26120
+    },
+    {
+      "account_id": "ACC-1211",
+      "account": "Marlow Studios Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 26084
+    },
+    {
+      "account_id": "ACC-1043",
+      "account": "Copperleaf Freight",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 25975
+    },
+    {
+      "account_id": "ACC-2135",
+      "account": "Ember Capital Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 25870
+    },
+    {
+      "account_id": "ACC-1242",
+      "account": "Ember Works International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 25577
+    },
+    {
+      "account_id": "ACC-1772",
+      "account": "Meridian Works",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 25459
+    },
+    {
+      "account_id": "ACC-1822",
+      "account": "Marlow Bio",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 25418
+    },
+    {
+      "account_id": "ACC-1835",
+      "account": "Ardent Labs",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 24965
+    },
+    {
+      "account_id": "ACC-1955",
+      "account": "Larkspur Works Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 24953
+    },
+    {
+      "account_id": "ACC-2037",
+      "account": "Solano Analytics International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 24940
+    },
+    {
+      "account_id": "ACC-1654",
+      "account": "Pinecrest Systems",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 24591
+    },
+    {
+      "account_id": "ACC-1147",
+      "account": "Tidewater Partners International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 24423
+    },
+    {
+      "account_id": "ACC-2111",
+      "account": "Quarry Works",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 24342
+    },
+    {
+      "account_id": "ACC-1021",
+      "account": "Tessel Capital",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 24294
+    },
+    {
+      "account_id": "ACC-1618",
+      "account": "Driftwood Insurance",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 24219
+    },
+    {
+      "account_id": "ACC-1338",
+      "account": "Calder Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 24089
+    },
+    {
+      "account_id": "ACC-1478",
+      "account": "Marlow Labs",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 23990
+    },
+    {
+      "account_id": "ACC-1331",
+      "account": "Juniper Group",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 23957
+    },
+    {
+      "account_id": "ACC-1019",
+      "account": "Orchard Labs International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 23955
+    },
+    {
+      "account_id": "ACC-1243",
+      "account": "Ember Supply",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 23933
+    },
+    {
+      "account_id": "ACC-1964",
+      "account": "Westbrook Studios International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 23902
+    },
+    {
+      "account_id": "ACC-1063",
+      "account": "Harbor Media International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 23864
+    },
+    {
+      "account_id": "ACC-1526",
+      "account": "Copperleaf Studios International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 23855
+    },
+    {
+      "account_id": "ACC-1054",
+      "account": "Kinetic Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 23828
+    },
+    {
+      "account_id": "ACC-1275",
+      "account": "Summit Analytics International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 23816
+    },
+    {
+      "account_id": "ACC-1497",
+      "account": "Silverline Labs",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 23466
+    },
+    {
+      "account_id": "ACC-2118",
+      "account": "Fernhill Works Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 23334
+    },
+    {
+      "account_id": "ACC-1391",
+      "account": "Brightwater Health Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 23327
+    },
+    {
+      "account_id": "ACC-1738",
+      "account": "Pinecrest Foods",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 23030
+    },
+    {
+      "account_id": "ACC-1333",
+      "account": "Quarry Insurance International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 23027
+    },
+    {
+      "account_id": "ACC-1672",
+      "account": "Summit Studios",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 23000
+    },
+    {
+      "account_id": "ACC-2127",
+      "account": "Solano Supply International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 22720
+    },
+    {
+      "account_id": "ACC-1954",
+      "account": "Northwind Works",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 22595
+    },
+    {
+      "account_id": "ACC-1859",
+      "account": "Bluepeak Studios Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 21967
+    },
+    {
+      "account_id": "ACC-2145",
+      "account": "Vantage Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 21715
+    },
+    {
+      "account_id": "ACC-1610",
+      "account": "Aster Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 21339
+    },
+    {
+      "account_id": "ACC-2087",
+      "account": "Driftwood Energy International",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 21301
+    },
+    {
+      "account_id": "ACC-1530",
+      "account": "Harbor Foods",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 21174
+    },
+    {
+      "account_id": "ACC-1931",
+      "account": "Copperleaf Bio Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 21104
+    },
+    {
+      "account_id": "ACC-1150",
+      "account": "Juniper Studios International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 21062
+    },
+    {
+      "account_id": "ACC-1528",
+      "account": "Vantage Bio Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 21013
+    },
+    {
+      "account_id": "ACC-1018",
+      "account": "Fernhill Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 20985
+    },
+    {
+      "account_id": "ACC-1904",
+      "account": "Meridian Foods",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 20927
+    },
+    {
+      "account_id": "ACC-1307",
+      "account": "Solano Freight International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 20807
+    },
+    {
+      "account_id": "ACC-1316",
+      "account": "Summit Bio International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 20679
+    },
+    {
+      "account_id": "ACC-1834",
+      "account": "Granite Labs",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 20296
+    },
+    {
+      "account_id": "ACC-1797",
+      "account": "Harbor Energy International",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 20293
+    },
+    {
+      "account_id": "ACC-1884",
+      "account": "Quarry Media International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 20060
+    },
+    {
+      "account_id": "ACC-1442",
+      "account": "Kinetic Insurance Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 19800
+    },
+    {
+      "account_id": "ACC-2070",
+      "account": "Orchard Works",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 19751
+    },
+    {
+      "account_id": "ACC-1269",
+      "account": "Alder Foods",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 19740
+    },
+    {
+      "account_id": "ACC-1392",
+      "account": "Ember Logistics",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 19654
+    },
+    {
+      "account_id": "ACC-1459",
+      "account": "Crescent Capital",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 19599
+    },
+    {
+      "account_id": "ACC-1594",
+      "account": "Ardent Capital International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 19491
+    },
+    {
+      "account_id": "ACC-1596",
+      "account": "Meridian Insurance",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 19466
+    },
+    {
+      "account_id": "ACC-1202",
+      "account": "Halden Retail International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 19455
+    },
+    {
+      "account_id": "ACC-1807",
+      "account": "Halden Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 19254
+    },
+    {
+      "account_id": "ACC-1607",
+      "account": "Summit Partners International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 19235
+    },
+    {
+      "account_id": "ACC-1395",
+      "account": "Larkspur Partners",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 19065
+    },
+    {
+      "account_id": "ACC-1335",
+      "account": "Corvid Health Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 18852
+    },
+    {
+      "account_id": "ACC-1191",
+      "account": "Halden Capital International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 18651
+    },
+    {
+      "account_id": "ACC-2149",
+      "account": "Halden Capital",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 18544
+    },
+    {
+      "account_id": "ACC-2099",
+      "account": "Tidewater Energy Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 18476
+    },
+    {
+      "account_id": "ACC-1479",
+      "account": "Corvid Bio Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 18377
+    },
+    {
+      "account_id": "ACC-2046",
+      "account": "Tidewater Analytics",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 18364
+    },
+    {
+      "account_id": "ACC-1898",
+      "account": "Driftwood Partners Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 18309
+    },
+    {
+      "account_id": "ACC-1416",
+      "account": "Fernhill Studios International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 18263
+    },
+    {
+      "account_id": "ACC-1427",
+      "account": "Juniper Freight International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 17937
+    },
+    {
+      "account_id": "ACC-1237",
+      "account": "Tidewater Bio",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 17898
+    },
+    {
+      "account_id": "ACC-1489",
+      "account": "Driftwood Systems Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 17728
+    },
+    {
+      "account_id": "ACC-1656",
+      "account": "Aster Bio",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 17572
+    },
+    {
+      "account_id": "ACC-1157",
+      "account": "Aster Energy International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 17505
+    },
+    {
+      "account_id": "ACC-1430",
+      "account": "Solano Studios International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 17407
+    },
+    {
+      "account_id": "ACC-1787",
+      "account": "Alder Studios International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 17309
+    },
+    {
+      "account_id": "ACC-1232",
+      "account": "Kinetic Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 17275
+    },
+    {
+      "account_id": "ACC-1814",
+      "account": "Kinetic Health Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 17178
+    },
+    {
+      "account_id": "ACC-1432",
+      "account": "Halden Systems",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 17032
+    },
+    {
+      "account_id": "ACC-1947",
+      "account": "Granite Freight Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 17011
+    },
+    {
+      "account_id": "ACC-1405",
+      "account": "Marlow Capital International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16977
+    },
+    {
+      "account_id": "ACC-1769",
+      "account": "Kinetic Systems",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16968
+    },
+    {
+      "account_id": "ACC-2024",
+      "account": "Ardent Analytics",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 16963
+    },
+    {
+      "account_id": "ACC-1198",
+      "account": "Bluepeak Group",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16831
+    },
+    {
+      "account_id": "ACC-1725",
+      "account": "Meridian Capital International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16549
+    },
+    {
+      "account_id": "ACC-1959",
+      "account": "Bluepeak Bio",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16488
+    },
+    {
+      "account_id": "ACC-1570",
+      "account": "Kinetic Media",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 16411
+    },
+    {
+      "account_id": "ACC-1406",
+      "account": "Calder Analytics",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 16348
+    },
+    {
+      "account_id": "ACC-1219",
+      "account": "Silverline Labs Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16306
+    },
+    {
+      "account_id": "ACC-1238",
+      "account": "Larkspur Group Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 16216
+    },
+    {
+      "account_id": "ACC-1605",
+      "account": "Vantage Freight",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16203
+    },
+    {
+      "account_id": "ACC-1800",
+      "account": "Driftwood Logistics International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 16128
+    },
+    {
+      "account_id": "ACC-1389",
+      "account": "Solano Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16089
+    },
+    {
+      "account_id": "ACC-1813",
+      "account": "Harbor Labs International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16041
+    },
+    {
+      "account_id": "ACC-2096",
+      "account": "Alder Insurance International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 16035
+    },
+    {
+      "account_id": "ACC-1153",
+      "account": "Brightwater Energy",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 15791
+    },
+    {
+      "account_id": "ACC-1662",
+      "account": "Alder Group",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 15614
+    },
+    {
+      "account_id": "ACC-1829",
+      "account": "Ember Bio International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 15373
+    },
+    {
+      "account_id": "ACC-1717",
+      "account": "Northwind Media International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 15318
+    },
+    {
+      "account_id": "ACC-1911",
+      "account": "Quarry Mobility",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 15222
+    },
+    {
+      "account_id": "ACC-1192",
+      "account": "Pinecrest Energy",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 15162
+    },
+    {
+      "account_id": "ACC-2040",
+      "account": "Northwind Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 15150
+    },
+    {
+      "account_id": "ACC-1608",
+      "account": "Marlow Systems International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 15138
+    },
+    {
+      "account_id": "ACC-1638",
+      "account": "Orchard Partners Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 15071
+    },
+    {
+      "account_id": "ACC-1183",
+      "account": "Kinetic Labs Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 15034
+    },
+    {
+      "account_id": "ACC-1986",
+      "account": "Tessel Partners Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 15011
+    },
+    {
+      "account_id": "ACC-1823",
+      "account": "Tessel Labs Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 14969
+    },
+    {
+      "account_id": "ACC-2102",
+      "account": "Vantage Systems International",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 14956
+    },
+    {
+      "account_id": "ACC-1073",
+      "account": "Bluepeak Supply",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 14927
+    },
+    {
+      "account_id": "ACC-1378",
+      "account": "Summit Retail",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 14888
+    },
+    {
+      "account_id": "ACC-1142",
+      "account": "Beacon Mobility",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 14881
+    },
+    {
+      "account_id": "ACC-1105",
+      "account": "Calder Mobility International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 14785
+    },
+    {
+      "account_id": "ACC-1086",
+      "account": "Calder Partners Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 14782
+    },
+    {
+      "account_id": "ACC-1748",
+      "account": "Marlow Partners",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 14612
+    },
+    {
+      "account_id": "ACC-1093",
+      "account": "Corvid Labs Holdings",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 14588
+    },
+    {
+      "account_id": "ACC-1133",
+      "account": "Lattice Systems Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 14529
+    },
+    {
+      "account_id": "ACC-2159",
+      "account": "Quarry Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 14438
+    },
+    {
+      "account_id": "ACC-2075",
+      "account": "Tessel Health",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 14347
+    },
+    {
+      "account_id": "ACC-1212",
+      "account": "Aster Logistics Holdings",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 14326
+    },
+    {
+      "account_id": "ACC-1224",
+      "account": "Meridian Supply",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 14192
+    },
+    {
+      "account_id": "ACC-2058",
+      "account": "Pinecrest Labs International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 14175
+    },
+    {
+      "account_id": "ACC-1621",
+      "account": "Alder Media International",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 14100
+    },
+    {
+      "account_id": "ACC-1039",
+      "account": "Crescent Labs",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 14094
+    },
+    {
+      "account_id": "ACC-1050",
+      "account": "Marlow Supply International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 14076
+    },
+    {
+      "account_id": "ACC-1079",
+      "account": "Alder Studios",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 14007
+    },
+    {
+      "account_id": "ACC-1294",
+      "account": "Driftwood Analytics",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 14003
+    },
+    {
+      "account_id": "ACC-1281",
+      "account": "Larkspur Group International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13975
+    },
+    {
+      "account_id": "ACC-1394",
+      "account": "Orchard Freight",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 13730
+    },
+    {
+      "account_id": "ACC-1574",
+      "account": "Ridgeway Supply International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13694
+    },
+    {
+      "account_id": "ACC-1141",
+      "account": "Ridgeway Bio Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 13663
+    },
+    {
+      "account_id": "ACC-1207",
+      "account": "Granite Works International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 13643
+    },
+    {
+      "account_id": "ACC-1582",
+      "account": "Tidewater Partners",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13569
+    },
+    {
+      "account_id": "ACC-1545",
+      "account": "Tidewater Insurance Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13439
+    },
+    {
+      "account_id": "ACC-2160",
+      "account": "Vantage Freight International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13395
+    },
+    {
+      "account_id": "ACC-2172",
+      "account": "Oakmont Foods",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 13312
+    },
+    {
+      "account_id": "ACC-2016",
+      "account": "Larkspur Analytics International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13299
+    },
+    {
+      "account_id": "ACC-1736",
+      "account": "Northwind Freight",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 13280
+    },
+    {
+      "account_id": "ACC-1801",
+      "account": "Meridian Logistics Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13271
+    },
+    {
+      "account_id": "ACC-1793",
+      "account": "Bluepeak Group International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13227
+    },
+    {
+      "account_id": "ACC-1034",
+      "account": "Alder Logistics International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13124
+    },
+    {
+      "account_id": "ACC-1617",
+      "account": "Larkspur Partners Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13077
+    },
+    {
+      "account_id": "ACC-1087",
+      "account": "Vantage Group International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 13062
+    },
+    {
+      "account_id": "ACC-1926",
+      "account": "Tessel Analytics Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 13039
+    },
+    {
+      "account_id": "ACC-1838",
+      "account": "Alder Supply Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12984
+    },
+    {
+      "account_id": "ACC-1778",
+      "account": "Quarry Bio International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12962
+    },
+    {
+      "account_id": "ACC-2104",
+      "account": "Halden Mobility",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12936
+    },
+    {
+      "account_id": "ACC-2109",
+      "account": "Silverline Energy Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 12902
+    },
+    {
+      "account_id": "ACC-2158",
+      "account": "Oakmont Partners Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12889
+    },
+    {
+      "account_id": "ACC-1982",
+      "account": "Tessel Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12778
+    },
+    {
+      "account_id": "ACC-1460",
+      "account": "Brightwater Labs",
+      "region": "APAC",
+      "segment": "Mid-market",
+      "arr": 12745
+    },
+    {
+      "account_id": "ACC-1508",
+      "account": "Tidewater Foods Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 12667
+    },
+    {
+      "account_id": "ACC-1643",
+      "account": "Ember Systems Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 12601
+    },
+    {
+      "account_id": "ACC-1255",
+      "account": "Oakmont Supply",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 12572
+    },
+    {
+      "account_id": "ACC-2035",
+      "account": "Summit Insurance",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12466
+    },
+    {
+      "account_id": "ACC-1636",
+      "account": "Brightwater Studios",
+      "region": "EMEA",
+      "segment": "Mid-market",
+      "arr": 12428
+    },
+    {
+      "account_id": "ACC-1276",
+      "account": "Fernhill Health Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 12371
+    },
+    {
+      "account_id": "ACC-1121",
+      "account": "Larkspur Systems",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 12336
+    },
+    {
+      "account_id": "ACC-1828",
+      "account": "Driftwood Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12237
+    },
+    {
+      "account_id": "ACC-1250",
+      "account": "Halden Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12153
+    },
+    {
+      "account_id": "ACC-1415",
+      "account": "Copperleaf Labs",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12143
+    },
+    {
+      "account_id": "ACC-1989",
+      "account": "Aster Health",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 12127
+    },
+    {
+      "account_id": "ACC-1139",
+      "account": "Tessel Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12071
+    },
+    {
+      "account_id": "ACC-1845",
+      "account": "Orchard Capital",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 12069
+    },
+    {
+      "account_id": "ACC-1178",
+      "account": "Vantage Capital Holdings",
+      "region": "LATAM",
+      "segment": "Mid-market",
+      "arr": 12009
+    },
+    {
+      "account_id": "ACC-1696",
+      "account": "Tessel Media Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 12002
+    },
+    {
+      "account_id": "ACC-1204",
+      "account": "Driftwood Logistics",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 11998
+    },
+    {
+      "account_id": "ACC-1023",
+      "account": "Ridgeway Analytics",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 11941
+    },
+    {
+      "account_id": "ACC-2031",
+      "account": "Silverline Health Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 11864
+    },
+    {
+      "account_id": "ACC-1663",
+      "account": "Lattice Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11838
+    },
+    {
+      "account_id": "ACC-1177",
+      "account": "Westbrook Systems Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 11759
+    },
+    {
+      "account_id": "ACC-2034",
+      "account": "Harbor Group Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11729
+    },
+    {
+      "account_id": "ACC-1104",
+      "account": "Aster Analytics International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 11704
+    },
+    {
+      "account_id": "ACC-1995",
+      "account": "Juniper Works Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11682
+    },
+    {
+      "account_id": "ACC-1783",
+      "account": "Northwind Mobility",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 11681
+    },
+    {
+      "account_id": "ACC-1260",
+      "account": "Fernhill Partners International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 11633
+    },
+    {
+      "account_id": "ACC-1182",
+      "account": "Alder Mobility",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11602
+    },
+    {
+      "account_id": "ACC-1700",
+      "account": "Tessel Supply Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11587
+    },
+    {
+      "account_id": "ACC-1470",
+      "account": "Brightwater Freight International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11567
+    },
+    {
+      "account_id": "ACC-1435",
+      "account": "Summit Systems",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 11478
+    },
+    {
+      "account_id": "ACC-1165",
+      "account": "Tessel Group International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 11360
+    },
+    {
+      "account_id": "ACC-1915",
+      "account": "Juniper Labs International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11336
+    },
+    {
+      "account_id": "ACC-1095",
+      "account": "Juniper Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11322
+    },
+    {
+      "account_id": "ACC-1193",
+      "account": "Solano Foods",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11280
+    },
+    {
+      "account_id": "ACC-1810",
+      "account": "Tessel Freight Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11278
+    },
+    {
+      "account_id": "ACC-1821",
+      "account": "Larkspur Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 11278
+    },
+    {
+      "account_id": "ACC-1744",
+      "account": "Halden Works International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 11079
+    },
+    {
+      "account_id": "ACC-2065",
+      "account": "Oakmont Studios International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 11066
+    },
+    {
+      "account_id": "ACC-1698",
+      "account": "Granite Studios International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10982
+    },
+    {
+      "account_id": "ACC-1598",
+      "account": "Driftwood Health Holdings",
+      "region": "North America",
+      "segment": "Mid-market",
+      "arr": 10949
+    },
+    {
+      "account_id": "ACC-1215",
+      "account": "Tidewater Health Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 10909
+    },
+    {
+      "account_id": "ACC-1639",
+      "account": "Aster Supply International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 10898
+    },
+    {
+      "account_id": "ACC-1589",
+      "account": "Granite Foods Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10891
+    },
+    {
+      "account_id": "ACC-1386",
+      "account": "Aster Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10875
+    },
+    {
+      "account_id": "ACC-1257",
+      "account": "Calder Insurance Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10841
+    },
+    {
+      "account_id": "ACC-2168",
+      "account": "Oakmont Analytics International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 10757
+    },
+    {
+      "account_id": "ACC-1587",
+      "account": "Beacon Freight International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10712
+    },
+    {
+      "account_id": "ACC-1870",
+      "account": "Calder Studios",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 10654
+    },
+    {
+      "account_id": "ACC-1325",
+      "account": "Larkspur Works International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 10611
+    },
+    {
+      "account_id": "ACC-1918",
+      "account": "Bluepeak Supply International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10506
+    },
+    {
+      "account_id": "ACC-1735",
+      "account": "Granite Bio",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10504
+    },
+    {
+      "account_id": "ACC-2051",
+      "account": "Pinecrest Energy Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10420
+    },
+    {
+      "account_id": "ACC-1548",
+      "account": "Northwind Labs Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10362
+    },
+    {
+      "account_id": "ACC-1462",
+      "account": "Quarry Partners International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10359
+    },
+    {
+      "account_id": "ACC-1951",
+      "account": "Vantage Supply",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 10291
+    },
+    {
+      "account_id": "ACC-1296",
+      "account": "Tidewater Studios International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10216
+    },
+    {
+      "account_id": "ACC-1542",
+      "account": "Westbrook Foods",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10208
+    },
+    {
+      "account_id": "ACC-1580",
+      "account": "Ridgeway Mobility International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10208
+    },
+    {
+      "account_id": "ACC-2133",
+      "account": "Pinecrest Capital",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 10207
+    },
+    {
+      "account_id": "ACC-1994",
+      "account": "Beacon Retail Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10194
+    },
+    {
+      "account_id": "ACC-1853",
+      "account": "Tessel Studios",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10160
+    },
+    {
+      "account_id": "ACC-1927",
+      "account": "Northwind Analytics International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10146
+    },
+    {
+      "account_id": "ACC-1599",
+      "account": "Tidewater Bio Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 10140
+    },
+    {
+      "account_id": "ACC-1396",
+      "account": "Westbrook Mobility",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10075
+    },
+    {
+      "account_id": "ACC-1077",
+      "account": "Tessel Foods International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 10047
+    },
+    {
+      "account_id": "ACC-2166",
+      "account": "Kinetic Studios",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 10018
+    },
+    {
+      "account_id": "ACC-1683",
+      "account": "Driftwood Freight International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9992
+    },
+    {
+      "account_id": "ACC-1837",
+      "account": "Oakmont Systems Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9936
+    },
+    {
+      "account_id": "ACC-1579",
+      "account": "Aster Systems",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9910
+    },
+    {
+      "account_id": "ACC-1625",
+      "account": "Ember Freight Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 9849
+    },
+    {
+      "account_id": "ACC-1080",
+      "account": "Copperleaf Capital International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9807
+    },
+    {
+      "account_id": "ACC-1351",
+      "account": "Aster Mobility International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 9780
+    },
+    {
+      "account_id": "ACC-1914",
+      "account": "Bluepeak Insurance",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9761
+    },
+    {
+      "account_id": "ACC-1101",
+      "account": "Copperleaf Health International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9755
+    },
+    {
+      "account_id": "ACC-1820",
+      "account": "Pinecrest Retail",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9750
+    },
+    {
+      "account_id": "ACC-1569",
+      "account": "Orchard Media",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9673
+    },
+    {
+      "account_id": "ACC-1751",
+      "account": "Pinecrest Freight Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9652
+    },
+    {
+      "account_id": "ACC-2054",
+      "account": "Alder Bio Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9639
+    },
+    {
+      "account_id": "ACC-2134",
+      "account": "Tessel Mobility International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9631
+    },
+    {
+      "account_id": "ACC-1056",
+      "account": "Brightwater Mobility International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9596
+    },
+    {
+      "account_id": "ACC-1972",
+      "account": "Bluepeak Labs International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9589
+    },
+    {
+      "account_id": "ACC-2140",
+      "account": "Beacon Health",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9579
+    },
+    {
+      "account_id": "ACC-1874",
+      "account": "Lattice Retail Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9566
+    },
+    {
+      "account_id": "ACC-1464",
+      "account": "Granite Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9514
+    },
+    {
+      "account_id": "ACC-1634",
+      "account": "Quarry Mobility Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9508
+    },
+    {
+      "account_id": "ACC-1715",
+      "account": "Northwind Works International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9506
+    },
+    {
+      "account_id": "ACC-1261",
+      "account": "Ardent Mobility International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9501
+    },
+    {
+      "account_id": "ACC-2123",
+      "account": "Quarry Labs International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9487
+    },
+    {
+      "account_id": "ACC-2059",
+      "account": "Ardent Labs International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9484
+    },
+    {
+      "account_id": "ACC-1879",
+      "account": "Tessel Capital Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9476
+    },
+    {
+      "account_id": "ACC-1603",
+      "account": "Brightwater Works International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9454
+    },
+    {
+      "account_id": "ACC-1856",
+      "account": "Ridgeway Capital",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9399
+    },
+    {
+      "account_id": "ACC-1659",
+      "account": "Driftwood Studios International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9393
+    },
+    {
+      "account_id": "ACC-1126",
+      "account": "Oakmont Foods International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9385
+    },
+    {
+      "account_id": "ACC-1762",
+      "account": "Alder Mobility International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9362
+    },
+    {
+      "account_id": "ACC-1011",
+      "account": "Crescent Energy Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9360
+    },
+    {
+      "account_id": "ACC-1230",
+      "account": "Juniper Logistics",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9352
+    },
+    {
+      "account_id": "ACC-2139",
+      "account": "Harbor Health",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9336
+    },
+    {
+      "account_id": "ACC-1060",
+      "account": "Beacon Capital Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9316
+    },
+    {
+      "account_id": "ACC-1967",
+      "account": "Lattice Studios Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9289
+    },
+    {
+      "account_id": "ACC-2021",
+      "account": "Lattice Works International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9279
+    },
+    {
+      "account_id": "ACC-1040",
+      "account": "Ardent Studios International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9227
+    },
+    {
+      "account_id": "ACC-1922",
+      "account": "Crescent Foods",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9216
+    },
+    {
+      "account_id": "ACC-2069",
+      "account": "Summit Foods International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9172
+    },
+    {
+      "account_id": "ACC-1513",
+      "account": "Northwind Insurance International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9155
+    },
+    {
+      "account_id": "ACC-1030",
+      "account": "Ember Labs Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 9145
+    },
+    {
+      "account_id": "ACC-1770",
+      "account": "Ember Analytics International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9083
+    },
+    {
+      "account_id": "ACC-1453",
+      "account": "Quarry Works Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9057
+    },
+    {
+      "account_id": "ACC-1726",
+      "account": "Ridgeway Insurance",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 9056
+    },
+    {
+      "account_id": "ACC-2137",
+      "account": "Harbor Energy Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9055
+    },
+    {
+      "account_id": "ACC-1541",
+      "account": "Bluepeak Freight Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 9027
+    },
+    {
+      "account_id": "ACC-2116",
+      "account": "Calder Freight Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8982
+    },
+    {
+      "account_id": "ACC-1780",
+      "account": "Halden Retail Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8958
+    },
+    {
+      "account_id": "ACC-2012",
+      "account": "Driftwood Studios Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8914
+    },
+    {
+      "account_id": "ACC-1789",
+      "account": "Larkspur Foods International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8895
+    },
+    {
+      "account_id": "ACC-1480",
+      "account": "Ridgeway Group International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8893
+    },
+    {
+      "account_id": "ACC-2082",
+      "account": "Corvid Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8891
+    },
+    {
+      "account_id": "ACC-1123",
+      "account": "Halden Partners",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8872
+    },
+    {
+      "account_id": "ACC-2101",
+      "account": "Fernhill Bio Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8857
+    },
+    {
+      "account_id": "ACC-1978",
+      "account": "Granite Bio International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8847
+    },
+    {
+      "account_id": "ACC-2150",
+      "account": "Solano Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8842
+    },
+    {
+      "account_id": "ACC-2049",
+      "account": "Copperleaf Energy Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8814
+    },
+    {
+      "account_id": "ACC-2094",
+      "account": "Westbrook Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8804
+    },
+    {
+      "account_id": "ACC-1298",
+      "account": "Vantage Foods",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8800
+    },
+    {
+      "account_id": "ACC-1664",
+      "account": "Meridian Supply Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8770
+    },
+    {
+      "account_id": "ACC-1129",
+      "account": "Tidewater Media International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8746
+    },
+    {
+      "account_id": "ACC-1563",
+      "account": "Beacon Systems International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8733
+    },
+    {
+      "account_id": "ACC-1791",
+      "account": "Tessel Capital International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8729
+    },
+    {
+      "account_id": "ACC-1393",
+      "account": "Kinetic Supply Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8724
+    },
+    {
+      "account_id": "ACC-1920",
+      "account": "Corvid Retail",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8697
+    },
+    {
+      "account_id": "ACC-1549",
+      "account": "Lattice Works Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8663
+    },
+    {
+      "account_id": "ACC-2103",
+      "account": "Kinetic Retail",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8659
+    },
+    {
+      "account_id": "ACC-1534",
+      "account": "Quarry Insurance",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8642
+    },
+    {
+      "account_id": "ACC-1903",
+      "account": "Fernhill Mobility International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8641
+    },
+    {
+      "account_id": "ACC-1044",
+      "account": "Oakmont Insurance International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 8608
+    },
+    {
+      "account_id": "ACC-1831",
+      "account": "Crescent Analytics",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8575
+    },
+    {
+      "account_id": "ACC-1112",
+      "account": "Copperleaf Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8572
+    },
+    {
+      "account_id": "ACC-1016",
+      "account": "Silverline Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8564
+    },
+    {
+      "account_id": "ACC-1728",
+      "account": "Alder Systems Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8512
+    },
+    {
+      "account_id": "ACC-2148",
+      "account": "Tidewater Retail",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8488
+    },
+    {
+      "account_id": "ACC-1274",
+      "account": "Larkspur Media International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 8477
+    },
+    {
+      "account_id": "ACC-1248",
+      "account": "Brightwater Studios Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8418
+    },
+    {
+      "account_id": "ACC-1988",
+      "account": "Orchard Group International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8398
+    },
+    {
+      "account_id": "ACC-1226",
+      "account": "Meridian Group International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8389
+    },
+    {
+      "account_id": "ACC-1973",
+      "account": "Harbor Labs",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8388
+    },
+    {
+      "account_id": "ACC-2124",
+      "account": "Summit Health",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8386
+    },
+    {
+      "account_id": "ACC-1176",
+      "account": "Northwind Health",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8354
+    },
+    {
+      "account_id": "ACC-1571",
+      "account": "Granite Group",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8347
+    },
+    {
+      "account_id": "ACC-2073",
+      "account": "Solano Works Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8318
+    },
+    {
+      "account_id": "ACC-1958",
+      "account": "Marlow Insurance Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8286
+    },
+    {
+      "account_id": "ACC-1985",
+      "account": "Beacon Works International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8251
+    },
+    {
+      "account_id": "ACC-1567",
+      "account": "Granite Logistics Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8228
+    },
+    {
+      "account_id": "ACC-1423",
+      "account": "Tessel Works International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8221
+    },
+    {
+      "account_id": "ACC-1848",
+      "account": "Meridian Foods International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8203
+    },
+    {
+      "account_id": "ACC-1565",
+      "account": "Lattice Group International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8172
+    },
+    {
+      "account_id": "ACC-1832",
+      "account": "Granite Group Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8145
+    },
+    {
+      "account_id": "ACC-2162",
+      "account": "Westbrook Group",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8139
+    },
+    {
+      "account_id": "ACC-1109",
+      "account": "Northwind Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8113
+    },
+    {
+      "account_id": "ACC-1892",
+      "account": "Brightwater Energy Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8111
+    },
+    {
+      "account_id": "ACC-1577",
+      "account": "Pinecrest Insurance",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8107
+    },
+    {
+      "account_id": "ACC-1400",
+      "account": "Harbor Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8107
+    },
+    {
+      "account_id": "ACC-1641",
+      "account": "Fernhill Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8095
+    },
+    {
+      "account_id": "ACC-2163",
+      "account": "Quarry Supply",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8090
+    },
+    {
+      "account_id": "ACC-1162",
+      "account": "Alder Retail Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8085
+    },
+    {
+      "account_id": "ACC-1905",
+      "account": "Bluepeak Energy Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8083
+    },
+    {
+      "account_id": "ACC-2153",
+      "account": "Calder Supply Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8069
+    },
+    {
+      "account_id": "ACC-1847",
+      "account": "Halden Labs",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 8059
+    },
+    {
+      "account_id": "ACC-1273",
+      "account": "Driftwood Media International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 8036
+    },
+    {
+      "account_id": "ACC-1942",
+      "account": "Ember Systems",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 8018
+    },
+    {
+      "account_id": "ACC-1924",
+      "account": "Calder Studios International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 8012
+    },
+    {
+      "account_id": "ACC-1562",
+      "account": "Westbrook Partners International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 7982
+    },
+    {
+      "account_id": "ACC-1652",
+      "account": "Oakmont Mobility",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7941
+    },
+    {
+      "account_id": "ACC-1228",
+      "account": "Ardent Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7915
+    },
+    {
+      "account_id": "ACC-1353",
+      "account": "Northwind Capital",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7881
+    },
+    {
+      "account_id": "ACC-1888",
+      "account": "Northwind Labs",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7872
+    },
+    {
+      "account_id": "ACC-1546",
+      "account": "Juniper Health Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 7869
+    },
+    {
+      "account_id": "ACC-2010",
+      "account": "Pinecrest Supply",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7841
+    },
+    {
+      "account_id": "ACC-2130",
+      "account": "Calder Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7833
+    },
+    {
+      "account_id": "ACC-2125",
+      "account": "Corvid Energy Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7807
+    },
+    {
+      "account_id": "ACC-1441",
+      "account": "Crescent Bio",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7791
+    },
+    {
+      "account_id": "ACC-1788",
+      "account": "Quarry Logistics",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7761
+    },
+    {
+      "account_id": "ACC-1509",
+      "account": "Driftwood Foods Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7746
+    },
+    {
+      "account_id": "ACC-1486",
+      "account": "Tessel Retail Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7730
+    },
+    {
+      "account_id": "ACC-1611",
+      "account": "Summit Bio",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7704
+    },
+    {
+      "account_id": "ACC-1444",
+      "account": "Harbor Foods International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 7701
+    },
+    {
+      "account_id": "ACC-1128",
+      "account": "Ember Bio",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 7632
+    },
+    {
+      "account_id": "ACC-1846",
+      "account": "Ridgeway Analytics Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7617
+    },
+    {
+      "account_id": "ACC-1774",
+      "account": "Copperleaf Health",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7588
+    },
+    {
+      "account_id": "ACC-1724",
+      "account": "Ember Mobility International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 7460
+    },
+    {
+      "account_id": "ACC-1949",
+      "account": "Orchard Retail International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7457
+    },
+    {
+      "account_id": "ACC-1825",
+      "account": "Brightwater Freight Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 7449
+    },
+    {
+      "account_id": "ACC-1555",
+      "account": "Juniper Energy",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7423
+    },
+    {
+      "account_id": "ACC-1836",
+      "account": "Granite Capital",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7368
+    },
+    {
+      "account_id": "ACC-1496",
+      "account": "Silverline Capital Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7336
+    },
+    {
+      "account_id": "ACC-1190",
+      "account": "Tidewater Freight",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 7293
+    },
+    {
+      "account_id": "ACC-1279",
+      "account": "Pinecrest Analytics Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7289
+    },
+    {
+      "account_id": "ACC-2120",
+      "account": "Northwind Logistics",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7245
+    },
+    {
+      "account_id": "ACC-1678",
+      "account": "Ardent Analytics Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7243
+    },
+    {
+      "account_id": "ACC-1425",
+      "account": "Tidewater Systems International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7191
+    },
+    {
+      "account_id": "ACC-1055",
+      "account": "Ridgeway Bio International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7172
+    },
+    {
+      "account_id": "ACC-1824",
+      "account": "Aster Analytics Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 7156
+    },
+    {
+      "account_id": "ACC-1117",
+      "account": "Larkspur Analytics",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 7156
+    },
+    {
+      "account_id": "ACC-1502",
+      "account": "Oakmont Works International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7140
+    },
+    {
+      "account_id": "ACC-2008",
+      "account": "Fernhill Health",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 7126
+    },
+    {
+      "account_id": "ACC-2107",
+      "account": "Aster Bio Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7119
+    },
+    {
+      "account_id": "ACC-2152",
+      "account": "Lattice Mobility",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 7090
+    },
+    {
+      "account_id": "ACC-1916",
+      "account": "Juniper Partners Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7084
+    },
+    {
+      "account_id": "ACC-2115",
+      "account": "Orchard Systems Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7071
+    },
+    {
+      "account_id": "ACC-1655",
+      "account": "Bluepeak Capital",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7035
+    },
+    {
+      "account_id": "ACC-2085",
+      "account": "Marlow Capital Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7026
+    },
+    {
+      "account_id": "ACC-1140",
+      "account": "Lattice Systems International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 7017
+    },
+    {
+      "account_id": "ACC-2018",
+      "account": "Pinecrest Supply Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 7012
+    },
+    {
+      "account_id": "ACC-1957",
+      "account": "Ridgeway Works International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6966
+    },
+    {
+      "account_id": "ACC-1482",
+      "account": "Calder Logistics International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 6963
+    },
+    {
+      "account_id": "ACC-1593",
+      "account": "Kinetic Analytics Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6931
+    },
+    {
+      "account_id": "ACC-1701",
+      "account": "Orchard Health Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6921
+    },
+    {
+      "account_id": "ACC-2117",
+      "account": "Copperleaf Partners International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6903
+    },
+    {
+      "account_id": "ACC-1714",
+      "account": "Vantage Retail Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6875
+    },
+    {
+      "account_id": "ACC-1047",
+      "account": "Fernhill Freight",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6824
+    },
+    {
+      "account_id": "ACC-1550",
+      "account": "Solano Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6804
+    },
+    {
+      "account_id": "ACC-1917",
+      "account": "Beacon Group",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6796
+    },
+    {
+      "account_id": "ACC-1702",
+      "account": "Halden Mobility International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6788
+    },
+    {
+      "account_id": "ACC-1812",
+      "account": "Oakmont Logistics",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6788
+    },
+    {
+      "account_id": "ACC-2131",
+      "account": "Juniper Health International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 6776
+    },
+    {
+      "account_id": "ACC-1052",
+      "account": "Halden Bio",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6734
+    },
+    {
+      "account_id": "ACC-1941",
+      "account": "Alder Health Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 6730
+    },
+    {
+      "account_id": "ACC-2023",
+      "account": "Westbrook Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6723
+    },
+    {
+      "account_id": "ACC-2050",
+      "account": "Crescent Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6723
+    },
+    {
+      "account_id": "ACC-1222",
+      "account": "Tidewater Mobility International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 6696
+    },
+    {
+      "account_id": "ACC-1048",
+      "account": "Beacon Partners Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6694
+    },
+    {
+      "account_id": "ACC-1855",
+      "account": "Beacon Partners",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6690
+    },
+    {
+      "account_id": "ACC-2147",
+      "account": "Pinecrest Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6674
+    },
+    {
+      "account_id": "ACC-2157",
+      "account": "Summit Systems Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6657
+    },
+    {
+      "account_id": "ACC-1923",
+      "account": "Brightwater Logistics",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 6651
+    },
+    {
+      "account_id": "ACC-2067",
+      "account": "Ember Logistics International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6612
+    },
+    {
+      "account_id": "ACC-2056",
+      "account": "Harbor Supply",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6589
+    },
+    {
+      "account_id": "ACC-1455",
+      "account": "Driftwood Supply International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6581
+    },
+    {
+      "account_id": "ACC-1867",
+      "account": "Granite Energy",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6554
+    },
+    {
+      "account_id": "ACC-1773",
+      "account": "Tessel Systems Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6522
+    },
+    {
+      "account_id": "ACC-1062",
+      "account": "Northwind Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6519
+    },
+    {
+      "account_id": "ACC-1098",
+      "account": "Quarry Bio Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6483
+    },
+    {
+      "account_id": "ACC-1933",
+      "account": "Westbrook Bio",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6476
+    },
+    {
+      "account_id": "ACC-2047",
+      "account": "Harbor Group International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6471
+    },
+    {
+      "account_id": "ACC-1901",
+      "account": "Copperleaf Logistics International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6450
+    },
+    {
+      "account_id": "ACC-1288",
+      "account": "Larkspur Insurance",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 6437
+    },
+    {
+      "account_id": "ACC-1938",
+      "account": "Juniper Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6417
+    },
+    {
+      "account_id": "ACC-2151",
+      "account": "Bluepeak Capital Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6361
+    },
+    {
+      "account_id": "ACC-1961",
+      "account": "Kinetic Works Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6352
+    },
+    {
+      "account_id": "ACC-1091",
+      "account": "Tidewater Mobility Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 6343
+    },
+    {
+      "account_id": "ACC-2025",
+      "account": "Silverline Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6320
+    },
+    {
+      "account_id": "ACC-1365",
+      "account": "Ember Retail Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6284
+    },
+    {
+      "account_id": "ACC-2060",
+      "account": "Fernhill Media International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6277
+    },
+    {
+      "account_id": "ACC-1346",
+      "account": "Ridgeway Freight International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 6250
+    },
+    {
+      "account_id": "ACC-1329",
+      "account": "Corvid Works International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 6226
+    },
+    {
+      "account_id": "ACC-1637",
+      "account": "Copperleaf Supply",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 6024
+    },
+    {
+      "account_id": "ACC-1527",
+      "account": "Tidewater Labs",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5974
+    },
+    {
+      "account_id": "ACC-1235",
+      "account": "Driftwood Health International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5956
+    },
+    {
+      "account_id": "ACC-1795",
+      "account": "Orchard Works Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 5943
+    },
+    {
+      "account_id": "ACC-1902",
+      "account": "Quarry Foods",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5938
+    },
+    {
+      "account_id": "ACC-2002",
+      "account": "Corvid Foods International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5938
+    },
+    {
+      "account_id": "ACC-1364",
+      "account": "Harbor Studios",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5933
+    },
+    {
+      "account_id": "ACC-1816",
+      "account": "Calder Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5919
+    },
+    {
+      "account_id": "ACC-2095",
+      "account": "Northwind Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5873
+    },
+    {
+      "account_id": "ACC-1718",
+      "account": "Westbrook Analytics International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5835
+    },
+    {
+      "account_id": "ACC-2029",
+      "account": "Vantage Works",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5815
+    },
+    {
+      "account_id": "ACC-1205",
+      "account": "Crescent Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5808
+    },
+    {
+      "account_id": "ACC-1644",
+      "account": "Crescent Health Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5766
+    },
+    {
+      "account_id": "ACC-2100",
+      "account": "Alder Insurance",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5764
+    },
+    {
+      "account_id": "ACC-2074",
+      "account": "Beacon Retail",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5759
+    },
+    {
+      "account_id": "ACC-2167",
+      "account": "Summit Media Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5740
+    },
+    {
+      "account_id": "ACC-2105",
+      "account": "Granite Partners International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5736
+    },
+    {
+      "account_id": "ACC-1732",
+      "account": "Copperleaf Works Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5735
+    },
+    {
+      "account_id": "ACC-1992",
+      "account": "Crescent Partners",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5728
+    },
+    {
+      "account_id": "ACC-2028",
+      "account": "Kinetic Works International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5714
+    },
+    {
+      "account_id": "ACC-1100",
+      "account": "Corvid Systems Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5673
+    },
+    {
+      "account_id": "ACC-1953",
+      "account": "Solano Systems International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5670
+    },
+    {
+      "account_id": "ACC-1815",
+      "account": "Marlow Capital",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5645
+    },
+    {
+      "account_id": "ACC-1963",
+      "account": "Ardent Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5618
+    },
+    {
+      "account_id": "ACC-1348",
+      "account": "Calder Capital International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5595
+    },
+    {
+      "account_id": "ACC-2146",
+      "account": "Orchard Health International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5549
+    },
+    {
+      "account_id": "ACC-1292",
+      "account": "Oakmont Labs International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 5491
+    },
+    {
+      "account_id": "ACC-1514",
+      "account": "Beacon Group International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5485
+    },
+    {
+      "account_id": "ACC-2144",
+      "account": "Ardent Group",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5474
+    },
+    {
+      "account_id": "ACC-1674",
+      "account": "Kinetic Labs International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5472
+    },
+    {
+      "account_id": "ACC-1543",
+      "account": "Tidewater Energy",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5467
+    },
+    {
+      "account_id": "ACC-1675",
+      "account": "Ridgeway Group",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5439
+    },
+    {
+      "account_id": "ACC-1945",
+      "account": "Oakmont Freight International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 5398
+    },
+    {
+      "account_id": "ACC-1830",
+      "account": "Bluepeak Mobility International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5394
+    },
+    {
+      "account_id": "ACC-1551",
+      "account": "Ember Health Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5364
+    },
+    {
+      "account_id": "ACC-1805",
+      "account": "Summit Capital",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5347
+    },
+    {
+      "account_id": "ACC-1149",
+      "account": "Quarry Bio",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5343
+    },
+    {
+      "account_id": "ACC-1138",
+      "account": "Tidewater Bio International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5337
+    },
+    {
+      "account_id": "ACC-1450",
+      "account": "Tessel Supply",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5325
+    },
+    {
+      "account_id": "ACC-1556",
+      "account": "Larkspur Logistics",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5306
+    },
+    {
+      "account_id": "ACC-1629",
+      "account": "Kinetic Mobility International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5295
+    },
+    {
+      "account_id": "ACC-2055",
+      "account": "Granite Analytics",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 5247
+    },
+    {
+      "account_id": "ACC-1539",
+      "account": "Marlow Analytics International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5233
+    },
+    {
+      "account_id": "ACC-1084",
+      "account": "Brightwater Capital",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5223
+    },
+    {
+      "account_id": "ACC-1877",
+      "account": "Bluepeak Capital International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5152
+    },
+    {
+      "account_id": "ACC-2020",
+      "account": "Oakmont Foods Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 5148
+    },
+    {
+      "account_id": "ACC-1051",
+      "account": "Solano Freight Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5138
+    },
+    {
+      "account_id": "ACC-1960",
+      "account": "Brightwater Insurance",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5134
+    },
+    {
+      "account_id": "ACC-1763",
+      "account": "Granite Capital Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 5106
+    },
+    {
+      "account_id": "ACC-1166",
+      "account": "Bluepeak Health Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5099
+    },
+    {
+      "account_id": "ACC-1758",
+      "account": "Bluepeak Foods Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5098
+    },
+    {
+      "account_id": "ACC-1156",
+      "account": "Juniper Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5056
+    },
+    {
+      "account_id": "ACC-1066",
+      "account": "Lattice Labs Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5054
+    },
+    {
+      "account_id": "ACC-1152",
+      "account": "Beacon Retail International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5051
+    },
+    {
+      "account_id": "ACC-1161",
+      "account": "Granite Systems",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 5022
+    },
+    {
+      "account_id": "ACC-1928",
+      "account": "Westbrook Foods International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 5014
+    },
+    {
+      "account_id": "ACC-1320",
+      "account": "Aster Partners Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4970
+    },
+    {
+      "account_id": "ACC-2007",
+      "account": "Silverline Insurance Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4959
+    },
+    {
+      "account_id": "ACC-1767",
+      "account": "Quarry Capital",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4902
+    },
+    {
+      "account_id": "ACC-1803",
+      "account": "Corvid Health",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4877
+    },
+    {
+      "account_id": "ACC-1987",
+      "account": "Northwind Partners",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4847
+    },
+    {
+      "account_id": "ACC-2027",
+      "account": "Marlow Health Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4828
+    },
+    {
+      "account_id": "ACC-1843",
+      "account": "Tidewater Analytics Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4677
+    },
+    {
+      "account_id": "ACC-1318",
+      "account": "Ridgeway Labs International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4672
+    },
+    {
+      "account_id": "ACC-1536",
+      "account": "Kinetic Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4670
+    },
+    {
+      "account_id": "ACC-1234",
+      "account": "Juniper Energy International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4666
+    },
+    {
+      "account_id": "ACC-1981",
+      "account": "Halden Supply",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4660
+    },
+    {
+      "account_id": "ACC-1503",
+      "account": "Quarry Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4646
+    },
+    {
+      "account_id": "ACC-1946",
+      "account": "Brightwater Analytics International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4632
+    },
+    {
+      "account_id": "ACC-1458",
+      "account": "Lattice Works",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4632
+    },
+    {
+      "account_id": "ACC-1515",
+      "account": "Quarry Retail",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4627
+    },
+    {
+      "account_id": "ACC-2066",
+      "account": "Ardent Retail",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 4623
+    },
+    {
+      "account_id": "ACC-2141",
+      "account": "Solano Logistics",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4607
+    },
+    {
+      "account_id": "ACC-1993",
+      "account": "Tidewater Freight Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 4588
+    },
+    {
+      "account_id": "ACC-1540",
+      "account": "Lattice Mobility Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4531
+    },
+    {
+      "account_id": "ACC-1262",
+      "account": "Corvid Capital Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 4506
+    },
+    {
+      "account_id": "ACC-1893",
+      "account": "Orchard Partners",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4504
+    },
+    {
+      "account_id": "ACC-1975",
+      "account": "Tessel Freight International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 4471
+    },
+    {
+      "account_id": "ACC-1983",
+      "account": "Meridian Retail",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4434
+    },
+    {
+      "account_id": "ACC-1103",
+      "account": "Bluepeak Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4416
+    },
+    {
+      "account_id": "ACC-1277",
+      "account": "Copperleaf Studios Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4392
+    },
+    {
+      "account_id": "ACC-1411",
+      "account": "Kinetic Partners",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 4378
+    },
+    {
+      "account_id": "ACC-1452",
+      "account": "Fernhill Capital Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4360
+    },
+    {
+      "account_id": "ACC-1943",
+      "account": "Kinetic Supply",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4353
+    },
+    {
+      "account_id": "ACC-2089",
+      "account": "Oakmont Retail",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4351
+    },
+    {
+      "account_id": "ACC-1236",
+      "account": "Aster Supply Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4350
+    },
+    {
+      "account_id": "ACC-2088",
+      "account": "Granite Mobility",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4349
+    },
+    {
+      "account_id": "ACC-1720",
+      "account": "Alder Partners International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4339
+    },
+    {
+      "account_id": "ACC-1210",
+      "account": "Granite Bio Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4329
+    },
+    {
+      "account_id": "ACC-1451",
+      "account": "Alder Supply",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4279
+    },
+    {
+      "account_id": "ACC-1632",
+      "account": "Brightwater Energy International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4276
+    },
+    {
+      "account_id": "ACC-1422",
+      "account": "Juniper Insurance International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4266
+    },
+    {
+      "account_id": "ACC-1271",
+      "account": "Ardent Systems",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4247
+    },
+    {
+      "account_id": "ACC-1866",
+      "account": "Meridian Works Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4202
+    },
+    {
+      "account_id": "ACC-2030",
+      "account": "Aster Partners International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 4202
+    },
+    {
+      "account_id": "ACC-1417",
+      "account": "Brightwater Labs International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 4188
+    },
+    {
+      "account_id": "ACC-1857",
+      "account": "Bluepeak Logistics Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 4158
+    },
+    {
+      "account_id": "ACC-2154",
+      "account": "Beacon Bio",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4095
+    },
+    {
+      "account_id": "ACC-1070",
+      "account": "Ember Insurance International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4071
+    },
+    {
+      "account_id": "ACC-1113",
+      "account": "Ridgeway Media Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 4038
+    },
+    {
+      "account_id": "ACC-1827",
+      "account": "Larkspur Bio",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3922
+    },
+    {
+      "account_id": "ACC-1164",
+      "account": "Lattice Retail",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3863
+    },
+    {
+      "account_id": "ACC-1881",
+      "account": "Ember Foods Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 3828
+    },
+    {
+      "account_id": "ACC-1764",
+      "account": "Corvid Mobility",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3814
+    },
+    {
+      "account_id": "ACC-1865",
+      "account": "Meridian Mobility Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3809
+    },
+    {
+      "account_id": "ACC-2108",
+      "account": "Copperleaf Mobility International",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 3776
+    },
+    {
+      "account_id": "ACC-2036",
+      "account": "Fernhill Group",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 3681
+    },
+    {
+      "account_id": "ACC-2053",
+      "account": "Oakmont Systems International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 3665
+    },
+    {
+      "account_id": "ACC-1578",
+      "account": "Solano Supply",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3663
+    },
+    {
+      "account_id": "ACC-1379",
+      "account": "Tessel Freight",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3654
+    },
+    {
+      "account_id": "ACC-2170",
+      "account": "Aster Freight Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 3647
+    },
+    {
+      "account_id": "ACC-1349",
+      "account": "Vantage Health Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 3633
+    },
+    {
+      "account_id": "ACC-1566",
+      "account": "Crescent Media Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 3621
+    },
+    {
+      "account_id": "ACC-1996",
+      "account": "Summit Freight",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3566
+    },
+    {
+      "account_id": "ACC-1475",
+      "account": "Corvid Foods",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 3549
+    },
+    {
+      "account_id": "ACC-1708",
+      "account": "Summit Analytics Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 3493
+    },
+    {
+      "account_id": "ACC-1037",
+      "account": "Ember Health",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3484
+    },
+    {
+      "account_id": "ACC-1631",
+      "account": "Crescent Logistics",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3481
+    },
+    {
+      "account_id": "ACC-2000",
+      "account": "Lattice Analytics International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3419
+    },
+    {
+      "account_id": "ACC-1229",
+      "account": "Beacon Health International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 3363
+    },
+    {
+      "account_id": "ACC-1895",
+      "account": "Silverline Capital International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3337
+    },
+    {
+      "account_id": "ACC-1930",
+      "account": "Bluepeak Health International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3122
+    },
+    {
+      "account_id": "ACC-1059",
+      "account": "Ember Media",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 3040
+    },
+    {
+      "account_id": "ACC-1740",
+      "account": "Aster Mobility",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 2988
+    },
+    {
+      "account_id": "ACC-1841",
+      "account": "Oakmont Labs Holdings",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 2979
+    },
+    {
+      "account_id": "ACC-2106",
+      "account": "Crescent Insurance Holdings",
+      "region": "LATAM",
+      "segment": "SMB",
+      "arr": 2920
+    },
+    {
+      "account_id": "ACC-2044",
+      "account": "Quarry Analytics Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 2911
+    },
+    {
+      "account_id": "ACC-1369",
+      "account": "Orchard Freight Holdings",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 2887
+    },
+    {
+      "account_id": "ACC-1873",
+      "account": "Juniper Group International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 2693
+    },
+    {
+      "account_id": "ACC-1366",
+      "account": "Calder Media International",
+      "region": "APAC",
+      "segment": "SMB",
+      "arr": 2680
+    },
+    {
+      "account_id": "ACC-1111",
+      "account": "Solano Group",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 2581
+    },
+    {
+      "account_id": "ACC-2061",
+      "account": "Kinetic Bio International",
+      "region": "North America",
+      "segment": "SMB",
+      "arr": 2470
+    },
+    {
+      "account_id": "ACC-1092",
+      "account": "Kinetic Partners Holdings",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 2423
+    },
+    {
+      "account_id": "ACC-1765",
+      "account": "Pinecrest Foods International",
+      "region": "EMEA",
+      "segment": "SMB",
+      "arr": 2196
+    }
+  ],
+  "quote": {
+    "account_id": "ACC-1003",
+    "account": "Halcyon Health",
+    "region": "North America",
+    "segment": "Enterprise",
+    "price_plan": "Legacy",
+    "current_arr": 1113600,
+    "arr_change_12m": 0.6,
+    "peer_grr": 0.93,
+    "risk": "Low",
+    "term_years": 1,
+    "uplift": 0.08,
+    "term_discount": 0,
+    "proposed_arr": 1202700,
+    "reasons": [
+      "ARR +60% over 12 months, and North America Enterprise accounts keep 93% of revenue (GRR): low risk.",
+      "On the legacy price list, so it moves to the 2026 list: +8%.",
+      "One-year term: no discount."
+    ]
+  }
+}

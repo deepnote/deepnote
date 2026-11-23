@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Data app</title>
+    <link rel="stylesheet" href="app-kit.css" />
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.30.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.21.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.26.0"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, loaders } from './app-kit.js'
+      // app.json, written at publish time:
+      //   { snapshot?: "snapshot.json", tables?: { id: { csv | json: url } } }
+      // snapshot is the notebook's last output (its application/json outputs merged), so the
+      // app reads stored results and never runs the notebook to render.
+      const config = await fetch('app.json').then(r => r.json())
+      const tables = Object.fromEntries(
+        Object.entries(config.tables ?? {}).map(([id, src]) => {
+          const [kind, value] = Object.entries(src)[0]
+          return [id, loaders[kind](value)]
+        }),
+      )
+      const snapshot = config.snapshot ? loaders.json(config.snapshot) : undefined
+      const events = []
+      const app = createApp(document.getElementById('app'), { snapshot, tables, onEvent: e => events.push(e) })
+      window.__app = { app, events }
+      const live = new URLSearchParams(location.search).get('live')
+      if (live) {
+        // Dev/generation mode: ops arrive over SSE as the model streams them.
+        const es = new EventSource(live)
+        es.addEventListener('op', e => app.apply(e.data))
+        es.addEventListener('status', e => app.setStatus(e.data))
+        es.addEventListener('plan', e => app.setPlan(JSON.parse(e.data)))
+        es.addEventListener('partdone', e => app.partDone(Number(e.data)))
+        es.addEventListener('reset', () => location.reload())
+      } else {
+        app.applyText(await fetch('spec.jsonl').then(r => r.text()))
+      }
+    </script>
+  </body>
+</html>
