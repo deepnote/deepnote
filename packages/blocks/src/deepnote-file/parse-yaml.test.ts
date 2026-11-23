@@ -293,6 +293,26 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/merge keys.*not allowed/i)
     })
+
+    it('throws an error for a quoted key tagged as a merge key', () => {
+      expect(() => parseYaml('m:\n  !!merge "<<": {x: 1}\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML merge keys (<<) are not allowed in Deepnote files', {
+          feature: 'merge-key',
+        })
+      )
+    })
+
+    it('throws an error for a merge key in a YAML 1.1 document', () => {
+      expect(() => parseYaml('%YAML 1.1\n---\nm:\n  <<: {x: 1}\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML merge keys (<<) are not allowed in Deepnote files', {
+          feature: 'merge-key',
+        })
+      )
+    })
+
+    it('allows a quoted "<<" key', () => {
+      expect(parseYaml('"<<": q\n')).toEqual({ '<<': 'q' })
+    })
   })
 
   describe('custom tag rejection', () => {
@@ -329,6 +349,61 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
     })
+
+    it('lists every custom tag in document order', () => {
+      expect(() => parseYaml('value: !my-custom-tag x\nanother: !custom-type y\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML tags are not allowed in Deepnote files: !my-custom-tag, !custom-type', {
+          feature: 'tag',
+        })
+      )
+    })
+
+    it('throws an error for a verbatim custom tag', () => {
+      expect(() => parseYaml('v: !<tag:example.com,2026:x> y\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML tags are not allowed in Deepnote files: tag:example.com,2026:x', {
+          feature: 'tag',
+        })
+      )
+    })
+
+    it('allows core schema tags', () => {
+      expect(parseYaml('d: !!str 12\n')).toEqual({ d: '12' })
+    })
+
+    it('allows the non-specific tag', () => {
+      expect(parseYaml('v: ! foo\n')).toEqual({ v: 'foo' })
+    })
+  })
+
+  describe('prohibited feature precedence', () => {
+    it('reports an alias before an earlier merge key or tag', () => {
+      expect(() => parseYaml('d: !custom 1\nc:\n  <<: 1\nb: *x\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML aliases (*) are not allowed in Deepnote files', { feature: 'alias' })
+      )
+    })
+
+    it('reports a merge key before an earlier tag', () => {
+      expect(() => parseYaml('d: !custom 1\nc:\n  <<: 1\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML merge keys (<<) are not allowed in Deepnote files', {
+          feature: 'merge-key',
+        })
+      )
+    })
+
+    it('reports an anchor before a duplicate key', () => {
+      expect(() => parseYaml('a: &x 1\nb: *x\nb: 2\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML anchors (&) are not allowed in Deepnote files', { feature: 'anchor' })
+      )
+    })
+  })
+
+  describe('YAML-like text inside block scalars', () => {
+    it.each(['- *a*', 'Note: *draft*', '- &b', '- !c', 'x <<: y'])(
+      'parses a >- block scalar containing %j as text',
+      line => {
+        expect(parseYaml(`v: >-\n  ${line}\n`)).toEqual({ v: line })
+      }
+    )
   })
 
   describe('explicit typing requirements', () => {
