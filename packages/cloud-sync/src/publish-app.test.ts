@@ -1067,6 +1067,26 @@ describe('uploadWorkingFile', () => {
       expectNoRequests()
     })
 
+    it.each([false, true])(
+      'rejects a sync folder that tracks the project in a missing directory before any request (force: %s)',
+      async force => {
+        const { root } = await writeWorkspace()
+        await fs.rm(join(root, 'Alpha'), { recursive: true })
+        const file = await writeScript(join(root, 'scratch'))
+
+        const error = await rejection(upload({ file, force }))
+
+        expect(error).toBeInstanceOf(PublishError)
+        expect(error).toMatchObject({
+          reason: 'invalid-input',
+          message:
+            `The sync folder ${root} tracks project p1 in ${join(root, 'Alpha')}, ` +
+            'but that directory does not exist. Sync that folder to restore it.',
+        })
+        expectNoRequests()
+      }
+    )
+
     it('rejects an unusable sync folder before any request', async () => {
       const { root } = await writeWorkspace()
       await fs.writeFile(join(root, '.deepnote-sync.json'), '{')

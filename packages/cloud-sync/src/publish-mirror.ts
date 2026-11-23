@@ -76,8 +76,8 @@ interface ResolvePublishMirrorArgs {
   syncRoot: SyncRootOption
   publishDir: string
   projectId: string
-  /** Called with the absolute project directory when a discovered workspace is skipped because it is missing. */
-  onMirrorSkipped?: (projectDir: string) => void
+  /** Called with the absolute project directory and workspace root when a discovered workspace lacks that directory. */
+  onMirrorSkipped?: (projectDir: string, rootDir: string) => void
 }
 
 export async function resolvePublishMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirror | undefined> {
@@ -128,7 +128,7 @@ async function locateMirror(args: ResolvePublishMirrorArgs): Promise<PublishMirr
         'project-not-in-sync-root'
       )
     }
-    onMirrorSkipped?.(projectDirAbsolute)
+    onMirrorSkipped?.(projectDirAbsolute, rootDir)
     return undefined
   }
 

@@ -556,8 +556,8 @@ export interface UploadWorkingFileResult {
  * in it and the bytes are written to the project's `.files` copy there.
  *
  * @throws {PublishError} `invalid-input`: an unsafe `path`, a `file` that is missing, below a non-directory or
- * not a regular file, a file over the upload limit, an unusable sync folder, or a `file` inside the sync folder
- * reached through a symbolic link.
+ * not a regular file, a file over the upload limit, an unusable sync folder, a sync folder that tracks the project
+ * in a missing directory, or a `file` inside the sync folder reached through a symbolic link.
  * @throws {PublishDivergedError} unless `options.force`, before the upload.
  * @throws {ApiError} the project could not be loaded or the upload failed.
  * @throws {Error} `file` could not be inspected or read (permission denied, I/O failure), or Deepnote stored the
@@ -587,7 +587,17 @@ export async function uploadWorkingFile(options: UploadWorkingFileOptions): Prom
 
   let mirror: PublishMirror | undefined
   try {
-    mirror = await resolvePublishMirror({ syncRoot: undefined, publishDir: dirname(file), projectId })
+    mirror = await resolvePublishMirror({
+      syncRoot: undefined,
+      publishDir: dirname(file),
+      projectId,
+      onMirrorSkipped: (projectDir, rootDir) => {
+        throw new PublishMirrorError(
+          `The sync folder ${rootDir} tracks project ${projectId} in ${projectDir}, but that directory does not ` +
+            'exist. Sync that folder to restore it.'
+        )
+      },
+    })
   } catch (error) {
     if (error instanceof PublishMirrorError) {
       throw new PublishError('invalid-input', error.message)
