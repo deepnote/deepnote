@@ -1,0 +1,249 @@
+metadata:
+  createdAt: 2026-11-09T09:00:00.000Z
+  modifiedAt: 2026-11-09T09:00:00.000Z
+project:
+  id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4c04
+  name: Data health
+  notebooks:
+    - blocks:
+        - id: 1f3be2bdae116d6e10a6ed36f984f1b3
+          blockGroup: bc372beadebb88efdc107e310689c4a7
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Data health checks
+
+
+            The checks behind every number in Lindquett's apps, written once. They run in CI on each pull
+
+            request and after every warehouse load, where a failed check fails the run, and the Data health app
+
+            runs them with **Fail the run** off to show the results.
+          metadata: {}
+        - id: 860275df70c905b9e0f2c855b009ddd8
+          blockGroup: acdd03170164855a5a0bac4fd79835d9
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: simulate_issue
+            deepnote_input_label: Simulate an issue (demo)
+            deepnote_variable_value: None
+            deepnote_variable_default_value: None
+            deepnote_variable_options:
+              - None
+              - Late load
+              - Duplicate rows
+              - Negative MRR
+            deepnote_variable_custom_options:
+              - None
+              - Late load
+              - Duplicate rows
+              - Negative MRR
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: a6b5dbf8b77e8db5134e77128662f0dc
+          blockGroup: eeaa20dccb8077dce6774a9e12b0410b
+          sortingKey: "000002"
+          type: input-text
+          content: ""
+          metadata:
+            deepnote_variable_name: expected_month
+            deepnote_input_label: Latest month that should be loaded
+            deepnote_variable_value: 2026-09
+            deepnote_variable_default_value: 2026-09
+        - id: 1a109815827b27bf675c98d15901a279
+          blockGroup: d7993df6cabd18486c95db0778b7b56d
+          sortingKey: "000003"
+          type: input-checkbox
+          content: ""
+          metadata:
+            deepnote_variable_name: fail_on_issue
+            deepnote_input_label: Fail the run when a check fails
+            deepnote_variable_value: true
+            deepnote_variable_default_value: true
+        - id: 2a1d726ad80702a2820055f4138f249d
+          blockGroup: 407294120b4c5a40046e9f27156d0adf
+          sortingKey: "000004"
+          type: notebook-function
+          content: ""
+          metadata:
+            function_notebook_id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4b01
+            function_notebook_inputs: {}
+            function_notebook_export_mappings:
+              accounts:
+                enabled: true
+                variable_name: accounts
+              mrr:
+                enabled: true
+                variable_name: mrr
+              opportunities:
+                enabled: true
+                variable_name: opportunities
+        - id: c78691f732ae0debd959372191787909
+          blockGroup: b6b2c8c3ab78a717ebe7778d035bdd4f
+          sortingKey: "000005"
+          type: code
+          content: >-
+            import pandas as pd
+
+
+            # Damage a copy of the data on purpose, to show what a failing check looks like.
+
+            mrr = mrr.copy()
+
+            if simulate_issue == "Late load":
+                mrr = mrr[mrr["month"] < mrr["month"].max()]
+            elif simulate_issue == "Duplicate rows":
+                mrr = pd.concat([mrr, mrr.sample(25, random_state=1)])
+            elif simulate_issue == "Negative MRR":
+                mrr.loc[mrr.sample(10, random_state=1).index, "mrr"] *= -1
+          metadata: {}
+        - id: 4786d14bf4d3b535ffbda1a1586ff7bb
+          blockGroup: 0ce618ddef178dd38403461262e9f041
+          sortingKey: "000006"
+          type: sql
+          content: >-
+            -- One row per account and month
+
+            select account_id, month, count(*) as rows
+
+            from mrr
+
+            group by account_id, month
+
+            having count(*) > 1
+          metadata:
+            deepnote_variable_name: duplicate_rows
+            deepnote_return_variable_type: dataframe
+            sql_integration_id: deepnote-dataframe-sql
+        - id: 947aade47cbdb60a98658d6416239431
+          blockGroup: d82627fd20590614fb30a57841cc4740
+          sortingKey: "000007"
+          type: sql
+          content: >-
+            -- MRR is a positive amount; churned accounts have no row, never a zero or negative one
+
+            select account_id, account, month, mrr
+
+            from mrr
+
+            where mrr is null or mrr <= 0
+          metadata:
+            deepnote_variable_name: invalid_mrr
+            deepnote_return_variable_type: dataframe
+            sql_integration_id: deepnote-dataframe-sql
+        - id: 34a60dedddcb23f9adf09d84a72c3e01
+          blockGroup: db57e87a73a3c987e39eb44033d8899c
+          sortingKey: "000008"
+          type: sql
+          content: >-
+            -- Every revenue row belongs to a known account
+
+            select distinct m.account_id
+
+            from mrr as m
+
+            left join accounts as a on a.account_id = m.account_id
+
+            where a.account_id is null
+          metadata:
+            deepnote_variable_name: orphan_rows
+            deepnote_return_variable_type: dataframe
+            sql_integration_id: deepnote-dataframe-sql
+        - id: 7711922f7173000d741cf52d55f5d70e
+          blockGroup: 5a359bb327095acec4db2314e57231a5
+          sortingKey: "000009"
+          type: sql
+          content: >-
+            -- Pipeline amounts and targets are positive and probabilities are between 0 and 1
+
+            select opportunity_id, quarter, amount, probability, target
+
+            from opportunities
+
+            where amount <= 0 or target <= 0 or probability not between 0 and 1
+          metadata:
+            deepnote_variable_name: invalid_opportunities
+            deepnote_return_variable_type: dataframe
+            sql_integration_id: deepnote-dataframe-sql
+        - id: de399e5e62d618450d035a1aadc17383
+          blockGroup: 86ee60d0aa26f4d537b258e1fcba2add
+          sortingKey: "000010"
+          type: code
+          content: >-
+            latest_month = mrr["month"].max().strftime("%Y-%m")
+
+            checks = pd.DataFrame([
+                ("mrr", "Revenue loaded through the expected month", int(latest_month < expected_month),
+                 f"latest month is {latest_month}, expected {expected_month}"),
+                ("mrr", "One row per account and month", len(duplicate_rows), f"{len(duplicate_rows)} duplicate account-months"),
+                ("mrr", "MRR is positive", len(invalid_mrr), f"{len(invalid_mrr)} rows with zero, negative or missing MRR"),
+                ("mrr", "Every row has a known account", len(orphan_rows), f"{len(orphan_rows)} unknown account IDs"),
+                ("opportunities", "Pipeline values are valid", len(invalid_opportunities),
+                 f"{len(invalid_opportunities)} invalid opportunities"),
+            ], columns=["table", "check", "failures", "detail"])
+
+            checks["status"] = checks["failures"].map(lambda n: "pass" if n == 0 else "fail")
+
+
+            # The latest month whose revenue rows pass every row-level check: what reports can safely show.
+
+            bad_months = set(pd.concat([duplicate_rows["month"], invalid_mrr["month"]]).dt.strftime("%Y-%m"))
+
+            good_months = sorted(m for m in mrr["month"].dt.strftime("%Y-%m").unique() if m not in bad_months)
+
+            last_good_month = good_months[-1] if good_months else None
+
+            checks
+          metadata: {}
+        - id: ff8b7d42b81ebf8e7eb4811f2872bc23
+          blockGroup: 6d65720a4346ecfd9e189dfa60be3a6e
+          sortingKey: "000011"
+          type: code
+          content: >-
+            from IPython.display import display
+
+
+            failed = checks[checks["status"] == "fail"]
+
+            tables = [
+                {"table": "accounts", "rows": len(accounts), "latest": f"{accounts['customer_since'].max():%Y-%m}",
+                 "description": "Customer accounts"},
+                {"table": "mrr", "rows": len(mrr), "latest": latest_month, "description": "Monthly recurring revenue"},
+                {"table": "opportunities", "rows": len(opportunities), "latest": opportunities["quarter"].max(),
+                 "description": "Pipeline by quarter"},
+            ]
+
+            for table in tables:
+                table["status"] = "fail" if (failed["table"] == table["table"]).any() else "pass"
+
+            display({"application/json": {
+                "status": "fail" if len(failed) else "pass",
+                "expected_month": expected_month,
+                "last_good_month": last_good_month,
+                "simulated_issue": None if simulate_issue == "None" else simulate_issue,
+                "tables": tables,
+                "checks": checks.to_dict("records"),
+            }}, raw=True)
+          metadata: {}
+        - id: 45caa57d8c13ea661578031ea522ae80
+          blockGroup: 1b206f62588caec937a85e48b40e228c
+          sortingKey: "000012"
+          type: code
+          content: >-
+            # In CI and on the schedule, a failed check fails the run, which fails the pull request or notifies
+
+            # the schedule's subscribers. The status page turns this off to show the results instead.
+
+            if len(failed) and fail_on_issue:
+                raise AssertionError(
+                    f"{len(failed)} data quality check(s) failed: " + "; ".join(f"{c.check} ({c.detail})" for c in failed.itertuples())
+                )
+            print(f"{len(checks) - len(failed)} of {len(checks)} checks passed.")
+          metadata: {}
+      executionMode: block
+      id: 5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d04
+      name: Data health checks
+version: 1.0.0

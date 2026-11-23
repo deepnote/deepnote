@@ -51,11 +51,16 @@ function respondThenSettle(res: ServerResponse, status: number, body: string, se
  * `/callback` redirect the Deepnote proxy sends after Google consent, exchanges the authorization
  * code, and tears the server down.
  *
- * `onListening` is called with the bound callback URL once the server is ready to accept it and is
- * never awaited.
+ * `onListening` is called with the bound callback URL once the server is ready to accept it. The
+ * flow does not wait for the promise it may return, but a throw or a rejection fails the flow with
+ * that error.
+ *
+ * `signal` cancels the flow: an already-aborted signal rejects before a port is bound, and a later
+ * abort aborts an in-flight code exchange and closes the port. Both reject with the signal's reason.
  *
  * Rejects on a `state` mismatch, a provider error (`?error=...`), an exchange failure, the
- * `timeoutMs` deadline, or SIGINT. Resolves with the refresh token on success.
+ * `timeoutMs` deadline, an `onListening` failure, or `signal` aborting. Resolves with the refresh
+ * token on success.
  */
 export async function runOAuthFlow(params: {
   clientId: string
@@ -63,10 +68,16 @@ export async function runOAuthFlow(params: {
   codeVerifier: string
   state: string
   redirectUri: string
-  onListening: (callbackUrl: string) => void
+  onListening: (callbackUrl: string) => unknown
   timeoutMs?: number
   tokenUrl?: string
+  signal?: AbortSignal
 }): Promise<{ refreshToken: string }> {
+  const { signal } = params
+  if (signal?.aborted) {
+    throw toError(signal.reason)
+  }
+
   return new Promise((resolve, reject) => {
     let settled = false
     // Set the instant a callback claims the code, before the exchange is awaited — a browser
@@ -79,8 +90,8 @@ export async function runOAuthFlow(params: {
       handleCallback(req, res).catch(error => settleReject(toError(error)))
     })
 
-    const onSigint = (): void => {
-      settleReject(new Error('Authentication cancelled.'))
+    const onAbort = (): void => {
+      settleReject(toError(signal?.reason))
     }
 
     const timeoutHandle = setTimeout(() => {
@@ -89,7 +100,7 @@ export async function runOAuthFlow(params: {
 
     function cleanup(): void {
       clearTimeout(timeoutHandle)
-      process.off('SIGINT', onSigint)
+      signal?.removeEventListener('abort', onAbort)
       // `close()` ends only idle connections, so one with a request still in progress, such as
       // unfinished headers, would keep the process alive.
       server.closeAllConnections()
@@ -133,7 +144,7 @@ export async function runOAuthFlow(params: {
       // a non-matching callback ends the flow rather than being silently accepted.
       const receivedState = url.searchParams.get('state')
       if (receivedState === null || receivedState !== params.state) {
-        const message = 'The OAuth callback state did not match the expected value. Run the command again.'
+        const message = 'The OAuth callback state did not match the expected value. Start the sign-in again.'
         respondThenSettle(res, 400, renderPage('Authorization failed', message), () => settleReject(new Error(message)))
         return
       }
@@ -168,10 +179,7 @@ export async function runOAuthFlow(params: {
         respondThenSettle(
           res,
           200,
-          renderPage(
-            'Authorization complete',
-            'Google authorization is complete. You can close this tab and return to your terminal.'
-          ),
+          renderPage('Authorization complete', 'Google authorization is complete. You can close this tab.'),
           () => settleResolve({ refreshToken })
         )
       } catch (error) {
@@ -183,7 +191,10 @@ export async function runOAuthFlow(params: {
     server.on('error', error => {
       settleReject(new Error(`Failed to start the local OAuth callback server: ${error.message}`))
     })
-    process.on('SIGINT', onSigint)
+    // Registered before `listen` so an abort that lands before 'listening' still settles the flow:
+    // `cleanup`'s `close()` cancels the pending bind (Node >= 20.12), so neither the port nor
+    // `onListening` is reached.
+    signal?.addEventListener('abort', onAbort, { once: true })
 
     server.listen(0, '127.0.0.1', () => {
       const address = server.address()
@@ -192,7 +203,9 @@ export async function runOAuthFlow(params: {
         return
       }
       try {
-        params.onListening(`http://127.0.0.1:${address.port}/callback`)
+        Promise.resolve(params.onListening(`http://127.0.0.1:${address.port}/callback`)).catch(error =>
+          settleReject(toError(error))
+        )
       } catch (error) {
         // This runs inside a 'listening' emitter — an escaping throw would kill the process instead
         // of failing the flow.

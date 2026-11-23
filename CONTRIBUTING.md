@@ -19,6 +19,7 @@ deepnote/
 │   ├── cloud-sync/            # @deepnote/cloud-sync - Sync and publish local folders with Deepnote Cloud
 │   ├── convert/               # @deepnote/convert - Bidirectional converter between Jupyter and Deepnote
 │   ├── database-integrations/ # @deepnote/database-integrations - Database integration definitions and schemas
+│   ├── federated-auth/        # @deepnote/federated-auth - Google OAuth for federated database integrations
 │   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI
 │   ├── mcp/                   # @deepnote/mcp - MCP server for AI-assisted notebook creation
 │   ├── reactivity/            # @deepnote/reactivity - Reactivity and dependency graph

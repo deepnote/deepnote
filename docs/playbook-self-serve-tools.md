@@ -85,6 +85,13 @@ A data app can't serve files from viewers' runs. Ask the agent to add a download
 - **Watch usage.** Viewers' runs appear as detached runs in the notebook's [usage insights](/docs/app-and-notebook-analytics), under **All**. A tool nobody has run in a month is a candidate for retirement.
 - **Change it safely.** Changes go live as soon as the agent saves them. For larger changes, set the app to **Unpublished** while you work, so only editors can open it.
 
+## Example
+
+The [Renewal deal desk](https://github.com/deepnote/deepnote/tree/main/examples/lindquett-software/deal-desk) in the Lindquett Software example is a self-serve tool for
+account managers: pick an account and a term, and get the renewal price the pricing rules allow, with a
+plain-language reason for each part of it. The pricing rules stay in one reviewed notebook, and the
+app's page runs that notebook with the account manager's choices.
+
 ## Plan requirements
 
 - **Data app projects and input blocks:** all plans.

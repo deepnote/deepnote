@@ -2,7 +2,7 @@ import * as fsPromises from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { computeClientFingerprint, getTokenStoreDir, readToken, writeToken } from './token-store'
+import { getTokenStoreDir, readToken, writeToken } from './token-store'
 
 vi.mock('node:os', async importOriginal => {
   const actual = await importOriginal<typeof import('node:os')>()
@@ -248,18 +248,6 @@ describe('token-store', () => {
 
       const dirStat = await fsPromises.stat(tokenDir())
       expect(dirStat.mode & 0o777).toBe(0o700)
-    })
-  })
-
-  describe('computeClientFingerprint', () => {
-    const base = { clientId: 'client-1', clientSecret: 'secret-1', project: 'project-1' }
-
-    it('is deterministic for the same inputs', () => {
-      expect(computeClientFingerprint(base)).toBe(computeClientFingerprint({ ...base }))
-    })
-
-    it.each(['clientId', 'clientSecret', 'project'] as const)('changes when %s changes', field => {
-      expect(computeClientFingerprint(base)).not.toBe(computeClientFingerprint({ ...base, [field]: 'changed' }))
     })
   })
 })

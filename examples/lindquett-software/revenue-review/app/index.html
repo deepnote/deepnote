@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The notebook this app runs in Deepnote. Matches revenue-review.deepnote; change it if Deepnote assigns another ID. -->
+  <meta name="deepnote-notebook-id" content="5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d01">
+  <title>Revenue review</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="title">
+  <div class="inner">
+    <div class="meta">
+      <span>Lindquett Software · Revenue review · <span id="as-of">loading</span></span>
+      <div class="controls">
+        <label>Region <select id="region"><option>All</option><option>North America</option><option>EMEA</option><option>APAC</option><option>LATAM</option></select></label>
+        <label>Segment <select id="segment"><option>All</option><option>Enterprise</option><option>Mid-market</option><option>SMB</option></select></label>
+        <label>Quarter <select id="quarter"><option>2025-Q3</option><option>2025-Q4</option><option>2026-Q1</option><option>2026-Q2</option><option selected>2026-Q3</option></select></label>
+      </div>
+    </div>
+    <h1 id="title">Revenue review</h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="figures" id="figures"></div>
+    <div class="status" id="status"></div>
+  </div>
+</header>
+
+<main class="story">
+  <section class="chapter">
+    <div class="no">01</div>
+    <div class="body">
+      <h2 id="bridge-line">The ARR bridge</h2>
+      <div id="bridge"></div>
+      <p class="caption" id="bridge-caption"></p>
+    </div>
+  </section>
+  <section class="chapter">
+    <div class="no">02</div>
+    <div class="body">
+      <h2 id="regions-line">Net revenue retention by region</h2>
+      <div class="multiples" id="multiples"></div>
+      <p class="caption" id="multiples-caption"></p>
+    </div>
+  </section>
+  <section class="chapter">
+    <div class="no">03</div>
+    <div class="split">
+      <div class="body">
+        <h2 id="accounts-line">The accounts that moved ARR most</h2>
+        <div id="ranked"></div>
+        <p class="caption" id="ranked-caption"></p>
+      </div>
+      <aside class="analyst quiet" id="analyst" aria-live="polite">
+        <div class="kicker">The analyst</div>
+        <p class="muted" id="analyst-body">Runs with the numbers above once a model is available.</p>
+        <form id="ask">
+          <label for="question">Ask a follow-up</label>
+          <div class="ask"><input id="question" type="text" placeholder="Which plan churned most?"><button id="ask-button">Ask</button></div>
+        </form>
+      </aside>
+    </div>
+  </section>
+</main>
+<footer class="story"><div class="rule">Synthetic data for Lindquett Software, a fictional company. Every number comes from the shared Revenue metrics module, and every sentence on this page was written from those numbers by the notebook or its agent.</div></footer>
+
+<script type="module">
+  import { runNotebook } from './deepnote-app.js'
+  import { h, money, multiple, percent, ranked, signed, waterfall } from './ui.js'
+
+  const $ = id => document.getElementById(id)
+  const params = new URLSearchParams(location.search)
+  for (const name of ['region', 'segment', 'quarter']) if (params.get(name)) $(name).value = params.get(name)
+  $('question').value = params.get('question') ?? ''
+
+  let generation = 0
+  async function refresh() {
+    const mine = ++generation
+    const inputs = { region: $('region').value, segment: $('segment').value, quarter: $('quarter').value, question: $('question').value.trim() }
+    history.replaceState(null, '', `?${new URLSearchParams({ region: inputs.region, segment: inputs.segment, quarter: inputs.quarter })}`)
+    $('status').replaceChildren(h('span.spinner'), 'Running the revenue notebook…')
+    $('ask-button').disabled = true
+    try {
+      const { data, error } = await runNotebook(inputs)
+      if (mine !== generation) return
+      $('status').replaceChildren()
+      if (data.kpis) render(data)
+      renderAnalyst(data.story?.analyst, error, Boolean(data.kpis))
+    } catch (failure) {
+      if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
+    } finally {
+      if (mine === generation) $('ask-button').disabled = false
+    }
+  }
+
+  const figure = (value, label, plain = false) => h('div.figure', {}, h(`div.value${plain ? '.plain' : ''}`, {}, value), h('div.label', {}, label))
+
+  function render({ scope, kpis, story, bridge, nrr_by_region, region_moves, movers }) {
+    $('as-of').textContent = `data through ${scope.as_of}`
+    $('title').textContent = story.title
+    $('standfirst').textContent = story.standfirst
+    $('figures').replaceChildren(
+      figure(percent(kpis.nrr), `net revenue retention, ${signed((kpis.nrr - kpis.prior_nrr) * 100, ' pts')}`),
+      figure(money(kpis.ending_arr, 2), `ending ARR, ${signed((kpis.ending_arr / kpis.prior_ending_arr - 1) * 100, '%')}`),
+      figure(money(kpis.churned_arr, 2), 'ARR churned this quarter'),
+      figure(`${kpis.coverage.toFixed(2)}×`, `pipeline coverage for ${kpis.next_quarter}, ${signed(kpis.coverage - kpis.prior_coverage, '×', 2)}`)
+    )
+
+    $('bridge-line').textContent = story.bridge
+    $('bridge').replaceChildren(waterfall(bridge.map(step => ({ label: step.step, value: step.arr })), { format: v => money(v, 2) }))
+    $('bridge-caption').textContent = `Each bar starts where the previous one ended. ${scope.region === 'All' ? 'All regions' : scope.region}, ${scope.segment === 'All' ? 'all segments' : scope.segment}, ${scope.quarter}.`
+
+    $('regions-line').textContent = story.regions
+    const regions = [...new Set(nrr_by_region.map(row => row.region))]
+    const ys = nrr_by_region.map(row => row.y ?? row.nrr)
+    const lo = Math.min(...ys, 1), hi = Math.max(...ys, 1)
+    $('multiples').replaceChildren(...regions.map(name => {
+      const points = nrr_by_region.filter(row => row.region === name).map(row => ({ x: row.quarter, y: row.nrr }))
+      const change = region_moves[name]
+      const on = change !== undefined && Math.abs(change) > 2
+      return multiple(name, points, {
+        end: percent(points.at(-1).y, 0),
+        caption: change === undefined ? '' : `${signed(change, ' pts')} vs ${scope.prior_quarter}`,
+        baseline: 1, lo, hi, on, gain: on && change > 0,
+      })
+    }))
+    $('multiples-caption').textContent = `Net revenue retention by region, trailing twelve months, ${regions.length ? nrr_by_region.filter(r => r.region === regions[0]).length : 0} quarters to ${scope.quarter}. Dotted line is 100%.`
+
+    $('accounts-line').textContent = story.accounts
+    const losses = movers.filter(m => m.arr_change < 0).sort((a, b) => a.arr_change - b.arr_change)
+    const gains = movers.filter(m => m.arr_change > 0).sort((a, b) => b.arr_change - a.arr_change)
+    const rows = [
+      ...losses.map((m, i) => ({ name: m.account, value: m.arr_change, faint: i >= 3 })),
+      ...(losses.length && gains.length ? [{ rule: true }] : []),
+      ...gains.map(m => ({ name: m.account, value: m.arr_change })),
+    ]
+    $('ranked').replaceChildren(ranked(rows))
+    $('ranked-caption').textContent = `Change in ARR during ${scope.quarter}, largest movements in ${scope.region === 'All' ? 'the company' : scope.region}.`
+  }
+
+  function renderAnalyst(note, error, haveData) {
+    const aside = $('analyst')
+    const form = $('ask')
+    if (note) {
+      aside.className = 'analyst'
+      aside.replaceChildren(
+        h('div.kicker', {}, 'What the analyst says'),
+        h('p.headline', {}, note.headline),
+        h('ul', {}, (note.evidence ?? []).map(item => h('li', {}, item))),
+        note.next_step ? h('p', {}, h('strong', {}, 'Next step: '), note.next_step) : null,
+        form
+      )
+    } else if (error) {
+      aside.className = 'analyst quiet'
+      aside.replaceChildren(h('div.kicker', {}, 'The analyst'), h('p.muted', {}, haveData ? `No note this run: ${error.replace(/\.$/, '')}. The numbers are complete.` : error), form)
+    }
+  }
+
+  for (const name of ['region', 'segment', 'quarter']) $(name).addEventListener('change', refresh)
+  $('ask').addEventListener('submit', event => { event.preventDefault(); refresh() })
+  refresh()
+</script>
+</body>
+</html>

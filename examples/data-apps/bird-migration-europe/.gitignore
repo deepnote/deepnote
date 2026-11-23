@@ -1,0 +1,6 @@
+# Built by the notebook
+_deepnote_static/
+birds/raw/
+birds/processed/
+birds/vendor/
+birds/bird-migration.html

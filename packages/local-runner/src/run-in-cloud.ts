@@ -1,4 +1,5 @@
 import type { DeepnoteBlock, DeepnoteFile, InputBlockValueOverride } from '@deepnote/blocks'
+import { sortBlocksBySortingKey } from '@deepnote/blocks'
 import {
   addNotebooksToProject,
   type BlockSpec,
@@ -258,9 +259,7 @@ export async function createFromFile(
 
   // Sorted once and reused below: `createProject` returns block ids in the order it was given the
   // blocks, so this same ordering is what maps a source block onto its new cloud id.
-  const sortedBlocks = toCreate.project.notebooks.map(notebook =>
-    [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
-  )
+  const sortedBlocks = toCreate.project.notebooks.map(notebook => sortBlocksBySortingKey(notebook.blocks))
 
   // Deepnote assigns new ids, so the created notebook has to be identified some other way — by
   // position, because `createProject` creates them in the order it was handed them. Not by name: a

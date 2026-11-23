@@ -25,8 +25,8 @@ import { isSafeRelativeFilePath, PROJECT_FILES_DIR_NAME } from './sync-paths'
  *   fresh export against it separates "local edit", "cloud edit", and "both" without any clocks.
  * - `files`: per-path `size`/`updatedAt` from the last `--all-files` sync, for incremental
  *   downloads.
- * - `pendingFileUploads`: replacements persisted before deleting the cloud copy, so an interrupted
- *   delete-then-upload is retried instead of being mistaken for a cloud deletion.
+ * - `pendingFileUploads`: replacements persisted before their upload starts, so an interrupted
+ *   upload is retried by the next `--all-files` sync.
  *
  * The file is plain JSON with sorted keys, so it diffs cleanly if the user commits it to git.
  */

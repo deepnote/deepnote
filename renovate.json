@@ -1,5 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "constraints": {
+    "ghActionsLock": "v0.4.1"
+  },
   "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
   "draftPR": true,
   "pinDigests": true,

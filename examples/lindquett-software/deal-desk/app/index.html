@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The notebook this app runs in Deepnote. Matches deal-desk.deepnote; change it if Deepnote assigns another ID. -->
+  <meta name="deepnote-notebook-id" content="5f0c1d2e-7a41-4c8e-9b6a-0d1e2f3a4d02">
+  <title>Renewal deal desk</title>
+  <link rel="stylesheet" href="app.css">
+  <style>
+    .reasons { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+    .reasons li { padding: 12px 14px; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+    .book { max-height: 520px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+<header class="title">
+  <div class="inner">
+    <div class="meta">
+      <span>Lindquett Software · Renewal deal desk · <span id="as-of">loading</span></span>
+      <div class="controls" role="group" aria-label="Term">
+        <button class="pill" data-term="1" aria-pressed="true">1 year</button>
+        <button class="pill" data-term="2" aria-pressed="false">2 years</button>
+        <button class="pill" data-term="3" aria-pressed="false">3 years</button>
+      </div>
+    </div>
+    <h1 id="title">Renewal deal desk</h1>
+    <p class="standfirst" id="standfirst"></p>
+    <div class="figures" id="figures"></div>
+    <div class="status" id="status"></div>
+  </div>
+</header>
+
+<main class="story">
+  <section class="chapter">
+    <div class="no">01</div>
+    <div class="split">
+      <div class="body">
+        <h2 id="price-line">The price</h2>
+        <div id="price-bridge"></div>
+        <ul class="reasons" id="reasons"></ul>
+        <p class="caption">The pricing rules live in the Renewal quote notebook, reviewed like code. The CRM gets this same answer from the same notebook.</p>
+      </div>
+      <aside class="analyst quiet">
+        <div class="kicker">The account</div>
+        <dl class="facts" id="facts"></dl>
+      </aside>
+    </div>
+  </section>
+  <section class="chapter">
+    <div class="no">02</div>
+    <div class="body">
+      <h2 id="book-line">The renewal book</h2>
+      <div class="cards cols-2">
+        <div class="card">
+          <label class="muted small" for="search">Find an account</label>
+          <input class="plain" id="search" type="search" placeholder="Name or ID" style="width: 100%; margin-top: 6px">
+          <div class="list book" id="book" role="list" style="margin-top: 10px"></div>
+        </div>
+        <div class="card">
+          <div class="muted small">Largest renewals in the book</div>
+          <div id="largest" style="margin-top: 10px"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="story"><div class="rule">Synthetic data for Lindquett Software, a fictional company. Every number and sentence on this page comes from the Renewal quote notebook.</div></footer>
+
+<script type="module">
+  import { runNotebook } from './deepnote-app.js'
+  import { h, money, percent, ranked, signed, waterfall } from './ui.js'
+
+  const $ = id => document.getElementById(id)
+  const params = new URLSearchParams(location.search)
+  const state = { accountId: params.get('account') ?? 'ACC-1003', term: params.get('term') ?? '1', book: [] }
+  let generation = 0
+
+  async function quote() {
+    const mine = ++generation
+    history.replaceState(null, '', `?account=${state.accountId}&term=${state.term}`)
+    $('status').replaceChildren(h('span.spinner'), 'Pricing…')
+    renderBook()
+    try {
+      const { data, error } = await runNotebook({ account_id: state.accountId, term_years: state.term })
+      if (mine !== generation) return
+      $('status').replaceChildren()
+      if (data.accounts) { state.book = data.accounts; renderBook(); renderLargest(data) }
+      if (data.as_of) $('as-of').textContent = `revenue as of ${data.as_of}`
+      if (data.quote && !error) renderQuote(data.quote)
+      else renderFailure(error ?? 'The notebook returned no quote.')
+    } catch (failure) {
+      if (mine === generation) $('status').replaceChildren(h('span.error', {}, failure.message))
+    }
+  }
+
+  const figure = (value, label, plain = false) => h('div.figure', {}, h(`div.value${plain ? '.plain' : ''}`, {}, value), h('div.label', {}, label))
+
+  function renderQuote(q) {
+    const change = q.proposed_arr / q.current_arr - 1
+    const tone = { Low: 'good', Medium: 'warn', High: 'bad' }[q.risk]
+    $('title').textContent = `${q.account} renews at ${money(q.proposed_arr, 2)} for ${q.term_years} year${q.term_years > 1 ? 's' : ''}`
+    $('standfirst').textContent = `${q.region} ${q.segment}, on the ${q.price_plan} price list, ${q.risk.toLowerCase()} churn risk. ${signed(change * 100, '%')} on today's ${money(q.current_arr, 2)}.`
+    $('figures').replaceChildren(
+      figure(money(q.proposed_arr, 2), 'proposed ARR'),
+      figure(money(q.current_arr, 2), 'current ARR', true),
+      figure(`${q.risk}`, 'churn risk', true),
+      figure(signed(q.arr_change_12m * 100, '%', 0), 'ARR over 12 months', true)
+    )
+    const uplift = q.current_arr * q.uplift
+    const discount = -(q.current_arr * (1 + q.uplift) * q.term_discount)
+    $('price-line').textContent = uplift === 0 && discount === 0
+      ? 'The price is held'
+      : `${uplift > 0 ? `+${percent(q.uplift, 0)} uplift` : 'No uplift'}${discount < 0 ? `, −${percent(q.term_discount, 0)} for the ${q.term_years}-year term` : ', no term discount'}`
+    $('price-bridge').replaceChildren(waterfall([
+      { label: 'Current ARR', value: q.current_arr },
+      { label: 'Uplift', value: uplift },
+      { label: 'Term discount', value: discount },
+      { label: 'Proposed ARR', value: q.proposed_arr },
+    ], { format: v => money(v, 2) }))
+    $('reasons').replaceChildren(...q.reasons.map(reason => h('li', {}, reason)))
+    $('facts').replaceChildren(
+      h('dt', {}, 'Account'), h('dd', {}, `${q.account} (${q.account_id})`),
+      h('dt', {}, 'Risk'), h('dd', {}, h(`span.badge.${tone}`, {}, `${q.risk} churn risk`)),
+      h('dt', {}, 'Peer retention'), h('dd', {}, `${percent(q.peer_grr, 0)} gross, ${q.region} ${q.segment}`),
+      h('dt', {}, 'Price list'), h('dd', {}, q.price_plan),
+      h('dt', {}, 'Term'), h('dd', {}, `${q.term_years} year${q.term_years > 1 ? 's' : ''}`)
+    )
+  }
+
+  function renderFailure(message) {
+    $('title').textContent = 'No quote for this account'
+    $('standfirst').textContent = message
+    $('figures').replaceChildren()
+    $('price-line').textContent = 'The price'
+    $('price-bridge').replaceChildren()
+    $('reasons').replaceChildren()
+    $('facts').replaceChildren(h('dt', {}, 'Account'), h('dd', {}, state.accountId))
+  }
+
+  function renderBook() {
+    if (!state.book.length) return
+    const term = $('search').value.trim().toLowerCase()
+    const shown = state.book.filter(a => !term || a.account.toLowerCase().includes(term) || a.account_id.toLowerCase().includes(term)).slice(0, 60)
+    $('book-line').textContent = `${state.book.length.toLocaleString()} accounts up for renewal, ${money(state.book.reduce((sum, a) => sum + a.arr, 0), 1)} of ARR`
+    $('book').replaceChildren(...shown.map(a => h('button', {
+      role: 'listitem',
+      'aria-pressed': String(a.account_id === state.accountId),
+      onclick: () => { state.accountId = a.account_id; quote() },
+    }, h('span.muted.small', {}, a.account_id.replace('ACC-', '#')), h('span', { style: { fontWeight: 600 } }, a.account), h('span.muted', {}, money(a.arr)), h('span.sub', {}, `${a.region}, ${a.segment}`))))
+  }
+
+  function renderLargest({ accounts }) {
+    $('largest').replaceChildren(ranked(accounts.slice(0, 8).map(a => ({ name: a.account, value: a.arr }))))
+  }
+
+  const pressTerm = () => document.querySelectorAll('[data-term]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.term === state.term)))
+  document.querySelectorAll('[data-term]').forEach(button => button.addEventListener('click', () => { state.term = button.dataset.term; pressTerm(); quote() }))
+  $('search').addEventListener('input', renderBook)
+  pressTerm()
+  quote()
+</script>
+</body>
+</html>

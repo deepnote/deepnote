@@ -1,0 +1,319 @@
+metadata:
+  createdAt: 2026-11-12T16:55:27.371Z
+project:
+  id: 0b932ce2-480a-47f8-a2c8-27df50433cc6
+  integrations: []
+  name: Global ship traffic
+  notebooks:
+    - blocks:
+        - id: e5a7d14addbd4dd597e012dfb2124278
+          blockGroup: 2d859668355049aba17570e2b93515bd
+          sortingKey: "000000"
+          type: markdown
+          content: >-
+            # Ships Global — data build
+
+
+            Builds the data for this project's app (`_deepnote_static/index.html`): a 3D globe / flat map of six years
+            of global ship traffic.
+
+
+            **Source:** World Bank / IMF [Global Shipping Traffic
+            Density](https://datacatalog.worldbank.org/search/dataset/0037580) (CC BY 4.0). It is a 0.005° grid of AIS
+            position reports for Jan 2015 – Feb 2021, all vessel types. Land comes from Natural Earth 1:10m.
+
+
+            **Run all** (about 20 min; the download only happens on the first run):
+
+            1. Download the 535 MB zip and extract the 9.8 GB GeoTIFF to local disk.
+
+            2. Inspect the raster.
+
+            3. Process it into `_deepnote_static/data/`:
+               - 648 tiles of 10° at 0.01°;
+               - an 8192 × 4096 global texture;
+               - 320k sparkle points;
+               - `meta.json` with concentration, passage shares and the longitude profile.
+            4. Put three.js in the app folder.
+
+
+            The raw values sum AIS reports, not vessel-hours, so the app shows only relative measures: shares, multiples
+            of the ocean average, and percentiles.
+          metadata: {}
+        - id: e3d4d1ef7fee4ed38da33916f9914de9
+          blockGroup: 20af1c3006d743dcb912cde358da7bf0
+          sortingKey: "000001"
+          outputs: []
+          type: code
+          content: >-
+            # 1 · Download the World Bank / IMF Global Shipping Traffic Density raster (~535 MB, once)
+
+            #     The zip stays in project storage; the 9.8 GB GeoTIFF is extracted to the machine's local disk for fast
+            reads.
+
+            import os, subprocess, sys, zipfile, time, shutil
+
+            from pathlib import Path
+
+            subprocess.run([sys.executable, "-m", "pip", "install", "-q", "rasterio", "shapely>=2", "pillow"],
+            check=True)
+
+
+            RAW = Path("data/raw"); RAW.mkdir(parents=True, exist_ok=True)
+
+            URL = "https://datacatalogfiles.worldbank.org/ddh-published/0037580/DR0045406/shipdensity_global.zip"
+
+            ZIP = RAW / "shipdensity_global.zip"
+
+            if not ZIP.exists() or ZIP.stat().st_size < 534_000_000:
+                t = time.time()
+                subprocess.run(["curl", "-sSfL", "-A", "Mozilla/5.0", "-o", str(ZIP), URL], check=True)
+                print(f"downloaded {ZIP.stat().st_size/1e6:.0f} MB in {time.time()-t:.0f} s")
+
+            TMP = Path("/tmp/shipdensity"); TMP.mkdir(exist_ok=True)
+
+            TIF = TMP / "shipdensity_global.tif"
+
+            if not TIF.exists() or TIF.stat().st_size < 9_800_000_000:
+                t = time.time()
+                with zipfile.ZipFile(ZIP) as z:
+                    for n in ["shipdensity_global.tif", "shipdensity_global.tfw", "shipdensity_global.tif.aux.xml"]: z.extract(n, TMP)
+                print(f"extracted in {time.time()-t:.0f} s")
+            for f in ["shipdensity_global.tif", "shipdensity_global.tif.ovr"]:  # an earlier run extracted into project
+            storage; not needed there
+                if (RAW / f).exists(): (RAW / f).unlink()
+            print("geotransform (.tfw):", (TMP / "shipdensity_global.tfw").read_text().split())
+
+            print(shutil.disk_usage("/tmp"))
+          metadata: {}
+        - id: 73d0116e5af141fc9704b61ae07c6afb
+          blockGroup: 227f9174b38048d899c3371d6ea860a9
+          sortingKey: "000002"
+          outputs: []
+          type: code
+          content: >-
+            # 2 · Inspect: 72 006 × 33 998 int32 cells of 0.005°, from 180.0128°W / 85.0001°N.
+
+            #     Value = number of hourly AIS positions in the cell, Jan 2015 – Feb 2021 (IMF World Seaborne Trade
+            Monitoring System).
+
+            import rasterio
+
+            with rasterio.open(TIF) as src:
+                print(src.width, src.height, src.dtypes, src.nodata, src.transform, src.crs, sep="\n")
+          metadata: {}
+        - id: e0d641f0af274b00a02b4bcfb1233769
+          blockGroup: da0f791530e5430986c4c7f908d647f8
+          sortingKey: "000003"
+          outputs: []
+          type: code
+          content: >-
+            # 3 · Process for the app (writes _deepnote_static/data/…)
+
+            #   tiles/{ty}_{tx}.png  10°×10° tiles at 0.01° (1000×1000 px), loaded when the viewer zooms in
+
+            #   global.png           8192×4096 equirectangular texture of the whole world (0.044°)
+
+            #   Each PNG: R = log(1 + density) in 8 bits, G = anti-aliased land cover (Natural Earth 1:10m), B = 0
+
+            #   particles.bin        sparkle points sampled by density;  meta.json  passages, concentration, profiles
+
+            #
+
+            # Units: the raster sums AIS position reports per cell over Jan 2015 – Feb 2021. The global total (~6.6e14)
+            is far more than
+
+            # one report per ship per hour, so absolute values are not vessel-hours. Everything shown in the app is
+            therefore relative:
+
+            # shares of the world total, multiples of the ocean average, and percentiles.
+
+            import json, math, requests, numpy as np
+
+            from rasterio.windows import Window
+
+            from PIL import Image, ImageDraw
+
+            from shapely.geometry import shape, box
+
+            from shapely.strtree import STRtree
+
+            Image.MAX_IMAGE_PIXELS = None
+
+
+            OUT = Path("_deepnote_static/data"); (OUT / "tiles").mkdir(parents=True, exist_ok=True)
+
+            NODATA, LOGMAX = 2147483647, math.log1p(65468393)   # HistMax from the .aux.xml = densest 0.005° cell
+
+            COL0 = 3                                         # raster starts at 180.0128°W; dropping 3 columns aligns it
+            to 180°W (±0.002°)
+
+            OCEAN_KM2, KM_DEG = 361.1e6, 111.32
+
+
+            # --- land polygons (Natural Earth 1:10m land + minor islands)
+
+            geoms = []
+
+            for k in ["land", "minor_islands"]:
+                f = RAW / f"ne_10m_{k}.geojson"
+                if not f.exists():
+                    f.write_bytes(requests.get(f"https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_{k}.geojson", timeout=300).content)
+                for ft in json.loads(f.read_text())["features"]:
+                    g = shape(ft["geometry"]); geoms += list(g.geoms) if g.geom_type == "MultiPolygon" else [g]
+            geoms = [g.buffer(0) for g in geoms]
+
+            tree = STRtree(geoms)
+
+
+            def land(lon0, lat1, wdeg, hdeg, W, H, ss=3):
+                """Anti-aliased land cover 0..255 for the box whose top-left corner is (lon0, lat1)."""
+                im = Image.new("L", (W * ss, H * ss), 0); d = ImageDraw.Draw(im)
+                sx, sy = W * ss / wdeg, H * ss / hdeg
+                pts = lambda ring: [((x - lon0) * sx, (lat1 - y) * sy) for x, y in ring.coords]
+                bx = box(lon0 - 0.01, lat1 - hdeg - 0.01, lon0 + wdeg + 0.01, lat1 + 0.01)
+                for i in tree.query(bx):
+                    g = geoms[i] if wdeg >= 360 else geoms[i].intersection(bx)   # clip big continents to the tile
+                    for p in ([g] if g.geom_type == "Polygon" else [q for q in getattr(g, "geoms", []) if q.geom_type == "Polygon"]):
+                        if p.is_empty: continue
+                        d.polygon(pts(p.exterior), fill=255)
+                        for r in p.interiors: d.polygon(pts(r), fill=0)
+                return np.asarray(im.resize((W, H), Image.BOX))
+
+            def encode(mean_counts, landcover):
+                e = np.round(np.log1p(mean_counts) / LOGMAX * 255).clip(0, 255).astype(np.uint8)
+                return Image.fromarray(np.dstack([e, landcover, np.zeros_like(e)]), "RGB")
+
+            # Passages: a 100 km × 100 km box centred on each one, so the shares are comparable
+
+            PASSAGES = {
+                "Dover Strait": (1.45, 51.0), "Singapore Strait": (103.85, 1.2), "Strait of Malacca": (101.2, 2.6),
+                "Strait of Hormuz": (56.4, 26.4), "Strait of Gibraltar": (-5.6, 35.95), "Bab el-Mandeb": (43.35, 12.6),
+                "Suez Canal": (32.35, 30.6), "Panama Canal": (-79.7, 9.15), "Bosphorus": (29.05, 41.1),
+                "Taiwan Strait": (119.8, 24.2), "Korea Strait": (129.3, 34.6), "Øresund": (12.7, 55.9),
+                "Cape of Good Hope": (18.4, -34.9), "Mona Passage": (-67.9, 18.2),
+            }
+
+            HALF_KM = 50
+
+            REGIONS = {k: (lo - HALF_KM / (KM_DEG * math.cos(math.radians(la))), la - HALF_KM / KM_DEG,
+                           lo + HALF_KM / (KM_DEG * math.cos(math.radians(la))), la + HALF_KM / KM_DEG) for k, (lo, la) in PASSAGES.items()}
+            reg = {k: 0.0 for k in REGIONS}
+
+            G = np.zeros((4500, 9000), np.float32)   # 0.04° global grid (mean value per 0.005° cell), 90°N → 90°S
+
+            total, t0 = 0.0, time.time()
+
+            with rasterio.open(TIF) as src:
+                for b, lat_top in enumerate(range(90, -90, -10)):
+                    r0 = round((85.0001479370 - lat_top) / 0.005)
+                    band = np.zeros((2000, 72000), np.float32)
+                    a, z = max(r0, 0), min(r0 + 2000, src.height)
+                    for s in range(a, z, 500):  # read in 500-row slabs to cap memory
+                        arr = src.read(1, window=Window(COL0, s, 72000, min(500, z - s)))
+                        arr[(arr == NODATA) | (arr < 0)] = 0
+                        band[s - r0:s - r0 + arr.shape[0]] = arr
+                    total += float(band.sum(dtype=np.float64))
+                    for k, (x0, y0, x1, y1) in REGIONS.items():
+                        if y1 <= lat_top - 10 or y0 >= lat_top: continue
+                        ra, rz = max(0, round((lat_top - y1) / .005)), min(2000, round((lat_top - y0) / .005))
+                        ca, cz = round((x0 + 180) / .005), round((x1 + 180) / .005)
+                        reg[k] += float(band[ra:rz, ca:cz].sum(dtype=np.float64))
+                    G[b * 250:(b + 1) * 250] = band.reshape(250, 8, 9000, 8).mean(axis=(1, 3))
+                    T = band.reshape(1000, 2, 36000, 2).mean(axis=(1, 3)); del band
+                    for tx in range(36):
+                        encode(T[:, tx * 1000:(tx + 1) * 1000], land(-180 + 10 * tx, lat_top, 10, 10, 1000, 1000)).save(OUT / f"tiles/{b}_{tx}.png", optimize=True)
+                    print(f"band {lat_top:>3}° done · {time.time() - t0:.0f} s", flush=True)
+
+            # --- global texture 8192×4096
+
+            g8 = np.asarray(Image.fromarray(G, "F").resize((8192, 4096), Image.BOX))
+
+            encode(g8, land(-180, 90, 360, 180, 8192, 4096, ss=2)).save(OUT / "global.png", optimize=True)
+
+
+            # --- concentration: the smallest share of the ocean that holds 50% / 90% / 99% of all traffic
+
+            lat_c = 90 - (np.arange(4500) + .5) * .04
+
+            cell_km2 = (0.04 * KM_DEG) ** 2 * np.cos(np.radians(lat_c))[:, None] * np.ones((1, 9000), np.float32)
+
+            vol = (G * 64).ravel().astype(np.float64)                     # sum of the 64 source cells
+
+            dens = vol / cell_km2.ravel()
+
+            o = np.argsort(-dens); cv = np.cumsum(vol[o]) / vol.sum(); ca = np.cumsum(cell_km2.ravel()[o])
+
+            conc = {str(q): float(ca[np.searchsorted(cv, q / 100)] / OCEAN_KM2 * 100) for q in (50, 90, 99)}
+
+
+            # --- sparkle particles: 320k points, probability ∝ density^0.55, jittered inside their 0.04° cell
+
+            rng = np.random.default_rng(7)
+
+            w = np.power(G.ravel().astype(np.float64), 0.55); w /= w.sum()
+
+            idx = rng.choice(w.size, 320_000, p=w)
+
+            iy, ix = np.divmod(idx, 9000)
+
+            lon = -180 + (ix + rng.random(idx.size)) * 0.04; lat = 90 - (iy + rng.random(idx.size)) * 0.04
+
+            lv = np.log1p(G.ravel()[idx]) / LOGMAX
+
+            order = np.argsort(rng.random(idx.size))
+
+            with open(OUT / "particles.bin", "wb") as f:
+                f.write(np.round((lon[order] + 180) / 360 * 65535).astype("<u2").tobytes())
+                f.write(np.round((lat[order] + 90) / 180 * 65535).astype("<u2").tobytes())
+                f.write(np.round(lv[order] * 255).astype("u1").tobytes())
+
+            g1 = G.reshape(180, 25, 360, 25).sum(axis=(1, 3)) * 64
+
+            meta = {
+                "source": "World Bank / IMF Global Shipping Traffic Density (CC BY 4.0), built from IMF AIS position reports",
+                "period": "Jan 2015 – Feb 2021", "logmax": LOGMAX, "total": total,
+                "mean_per_cell": total / (OCEAN_KM2 / (0.005 * KM_DEG) ** 2),   # ocean-average value of an equatorial 0.005° cell
+                "concentration": conc,
+                "tiles": {"deg": 10, "px": 1000, "rows": 18, "cols": 36},
+                "passage_km": 2 * HALF_KM,
+                "regions": [{"name": k, "center": PASSAGES[k], "box": [round(v, 4) for v in REGIONS[k]], "share": v / total}
+                            for k, v in sorted(reg.items(), key=lambda kv: -kv[1])],
+                "lon_profile": (g1.sum(axis=0) / total).round(6).tolist(), "lat_profile": (g1.sum(axis=1) / total).round(6).tolist(),
+                "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            }
+
+            (OUT / "meta.json").write_text(json.dumps(meta))
+
+            sizes = sum(p.stat().st_size for p in OUT.rglob("*") if p.is_file())
+
+            print(f"half of all traffic uses {conc['50']:.2f}% of the ocean, 90% uses {conc['90']:.1f}%, 99% uses
+            {conc['99']:.1f}%")
+
+            print(f"output {sizes / 1e6:.0f} MB · global.png {(OUT / 'global.png').stat().st_size / 1e6:.1f} MB ·
+            {time.time() - t0:.0f} s")
+
+            for r in meta["regions"]: print(f"  {r['name']:<22} {r['share'] * 100:6.3f}% of world traffic")
+          metadata: {}
+        - id: 3810329928924de5aaf036070e562c51
+          blockGroup: 9fa507a76987438ab601ec07b06342cd
+          sortingKey: "000004"
+          outputs: []
+          type: code
+          content: >-
+            # 4 · App runtime: three.js served from the app folder (no CDN needed); the app itself is
+            _deepnote_static/index.html
+
+            V = Path("_deepnote_static/vendor"); V.mkdir(parents=True, exist_ok=True)
+
+            if not (V / "three.min.js").exists():
+                (V / "three.min.js").write_bytes(requests.get("https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js", timeout=120).content)
+            print("three.js", (V / "three.min.js").stat().st_size // 1024, "KB ·", len(list((OUT /
+            "tiles").glob("*.png"))), "tiles")
+          metadata: {}
+      executionMode: block
+      id: 2fe30e69dd3744499c586ed198d8cbd2
+      isModule: false
+      name: Build data
+  settings: {}
+version: 1.0.0

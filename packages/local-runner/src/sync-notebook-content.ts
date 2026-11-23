@@ -1,4 +1,5 @@
 import type { DeepnoteBlock, DeepnoteFile } from '@deepnote/blocks'
+import { sortBlocksBySortingKey } from '@deepnote/blocks'
 import {
   type BlockDetail,
   type BlockPlacement,
@@ -142,7 +143,7 @@ function localBlocksOf(file: DeepnoteFile, notebookId: string): DeepnoteBlock[] 
   if (!notebook) {
     throw new Error(`syncNotebookContent: notebook "${notebookId}" is not in this file, so there is nothing to push.`)
   }
-  return [...notebook.blocks].sort((a, b) => a.sortingKey.localeCompare(b.sortingKey))
+  return sortBlocksBySortingKey(notebook.blocks)
 }
 
 /**

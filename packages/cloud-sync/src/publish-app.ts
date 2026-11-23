@@ -98,6 +98,8 @@ export interface PublishAppResult {
   mirrorUpdated: boolean
   /** The published app's URL. Set only when every operation succeeded. */
   appUrl?: string
+  /** The data app's notebook, which the page names when it starts runs. Set when the project has exactly one. */
+  notebookId?: string
 }
 
 /**
@@ -407,15 +409,22 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     throw new PublishError('project-unavailable', `Could not load project ${projectId}: ${errorMessage(error)}`)
   }
   const { files: projectFiles, dataApp } = project
-  if (!dataApp) {
+  if (dataApp === undefined) {
+    // A server problem, not a wrong project: retrying with another project won't help.
     throw new PublishError(
-      'not-a-data-app',
-      dataApp === null
-        ? `Project ${projectId} is not a data app project, so it cannot be published. Create a data app in Deepnote ` +
-            '(Create new → New data app) and publish to that project instead.'
-        : `Deepnote did not report data app settings for project ${projectId}. The server may not support publishing data apps yet.`
+      'project-unavailable',
+      `Deepnote did not report data app settings for project ${projectId}. The server may not support publishing data apps yet.`
     )
   }
+  if (dataApp === null) {
+    throw new PublishError(
+      'not-a-data-app',
+      `Project ${projectId} is not a data app project, so it cannot be published. Create a data app in Deepnote ` +
+        '(Create new → New data app) and publish to that project instead.'
+    )
+  }
+  // The notebook the page runs. Pages name it when they start runs, and it only exists once the project does.
+  const notebookId = project.notebooks?.length === 1 ? project.notebooks[0]?.id : undefined
 
   onEvent?.({ kind: 'publishing', fileCount: publishFiles.length, targetPath: targetPrefix, projectId })
 
@@ -458,14 +467,13 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
 
   for (const { localPath, relativePath, destination } of publishFiles) {
     try {
-      // Read before deleting the remote copy so an unreadable or oversized local file leaves the live file
-      // intact. The size is checked again because the file may have grown since the preflight.
+      // The size is checked again because the file may have grown since the preflight. The upload
+      // overwrites in place, so a failed replacement leaves the live file as it was.
       const content = await fs.readFile(localPath)
       if (content.byteLength > MAX_BUFFERED_PROJECT_FILE_BYTES) {
         throw new Error(`File "${relativePath}" exceeds the ${UPLOAD_LIMIT} upload limit.`)
       }
-      await deleteProjectFile(baseUrl, token, projectId, destination)
-      const stored = await uploadProjectFile(baseUrl, token, projectId, destination, content)
+      const stored = await uploadProjectFile(baseUrl, token, projectId, destination, content, { overwrite: true })
       if (stored.path !== destination) {
         await deleteProjectFile(baseUrl, token, projectId, stored.path).catch(() => undefined)
         throw new Error(`Deepnote stored the file at "${stored.path}" instead of "${destination}"`)
@@ -519,5 +527,6 @@ export async function publishApp(options: PublishAppOptions): Promise<PublishApp
     syncRoot: mirror?.rootDir,
     mirrorUpdated: mirror !== undefined && mirrorFailures.length === 0 && (uploaded > 0 || pruned > 0),
     appUrl,
+    notebookId,
   }
 }
