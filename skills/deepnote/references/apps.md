@@ -47,11 +47,10 @@ use their viewer API access. Apps published from notebook blocks are deprecated;
 4. Follow [Publish a Streamlit app](cli-publish.md#publish-a-streamlit-app), then open the returned
    URL and test the app as its intended viewer.
 
-Creating a Streamlit app restarts the project machine and interrupts active work. Sync overwrites a
-changed entrypoint in place, so it keeps its app and URL. `deepnote streamlit publish --upload` also
-replaces the file in place and keeps the app. Deleting and re-uploading an entrypoint can remove its
-app registration instead; publish again after that and use the new URL. Some Streamlit apps created
-in the UI retain their registration.
+Creating a Streamlit app restarts the project machine and interrupts active work. `--upload` and
+sync both overwrite a changed entrypoint in place, so it keeps its app and URL. Deleting and
+re-uploading an entrypoint can remove its app registration instead; publish again after that and use
+the new URL. Some Streamlit apps created in the UI retain their registration.
 
 For ordinary Python integration access, use the project's integrations. Federated-auth integrations
 require each viewer to authenticate; see [Streamlit apps](https://deepnote.com/docs/streamlit).

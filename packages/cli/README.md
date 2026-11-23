@@ -642,14 +642,14 @@ deepnote streamlit publish apps/dashboard.py --project-id <uuid>
 
 **Options:**
 
-| Option                | Description                               | Default                    |
-| --------------------- | ----------------------------------------- | -------------------------- |
-| `--project-id <uuid>` | Project to publish to (required)          |                            |
-| `--upload`            | Upload the entrypoint first               | `false`                    |
-| `--force`             | With `--upload`, overwrite a changed file | `false`                    |
-| `--no-wait`           | Exit without waiting for the app to start | `false`                    |
-| `--token <token>`     | Deepnote API token                        | `DEEPNOTE_TOKEN`           |
-| `--url <url>`         | Deepnote API base URL                     | `https://api.deepnote.com` |
+| Option                | Description                                           | Default                    |
+| --------------------- | ----------------------------------------------------- | -------------------------- |
+| `--project-id <uuid>` | Project to publish to (required)                      |                            |
+| `--upload`            | Upload the entrypoint first                           | `false`                    |
+| `--force`             | With `--upload`, overwrite a file changed in Deepnote | `false`                    |
+| `--no-wait`           | Exit without waiting for the app to start             | `false`                    |
+| `--token <token>`     | Deepnote API token                                    | `DEEPNOTE_TOKEN`           |
+| `--url <url>`         | Deepnote API base URL                                 | `https://api.deepnote.com` |
 
 Without `--upload`, the entrypoint and its dependencies must already be in the project's Files:
 upload them in Deepnote, or push them with `deepnote sync --all-files` alongside a notebook push.
@@ -658,11 +658,11 @@ Sync does not push a `.py`-only edit alone.
 `--upload` reads `<entrypoint>` relative to the current directory (in a sync workspace, the
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
-recorded in `.deepnote-sync.json`. A file changed in Deepnote since the last sync is not
-overwritten: run `deepnote sync <workspace> --all-files` first, or pass `--force`. `<workspace>` is
-the folder that holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you
-upload from. This check requires a sync workspace at or above the file that tracks the project and
-a recorded server `updatedAt` for the file; otherwise `--upload` overwrites the Deepnote copy.
+recorded in `.deepnote-sync.json` and written to the project's `.files` folder. A file that
+workspace has synced with `--all-files` or uploaded before is not overwritten if it changed in
+Deepnote since: run the `deepnote sync` command the error prints, which overwrites the `.files`
+copy with the Deepnote copy, or pass `--force` to overwrite the Deepnote copy. Any other file is
+overwritten without a check.
 
 Creating a Streamlit app restarts the project machine and interrupts active work. The command
 prints the app URL and waits up to 10 minutes for it to start. An existing Streamlit app keeps its

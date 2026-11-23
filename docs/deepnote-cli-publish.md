@@ -200,8 +200,7 @@ Pass the project-relative path:
 deepnote streamlit publish apps/dashboard.py --project-id <project-id>
 ```
 
-Add `--upload` to upload the entrypoint from the current directory first. It replaces the project
-file in place, which keeps the file's app:
+Add `--upload` to upload the entrypoint from the current directory first:
 
 ```bash
 deepnote streamlit publish apps/dashboard.py --project-id <project-id> --upload
@@ -210,14 +209,11 @@ deepnote streamlit publish apps/dashboard.py --project-id <project-id> --upload
 `--upload` reads the entrypoint relative to the current directory (in a sync workspace, the
 project's `.files` folder) and uploads only that file; its dependencies must already be in the
 project's Files. When a sync workspace at or above that file tracks the project, the upload is
-recorded in `.deepnote-sync.json`, and a path through a symbolic link inside that workspace is
-refused. A file changed in Deepnote since the last sync is not
-overwritten: run `deepnote sync <workspace> --all-files` first, which replaces the file in the
-project's `.files` folder with the Deepnote copy, or pass `--force`. `<workspace>` is the folder that
-holds `.deepnote-sync.json`, as named in the error, not the `.files` folder you upload from. This
-check requires a sync workspace at or above the file that tracks the project and a recorded server
-`updatedAt` for the file; otherwise `--upload` overwrites the Deepnote copy. Sync does not change a
-file uploaded from another folder: merge the Deepnote changes into it before you upload again.
+recorded in `.deepnote-sync.json` and written to the project's `.files` folder. A file that
+workspace has synced with `--all-files` or uploaded before is not overwritten if it changed in
+Deepnote since: run the `deepnote sync` command the error prints, which overwrites the `.files`
+copy with the Deepnote copy, or pass `--force` to overwrite the Deepnote copy. Any other file is
+overwritten without a check.
 
 <Callout status="warning">
 Creating a Streamlit app restarts the project machine and interrupts anyone working in the project.
@@ -239,9 +235,8 @@ hosting project. If it runs a notebook, deploy that notebook before publishing a
 IDs aligned with the local `.deepnote` file.
 
 A missing-entrypoint error means the file must be uploaded first: upload it in Deepnote, or run
-the command again with `--upload`. After a startup timeout, the app
-still exists; inspect it in Deepnote, start the project machine if it is stopped, and rerun publish
-to check its status again.
+the command again with `--upload`. After a startup timeout, the app still exists; inspect it in
+Deepnote, start the project machine if it is stopped, and rerun publish to check its status again.
 
 ## Options
 
@@ -275,11 +270,11 @@ to check its status again.
 
 ## Exit codes
 
-| Code | `deepnote publish`                                                                                                                           | `deepnote streamlit publish`                                                                                                                                                                    |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | Files uploaded and the app published                                                                                                         | App running, or created/found with `--no-wait`                                                                                                                                                  |
-| `1`  | A request, upload, prune, or publishing failed; or unsynced remote changes                                                                   | A request or upload failed, a file changed in Deepnote, or startup timed out                                                                                                                    |
-| `2`  | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments or missing token, `--force` without `--upload`, a missing or over-100 MiB local file, an unusable sync workspace, or a path through a symbolic link inside the sync workspace |
+| Code | `deepnote publish`                                                                                                                           | `deepnote streamlit publish`                                                                                                                        |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | Files uploaded and the app published                                                                                                         | App running, or created/found with `--no-wait`                                                                                                      |
+| `1`  | A request, upload, prune, or publishing failed; or unsynced remote changes                                                                   | A request or upload failed, a file changed in Deepnote, or startup timed out                                                                        |
+| `2`  | Not a data app project, invalid arguments, missing token/directory, `.env` or over-100 MiB file in the directory, or unusable sync workspace | Invalid arguments, missing token, a missing or over-100 MiB local file, an unusable sync workspace, or a symbolic link in the file's path inside it |
 
 Without `--no-wait`, a Streamlit app that remains unavailable exits with code `1` after the startup
 timeout.

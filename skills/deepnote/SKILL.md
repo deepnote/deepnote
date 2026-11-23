@@ -334,7 +334,8 @@ machine instead. Never delete and re-upload an entrypoint to change it: that dro
 registration and the next publish returns a new URL. To change an entrypoint, publish again with
 `--upload`, or upload the edited file to the same path in the project's Files in Deepnote; both keep
 the app and its URL. Through the MCP server, upload with `write_file` and `overwrite`, or Deepnote
-writes a uniquely named copy and the app goes on serving the old file. Open the printed URL and test it as the intended viewer.
+writes a uniquely named copy and the app goes on serving the old file. Open the printed URL and test
+it as the intended viewer.
 
 Apps published from notebook blocks are deprecated; do not build new ones.
 
