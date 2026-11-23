@@ -1,3 +1,4 @@
+// cspell:words compactf curf intf pctf
 // Safe expressions for app specs.
 //
 // An expression may use: numbers, 'strings', arithmetic/comparison/logic operators, ?:,

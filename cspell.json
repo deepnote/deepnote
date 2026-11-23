@@ -11,7 +11,8 @@
     "*.min.css",
     "**/__marimo__/**",
     "packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts",
-    "cspell.json"
+    "cspell.json",
+    "prototypes/fast-data-apps/snapshots/**"
   ],
   "language": "en",
   "dictionaries": ["docs"],

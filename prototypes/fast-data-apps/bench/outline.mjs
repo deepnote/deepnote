@@ -126,7 +126,7 @@ export async function generateOutlined({
     writePart(
       0,
       { id: 'head', kind: 'head' },
-      'Write ONLY the app line (title, subtitle, kicker); a theme line if the request asks for a look (a brand, colours, fonts, dark mode, "prettier"); and filter lines if the request would benefit from filtering. Nothing else.',
+      'Write ONLY the app line (title, subtitle, kicker); a theme line if the request asks for a look (a brand, colors, fonts, dark mode, "prettier"); and filter lines if the request would benefit from filtering. Nothing else.',
       { allowApp: true }
     ),
   ]

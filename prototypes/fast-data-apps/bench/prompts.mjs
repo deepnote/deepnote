@@ -23,7 +23,7 @@ Output only the complete file contents, no prose, no code fences.
   --radius-card: 10px; --radius-control: 8px; --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04);
 }
 @media (prefers-color-scheme: dark) { :root { --color-background: #0f1115; --color-surface: #171a20; --color-foreground: #e9ebef; --color-muted: #9aa1ad; --color-border: #2a2f38; } }
-- Pick any chart library from a CDN; read chart colours from the CSS variables.
+- Pick any chart library from a CDN; read chart colors from the CSS variables.
 - Load data in the page: CSV datasets with fetch('data/<dataset>.csv'); a notebook output snapshot with fetch('snapshot.json'), which returns the JSON object described (values at their paths, datasets as arrays).
 - Layout: title, filters, a KPI row, 1-3 charts, then a table. Responsive, polished, accessible.
 - Filters must update every KPI, chart and table.`

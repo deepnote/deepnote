@@ -1,3 +1,4 @@
+// cspell:words AGGS
 // The app spec: one JSON object per line (JSONL), applied in order. Every line is
 // independently valid, so the runtime renders while the model is still streaming,
 // and edits are just more lines. See prompt/system.md for the model-facing catalogue.
@@ -157,7 +158,7 @@ export function createContext(root, datasets) {
 }
 
 /**
- * Validate and normalise one op. Repairs what it safely can (column-name case,
+ * Validate and normalize one op. Repairs what it safely can (column-name case,
  * enum fallbacks) and reports the rest. Returns { op, errors, fixes }.
  */
 export function checkOp(input, ctx) {
@@ -475,7 +476,7 @@ export function checkOp(input, ctx) {
 }
 
 // ----- theme -----
-// Colours and fonts are checked strictly so a theme can never inject arbitrary CSS.
+// Colors and fonts are checked strictly so a theme can never inject arbitrary CSS.
 export const THEME_COLORS = [
   'bg',
   'surface',
@@ -500,7 +501,7 @@ function checkTheme(op) {
   for (const k of THEME_COLORS) {
     if (op[k] == null) continue
     if (COLOR_RE.test(String(op[k]))) out[k] = String(op[k])
-    else fixes.push(`theme.${k}: dropped "${op[k]}" (not a colour)`)
+    else fixes.push(`theme.${k}: dropped "${op[k]}" (not a color)`)
   }
   for (const k of ['font', 'display', 'mono']) {
     if (op[k] == null) continue
@@ -544,7 +545,7 @@ export function commitOp(ctx, op) {
   }
 }
 
-/** Serialise components back to JSONL (for edit prompts and publishing). */
+/** Serialize components back to JSONL (for edit prompts and publishing). */
 export function toJsonl(components) {
   return components.map(c => JSON.stringify(c, (k, v) => (k.startsWith('__') ? undefined : v))).join('\n')
 }

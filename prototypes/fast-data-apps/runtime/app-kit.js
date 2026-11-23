@@ -1,3 +1,4 @@
+// cspell:words cand maxbins tbls utcyear utcyearmonth utcyearmonthdate utcyearquarter utcyearweek wght
 // Fast data app runtime. Renders an app spec (JSONL, see spec.js) on top of a
 // notebook output snapshot. Pre-built once, so the LLM only writes the spec.
 import { aggregate, bucketDate, buildRoot, groupBy, parseCsv } from './data.js'
@@ -1262,7 +1263,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
     if (op.t === 'theme') {
       theme = op
       applyTheme(op, root)
-      // Charts read colours when they render, so redraw everything; fonts redraw once loaded.
+      // Charts read colors when they render, so redraw everything; fonts redraw once loaded.
       if (view) renderAll()
       document.fonts?.ready.then(() => view && renderAll())
       return
