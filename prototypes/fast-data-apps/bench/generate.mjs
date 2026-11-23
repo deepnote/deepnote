@@ -13,7 +13,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { checkOp, commitOp, createContext, parseLine } from '../runtime/spec.js'
-import { complete, lineSplitter } from './llm.mjs'
+import { complete, completeHedged, lineSplitter } from './llm.mjs'
 import { BASELINE_SYSTEM, loadSources, SPEC_SYSTEM, userPrompt } from './prompts.mjs'
 import { appConfig, startServer } from './server.mjs'
 
@@ -47,6 +47,7 @@ export function checkSpec(spec, sources) {
 export async function generateSpec(opts) {
   const first = await generateOnce(opts)
   if (!first.rejected.length || opts.repair === false) return first
+  if (opts.repair === 'if-nothing-applied' && first.validLines > 0) return first
   const request = `These lines were rejected by the validator. Output corrected versions of them, and of any lines that depended on them, only:\n${first.rejected
     .map(r => `${r.line}\n  -> ${r.errors.join('; ')}`)
     .join('\n')}`
@@ -83,7 +84,18 @@ export async function generateSpec(opts) {
   }
 }
 
-async function generateOnce({ request, sources, model, effort, currentSpec, onLine = () => {} }) {
+async function generateOnce({
+  request,
+  sources,
+  model,
+  effort,
+  currentSpec,
+  onLine = () => {},
+  allow,
+  hedge = false,
+  promptSources,
+  promptSpec,
+}) {
   const ctx = currentSpec ? checkSpec(currentSpec, sources).ctx : contextFor(sources)
   const lines = []
   const ordered = []
@@ -94,6 +106,11 @@ async function generateOnce({ request, sources, model, effort, currentSpec, onLi
   const splitter = lineSplitter((line, t) => {
     const parsed = parseLine(line)
     if (!parsed) return
+    // Targeted edits: lines outside what the user selected are dropped, not applied.
+    if (allow && !parsed.__error && !allow(parsed)) {
+      rejected.push({ line: line.trim(), errors: ['outside the selected components'] })
+      return
+    }
     const res = checkOp(parsed, ctx)
     fixes.push(...res.fixes)
     ordered.push({ id: res.op?.id ?? parsed.id, line: line.trim(), ok: Boolean(res.op) })
@@ -107,9 +124,11 @@ async function generateOnce({ request, sources, model, effort, currentSpec, onLi
     }
     onLine(line, t, res)
   })
-  const r = await complete({
+  // The model may see a narrower view (promptSources/promptSpec) than the validator, which
+  // always checks against the full data and the full current spec.
+  const r = await (hedge ? completeHedged : complete)({
     system: SPEC_SYSTEM,
-    user: userPrompt({ request, sources, currentSpec }),
+    user: userPrompt({ request, sources: promptSources ?? sources, currentSpec: promptSpec ?? currentSpec }),
     model,
     effort,
     onText: (chunk, t) => splitter.push(chunk, t),

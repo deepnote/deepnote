@@ -173,14 +173,19 @@ const d3Format = kind => (kind === 'currency' || kind === 'money' ? '$,.3~s' : k
  * @param root element to render into
  * @param sources { snapshot?: () => Promise<object>, tables?: { id: () => Promise<rows|csvText> } }
  */
-export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
+export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onFilter = () => {} }) {
   let data = null // { root, datasets }
+  let rawSnap = {}
+  let rawTables = {}
   let ctx = null
   let app = { title: '' }
   let theme = null
   const components = []
   const inputs = {}
   const filterValues = new Map()
+  // Point and click: components the user selected to edit (outlined on the page).
+  const selected = new Set()
+  const selClass = id => (selected.has(id) ? ' dk-selected' : '')
   // Pending chart renders (vega-embed is async), so callers can tell when the page is fully drawn.
   const inflight = new Set()
   const track = p => {
@@ -193,7 +198,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
   const listSearch = new Map()
 
   root.innerHTML = `
-    <header class="dk-header">
+    <header class="dk-header" data-id="app" data-pick="app">
       <div><div class="dk-kicker"></div><h1 class="dk-title"></h1><p class="dk-subtitle"></p></div>
       <span class="dk-status" hidden></span>
     </header>
@@ -208,7 +213,9 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
       Promise.resolve(load()).then(raw => [id, typeof raw === 'string' ? parseCsv(raw) : raw])
     ),
   ]).then(([snap, ...tbls]) => {
-    data = buildRoot(snap, Object.fromEntries(tbls))
+    rawSnap = snap
+    rawTables = Object.fromEntries(tbls)
+    data = buildRoot(snap, rawTables)
     ctx = createContext(
       data.root,
       Object.fromEntries(Object.entries(data.datasets).map(([k, d]) => [k, d.profile.columns]))
@@ -277,7 +284,33 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
         if (!key.includes('.')) rootView[key] = datasets[key]
       }
     }
+    // Filters reach expressions too: aggregates such as sum(accounts.arr) in KPIs and templates
+    // see the filtered rows. (Values a notebook computed are only refreshed by rerunning it.)
+    for (const f of components) {
+      if (f.t !== 'filter' || !filterValues.has(f.id)) continue
+      const v = filterValues.get(f.id)
+      for (const [path, rows] of Object.entries(datasets)) {
+        if (!rows.length || !(f.field in rows[0])) continue
+        const kept =
+          f.kind === 'date'
+            ? rows.filter(r => r[f.field] && r[f.field] >= v[0] && r[f.field] <= v[1])
+            : f.kind === 'toggle'
+              ? rows.filter(r => Boolean(r[f.field]) === v)
+              : rows.filter(r => String(r[f.field]) === v)
+        setPath(rootView, path, kept)
+      }
+    }
     view = { datasets, root: rootView }
+  }
+  /** Set a dotted path in an object, copying the objects along the way (the snapshot stays intact). */
+  function setPath(obj, path, value) {
+    const parts = path.split('.')
+    let o = obj
+    for (const k of parts.slice(0, -1)) {
+      o[k] = Array.isArray(o[k]) ? [...o[k]] : { ...(o[k] ?? {}) }
+      o = o[k]
+    }
+    o[parts.at(-1)] = value
   }
   const env = row => ({ root: view.root, row, inputs })
   const ev = (expr, row) => {
@@ -325,7 +358,9 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
     bar.replaceChildren()
     for (const c of controls) {
       const wrap = document.createElement('label')
-      wrap.className = `dk-control dk-control-${c.kind}`
+      wrap.className = `dk-control dk-control-${c.kind}${selClass(c.id)}`
+      wrap.dataset.id = c.id
+      wrap.dataset.pick = c.t
       const name = esc(c.label ?? label(c.field ?? c.id))
       if (c.t === 'filter') renderFilter(wrap, c, name)
       else renderInput(wrap, c, name)
@@ -418,10 +453,16 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
       }
       return
     }
-    const values =
-      f.kind === 'toggle'
-        ? ['true', 'false']
-        : [...new Set(rows.map(r => r[f.field]).filter(v => v != null))].map(String).sort()
+    // Remember every option ever seen: after a notebook reruns for one value its rows may only
+    // contain that value, and the other options must stay selectable.
+    // ...and take them from every dataset with this column, since the filter applies to all of them.
+    const seen = Object.values(view.datasets).flatMap(ds =>
+      ds.length && f.field in ds[0] ? ds.map(r => r[f.field]) : []
+    )
+    f.__options = new Set(
+      [...(f.__options ?? []), ...rows.map(r => r[f.field]), ...seen].filter(v => v != null).map(String)
+    )
+    const values = f.kind === 'toggle' ? ['true', 'false'] : [...f.__options].sort()
     wrap.innerHTML = `<span>${name}</span><select><option value="">All</option>${values
       .slice(0, 500)
       .map(v => `<option value="${esc(v)}">${esc(f.kind === 'toggle' ? (v === 'true' ? 'Yes' : 'No') : v)}</option>`)
@@ -433,6 +474,8 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
       if (sel.value === '') filterValues.delete(f.id)
       else filterValues.set(f.id, f.kind === 'toggle' ? sel.value === 'true' : sel.value)
       refreshData()
+      // The host may also rerun notebooks that take this field as an input.
+      onFilter({ field: f.field, value: sel.value === '' ? null : sel.value, options: values })
     }
   }
 
@@ -446,7 +489,8 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
       el.dataset.id = comp.id
       el.classList.add('dk-enter')
     }
-    el.className = `dk-card dk-${comp.t}${el.classList.contains('dk-enter') ? ' dk-enter' : ''}`
+    el.className = `dk-card dk-${comp.t}${el.classList.contains('dk-enter') ? ' dk-enter' : ''}${selClass(comp.id)}`
+    if (comp.t !== 'placeholder') el.dataset.pick = comp.t === 'chart' ? `${comp.kind ?? 'chart'} chart` : comp.t
     el.style.gridColumn = comp.span ? `span ${comp.span}` : '1 / -1'
     return el
   }
@@ -773,7 +817,12 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
       comp.fmt ?? (comp.agg === 'ratio' || comp.agg === 'share' ? 'percent' : comp.agg === 'count' ? 'int' : 'number')
     ).split(':')[0]
     const valueFmt = fmtOf(comp.fmt)
-    if (comp.facet && kind !== 'scatter' && kind !== 'hist') return renderFacets(el, comp, rows)
+    // Small multiples need several points per panel; otherwise draw one chart.
+    if (comp.facet && ['line', 'area', 'bar'].includes(kind)) {
+      const perFacet = new Map()
+      for (const r of rows) perFacet.set(r[comp.facet], (perFacet.get(r[comp.facet]) ?? new Set()).add(r[comp.x]))
+      if ([...perFacet.values()].some(xs => xs.size > 1)) return renderFacets(el, comp, rows)
+    }
     if (kind === 'waterfall') return renderVega(el, comp, waterfallSpec(comp, rows, valueFmt, fmtKind))
     const yTitle =
       comp.yTitle ??
@@ -1187,7 +1236,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
     $('.dk-subtitle').hidden = !app.subtitle
     const tone = app.tone ? toneClass(tpl(app.tone)) : null
     $('.dk-header').className =
-      `dk-header${tone ? ` dk-edge-${tone}` : ''}${!app.title && headerPending ? ' dk-header-pending' : ''}`
+      `dk-header${tone ? ` dk-edge-${tone}` : ''}${!app.title && headerPending ? ' dk-header-pending' : ''}${selClass('app')}`
     document.title = $('.dk-title').textContent || 'Data app'
   }
 
@@ -1244,6 +1293,13 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
 
   // ----- ops -----
   const pending = []
+  let lastOp = null
+  /** Apply one spec line; returns the committed op (or null). */
+  function applyLine(raw) {
+    lastOp = null
+    apply(raw)
+    return lastOp
+  }
   function apply(raw) {
     if (!ctx) {
       pending.push(raw)
@@ -1259,6 +1315,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
     }
     commitOp(ctx, op)
     onEvent({ type: 'op', op })
+    lastOp = op
     const idx = components.findIndex(c => c.id === op.id)
     if (op.t === 'theme') {
       theme = op
@@ -1320,7 +1377,63 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {} }) {
 
   return {
     ready,
-    apply,
+    apply: applyLine,
+    /** Ids of components in page order (for placing new ones next to a selection). */
+    order: () => ['app', ...components.filter(c => !isPlaceholder(c)).map(c => c.id)],
+    /** A short description of a component for a selection chip, or null if it no longer exists. */
+    describe(id) {
+      const c = id === 'app' ? app : id === 'theme' ? theme : components.find(x => x.id === id)
+      if (!c || isPlaceholder(c)) return null
+      const name = c.title ?? c.label ?? c.heading ?? c.field ?? c.md?.slice(0, 40) ?? ''
+      const kind = c.t === 'app' ? 'title' : c.t === 'chart' ? `${c.kind ?? 'chart'} chart` : c.t
+      return {
+        id,
+        kind,
+        name: name ? render(name, { root: view?.root ?? {}, inputs }) : '',
+        line: JSON.stringify(c, (k, v) => (k.startsWith('__') ? undefined : v)),
+      }
+    },
+    /** Filters on the page: [{ field, value, options }]. */
+    filters() {
+      return components
+        .filter(c => c.t === 'filter' && c.kind !== 'date')
+        .map(f => ({
+          field: f.field,
+          value: filterValues.get(f.id) ?? null,
+          options: [
+            ...(f.__options ??
+              new Set(
+                (view?.datasets[f.data] ?? [])
+                  .map(r => r[f.field])
+                  .filter(v => v != null)
+                  .map(String)
+              )),
+          ],
+        }))
+    },
+    /** Shimmer the components that read a source while its notebook reruns. */
+    markUpdating(prefix, on = true) {
+      const uses = c => JSON.stringify(c).includes(`${prefix}.`)
+      for (const c of [app, ...components]) {
+        if (!uses(c)) continue
+        const el = c === app ? root.querySelector('.dk-header') : root.querySelector(`[data-id="${CSS.escape(c.id)}"]`)
+        el?.classList.toggle('dk-updating', on)
+      }
+    },
+    /** Swap in one source's data (e.g. its notebook rerun for a filter value) and re-render. */
+    replaceSource(name, snapshotData) {
+      rawSnap = { ...rawSnap, [name]: snapshotData }
+      data = buildRoot(rawSnap, rawTables)
+      Object.assign(ctx.root, data.root)
+      renderAll()
+    },
+    /** Mark the selected components (outlined until deselected). */
+    setSelected(ids) {
+      selected.clear()
+      for (const id of ids) selected.add(id)
+      for (const el of root.querySelectorAll('[data-id]'))
+        el.classList.toggle('dk-selected', selected.has(el.dataset.id))
+    },
     applyText(text) {
       for (const line of text.split('\n')) apply(line)
     },

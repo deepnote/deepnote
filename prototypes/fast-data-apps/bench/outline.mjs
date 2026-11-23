@@ -5,6 +5,8 @@
 //    so sections are being written while the outline is still streaming.
 // 3. The app line (title) is written alongside the outline from t=0.
 // Code only schedules; it never decides what is on the page.
+
+import { describeRoot } from '../runtime/data.js'
 import { checkOp, commitOp, parseCompact, parseLine, toJsonl } from '../runtime/spec.js'
 import { contextFor, generateSpec } from './generate.mjs'
 import { completeHedged, lineSplitter } from './llm.mjs'
@@ -136,6 +138,17 @@ export async function generateOutlined({
   const outlineSplitter = lineSplitter(line => {
     const p = parseOutlineLine(line)
     if (!p || outline.length >= 8) return
+    // The model sometimes writes the outline twice (reconsidering mid-answer). A section that
+    // repeats an earlier one (same id, or same kind over the same data) would duplicate the page.
+    const kindOf = o => o.kind ?? (o.count ? 'kpi' : 'chart')
+    if (
+      outline.some(
+        o =>
+          o.id === p.id ||
+          (kindOf(o) === kindOf(p) && (o.data ?? '') === (p.data ?? '') && (kindOf(p) === 'kpi' || o.data))
+      )
+    )
+      return
     outline.push(p)
     outlineWorker.lines++
     const slot = outline.length
@@ -145,7 +158,7 @@ export async function generateOutlined({
     const assignment = [
       'You are writing one section of this app; other writers are writing the other sections at the same time.',
       `Page outline so far:\n${outline.map(o => o.line).join('\n')}`,
-      `Write ONLY section "${p.id}" (${p.desc}): ${guide}. Any #id must start with "${p.id}_". No app line.`,
+      `Write ONLY section "${p.id}" (${p.desc}): ${guide}. Any #id must start with "${p.id}_". No app line, no filters or inputs (the header part writes those).`,
       p.kind === 'kpi' ? '' : 'A section line first only if a heading helps.',
     ]
       .filter(Boolean)
@@ -196,13 +209,96 @@ export async function generateOutlined({
  * Iterate: change the existing app to match an updated request. One call writes only the
  * change lines (set/del/move/new), applied live on top of the current page.
  */
-export function iterate({ request, previousRequest, spec, sources, model, onLine }) {
+export function iterate({ request, previousRequest, spec, sources, model, onLine, targets = [] }) {
+  if (targets.length) return iterateTargets({ request, spec, sources, model, onLine, targets })
+  const { added, removed } = requestDiff(previousRequest, request)
+  const change = [
+    added.length ? `Added to the request:\n${added.map(x => `- ${x}`).join('\n')}` : null,
+    removed.length ? `Removed from the request:\n${removed.map(x => `- ${x}`).join('\n')}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
   return generateSpec({
-    request: `The app was built for this request:\n${previousRequest}\n\nThe request is now:\n${request}\n\nUpdate the app to match the new request. Output only the lines that change it (set, del, move, or new components); keep everything that still fits.`,
+    request: `${change || 'The request was reworded.'}\n\nThe full request is now:\n${request}\n\nEdit the app for exactly this change: set only the keys that change, add or delete only what the change needs. Leave everything else alone.`,
     sources,
     model,
     effort: 'low',
     currentSpec: spec,
+    // A bad edit line is dropped (the old component stays) rather than costing a second round trip.
+    repair: false,
+    hedge: true,
     onLine,
   })
+}
+
+/**
+ * Point and click: edit only the components the user selected, following each one's comment.
+ * Lines that touch any other existing component are dropped; new components are allowed (the
+ * page places them next to the selection).
+ */
+function iterateTargets({ request, spec, sources, model, onLine, targets }) {
+  const ids = new Set(targets.map(t => t.id))
+  const existing = new Set(
+    spec
+      .split('\n')
+      .map(l => parseLine(l)?.id)
+      .filter(Boolean)
+  )
+  const list = targets
+    .map(t => `${t.line}\n  -> ${t.comment?.trim() || '(no comment: apply the request below to this component)'}`)
+    .join('\n')
+  const lines = targets.map(t => t.line).filter(Boolean)
+  return generateSpec({
+    request: `The user selected these components on the page and said what to change:\n${list}\n\nThe app's overall request, for context: ${request || '(none)'}\n\nChange ONLY the selected components: \`set #id\` with only the keys that change (a full line only if the type changes), or \`del\`. If a comment asks for something new, add a new component line. Nothing else.`,
+    sources,
+    // The model sees only the selected components and the data they use; the validator still
+    // checks against the whole page and all data.
+    promptSources: narrowSources(sources, referencedKeys(lines, sources.snapshot)),
+    promptSpec: lines.join('\n'),
+    model,
+    effort: 'low',
+    currentSpec: spec,
+    // A selected-element edit that was rejected entirely would change nothing: retry once with the errors.
+    repair: 'if-nothing-applied',
+    hedge: true,
+    onLine,
+    allow: p => {
+      if (p.t === 'app') return ids.has('app')
+      if (p.t === 'theme') return ids.has('theme') || ids.has('app')
+      const id = p.id
+      if (['set', 'del', 'move'].includes(p.t)) return ids.has(id)
+      return !id || ids.has(id) || !existing.has(id)
+    },
+  })
+}
+
+// ---------- narrower context for edits ----------
+
+/** Top-level data keys an edit needs: those referenced by the given spec lines. */
+function referencedKeys(lines, root) {
+  const keys = new Set()
+  const text = lines.join('\n')
+  for (const k of Object.keys(root))
+    if (new RegExp(`(^|[^\\w.])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([.\\s"'),}|]|$)`).test(text)) keys.add(k)
+  return keys
+}
+
+/** A sources object describing only some top-level keys (one snapshot instead of five, say). */
+export function narrowSources(sources, keys) {
+  if (!keys.size) return sources
+  const snap = Object.fromEntries(Object.entries(sources.snapshot).filter(([k]) => keys.has(k)))
+  const datasets = Object.fromEntries(Object.entries(sources.datasets).filter(([p]) => keys.has(p.split('.')[0])))
+  return { ...sources, description: `Data used by the selected components:\n${describeRoot(snap, datasets)}` }
+}
+
+/** Sentences added to and removed from a request, for main-box edits. */
+export function requestDiff(before = '', after = '') {
+  const split = t =>
+    t
+      .split(/(?<=[.!?])\s+|\n+/)
+      .map(x => x.trim())
+      .filter(Boolean)
+  const a = split(before)
+  const b = split(after)
+  return { added: b.filter(x => !a.includes(x)), removed: a.filter(x => !b.includes(x)) }
 }

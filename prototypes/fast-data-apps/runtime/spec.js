@@ -177,6 +177,9 @@ export function checkOp(input, ctx) {
     if (op.t === 'set' && !errors.length) {
       const base = ctx.ids.get(op.id)
       const merged = { ...base, ...op, t: base.t }
+      // A key set to nothing (key=, key=none, key=null) removes it.
+      for (const [k, v] of Object.entries(op))
+        if (v === '' || v === null || v === 'none' || v === 'null') delete merged[k]
       const inner = checkOp(merged, ctx)
       if (inner.op) return { op: { t: 'set', id: op.id, merged: inner.op }, errors: inner.errors, fixes: inner.fixes }
       return { op: null, errors: inner.errors, fixes: inner.fixes }
@@ -327,6 +330,15 @@ export function checkOp(input, ctx) {
               : (op.min ?? 0)
       break
     case 'filter': {
+      // One filter per column: it already applies to every dataset that has that column.
+      if (
+        [...ctx.ids.values()].some(
+          c => c.t === 'filter' && c.id !== op.id && String(c.field).toLowerCase() === String(op.field).toLowerCase()
+        )
+      ) {
+        errors.push(`${op.id}: there is already a filter on "${op.field}"`)
+        break
+      }
       const col = fixField('field', { required: true })
       if (col && !op.kind) op.kind = col.type === 'date' ? 'date' : col.type === 'boolean' ? 'toggle' : 'select'
       fixEnum('kind', FILTER_KINDS, 'select')
@@ -405,6 +417,13 @@ export function checkOp(input, ctx) {
         else delete op.time
       }
       fixField('color')
+      // Small multiples only make sense for trends and bars split by something other than x.
+      if (op.facet != null && (!['line', 'area', 'bar'].includes(op.kind) || op.facet === op.x)) {
+        fixes.push(`${op.id}.facet: dropped (not useful with kind=${op.kind}, x=${op.x})`)
+        delete op.facet
+      }
+      // Panels per value replace a color split by the same column.
+      if (op.facet != null && op.facet === op.color) delete op.color
       fixField('facet')
       checkWhere()
       break

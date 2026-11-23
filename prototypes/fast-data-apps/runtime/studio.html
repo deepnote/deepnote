@@ -28,16 +28,29 @@
       .timings:empty { display: none; }
       .timings b { color: var(--fg); font-variant-numeric: tabular-nums; }
       .timings .live b { color: var(--accent); }
+      .studio button.secondary[aria-pressed=true] { background: var(--accent); color: #fff; }
+      .targets { display: flex; flex-direction: column; gap: 6px; }
+      .targets:empty { display: none; }
+      .target { display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border)); border-radius: 8px; background: var(--accent-bg); font-size: 13px; }
+      .target-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%; color: var(--heading); }
+      .target-name b { color: var(--accent); font-weight: 600; }
+      .target input { flex: 1; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--fg); }
+      .target .remove { height: 28px; width: 28px; padding: 0; border: 0; background: none; color: var(--fg-muted); font-size: 16px; }
+      .pick-hint { font-size: 12px; color: var(--fg-muted); }
     </style>
   </head>
   <body>
     <div class="studio">
       <div class="studio-inner">
         <textarea id="request" placeholder="Describe the app you want, e.g. who it is for and what it should answer"></textarea>
+        <div class="targets" id="targets"></div>
         <div class="toolbar">
           <div class="sources" id="sources">Loading data sources…</div>
           <div class="actions">
+            <span class="pick-hint" id="pick-hint" hidden>Click elements to select them (or Alt-click any time)</span>
+            <button id="pick" class="secondary" hidden aria-pressed="false" title="Point and click: select elements on the page to edit only them">Select</button>
             <button id="rerun" class="secondary" hidden title="Rerun the notebooks now and show this app with their latest data">Run notebooks</button>
+            <button id="edit-selected" class="secondary" hidden title="Edit only the selected elements, following their comments">Edit selected</button>
             <button id="iterate" class="secondary" hidden title="Edit the current app to match what you changed in the prompt">Iterate</button>
             <button id="go">Generate</button>
           </div>
@@ -77,12 +90,115 @@
       let app = null
       let lastRequest = null
 
-      // mode: 'generate' rewrites the page from scratch; 'iterate' edits the page in place.
-      async function run(mode) {
+      // ----- filters bound to notebook inputs -----
+      // A filter on a field that a notebook takes as an input (e.g. region) reruns that notebook for
+      // the chosen value, so the numbers and sentences the notebook computed follow the filter too.
+      // Results are cached per value, and the other values are pre-computed in the background.
+      const notebookInputs = fetch('api/inputs').then(r => r.json())
+      const filterRuns = new Map() // field -> latest request id
+      async function onFilter({ field, value }) {
+        const sources = (await notebookInputs).filter(s => field in s.inputs)
+        if (!sources.length) return
+        const runId = (filterRuns.get(field) ?? 0) + 1
+        filterRuns.set(field, runId)
+        const t0 = performance.now()
+        const label = `${human(field)}: ${value ?? 'All'}`
+        $('timings').innerHTML = `<span><b>Filter</b></span><span class="live">${escHtml(label)} <b>rerunning ${sources.map(s => human(s.name)).join(', ')}…</b></span>`
+        const results = await Promise.all(
+          sources.map(async s => {
+            app.markUpdating(s.name)
+            const r = await fetch('api/snapshot', { method: 'POST', body: JSON.stringify({ source: s.name, inputs: { [field]: value ?? s.inputs[field] } }) }).then(x => x.json())
+            if (filterRuns.get(field) !== runId || r.error) return { name: s.name, ...r, stale: true }
+            app.replaceSource(s.name, r.data)
+            return { name: s.name, ...r }
+          }),
+        )
+        if (filterRuns.get(field) !== runId) return
+        await app.settled()
+        const how = results.map(r => `${human(r.name)} ${r.error ? `failed (${escHtml(r.error)})` : r.cached ? 'cached' : `ran in ${fmt(r.ms)}`}`).join(' · ')
+        $('timings').innerHTML = `<span><b>Filter</b></span><span>${escHtml(label)} <b>${fmt(performance.now() - t0)}</b></span><span>${how}</span>`
+      }
+      async function prewarmFilters() {
+        const inputs = await notebookInputs
+        for (const f of app?.filters() ?? []) {
+          if (!inputs.some(s => f.field in s.inputs)) continue
+          fetch('api/prewarm', { method: 'POST', body: JSON.stringify({ input: f.field, values: f.options }) })
+        }
+      }
+      const makeApp = () => createApp($('app'), { snapshot: () => snapshotData, onFilter })
+
+      // ----- point and click: selected elements, each with an optional comment -----
+      // Kept across Iterates (the top bar remembers them); cleared on Regenerate.
+      const targets = new Map() // id -> { id, kind, name, comment }
+      let picking = false
+      const escHtml = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+      function renderTargets() {
+        $('targets').replaceChildren(
+          ...[...targets.values()].map(t => {
+            const row = document.createElement('div')
+            row.className = 'target'
+            row.innerHTML = `<span class="target-name"><b>${escHtml(t.kind)}</b>${t.name ? ` · ${escHtml(t.name)}` : ''}</span><input placeholder="What should change here?" value="${escHtml(t.comment)}"><button class="remove" title="Deselect">×</button>`
+            row.querySelector('input').oninput = e => {
+              t.comment = e.target.value
+            }
+            row.querySelector('input').onkeydown = e => {
+              if (e.key === 'Enter' && !$('edit-selected').disabled) run('edit')
+            }
+            row.querySelector('.remove').onclick = () => {
+              targets.delete(t.id)
+              renderTargets()
+            }
+            row.dataset.id = t.id
+            return row
+          }),
+        )
+        app?.setSelected([...targets.keys()])
+        $('edit-selected').textContent = `Edit selected (${targets.size})`
+        $('edit-selected').hidden = !targets.size
+      }
+      function setPicking(on) {
+        picking = on
+        $('pick').setAttribute('aria-pressed', String(on))
+        $('pick-hint').hidden = !on
+        $('app').classList.toggle('dk-picking', on)
+      }
+      $('pick').onclick = () => setPicking(!picking)
+      // Alt held: show the pick outlines without turning select mode on.
+      addEventListener('keydown', e => e.key === 'Alt' && app && $('app').classList.add('dk-picking'))
+      addEventListener('keyup', e => e.key === 'Alt' && !picking && $('app').classList.remove('dk-picking'))
+      $('app').addEventListener(
+        'click',
+        e => {
+          if (!app || !(picking || e.altKey)) return
+          const el = e.target.closest('[data-pick]')
+          if (!el) return
+          e.preventDefault()
+          e.stopPropagation()
+          const id = el.dataset.id
+          if (targets.has(id)) targets.delete(id)
+          else {
+            const d = app.describe(id)
+            if (d) targets.set(id, { ...d, comment: '' })
+          }
+          renderTargets()
+          $('targets').querySelector(`[data-id="${CSS.escape(id)}"] input`)?.focus()
+        },
+        true,
+      )
+
+      // mode: 'generate' rewrites the page from scratch; 'iterate' edits the whole page in place from
+      // the prompt's changes; 'edit' edits only the selected elements.
+      async function run(runMode) {
         const request = $('request').value.trim()
-        if (!request) return
+        const targeted = runMode === 'edit' && targets.size > 0
+        if (runMode === 'edit' && !targeted) return
+        const mode = runMode === 'edit' ? 'iterate' : runMode
+        if (!request && !targeted) return
+        // Running an edit ends select mode; the selection itself stays in the top bar.
+        setPicking(false)
+        $('app').classList.remove('dk-picking')
         es?.close()
-        $('go').disabled = $('iterate').disabled = $('rerun').disabled = true
+        $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = true
         const t0 = performance.now()
         const t = {}
         const since = () => performance.now() - t0
@@ -91,18 +207,28 @@
           const rows = mode === 'iterate'
             ? [[label[0], t.first], [label[1], t.rendered]]
             : [['Request → skeleton', t.skeleton], ['Request → first component', t.first], ['Request → fully rendered', t.rendered]]
-          $('timings').innerHTML = `<span><b>${mode === 'iterate' ? 'Iterate' : 'Generate'}</b></span>` + rows.map(([k, v]) => `<span class="${v == null && !done ? 'live' : ''}">${k} <b>${fmt(v)}</b></span>`).join('') + (extra ? `<span>${extra}</span>` : '')
+          $('timings').innerHTML = `<span><b>${targeted ? 'Edit selected' : mode === 'iterate' ? 'Iterate' : 'Generate'}</b></span>` + rows.map(([k, v]) => `<span class="${v == null && !done ? 'live' : ''}">${k} <b>${fmt(v)}</b></span>`).join('') + (extra ? `<span>${extra}</span>` : '')
         }
         const tick = setInterval(() => show(false, `elapsed ${fmt(since())}`), 50)
         const body = { request, mode }
+        let known = null
         if (mode === 'iterate') {
           body.previousRequest = lastRequest
           body.spec = app.spec()
+          if (targeted) {
+            body.targets = [...targets.values()].map(t => ({ id: t.id, line: app.describe(t.id)?.line, comment: t.comment }))
+            known = new Set(app.order())
+            // Instant feedback: the selected elements shimmer until their new version lands.
+            for (const id of targets.keys()) document.querySelector(`#app [data-id="${CSS.escape(id)}"]`)?.classList.add('dk-updating')
+          }
         } else {
+          targets.clear()
+          renderTargets()
+          setPicking(false)
           $('app').replaceChildren()
           // Snapshots are re-read for each new app, so it always sees the notebooks' latest runs.
           snapshotData = fetchSnapshots()
-          app = createApp($('app'), { snapshot: () => snapshotData })
+          app = makeApp()
           window.__app = app
         }
         const { id } = await fetch('api/generate', { method: 'POST', body: JSON.stringify(body) }).then(r => r.json())
@@ -112,35 +238,58 @@
           app.ready.then(() => requestAnimationFrame(() => (t.skeleton ??= since())))
         })
         es.addEventListener('op', e => {
-          app.apply(e.data)
+          const op = app.apply(e.data)
           t.first ??= since()
+          // A new component from a targeted edit goes right after the selection, not at the end.
+          if (known && op?.id && !known.has(op.id) && !['set', 'del', 'move'].includes(op.t)) {
+            known.add(op.id)
+            const order = app.order()
+            const last = Math.max(...[...targets.keys()].map(id => order.indexOf(id)))
+            const next = order.slice(last + 1).find(id => id !== op.id)
+            if (last >= 0 && next) app.apply(JSON.stringify({ t: 'move', id: op.id, before: next }))
+          }
         })
         es.addEventListener('partdone', e => app.partDone(Number(e.data)))
         es.addEventListener('done', async e => {
           es.close()
+          for (const el of document.querySelectorAll('#app .dk-updating')) el.classList.remove('dk-updating')
           const info = JSON.parse(e.data)
           await app.settled()
           t.rendered = since()
           clearInterval(tick)
-          show(true, `${info.outputTokens} output tokens${info.repairMs ? ` · incl. ${fmt(info.repairMs)} repair` : ''}`)
+          const noChange = mode === 'iterate' && info.applied === 0
+          show(
+            true,
+            noChange
+              ? `<span style="color: var(--bad)">No change was applied${info.reasons?.length ? `: ${escHtml(info.reasons.join('; '))}` : ''}. Try rephrasing.</span>`
+              : `${info.outputTokens} output tokens${info.repairMs ? ` · incl. ${fmt(info.repairMs)} repair` : ''}`,
+          )
           app.setStatus(mode === 'iterate' ? `Edited in ${fmt(t.rendered)}` : `Started rendering in ${fmt(t.skeleton)} · built in ${fmt(t.rendered)}`)
-          lastRequest = request
+          lastRequest = request || lastRequest
+          prewarmFilters()
+          // Keep the selection for the next edit; drop what no longer exists and the applied comments.
+          for (const [id, tg] of targets) {
+            const d = app.describe(id)
+            if (!d) targets.delete(id)
+            else Object.assign(tg, { name: d.name, kind: d.kind, comment: '' })
+          }
+          renderTargets()
           $('go').textContent = 'Regenerate'
           $('go').title = 'Rewrite the whole app from scratch from the current prompt'
-          $('iterate').hidden = $('rerun').hidden = false
-          $('go').disabled = $('iterate').disabled = $('rerun').disabled = false
+          $('iterate').hidden = $('rerun').hidden = $('pick').hidden = false
+          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
         })
         es.addEventListener('failed', e => {
           clearInterval(tick)
           $('timings').textContent = `Failed: ${e.data}`
-          $('go').disabled = $('iterate').disabled = $('rerun').disabled = false
+          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
         })
       }
 
       // Rerun the notebooks for real, then show the same app (same spec) with their latest data.
       async function rerun() {
         es?.close()
-        $('go').disabled = $('iterate').disabled = $('rerun').disabled = true
+        $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = true
         const t0 = performance.now()
         const since = () => performance.now() - t0
         const progress = new Map()
@@ -160,24 +309,28 @@
         })
         es.addEventListener('done', async e => {
           es.close()
+          for (const el of document.querySelectorAll('#app .dk-updating')) el.classList.remove('dk-updating')
           const info = JSON.parse(e.data)
           const spec = app.spec()
           const tRender = performance.now()
           snapshotData = fetchSnapshots()
           $('app').replaceChildren()
-          app = createApp($('app'), { snapshot: () => snapshotData })
+          app = makeApp()
           window.__app = app
           app.applyText(spec)
+          renderTargets()
           await app.settled()
           clearInterval(tick)
           show(`ran in ${fmt(info.ms)}${info.failed ? ` · ${info.failed} failed (kept their last run)` : ''} · re-rendered in ${fmt(performance.now() - tRender)}`)
           app.setStatus(`Latest data · notebooks ran in ${fmt(info.ms)}`)
+          prewarmFilters()
           showSources()
-          $('go').disabled = $('iterate').disabled = $('rerun').disabled = false
+          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
         })
       }
       $('go').onclick = () => run('generate')
       $('iterate').onclick = () => run('iterate')
+      $('edit-selected').onclick = () => run('edit')
       $('rerun').onclick = rerun
     </script>
   </body>

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { generateOutlined, iterate } from './outline.mjs'
 import { loadSources } from './prompts.mjs'
-import { describeConfig, loadConfig, readSelected, runSource } from './sources.mjs'
+import { describeConfig, hasCached, loadConfig, readSelected, runSource, snapshotFor } from './sources.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const { values } = parseArgs({
@@ -41,26 +41,96 @@ async function readBody(req) {
   return body ? JSON.parse(body) : {}
 }
 
-// Notebook runs share fixed local ports, so run them one at a time.
-let runQueue = Promise.resolve()
+// Notebook runs share fixed local ports, so run them one at a time. Requests from the page go
+// ahead of background pre-warming.
+const runQueue = Promise.resolve()
+const urgent = []
+const background = []
+let working = false
+function schedule(task, { priority = 'urgent' } = {}) {
+  return new Promise((resolve, reject) => {
+    ;(priority === 'urgent' ? urgent : background).push({ task, resolve, reject })
+    void pump()
+  })
+}
+async function pump() {
+  if (working) return
+  working = true
+  while (urgent.length || background.length) {
+    const job = urgent.shift() ?? background.shift()
+    try {
+      // Full reruns (Run notebooks) share the same lane.
+      await runQueue
+      job.resolve(await job.task())
+    } catch (e) {
+      job.reject(e)
+    }
+  }
+  working = false
+}
+const warming = new Set()
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x')
   try {
     if (url.pathname === '/api/sources') return json(res, describeConfig())
+    // Notebook inputs per source, so the page can bind filters to them.
+    if (url.pathname === '/api/inputs')
+      return json(
+        res,
+        loadConfig()
+          .filter(s => s.notebook && s.inputs)
+          .map(s => ({ name: s.name, inputs: s.inputs }))
+      )
+    if (url.pathname === '/api/snapshot' && req.method === 'POST') {
+      // One source's output for some inputs: cached, or the notebook runs now.
+      const { source: name, inputs } = await readBody(req)
+      const source = loadConfig().find(s => s.name === name)
+      if (!source) return json(res, { error: `no source ${name}` }, 404)
+      const t0 = performance.now()
+      const r = hasCached(source, inputs)
+        ? await snapshotFor(source, inputs)
+        : await schedule(() => snapshotFor(source, inputs))
+      console.log(
+        `snapshot ${name} ${JSON.stringify(inputs)}: ${r.cached ? 'cached' : `ran in ${(r.ms / 1000).toFixed(1)}s`} (${((performance.now() - t0) / 1000).toFixed(1)}s total)`
+      )
+      return json(res, r)
+    }
+    if (url.pathname === '/api/prewarm' && req.method === 'POST') {
+      // Compute the other filter values in the background so switching is instant.
+      const { input, values: vals } = await readBody(req)
+      const queued = []
+      for (const source of loadConfig().filter(s => s.notebook && s.inputs && input in s.inputs)) {
+        for (const v of vals) {
+          const key = `${source.name}|${input}|${v}`
+          if (warming.has(key) || hasCached(source, { [input]: v })) continue
+          warming.add(key)
+          queued.push(key)
+          schedule(() => snapshotFor(source, { [input]: v }), { priority: 'background' })
+            .then(r => console.log(`prewarmed ${key} in ${(r.ms / 1000).toFixed(1)}s`))
+            .catch(e => console.warn(`prewarm ${key} failed: ${e.message}`))
+            .finally(() => warming.delete(key))
+        }
+      }
+      return json(res, { queued })
+    }
     if (url.pathname === '/snapshot.json') return json(res, readSelected())
 
     if (url.pathname === '/api/generate' && req.method === 'POST') {
-      const { request, mode = 'generate', previousRequest, spec } = await readBody(req)
+      const { request, mode = 'generate', previousRequest, spec, targets } = await readBody(req)
       // Read the snapshots from disk now, so the app always sees each notebook's latest run.
       const sources = loadSources({ named: readSelected() })
       const [id, run] = newRun()
       json(res, { id })
       const t0 = performance.now()
-      const onLine = (line, _t, r) => r.op && send(run, 'op', line)
+      const written = []
+      const onLine = (line, _t, r) => {
+        written.push(`${r.op ? 'ok' : 'x '} ${line.trim().slice(0, 160)}`)
+        if (r.op) send(run, 'op', line)
+      }
       const job =
         mode === 'iterate'
-          ? iterate({ request, previousRequest, spec, sources, model: values.model, onLine })
+          ? iterate({ request, previousRequest, spec, sources, model: values.model, onLine, targets })
           : generateOutlined({
               request,
               sources,
@@ -79,10 +149,12 @@ createServer(async (req, res) => {
               outputTokens: r.outputTokens,
               repairMs: r.ms.repair ?? 0,
               rejected: r.rejected?.length ?? 0,
+              applied: r.validLines ?? null,
+              reasons: (r.rejected ?? []).flatMap(x => x.errors).slice(0, 3),
             })
           )
           console.log(
-            `[${id}] ${mode} ${(r.ms.done / 1000).toFixed(1)}s, ${r.outputTokens} tok, ${r.rejected?.length ?? 0} rejected${r.outline ? `\n  outline: ${r.outline.join('\n           ')}` : ''}`
+            `[${id}] ${mode} ${(r.ms.done / 1000).toFixed(1)}s, ${r.outputTokens} tok, ${r.rejected?.length ?? 0} rejected${r.outline ? `\n  outline: ${r.outline.join('\n           ')}` : ''}${mode === 'iterate' ? `\n  wrote: ${written.join('\n         ')}${(r.rejected ?? []).map(x => `\n  dropped: ${x.line.slice(0, 120)} (${x.errors.join('; ')})`).join('')}` : ''}`
           )
         })
         .catch(e => {
@@ -97,7 +169,7 @@ createServer(async (req, res) => {
       const chosen = loadConfig().filter(s => s.notebook)
       const [id, run] = newRun()
       json(res, { id, sources: chosen.map(s => s.name) })
-      runQueue = runQueue.then(async () => {
+      void schedule(async () => {
         const t0 = performance.now()
         let failed = 0
         for (const s of chosen) {

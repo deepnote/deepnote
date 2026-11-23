@@ -739,3 +739,57 @@ button.dk-item:hover {
     font-size: 23px;
   }
 }
+
+/* ----- point and click: picking components to edit ----- */
+.dk-picking [data-pick] {
+  cursor: pointer;
+  position: relative;
+}
+.dk-picking [data-pick]:hover {
+  outline: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 3px;
+}
+.dk-picking [data-pick]:hover::after,
+.dk-selected::after {
+  content: attr(data-pick);
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  z-index: 5;
+  font: 600 11px / 1 var(--font);
+  padding: 3px 7px;
+  border-radius: 99px;
+  background: var(--accent);
+  color: #fff;
+  pointer-events: none;
+}
+.dk-selected {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 3px;
+  position: relative;
+}
+.dk-card.dk-selected,
+.dk-header.dk-selected {
+  overflow: visible;
+}
+
+/* Being edited: shimmer over the card until its new version arrives. */
+.dk-updating {
+  position: relative;
+}
+.dk-updating::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    color-mix(in srgb, var(--accent) 14%, transparent) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  animation: dk-shimmer 1s linear infinite;
+}

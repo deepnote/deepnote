@@ -44,4 +44,9 @@ Inline data: chart, table and list accept rows=[{…},…] instead of data; a st
 
 ## Editing
 
-When a current spec is given, output only lines that change it: `set #<id> key=value…`, `del #<id>`, `move #<id> before=<id>`, or a full line (new id adds, existing id replaces).
+When a current spec is given, output only the lines that change it, as small as possible:
+
+- Change an existing component with `set #<id>` and ONLY the keys that change, e.g. `set #c3 kind=hbar sort=true`. Never repeat keys that stay the same.
+- Write a full line for an existing id only if its type changes. New components get a full line with a new id.
+- Remove a key with `key=null` (e.g. `set #c3 facet=null`). Remove a component with `del #<id>`; reorder with `move #<id> before=<id>`.
+- Change nothing that was not asked for. No other output.

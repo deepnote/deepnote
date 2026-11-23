@@ -7,7 +7,8 @@
 //   notebook   path to the .deepnote notebook that produces it (enables "Run notebooks")
 //   inputs     input values for the run
 //   outputFile a file the notebook writes (relative to the notebook) to use instead of its JSON outputs
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -90,26 +91,62 @@ function integrationEnv(notebookPath) {
  * Run a source's notebook for real and write the fresh result to its snapshot file.
  * Returns { ms, keys }.
  */
-export async function runSource(source) {
+/** Run a source's notebook with the given inputs and return its data (nothing written). */
+async function runNotebook(source, inputs) {
   if (!source.notebook) throw new Error(`${source.name} has no notebook`)
   const notebook = resolvePath(source.notebook)
-  const t0 = performance.now()
   integrationEnv(notebook)
-  const result = await runWithInputs(notebook, source.inputs ?? {}, { persistSnapshot: false, cwd: dirname(notebook) })
+  const result = await runWithInputs(notebook, inputs, { persistSnapshot: false, cwd: dirname(notebook) })
   // A block can fail after the data is out (e.g. an optional AI note without a model key): keep
   // the data and report the error as a warning. Only a run that produced no data fails.
   const error = (result.outputs ?? []).flatMap(b => b.outputs ?? []).find(o => o.output_type === 'error')
-  const target = resolvePath(source.snapshot)
-  let data
-  if (source.outputFile) data = JSON.parse(readFileSync(join(dirname(notebook), source.outputFile), 'utf8'))
-  else data = mergeJsonOutputs(result.outputs ?? [])
+  const data = source.outputFile
+    ? JSON.parse(readFileSync(join(dirname(notebook), source.outputFile), 'utf8'))
+    : mergeJsonOutputs(result.outputs ?? [])
   if (!Object.keys(data).length)
     throw new Error(error ? `${error.ename}: ${error.evalue}` : 'the notebook produced no JSON output')
+  return { data, result, warning: error ? `${error.ename}: ${error.evalue}`.slice(0, 200) : null }
+}
+
+/**
+ * Run a source's notebook for real and write the fresh result to its snapshot file.
+ * Returns { ms, keys, warning }.
+ */
+export async function runSource(source) {
+  const t0 = performance.now()
+  const { data, result, warning } = await runNotebook(source, source.inputs ?? {})
+  const target = resolvePath(source.snapshot)
   if (/\.json$/i.test(target)) writeFileSync(target, JSON.stringify(data, null, 1))
   else writeFileSync(target, result.snapshotYaml)
-  return {
-    ms: performance.now() - t0,
-    keys: Object.keys(data),
-    warning: error ? `${error.ename}: ${error.evalue}`.slice(0, 200) : null,
-  }
+  rmSync(cacheDir(source), { recursive: true, force: true }) // fresh data: per-input results are stale
+  return { ms: performance.now() - t0, keys: Object.keys(data), warning }
 }
+
+// ---------- per-input snapshots (filters bound to notebook inputs) ----------
+
+const cacheDir = source => join(root, 'snapshots', '.cache', source.name)
+const cacheKey = inputs =>
+  createHash('sha1')
+    .update(JSON.stringify(Object.entries(inputs).sort()))
+    .digest('hex')
+    .slice(0, 16)
+
+/**
+ * The source's output for these inputs: its default snapshot when the inputs are the defaults,
+ * else a cached run, else a fresh run (cached for next time). Returns { data, cached, ms }.
+ */
+export async function snapshotFor(source, overrides) {
+  const inputs = { ...(source.inputs ?? {}), ...overrides }
+  if (JSON.stringify(Object.entries(inputs).sort()) === JSON.stringify(Object.entries(source.inputs ?? {}).sort()))
+    return { data: readSnapshot(source.snapshot), cached: true, ms: 0 }
+  const file = join(cacheDir(source), `${cacheKey(inputs)}.json`)
+  if (existsSync(file)) return { data: JSON.parse(readFileSync(file, 'utf8')), cached: true, ms: 0 }
+  const t0 = performance.now()
+  const { data } = await runNotebook(source, inputs)
+  mkdirSync(cacheDir(source), { recursive: true })
+  writeFileSync(file, JSON.stringify(data))
+  return { data, cached: false, ms: performance.now() - t0 }
+}
+
+export const hasCached = (source, overrides) =>
+  existsSync(join(cacheDir(source), `${cacheKey({ ...(source.inputs ?? {}), ...overrides })}.json`))
