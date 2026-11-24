@@ -164,6 +164,47 @@ describe('serializeDeepnoteFile', () => {
       expect(parsed).toEqual(file)
     })
 
+    it('serializes and deserializes markdown content and outputs with YAML-like lines', () => {
+      const file = createMinimalFile()
+      file.project.notebooks = [
+        {
+          id: 'notebook-1',
+          name: 'Test',
+          blocks: [
+            {
+              id: 'block-1',
+              blockGroup: 'group-1',
+              sortingKey: '000000',
+              type: 'markdown',
+              content: 'Notes\n- *a*\n- *b*',
+              metadata: {},
+            },
+            {
+              id: 'block-2',
+              blockGroup: 'group-1',
+              sortingKey: '000001',
+              type: 'code',
+              content: 'x',
+              metadata: {},
+              outputs: [
+                { output_type: 'stream', name: 'stdout', text: 'Summary\n- *Region*: Europe\n' },
+                {
+                  output_type: 'display_data',
+                  data: {
+                    'text/markdown': 'Findings:\n- *Revenue* grew 5%\n',
+                    'application/json': { note: 'a\n- *b*' },
+                  },
+                  metadata: {},
+                },
+              ],
+            },
+          ],
+        },
+      ]
+
+      expect(deserializeDeepnoteFile(serializeDeepnoteFile(file))).toEqual(file)
+    })
+
     it('serializes a snapshot and deserializes core fields correctly', () => {
       const snapshot = createSnapshot()
       const yaml = serializeDeepnoteSnapshot(snapshot)
