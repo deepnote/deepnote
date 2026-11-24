@@ -251,6 +251,12 @@ describe('parseYaml', () => {
       )
     })
 
+    it('reports an anchor on a !!pairs item ahead of the tag', () => {
+      expect(() => parseYaml('d: !!pairs\n  - &x {a: 1}\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML anchors (&) are not allowed in Deepnote files', { feature: 'anchor' })
+      )
+    })
+
     it('does not reject Markdown emphasis in strings', () => {
       const yamlContent = `
       description: "This is *bold* text and **more bold**"

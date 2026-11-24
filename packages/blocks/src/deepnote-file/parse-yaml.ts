@@ -108,6 +108,9 @@ function parseAndValidate(yamlContent: string): unknown {
     strict: true,
     uniqueKeys: true,
     version: '1.2',
+    // Resolving !!pairs or !!omap replaces each item map with its first pair,
+    // so validateYamlStructure would never see the map's anchor or tag.
+    resolveKnownTags: false,
   })
 
   validateYamlStructure(doc)
