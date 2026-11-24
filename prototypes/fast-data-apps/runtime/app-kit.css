@@ -793,3 +793,168 @@ button.dk-item:hover {
   background-size: 200% 100%;
   animation: dk-shimmer 1s linear infinite;
 }
+
+/* ----- reveal: presentation only (see REVEAL in app-kit.js) -----
+   Cards render as soon as they arrive but stay under their skeleton until their turn; then the
+   skeleton fades, the card rises in and its insides draw one after another. --rv scales timing. */
+[data-reveal="cascade"] .dk-card,
+[data-reveal="quick"] .dk-card,
+[data-reveal="build"] .dk-card,
+[data-reveal="showcase"] .dk-card {
+  position: relative;
+}
+.dk-await > :not(.dk-skel-cover) {
+  visibility: hidden;
+}
+.dk-skel-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: var(--pad);
+  background: var(--surface);
+  pointer-events: none;
+}
+.dk-skel-cover-out {
+  animation: dk-cover-out calc(0.3s * var(--rv, 1)) ease forwards;
+}
+@keyframes dk-cover-out {
+  to {
+    opacity: 0;
+  }
+}
+.dk-revealing {
+  animation: dk-rise calc(0.45s * var(--rv, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes dk-rise {
+  from {
+    transform: translateY(10px) scale(0.985);
+    box-shadow: none;
+  }
+}
+[data-reveal="showcase"] .dk-revealing {
+  animation-name: dk-rise-focus;
+}
+@keyframes dk-rise-focus {
+  from {
+    transform: translateY(14px) scale(0.97);
+    filter: blur(6px);
+    opacity: 0.4;
+  }
+}
+
+/* Header: kicker, title, subtitle in turn. */
+.dk-header-reveal .dk-kicker,
+.dk-header-reveal .dk-title,
+.dk-header-reveal .dk-subtitle {
+  animation: dk-line-in calc(0.5s * var(--rv, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.dk-header-reveal .dk-title {
+  animation-delay: calc(0.08s * var(--rv, 1));
+}
+.dk-header-reveal .dk-subtitle {
+  animation-delay: calc(0.2s * var(--rv, 1));
+}
+@keyframes dk-line-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Build and showcase: the insides draw step by step. */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing {
+  --step: calc(28ms * var(--rv, 1));
+  --draw: calc(0.55s * var(--rv, 1));
+}
+/* Axes and gridlines settle first, then the marks. */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"])
+  .dk-revealing
+  :is(.role-axis, .role-legend) {
+  animation: dk-fade var(--draw) ease both;
+}
+/* Bars grow from their baseline, one after another (sideways for horizontal bars). */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing .mark-rect path {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: dk-grow-y var(--draw) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.12s * var(--rv, 1) + var(--i, 0) * var(--step));
+}
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"])
+  .dk-revealing[data-orient="h"]
+  .mark-rect
+  path {
+  transform-origin: 0 50%;
+  animation-name: dk-grow-x;
+}
+@keyframes dk-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes dk-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+/* Lines and areas draw left to right; points pop in along them. */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"])
+  .dk-revealing
+  :is(.mark-line, .mark-area, .mark-trail) {
+  animation: dk-wipe calc(var(--draw) * 1.6) cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation-delay: calc(0.12s * var(--rv, 1));
+}
+@keyframes dk-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing .mark-symbol path {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dk-pop calc(var(--draw) * 0.6) ease-out both;
+  animation-delay: calc(0.2s * var(--rv, 1) + var(--i, 0) * var(--step));
+}
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing .mark-arc path {
+  transform-box: view-box;
+  transform-origin: center;
+  animation: dk-pop var(--draw) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * var(--step) * 2);
+}
+@keyframes dk-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+}
+/* Labels on the marks come in after them. */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing .mark-text {
+  animation: dk-fade var(--draw) ease both;
+  animation-delay: calc(var(--draw) * 0.9);
+}
+/* Table rows, list items, facts and paragraphs arrive in turn. */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"])
+  .dk-revealing
+  :is(tbody tr, .dk-list > *, .dk-facts > *, .dk-detail > *),
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing.dk-text > * {
+  animation: dk-line-in calc(var(--draw) * 0.7) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(0.08s * var(--rv, 1) + var(--i, 0) * var(--step) * 1.4);
+}
+/* KPI: label, then the number counting up, then the comparison. */
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"])
+  .dk-revealing
+  :is(.dk-kpi-label, .dk-kpi-note) {
+  animation: dk-line-in calc(var(--draw) * 0.8) ease both;
+}
+:is([data-reveal="quick"], [data-reveal="build"], [data-reveal="showcase"]) .dk-revealing .dk-kpi-note {
+  animation-delay: calc(0.5s * var(--rv, 1));
+}
+@media (prefers-reduced-motion: reduce) {
+  .dk-revealing,
+  .dk-revealing *,
+  .dk-header-reveal * {
+    animation: none !important;
+  }
+}

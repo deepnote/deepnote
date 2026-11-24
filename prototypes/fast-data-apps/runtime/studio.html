@@ -37,6 +37,8 @@
       .target input { flex: 1; font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--fg); }
       .target .remove { height: 28px; width: 28px; padding: 0; border: 0; background: none; color: var(--fg-muted); font-size: 16px; }
       .pick-hint { font-size: 12px; color: var(--fg-muted); }
+      .anim { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-muted); }
+      .anim select { font: inherit; font-size: 13px; height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--fg); }
     </style>
   </head>
   <body>
@@ -47,6 +49,16 @@
         <div class="toolbar">
           <div class="sources" id="sources">Loading data sources…</div>
           <div class="actions">
+            <label class="anim" title="How the page appears as it builds. Presentation only: generation and the timings are unchanged.">Animation
+              <select id="reveal">
+                <option value="off">Off (instant)</option>
+                <option value="cascade">Cascade</option>
+                <option value="quick">Quick build</option>
+                <option value="build">Build</option>
+                <option value="showcase">Showcase</option>
+              </select>
+            </label>
+            <button id="replay" class="secondary" hidden title="Play the build animation of this app again">Replay</button>
             <span class="pick-hint" id="pick-hint" hidden>Click elements to select them (or Alt-click any time)</span>
             <button id="pick" class="secondary" hidden aria-pressed="false" title="Point and click: select elements on the page to edit only them">Select</button>
             <button id="rerun" class="secondary" hidden title="Rerun the notebooks now and show this app with their latest data">Run notebooks</button>
@@ -125,7 +137,19 @@
           fetch('api/prewarm', { method: 'POST', body: JSON.stringify({ input: f.field, values: f.options }) })
         }
       }
-      const makeApp = () => createApp($('app'), { snapshot: () => snapshotData, onFilter })
+      // Reveal animation: presentation only. Picked per viewer, or with ?reveal= in the URL.
+      const store = { get: k => { try { return localStorage.getItem(k) } catch { return null } }, set: (k, v) => { try { localStorage.setItem(k, v) } catch {} } }
+      let reveal = new URLSearchParams(location.search).get('reveal') ?? store.get('reveal') ?? 'quick'
+      $('reveal').value = reveal
+      $('reveal').onchange = () => {
+        reveal = $('reveal').value
+        store.set('reveal', reveal)
+        app?.setReveal(reveal)
+        app?.replay()
+        $('replay').hidden = !app || reveal === 'off'
+      }
+      $('replay').onclick = () => app?.replay()
+      const makeApp = () => createApp($('app'), { snapshot: () => snapshotData, onFilter, reveal })
 
       // ----- point and click: selected elements, each with an optional comment -----
       // Kept across Iterates (the top bar remembers them); cleared on Regenerate.
@@ -277,6 +301,7 @@
           $('go').textContent = 'Regenerate'
           $('go').title = 'Rewrite the whole app from scratch from the current prompt'
           $('iterate').hidden = $('rerun').hidden = $('pick').hidden = false
+          $('replay').hidden = reveal === 'off'
           $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
         })
         es.addEventListener('failed', e => {

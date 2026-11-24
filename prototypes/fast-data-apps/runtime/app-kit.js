@@ -173,7 +173,8 @@ const d3Format = kind => (kind === 'currency' || kind === 'money' ? '$,.3~s' : k
  * @param root element to render into
  * @param sources { snapshot?: () => Promise<object>, tables?: { id: () => Promise<rows|csvText> } }
  */
-export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onFilter = () => {} }) {
+export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onFilter = () => {}, reveal = 'off' }) {
+  let revealMode = reveal // 'off' | 'cascade' | 'quick' | 'build' | 'showcase' (see REVEAL)
   let data = null // { root, datasets }
   let rawSnap = {}
   let rawTables = {}
@@ -487,9 +488,10 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     if (!el) {
       el = document.createElement('section')
       el.dataset.id = comp.id
-      el.classList.add('dk-enter')
+      if (revealMode === 'off') el.classList.add('dk-enter')
     }
-    el.className = `dk-card dk-${comp.t}${el.classList.contains('dk-enter') ? ' dk-enter' : ''}${selClass(comp.id)}`
+    const transient = ['dk-enter', 'dk-await', 'dk-revealing'].filter(c => el.classList.contains(c))
+    el.className = `dk-card dk-${comp.t}${transient.map(c => ` ${c}`).join('')}${selClass(comp.id)}`
     if (comp.t !== 'placeholder') el.dataset.pick = comp.t === 'chart' ? `${comp.kind ?? 'chart'} chart` : comp.t
     el.style.gridColumn = comp.span ? `span ${comp.span}` : '1 / -1'
     return el
@@ -537,6 +539,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     delete el.dataset.morphFrom
     if (!from) return
     el.classList.add('dk-morph')
+    el.style.height = ''
     const to = el.offsetHeight
     if (Math.abs(to - from) < 4) return
     el.style.height = `${from}px`
@@ -549,6 +552,166 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     }, 330)
   }
 
+  // ----- reveal: presentation only -----
+  // Components still arrive and render as fast as before; the reveal queue only decides when each
+  // finished card is uncovered, one at a time in page order, with its insides drawn step by step.
+  // A backlog shortens the gap so the whole page is uncovered within `cap` ms of arriving.
+  const REVEAL = {
+    cascade: { gap: 110, cap: 1100, rv: 0.8 },
+    quick: { gap: 60, cap: 500, rv: 0.55 },
+    build: { gap: 200, cap: 1800, rv: 1 },
+    showcase: { gap: 380, cap: 3600, rv: 1.5 },
+  }
+  const revealQueue = []
+  let revealTimer = null
+  let lastReveal = 0
+  let headerShown = false
+  let typingTitle = null // the title being typed out (showcase), so re-renders leave it alone
+  function setRevealMode(mode) {
+    revealMode = REVEAL[mode] ? mode : 'off'
+    root.dataset.reveal = revealMode
+    root.style.setProperty('--rv', String(REVEAL[revealMode]?.rv ?? 1))
+    if (revealMode === 'off') for (const el of revealQueue.splice(0)) uncover(el)
+  }
+  const skelKindOf = comp =>
+    comp.t === 'chart' && ['line', 'area'].includes(comp.kind)
+      ? 'trend'
+      : ({ kpi: 'kpi', chart: 'chart', vega: 'chart', table: 'table', list: 'list', detail: 'detail', text: 'text' }[
+          comp.t
+        ] ?? null)
+  function enqueueReveal(el, comp) {
+    if (!el.querySelector(':scope > .dk-skel-cover')) {
+      const kind = skelKindOf(comp)
+      const skel = el.__skel ?? (kind ? skeletonHtml({ kind, label: comp.title ? tpl(comp.title) : undefined }) : '')
+      const cover = document.createElement('div')
+      cover.className = 'dk-skel-cover'
+      cover.innerHTML = skel
+      el.append(cover)
+    }
+    el.dataset.orient = comp.kind === 'hbar' ? 'h' : 'v'
+    el.classList.add('dk-await')
+    if (!revealQueue.includes(el)) {
+      el.__queuedAt = performance.now()
+      revealQueue.push(el)
+    }
+    pumpReveal()
+  }
+  // Charts render asynchronously: a card is ready once each of its charts has drawn (or 1.5s passed).
+  const cardReady = el =>
+    performance.now() - el.__queuedAt > 1500 ||
+    [...el.querySelectorAll('.dk-chart')].every(c => c.querySelector('svg, canvas, .dk-error'))
+  function pumpReveal() {
+    if (revealTimer || !revealQueue.length) return
+    const cfg = REVEAL[revealMode]
+    if (!cfg) return
+    const gap = Math.min(cfg.gap, cfg.cap / revealQueue.length)
+    revealTimer = setTimeout(
+      () => {
+        revealTimer = null
+        for (let i = revealQueue.length - 1; i >= 0; i--) if (!revealQueue[i].isConnected) revealQueue.splice(i, 1)
+        revealQueue.sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
+        const i = revealQueue.findIndex(cardReady)
+        if (i < 0) {
+          // Nothing drawn yet: look again shortly without counting it as a step.
+          revealTimer = setTimeout(() => {
+            revealTimer = null
+            pumpReveal()
+          }, 40)
+          return
+        }
+        uncover(revealQueue.splice(i, 1)[0])
+        lastReveal = performance.now()
+        pumpReveal()
+      },
+      Math.max(0, lastReveal + gap - performance.now())
+    )
+  }
+  function uncover(el) {
+    el.dataset.revealed = '1'
+    el.classList.remove('dk-await')
+    const cover = el.querySelector(':scope > .dk-skel-cover')
+    if (cover) {
+      cover.classList.add('dk-skel-cover-out')
+      setTimeout(() => cover.remove(), 350)
+    }
+    if (el.dataset.morphFrom) morph(el)
+    else el.style.height = ''
+    if (revealMode === 'off') return
+    el.classList.add('dk-revealing')
+    stagger(el)
+    if (revealMode !== 'cascade') countUp(el)
+    clearTimeout(el.__revealEnd)
+    el.__revealEnd = setTimeout(() => el.classList.remove('dk-revealing'), 1400 * (REVEAL[revealMode]?.rv ?? 1))
+  }
+  /** Number each bar, slice, row and paragraph so the CSS can draw them one after another. */
+  function stagger(el) {
+    const number = (sel, max) =>
+      el.querySelectorAll(sel).forEach((n, i) => {
+        n.style.setProperty('--i', String(Math.min(i, max)))
+      })
+    number('.mark-rect path', 24)
+    number('.mark-arc path', 12)
+    number('.mark-symbol path', 24)
+    number('tbody tr', 14)
+    number('.dk-list > *', 10)
+    number('.dk-facts > *, .dk-detail > *', 10)
+    if (el.classList.contains('dk-text')) number(':scope > :not(.dk-skel-cover)', 10)
+    // Charts that finish drawing after the card was uncovered get numbered then.
+    if (el.querySelector('.dk-chart:empty')) setTimeout(() => el.classList.contains('dk-revealing') && stagger(el), 60)
+  }
+  /** Count KPI values up from zero, keeping their prefix, suffix, separators and decimals. */
+  function countUp(el) {
+    for (const node of el.querySelectorAll('.dk-kpi-value')) {
+      const text = node.textContent
+      const m = text.match(/-?[\d,]*\.?\d+/)
+      if (!m) continue
+      const target = Number(m[0].replaceAll(',', ''))
+      if (!Number.isFinite(target) || target === 0) continue
+      const decimals = (m[0].split('.')[1] ?? '').length
+      const commas = m[0].includes(',')
+      const [pre, post] = [text.slice(0, m.index), text.slice(m.index + m[0].length)]
+      const ms = 800 * (REVEAL[revealMode]?.rv ?? 1)
+      const t0 = performance.now()
+      const step = now => {
+        if (!node.isConnected) return // re-rendered meanwhile
+        const p = Math.min(1, (now - t0) / ms)
+        const v = target * (1 - (1 - p) ** 3)
+        const s = commas
+          ? v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+          : v.toFixed(decimals)
+        node.textContent = p < 1 ? `${pre}${s}${post}` : text
+        if (p < 1) requestAnimationFrame(step)
+      }
+      requestAnimationFrame(step)
+    }
+  }
+  /** The title arrives first: kicker, title and subtitle rise in; showcase types the title out. */
+  function revealHeader() {
+    if (headerShown || revealMode === 'off' || !app.title) return
+    headerShown = true
+    const h = $('.dk-header')
+    h.classList.remove('dk-header-reveal')
+    void h.offsetWidth
+    h.classList.add('dk-header-reveal')
+    setTimeout(() => h.classList.remove('dk-header-reveal'), 1600 * (REVEAL[revealMode]?.rv ?? 1))
+    if (revealMode !== 'showcase') return
+    const title = $('.dk-title')
+    const full = title.textContent
+    const t0 = performance.now()
+    let written = ''
+    const type = now => {
+      if (title.textContent !== written || typingTitle !== full) return // title changed meanwhile
+      written = full.slice(0, Math.min(full.length, Math.round((now - t0) / 22)))
+      title.textContent = written
+      if (written.length < full.length) requestAnimationFrame(type)
+      else typingTitle = null
+    }
+    typingTitle = full
+    title.textContent = ''
+    requestAnimationFrame(type)
+  }
+  setRevealMode(revealMode)
+
   const heading = comp => (comp.title ? `<h3>${esc(tpl(comp.title))}</h3>` : '')
   const caption = comp => (comp.caption ? `<p class="dk-caption">${esc(tpl(comp.caption))}</p>` : '')
 
@@ -559,8 +722,13 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
       if (comp.t === 'placeholder') {
         el.className = `dk-card dk-placeholder dk-placeholder-${comp.kind}`
         el.innerHTML = skeletonHtml(comp)
+        el.__skel = el.innerHTML
         return
       }
+      // Revealed step by step: the card renders now (nothing waits on the animation) but stays
+      // covered by its skeleton until its turn in the reveal queue.
+      const awaiting = revealMode !== 'off' && !el.dataset.revealed
+      if (awaiting && el.dataset.morphFrom && !el.style.height) el.style.height = `${el.dataset.morphFrom}px`
       if (comp.t === 'section')
         el.innerHTML = `<h2>${esc(tpl(comp.title))}</h2>${comp.note ? `<p>${esc(tpl(comp.note))}</p>` : ''}`
       else if (comp.t === 'text') el.innerHTML = markdown(tpl(comp.md))
@@ -570,7 +738,9 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
       else if (comp.t === 'list') renderList(el, comp)
       else if (comp.t === 'detail') renderDetail(el, comp)
       else if (comp.t === 'vega') renderVega(el, comp, { ...comp.spec, data: { values: rowsFor(comp) } })
-      if (el.dataset.morphFrom) morph(el)
+      if (awaiting) enqueueReveal(el, comp)
+      else if (el.dataset.morphFrom) morph(el)
+      if (el.classList.contains('dk-revealing')) stagger(el)
     } catch (e) {
       el.innerHTML = `<div class="dk-error">Could not render ${esc(comp.id)}: ${esc(e.message)}</div>`
       onEvent({ type: 'error', id: comp.id, message: e.message })
@@ -1231,13 +1401,16 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
 
   function renderHeader() {
     $('.dk-kicker').textContent = app.kicker ? tpl(app.kicker) : ''
-    $('.dk-title').textContent = tpl(app.title ?? '')
+    const titleText = tpl(app.title ?? '')
+    if (typingTitle !== titleText) $('.dk-title').textContent = titleText
     $('.dk-subtitle').textContent = app.subtitle ? tpl(app.subtitle) : ''
     $('.dk-subtitle').hidden = !app.subtitle
     const tone = app.tone ? toneClass(tpl(app.tone)) : null
+    const revealing = $('.dk-header').classList.contains('dk-header-reveal') ? ' dk-header-reveal' : ''
     $('.dk-header').className =
-      `dk-header${tone ? ` dk-edge-${tone}` : ''}${!app.title && headerPending ? ' dk-header-pending' : ''}${selClass('app')}`
-    document.title = $('.dk-title').textContent || 'Data app'
+      `dk-header${tone ? ` dk-edge-${tone}` : ''}${!app.title && headerPending ? ' dk-header-pending' : ''}${selClass('app')}${revealing}`
+    document.title = titleText || 'Data app'
+    revealHeader()
   }
 
   function refreshData() {
@@ -1425,6 +1598,22 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
       rawSnap = { ...rawSnap, [name]: snapshotData }
       data = buildRoot(rawSnap, rawTables)
       Object.assign(ctx.root, data.root)
+      renderAll()
+    },
+    /** Switch the reveal animation: 'off' | 'cascade' | 'quick' | 'build' | 'showcase'. */
+    setReveal: mode => setRevealMode(mode),
+    /** Play the step-by-step reveal of the finished page again (for demos and recordings). */
+    replay() {
+      if (revealMode === 'off') return
+      clearTimeout(revealTimer)
+      revealTimer = null
+      revealQueue.length = 0
+      lastReveal = performance.now()
+      headerShown = false
+      for (const el of root.querySelectorAll('.dk-grid > .dk-card:not(.dk-placeholder)')) {
+        delete el.dataset.revealed
+        el.classList.remove('dk-revealing')
+      }
       renderAll()
     },
     /** Mark the selected components (outlined until deselected). */
