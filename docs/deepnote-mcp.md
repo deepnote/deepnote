@@ -99,6 +99,7 @@ These tools manage the machine behind the editor, live-mode runs, and hosted Str
 - `list_streamlit_apps`: List a project's Streamlit apps with the file each one runs and its URL.
 - `get_streamlit_app_status`: Check whether a Streamlit app is running, starting, or unavailable.
 - `create_data_app_token`: Mint a short-lived viewer token for a data app project, to preview its page locally against the same API. To upload a data app's files, use [`deepnote publish`](/docs/deepnote-cli-publish) from the CLI.
+- `show_data_app`: Show a [data app](/docs/data-app-projects) in the conversation. Clients that render MCP Apps, such as Claude, ChatGPT, and the Codex app, show the app there, and you use it as in Deepnote: it shows your results and runs with your access. Other clients, such as Claude Code, get the app's link. The app in the conversation reads its files with `read_data_app_file` and runs its notebook with `call_data_app_api`, tools that clients keep from the agent.
 
 <Callout status="warning">
 Creating a Streamlit app with `create_streamlit_app` restarts the project machine and interrupts anyone working in the project.
