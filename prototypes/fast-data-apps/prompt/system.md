@@ -21,11 +21,11 @@ theme bg= surface= text= heading= muted= border= primary= accent= good= warn= ba
 input #<name> kind=select|segmented|slider|number|toggle|text label= options=[values or {"value","label"}] from=<dataset.column> value=<default> min= max= step= fmt=<slider readout format>
 filter data=<dataset> field=<column> label= — dropdown (date column → period picker); filters every dataset with that column
 calc data=<dataset> as=<new column> expr=<row expression>
-derive #<new dataset> from=<dataset> expand={"as":"month","from":0,"to":"$horizon"} where=<row expression> cols={"<name>":"<row expression>",…} group=["<col>"] — new dataset; expand repeats rows over a range; cols evaluate in order and may use earlier cols and inputs; group sums numeric columns
-kpi label=<template> value=<expression> fmt= note=<template> good=[up]|down — the change vs a prior value is automatic when the data has prior_<name> next to it (points for percent, % change otherwise); else compare=<path> or delta=<expression> deltaFmt=; compare=false hides it — or aggregate: data= agg=sum|avg|count|distinct|min|max|median|ratio|share field= of= where=
-chart data=<dataset> kind=line|area|bar|hbar|stacked|pie|scatter|hist|waterfall x=<column> y=<column or ["col",…]> labels=[…] agg=[sum] color=<split column> facet=<column> ref=<reference y> time=[month]|day|week|quarter|year top=[15] sort=false title=<template> caption=<template> fmt= span=[6] height=[240] where=
+derive #<new dataset> from=<dataset> expand={"as":"month","from":0,"to":"$horizon"} where=<row expression> cols={"<name>":"<row expression>",…} cluster={"k":4,"fields":["<numeric col>",…],"as":"cluster"} group=["<col>"] — new dataset; expand repeats rows over a range; cols evaluate in order and may use earlier cols and inputs; cluster runs k-means on those columns and adds a named cluster column (e.g. "High arr · Low score"); group sums amounts and averages rates/scores
+kpi label=<template> value=<expression> fmt= note=<template> good=[up]|down spark=<expression giving a list of numbers, e.g. billing.monthly.mrr: a small trend line under the number> target=<expression: a progress bar toward it> — the change vs a prior value is automatic when the data has prior_<name> next to it (points for percent, % change otherwise); else compare=<path> or delta=<expression> deltaFmt=; compare=false hides it — or aggregate: data= agg=sum|avg|count|distinct|min|max|median|ratio|share field= of= where=
+chart data=<dataset> kind=line|area|bar|hbar|stacked|pie|scatter|hist|waterfall|heatmap|funnel|quadrant x=<column> y=<column or ["col",…]> value=<heatmap cell measure; rows counted if left out> label=<quadrant point-name column> xRef= yRef=<quadrant split lines; median if left out> top=<quadrant: keep only the N most extreme points, all named> quadrants=["top-left","top-right","bottom-left","bottom-right" labels] labels=[…] agg=[sum] color=<split column> facet=<column> ref=<reference y> time=[month]|day|week|quarter|year top=[15] sort=false title=<template> caption=<template> fmt= span=[6] height=[240] where=
 table data=<dataset> title= cols=["col" or {"field","label","fmt"} (fmt may be badge) or {"expr","label","fmt"}] group=["col"] sort=<col> desc=[true] limit=[50] caption= span=[12]
-list data=<dataset> heading=<template> title=<row template> subtitle=<row template> value=<row expression> fmt= valueNote=<row template> lead=<row expression> tone=<row expression: good|warn|bad> badge=<row template> badgeWhen=<row expression> search=true sort=<col> desc=[true] limit=[50] layout=[rows]|cards select=<name> key=<id column> span=[6] — select makes rows clickable and stores the row's key in $<name>
+list data=<dataset> heading=<template> title=<row template> subtitle=<row template> value=<row expression> fmt= valueNote=<row template> lead=<row expression> tone=<row expression: good|warn|bad> badge=<row template> badgeWhen=<row expression> search=true sort=<col> desc=[true] limit=[50] layout=[rows]|cards|bars (bars: a ranked list with an inline bar for value) select=<name> key=<id column> span=[6] — select makes rows clickable and stores the row's key in $<name>
 detail of=<object path> | data=<dataset> select=<name> key=<id column> kicker= title= bullets=<expression giving a list of strings> numbered=true items=[["Label","<template>"],…] note= tone=<expression> span=[6] — one record: a fixed object, or the row a list selected
 text md=<template markdown> span=[12]
 section title=<template> note=<template>
@@ -36,10 +36,17 @@ Inline data: chart, table and list accept rows=[{…},…] instead of data; a st
 ## Choosing
 
 - Time series → line/area (`time` for date columns; string periods like '2026-Q3' plot in order). Comparing categories → hbar (signed values color green/red automatically) or bar. Composition → stacked/pie (≤6 parts). Start → changes → end → waterfall (first and last rows are totals, rows between are signed changes). Same metric across groups → facet small multiples, with `ref` for a target such as 1.
+- Two categories against each other (weekday × hour, cohort × month, segment × plan) → heatmap: x and y are the categories, value the measure.
+- Ordered stages that narrow (signup → active → paying, started → completed, lead statuses) → funnel: x is the stage in order, y the count.
+- Two measures where the corners mean something (pays little but uses a lot, high value but low engagement) → quadrant with label= naming the points and quadrants= saying what each corner means.
+- A ranking people read top to bottom (owners, channels, failing pages) → list layout=bars with value=, instead of an hbar plus a table.
+- Headline numbers with a history → kpi spark= the column over time; with a goal → target=.
 - Records people scan or pick from → list (`select` + a detail for "why"). Checks/statuses → table with badge columns, or list with `badge`. A single record (a quote, a summary) → detail with `items` and `bullets`.
 - What-if → input sliders + derive with cols that use `$inputs`, then charts/KPIs on the derived dataset.
+- Segmenting or clustering records → one derive with cluster=, then a scatter colored by the cluster column and a table grouped by it. Never hand-write cluster formulas.
+- Tables grouped by a column average rates and scores automatically; give agg= only to override.
 - Headlines: when the snapshot has sentences (titles, captions, notes), use them as templates; otherwise write a headline from the numbers.
-- 12-column grid: KPIs span 3, charts 6 (12 for a hero chart), list/detail 6, tables 12. Make rows sum to 12.
+- 12-column grid: KPIs span 3 (or 4 for three, 6 for two), charts 6, 4 or 8 (12 for a hero chart, height 320), list/detail 6 or 4+8, tables 12. Make rows sum to 12.
 - Keep it to what was asked; ~10–20 lines.
 
 ## Editing

@@ -1,0 +1,128 @@
+metadata:
+  createdAt: 2026-11-24T09:00:00.000Z
+  modifiedAt: 2026-11-24T09:00:00.000Z
+project:
+  id: ef0f1696-ee84-2fb2-6061-b29abb6bef71
+  name: "PageMantle: Website performance"
+  notebooks:
+    - blocks:
+        - id: e1a80ca2364de612259dc0b55f22e172
+          blockGroup: 71d5eb4d01f2bf7929dc0d00ffbdeecc
+          sortingKey: "000000"
+          type: markdown
+          content: |-
+            # Website performance
+
+            Real-user Core Web Vitals for customer websites hosted on PageMantle in September 2026: loading (LCP), responsiveness (INP) and layout stability (CLS), by day, device and page, with the share of good, needs-improvement and poor measurements.
+
+            Reads the PageMantle company dataset from `PAGEMANTLE_DATA` (default `~/data/pagemantle`). **Dataset** picks a fast sample or the full data.
+          metadata: {}
+        - id: 4c362bb2a5f50e03b10a734f83aeece4
+          blockGroup: 7ebaa8f663a1cff6fa4faf2938057f4b
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: dataset
+            deepnote_input_label: Dataset
+            deepnote_variable_value: sample
+            deepnote_variable_default_value: sample
+            deepnote_variable_options:
+              - sample
+              - full
+            deepnote_variable_custom_options:
+              - sample
+              - full
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 4fe6390beea523d57e03cd24ff0fc2b7
+          blockGroup: 69a4dd0b1b8af327ac1bec313381cece
+          sortingKey: "000002"
+          type: code
+          content: |-
+            # Shared setup, copied into the first code block of every PageMantle notebook.
+            # `dataset` comes from the notebook's input: "sample" (fast, for checking apps) or "full".
+            import json
+            import os
+
+            import duckdb
+            from IPython.display import display
+
+            ROOT = os.path.expanduser(os.environ.get("PAGEMANTLE_DATA", "~/data/pagemantle"))
+            FULL = dataset == "full"
+            con = duckdb.connect()
+            con.execute("LOAD sqlite")
+
+
+            def pq(path):
+                """All Parquet partitions under a folder of the extracted dataset."""
+                return f"read_parquet('{ROOT}/{path}/**/*.parquet', union_by_name=true)"
+
+
+            def db(path):
+                return f"{ROOT}/{path}"
+
+
+            def q(sql):
+                return con.execute(sql).df()
+
+
+            def records(df):
+                return json.loads(df.to_json(orient="records", date_format="iso", double_precision=4))
+
+
+            def one(sql):
+                return con.execute(sql).fetchone()[0]
+
+
+            # Sampling keeps every 10th customer (by a stable hash), so customer tables stay consistent
+            # across notebooks. Event-level sources sample the most recent days instead (see each notebook).
+            def in_sample(col):
+                return "TRUE" if FULL else f"(hash({col}) % 10 = 0)"
+
+
+            DATASET = {"mode": "full" if FULL else "sample"}
+          metadata: {}
+        - id: 06fe7a7ddfb5f85e48d17f6689020acf
+          blockGroup: 8f7f30a1cc218c66fe2e0ee0b67165bc
+          sortingKey: "000003"
+          type: code
+          content: |-
+            con.execute(f"""
+            CREATE TEMP TABLE v AS
+            SELECT measurement_date AS day, metric_name AS metric, value, rating, device_category AS device, page_path, website_id
+            FROM {pq('bigquery/site_operations/web_vitals')}
+            WHERE {in_sample('measurement_id')}
+            """)
+            names = {"LCP": "Largest contentful paint (ms)", "INP": "Interaction to next paint (ms)", "CLS": "Cumulative layout shift"}
+            P = """count(*) AS measurements, round(quantile_cont(value, 0.75), 3) AS p75,
+              round(count(*) FILTER (WHERE rating = 'good') / count(*), 4) AS good_share,
+              round(count(*) FILTER (WHERE rating = 'poor') / count(*), 4) AS poor_share"""
+            summary = q(f"SELECT metric, {P} FROM v GROUP BY 1 ORDER BY 1")
+            daily = q(f"SELECT day::VARCHAR AS day, metric, device, {P} FROM v GROUP BY ALL ORDER BY 1")
+            devices = q(f"SELECT device, metric, {P} FROM v GROUP BY ALL ORDER BY 1, 2")
+            ratings = q("SELECT metric, device, replace(rating, '_', ' ') AS rating, count(*) AS measurements FROM v GROUP BY ALL")
+            pages = q(f"""
+            SELECT page_path AS page, {P},
+              round(quantile_cont(value, 0.75) FILTER (WHERE metric = 'LCP'), 0) AS lcp_p75,
+              round(quantile_cont(value, 0.75) FILTER (WHERE metric = 'INP'), 0) AS inp_p75,
+              round(quantile_cont(value, 0.75) FILTER (WHERE metric = 'CLS'), 3) AS cls_p75
+            FROM v GROUP BY 1 HAVING count(*) >= {50 if FULL else 10} ORDER BY poor_share DESC LIMIT 100
+            """)
+            display({"application/json": {
+                "dataset": {**DATASET, "note": "all measurements" if FULL else "every 10th measurement"},
+                "period": "2026-09-01 to 2026-09-30",
+                "thresholds": {"LCP_good_ms": 2500, "LCP_poor_ms": 4000, "INP_good_ms": 200, "INP_poor_ms": 500, "CLS_good": 0.1, "CLS_poor": 0.25},
+                "metric_names": names,
+                "summary": records(summary),
+                "daily": records(daily),
+                "devices": records(devices),
+                "ratings": records(ratings),
+                "pages": records(pages.drop(columns=["p75"])),
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: c48c00bd-6cf3-04cc-44b8-63bfeb572e22
+      name: Website performance
+version: 1.0.0

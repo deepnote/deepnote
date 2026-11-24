@@ -39,6 +39,18 @@
       .pick-hint { font-size: 12px; color: var(--fg-muted); }
       .anim { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-muted); }
       .anim select { font: inherit; font-size: 13px; height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--fg); }
+      .comment-btn { position: absolute; z-index: 30; font: 600 12px/1 var(--font); height: 26px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); cursor: pointer; box-shadow: 0 2px 8px rgb(16 24 40 / 0.12); }
+      .comment-btn:hover { background: var(--accent); color: #fff; }
+      .comment-pop { position: absolute; z-index: 31; width: 340px; max-width: calc(100vw - 32px); padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); box-shadow: 0 12px 32px rgb(16 24 40 / 0.18); display: flex; flex-direction: column; gap: 8px; }
+      .comment-pop[hidden], .comment-btn[hidden] { display: none; }
+      .comment-head { font-size: 12px; color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .comment-head b { color: var(--accent); }
+      .comment-pop textarea { font: inherit; font-size: 14px; line-height: 1.4; width: 100%; min-height: 58px; resize: vertical; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--fg); }
+      .comment-pop textarea:focus { outline: 2px solid color-mix(in srgb, var(--accent) 35%, transparent); border-color: var(--accent); }
+      .comment-actions { display: flex; justify-content: flex-end; gap: 8px; }
+      .comment-actions button { font: inherit; font-size: 13px; font-weight: 600; height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+      .comment-actions button.secondary { background: var(--surface); color: var(--accent); }
+      .comment-target { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 3px; }
     </style>
   </head>
   <body>
@@ -58,10 +70,12 @@
                 <option value="showcase">Showcase</option>
               </select>
             </label>
+            <button id="undo" class="secondary" hidden title="Go back to the version before the last change">Undo</button>
             <button id="replay" class="secondary" hidden title="Play the build animation of this app again">Replay</button>
             <span class="pick-hint" id="pick-hint" hidden>Click elements to select them (or Alt-click any time)</span>
             <button id="pick" class="secondary" hidden aria-pressed="false" title="Point and click: select elements on the page to edit only them">Select</button>
             <button id="rerun" class="secondary" hidden title="Rerun the notebooks now and show this app with their latest data">Run notebooks</button>
+            <button id="full-run" class="secondary" hidden title="Rerun every notebook on the full dataset and show this same app with the results">Run on full dataset</button>
             <button id="edit-selected" class="secondary" hidden title="Edit only the selected elements, following their comments">Edit selected</button>
             <button id="iterate" class="secondary" hidden title="Edit the current app to match what you changed in the prompt">Iterate</button>
             <button id="go">Generate</button>
@@ -74,7 +88,9 @@
     <script type="module">
       import { createApp } from './app-kit.js'
       const $ = id => document.getElementById(id)
-      const fetchSnapshots = () => fetch('snapshot.json').then(r => r.json())
+      // Which data the app shows: each notebook's default (sample) run, or its full-dataset run.
+      let datasetMode = new URLSearchParams(location.search).get('dataset') === 'full' ? 'full' : 'sample'
+      const fetchSnapshots = () => fetch(datasetMode === 'full' ? 'snapshot.json?dataset=full' : 'snapshot.json').then(r => r.json())
       let snapshotData = fetchSnapshots()
       const human = n => n.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase())
       const when = iso => (iso ? new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'never run')
@@ -83,8 +99,12 @@
         const tip = `<b>Data:</b> Generate builds from the available notebooks' snapshots of their last run: ${sources
           .map(s => `${human(s.name)} (last run ${when(s.snapshotUpdated)})`)
           .join(', ')}. <b>Run notebooks</b> reruns those notebooks now for the latest data.`
-        $('sources').innerHTML = `<span class="tip" tabindex="0">Data: ${sources.length} notebook snapshots <span class="tip-icon">i</span><span class="tip-body" role="tooltip">${tip}</span></span>`
+        $('sources').innerHTML = `<span class="tip" tabindex="0">Data: ${sources.length} notebook snapshots${datasetMode === 'full' ? ' · full dataset' : ''} <span class="tip-icon">i</span><span class="tip-body" role="tooltip">${tip}</span></span>`
+        hasDatasetInput = sources.some(s => s.inputs && 'dataset' in s.inputs)
+        hasFull = sources.some(s => s.fullUpdated)
       }
+      let hasDatasetInput = false
+      let hasFull = false
       showSources()
       const fmt = ms => (ms == null ? '…' : `${(ms / 1000).toFixed(2)}s`)
       let es = null
@@ -222,7 +242,7 @@
         setPicking(false)
         $('app').classList.remove('dk-picking')
         es?.close()
-        $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = true
+        $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = $('full-run').disabled = true
         const t0 = performance.now()
         const t = {}
         const since = () => performance.now() - t0
@@ -234,7 +254,13 @@
           $('timings').innerHTML = `<span><b>${targeted ? 'Edit selected' : mode === 'iterate' ? 'Iterate' : 'Generate'}</b></span>` + rows.map(([k, v]) => `<span class="${v == null && !done ? 'live' : ''}">${k} <b>${fmt(v)}</b></span>`).join('') + (extra ? `<span>${extra}</span>` : '')
         }
         const tick = setInterval(() => show(false, `elapsed ${fmt(since())}`), 50)
-        const body = { request, mode }
+        // A deep-dive tab sends what it was opened from along with the prompt.
+        const body = { request: deepContext && mode === 'generate' ? `${request}\n\n(${deepContext})` : request, mode }
+        // Undo: keep the version this change replaces.
+        if (app && app.order().length > 1) {
+          versions.push(app.spec())
+          $('undo').hidden = false
+        }
         let known = null
         if (mode === 'iterate') {
           body.previousRequest = lastRequest
@@ -291,6 +317,10 @@
           app.setStatus(mode === 'iterate' ? `Edited in ${fmt(t.rendered)}` : `Started rendering in ${fmt(t.skeleton)} · built in ${fmt(t.rendered)}`)
           lastRequest = request || lastRequest
           prewarmFilters()
+          if (inlineEdit) {
+            inlineEdit = false
+            targets.clear()
+          }
           // Keep the selection for the next edit; drop what no longer exists and the applied comments.
           for (const [id, tg] of targets) {
             const d = app.describe(id)
@@ -300,31 +330,32 @@
           renderTargets()
           $('go').textContent = 'Regenerate'
           $('go').title = 'Rewrite the whole app from scratch from the current prompt'
-          $('iterate').hidden = $('rerun').hidden = $('pick').hidden = false
+          $('iterate').hidden = $('rerun').hidden = false
+          updateFullButton()
           $('replay').hidden = reveal === 'off'
-          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
+          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = $('full-run').disabled = false
         })
         es.addEventListener('failed', e => {
           clearInterval(tick)
           $('timings').textContent = `Failed: ${e.data}`
-          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
+          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = $('full-run').disabled = false
         })
       }
 
       // Rerun the notebooks for real, then show the same app (same spec) with their latest data.
-      async function rerun() {
+      async function rerun({ inputs, label = 'Run notebooks' } = {}) {
         es?.close()
-        $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = true
+        $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = $('full-run').disabled = true
         const t0 = performance.now()
         const since = () => performance.now() - t0
         const progress = new Map()
         const show = extra => {
-          $('timings').innerHTML = `<span><b>Run notebooks</b></span>${[...progress]
+          $('timings').innerHTML = `<span><b>${label}</b></span>${[...progress]
             .map(([n, p]) => `<span class="${p.status === 'running' ? 'live' : ''}">${human(n)} <b>${p.status === 'running' ? 'running…' : p.status === 'done' ? `✓ ${fmt(p.ms)}${p.warning ? ' <span title="' + p.warning.replaceAll('"', '&quot;') + '">(with a warning)</span>' : ''}` : p.status === 'failed' ? '✗ failed' : 'queued'}</b></span>`)
             .join('')}${extra ? `<span>${extra}</span>` : ''}`
         }
         const tick = setInterval(() => show(`elapsed ${fmt(since())}`), 100)
-        const { id, sources } = await fetch('api/run', { method: 'POST' }).then(r => r.json())
+        const { id, sources } = await fetch('api/run', { method: 'POST', body: JSON.stringify(inputs ? { inputs } : {}) }).then(r => r.json())
         for (const n of sources) progress.set(n, { status: 'queued' })
         es = new EventSource(`events/${id}`)
         es.addEventListener('progress', e => {
@@ -338,6 +369,7 @@
           const info = JSON.parse(e.data)
           const spec = app.spec()
           const tRender = performance.now()
+          if (inputs?.dataset === 'full') datasetMode = 'full'
           snapshotData = fetchSnapshots()
           $('app').replaceChildren()
           app = makeApp()
@@ -347,16 +379,142 @@
           await app.settled()
           clearInterval(tick)
           show(`ran in ${fmt(info.ms)}${info.failed ? ` · ${info.failed} failed (kept their last run)` : ''} · re-rendered in ${fmt(performance.now() - tRender)}`)
-          app.setStatus(`Latest data · notebooks ran in ${fmt(info.ms)}`)
+          app.setStatus(`${datasetMode === 'full' ? 'Full dataset' : 'Latest data'} · notebooks ran in ${fmt(info.ms)}`)
+          updateFullButton()
           prewarmFilters()
           showSources()
-          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = false
+          $('go').disabled = $('iterate').disabled = $('edit-selected').disabled = $('rerun').disabled = $('full-run').disabled = false
         })
       }
       $('go').onclick = () => run('generate')
       $('iterate').onclick = () => run('iterate')
       $('edit-selected').onclick = () => run('edit')
-      $('rerun').onclick = rerun
+      $('rerun').onclick = () => rerun()
+      // Full dataset: rerun every notebook that takes a `dataset` input with dataset=full, then show
+      // the same app on those results. Once a full run exists, the button switches back and forth.
+      function updateFullButton() {
+        $('full-run').hidden = !hasDatasetInput || $('rerun').hidden
+        $('full-run').textContent = datasetMode === 'full' ? 'Show sample' : 'Run on full dataset'
+      }
+      async function rerender(status) {
+        const spec = app.spec()
+        snapshotData = fetchSnapshots()
+        $('app').replaceChildren()
+        app = makeApp()
+        window.__app = app
+        app.applyText(spec)
+        await app.settled()
+        app.setStatus(status)
+        showSources()
+        updateFullButton()
+      }
+      $('full-run').onclick = () => {
+        if (datasetMode === 'full') {
+          datasetMode = 'sample'
+          return rerender('Sample data')
+        }
+        rerun({ inputs: { dataset: 'full' }, label: 'Run on full dataset' })
+      }
+      // ----- inline comments: hover a component, click Comment, then Edit it or Deep dive -----
+      // Edit changes that component in place; Deep dive builds a new app about it in a new tab, so
+      // this one stays in the tab before it.
+      const versions = [] // earlier versions of this app's spec, newest last
+      let inlineEdit = false
+      let deepContext = ''
+      const commentBtn = Object.assign(document.createElement('button'), { className: 'comment-btn', type: 'button', textContent: 'Comment', hidden: true })
+      const pop = Object.assign(document.createElement('div'), { className: 'comment-pop', hidden: true })
+      document.body.append(commentBtn, pop)
+      let hovered = null
+      let commenting = null
+      const busy = () => $('go').disabled
+      const place = (node, el, dy) => {
+        const r = el.getBoundingClientRect()
+        node.style.top = `${scrollY + r.top + dy}px`
+        node.style.left = `${Math.max(8, scrollX + r.right - node.offsetWidth - 8)}px`
+      }
+      document.addEventListener('mouseover', e => {
+        if (e.target === commentBtn || pop.contains(e.target)) return
+        if (!pop.hidden) {
+          commentBtn.hidden = true
+          return
+        }
+        const el = app && !busy() ? e.target.closest('#app [data-pick]') : null
+        if (!el?.dataset.id || !app.describe(el.dataset.id)) {
+          commentBtn.hidden = true
+          return
+        }
+        hovered = el
+        commentBtn.hidden = false
+        place(commentBtn, el, 8)
+      })
+      function closeComment() {
+        pop.hidden = true
+        commenting?.classList.remove('comment-target')
+        commenting = null
+      }
+      commentBtn.onclick = () => {
+        const el = hovered
+        const d = el && app.describe(el.dataset.id)
+        if (!d) return
+        closeComment()
+        commenting = el
+        el.classList.add('comment-target')
+        commentBtn.hidden = true
+        pop.innerHTML = `<div class="comment-head"><b>${escHtml(d.kind)}</b>${d.name ? ` · ${escHtml(d.name)}` : ''}</div><textarea placeholder="Ask for a change, or say what to dig into…"></textarea><div class="comment-actions"><button class="secondary" data-act="dive" title="Build a new app about this, in a new tab">Deep dive ↗</button><button data-act="edit" title="Change this component (Enter)">Edit</button></div>`
+        pop.hidden = false
+        place(pop, el, 40)
+        const box = pop.querySelector('textarea')
+        box.focus()
+        const act = kind => {
+          const comment = box.value.trim()
+          if (!comment) return box.focus()
+          closeComment()
+          if (kind === 'edit') {
+            targets.clear()
+            targets.set(d.id, { ...d, comment })
+            inlineEdit = true
+            run('edit')
+          } else {
+            const title = app.describe('app')?.name
+            // The prompt shows the comment; where it came from travels separately as context.
+            const context = `Deep dive from ${title ? `the app "${title}", ` : ''}its ${d.kind}${d.name ? ` "${d.name}"` : ''}: ${d.line}`
+            window.open(`${location.pathname}?go=1&prompt=${encodeURIComponent(comment)}&context=${encodeURIComponent(context)}${datasetMode === 'full' ? '&dataset=full' : ''}`, '_blank')
+          }
+        }
+        box.onkeydown = e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault()
+            act('edit')
+          } else if (e.key === 'Escape') closeComment()
+        }
+        for (const b of pop.querySelectorAll('[data-act]')) b.onclick = () => act(b.dataset.act)
+      }
+      document.addEventListener('mousedown', e => {
+        if (!pop.hidden && !pop.contains(e.target) && e.target !== commentBtn) closeComment()
+      })
+      $('undo').onclick = async () => {
+        const spec = versions.pop()
+        if (spec == null || busy()) return
+        es?.close()
+        closeComment()
+        targets.clear()
+        renderTargets()
+        $('app').replaceChildren()
+        app = makeApp()
+        window.__app = app
+        app.applyText(spec)
+        await app.settled()
+        app.setStatus('Undone')
+        $('undo').hidden = !versions.length
+      }
+
+      // ?prompt=… fills the prompt; with &go=1 it also starts generating (one app per tab).
+      const params = new URLSearchParams(location.search)
+      deepContext = params.get('context') ?? ''
+      if (params.get('prompt')) {
+        $('request').value = params.get('prompt')
+        if (params.get('go') === '1') run('generate')
+      }
     </script>
   </body>
 </html>

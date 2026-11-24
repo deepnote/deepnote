@@ -9,6 +9,7 @@ import { createServer } from 'node:http'
 import { dirname, extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
+import { focusedDescription } from './focus.mjs'
 import { generateOutlined, iterate } from './outline.mjs'
 import { loadSources } from './prompts.mjs'
 import { describeConfig, hasCached, loadConfig, readSelected, runSource, snapshotFor } from './sources.mjs'
@@ -114,12 +115,15 @@ createServer(async (req, res) => {
       }
       return json(res, { queued })
     }
-    if (url.pathname === '/snapshot.json') return json(res, readSelected())
+    if (url.pathname === '/snapshot.json')
+      return json(res, readSelected(undefined, { variant: url.searchParams.get('dataset') === 'full' ? 'full' : null }))
 
     if (url.pathname === '/api/generate' && req.method === 'POST') {
       const { request, mode = 'generate', previousRequest, spec, targets } = await readBody(req)
+      for (const t of targets ?? []) console.log(`edit #${t.id}: ${t.comment || '(no comment)'}`)
       // Read the snapshots from disk now, so the app always sees each notebook's latest run.
-      const sources = loadSources({ named: readSelected() })
+      const named = readSelected()
+      const sources = loadSources({ named })
       const [id, run] = newRun()
       json(res, { id })
       const t0 = performance.now()
@@ -138,6 +142,15 @@ createServer(async (req, res) => {
               onSkeleton: parts => send(run, 'plan', JSON.stringify(parts)),
               onPartDone: slot => send(run, 'partdone', slot),
               onLine,
+              // Off by default: on 35 PageMantle requests, picking sources first (~1.8s) cost more
+              // than the shorter description saved (median 9.4s vs 7.9s). FOCUS=1 turns it on.
+              focus:
+                process.env.FOCUS === '1' &&
+                (() =>
+                  focusedDescription({ request, named }).then(d => {
+                    if (d) console.log(`[${id}] focused data: ${d.length} of ${sources.description.length} chars`)
+                    return d
+                  })),
             })
       job
         .then(r => {
@@ -165,8 +178,14 @@ createServer(async (req, res) => {
     }
 
     if (url.pathname === '/api/run' && req.method === 'POST') {
-      // Rerun the notebooks now; each refreshes its snapshot file with the latest data.
-      const chosen = loadConfig().filter(s => s.notebook)
+      // Rerun the notebooks now; each refreshes its snapshot file with the latest data. With inputs
+      // (e.g. { dataset: 'full' }), only the notebooks that take them run, and their output goes to a
+      // separate variant snapshot so the default one stays as it was.
+      const { inputs } = await readBody(req)
+      const variant = inputs?.dataset === 'full' ? 'full' : null
+      const chosen = loadConfig().filter(
+        s => s.notebook && (!inputs || Object.keys(inputs).every(k => s.inputs && k in s.inputs))
+      )
       const [id, run] = newRun()
       json(res, { id, sources: chosen.map(s => s.name) })
       void schedule(async () => {
@@ -175,7 +194,7 @@ createServer(async (req, res) => {
         for (const s of chosen) {
           send(run, 'progress', JSON.stringify({ name: s.name, status: 'running' }))
           try {
-            const r = await runSource(s)
+            const r = await runSource(s, { overrides: inputs, variant })
             send(run, 'progress', JSON.stringify({ name: s.name, status: 'done', ms: r.ms, warning: r.warning }))
           } catch (e) {
             failed++

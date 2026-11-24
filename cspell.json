@@ -12,7 +12,9 @@
     "**/__marimo__/**",
     "packages/cloud-mock/src/deepnote-cloud-api.generated.d.ts",
     "cspell.json",
-    "prototypes/fast-data-apps/snapshots/**"
+    "prototypes/fast-data-apps/snapshots/**",
+    "prototypes/fast-data-apps/pagemantle/snapshots/**",
+    "prototypes/fast-data-apps/pagemantle/notebooks/**"
   ],
   "language": "en",
   "dictionaries": ["docs"],
@@ -81,6 +83,7 @@
   "useGitignore": true,
   "version": "0.2",
   "words": [
+    "pagemantle",
     "agentic",
     "asname",
     "autorestarting",

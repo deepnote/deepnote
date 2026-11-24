@@ -336,6 +336,59 @@ code {
 .dk-delta {
   font-weight: 600;
 }
+.dk-kpi-spark {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin-top: 8px;
+  overflow: visible;
+}
+.dk-kpi-spark polyline {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.dk-kpi-spark polygon {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  stroke: none;
+}
+.dk-kpi-target {
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  overflow: hidden;
+}
+.dk-kpi-target span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.dk-kpi-target.good span {
+  background: var(--good);
+}
+.dk-item-bar {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+  overflow: hidden;
+}
+.dk-item-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.dk-item-bar.neg span {
+  background: var(--bad);
+}
+.dk-list-bars .dk-item + .dk-item {
+  border-top: 1px solid var(--border);
+}
 .dk-delta.good {
   color: var(--good);
 }

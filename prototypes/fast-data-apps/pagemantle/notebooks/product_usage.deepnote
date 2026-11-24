@@ -1,0 +1,181 @@
+metadata:
+  createdAt: 2026-11-24T09:00:00.000Z
+  modifiedAt: 2026-11-24T09:00:00.000Z
+project:
+  id: 36f415f0-7692-749e-4f6d-a794f081af1b
+  name: "PageMantle: Product usage"
+  notebooks:
+    - blocks:
+        - id: a0bccd9eac5e31923bbe8324ccc0d607
+          blockGroup: 657734276f15d4b0951b3143a9cd1e26
+          sortingKey: "000000"
+          type: markdown
+          content: |-
+            # Product usage
+
+            How customers use PageMantle, from PostHog product events in September 2026: which features each workspace uses, daily activity per feature, use by plan, segment and use case, devices, and publishing outcomes.
+
+            Reads the PageMantle company dataset from `PAGEMANTLE_DATA` (default `~/data/pagemantle`). **Dataset** picks a fast sample or the full data.
+          metadata: {}
+        - id: 0e13885ef40557eb774d79b7e3598f08
+          blockGroup: 188ed116f7f5672009d9837e0740b089
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: dataset
+            deepnote_input_label: Dataset
+            deepnote_variable_value: sample
+            deepnote_variable_default_value: sample
+            deepnote_variable_options:
+              - sample
+              - full
+            deepnote_variable_custom_options:
+              - sample
+              - full
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 80ccca502deabe0f21ce1251dd738b66
+          blockGroup: 0e7be0dd4e8973610046ea8c6bf9eecc
+          sortingKey: "000002"
+          type: code
+          content: |-
+            # Shared setup, copied into the first code block of every PageMantle notebook.
+            # `dataset` comes from the notebook's input: "sample" (fast, for checking apps) or "full".
+            import json
+            import os
+
+            import duckdb
+            from IPython.display import display
+
+            ROOT = os.path.expanduser(os.environ.get("PAGEMANTLE_DATA", "~/data/pagemantle"))
+            FULL = dataset == "full"
+            con = duckdb.connect()
+            con.execute("LOAD sqlite")
+
+
+            def pq(path):
+                """All Parquet partitions under a folder of the extracted dataset."""
+                return f"read_parquet('{ROOT}/{path}/**/*.parquet', union_by_name=true)"
+
+
+            def db(path):
+                return f"{ROOT}/{path}"
+
+
+            def q(sql):
+                return con.execute(sql).df()
+
+
+            def records(df):
+                return json.loads(df.to_json(orient="records", date_format="iso", double_precision=4))
+
+
+            def one(sql):
+                return con.execute(sql).fetchone()[0]
+
+
+            # Sampling keeps every 10th customer (by a stable hash), so customer tables stay consistent
+            # across notebooks. Event-level sources sample the most recent days instead (see each notebook).
+            def in_sample(col):
+                return "TRUE" if FULL else f"(hash({col}) % 10 = 0)"
+
+
+            DATASET = {"mode": "full" if FULL else "sample"}
+          metadata: {}
+        - id: ba298925835dd015f04262dd57b48b06
+          blockGroup: e88dd570278cf61aa736900cde2877e3
+          sortingKey: "000003"
+          type: code
+          content: |-
+            con.execute(f"""
+            CREATE TEMP VIEW ev AS
+            SELECT
+              CAST(timestamp AS TIMESTAMP)::DATE AS day,
+              event_family AS feature, event_name AS event, workspace_id, person_id,
+              json_extract_string(workspace_properties_json, '$.plan') AS plan,
+              json_extract_string(workspace_properties_json, '$.customer_segment') AS segment,
+              json_extract_string(workspace_properties_json, '$.primary_use_case') AS use_case,
+              json_extract_string(workspace_properties_json, '$.region') AS region,
+              json_extract_string(properties_json, '$."$device_type"') AS device
+            FROM {pq('posthog/events')}
+            WHERE workspace_id IS NOT NULL AND {in_sample('workspace_id')}
+            """)
+            con.execute("CREATE TEMP TABLE e AS SELECT * FROM ev")
+            labels = {
+                "navigation": "Navigation", "editing": "Editor", "preview": "Preview", "integrations": "Integrations",
+                "domains": "Custom domains", "forms": "Forms", "analytics": "Analytics reports", "collaboration": "Collaboration",
+                "localization": "Localization", "feature_flags": "Feature flags", "publish": "Publishing", "ai": "AI assistant",
+                "onboarding": "Onboarding",
+            }
+            active = one("SELECT count(DISTINCT workspace_id) FROM e")
+            features = q(f"""
+            SELECT feature, count(*) AS events, count(DISTINCT workspace_id) AS workspaces, count(DISTINCT person_id) AS people,
+              round(count(DISTINCT workspace_id) / {active}, 4) AS adoption,
+              round(count(*) / count(DISTINCT workspace_id), 1) AS events_per_workspace
+            FROM e WHERE feature NOT IN ('feature_flags') GROUP BY 1 ORDER BY workspaces DESC
+            """)
+            features["feature"] = features.feature.map(labels).fillna(features.feature)
+            daily = q("""
+            SELECT day::VARCHAR AS day, feature, count(*) AS events, count(DISTINCT workspace_id) AS workspaces
+            FROM e WHERE feature NOT IN ('feature_flags', 'onboarding') GROUP BY ALL ORDER BY 1, 2
+            """)
+            daily["feature"] = daily.feature.map(labels).fillna(daily.feature)
+            by_plan = q("""
+            SELECT plan, feature, count(DISTINCT workspace_id) AS workspaces, count(*) AS events
+            FROM e WHERE feature NOT IN ('feature_flags', 'onboarding', 'navigation') GROUP BY ALL
+            """)
+            plan_size = q("SELECT plan, count(DISTINCT workspace_id) AS plan_workspaces FROM e GROUP BY 1")
+            by_plan = by_plan.merge(plan_size, on="plan")
+            by_plan["adoption"] = (by_plan.workspaces / by_plan.plan_workspaces).round(4)
+            by_plan["feature"] = by_plan.feature.map(labels).fillna(by_plan.feature)
+            workspaces = q("""
+            SELECT workspace_id, any_value(plan) AS plan, any_value(segment) AS segment, any_value(use_case) AS use_case,
+              any_value(region) AS region,
+              count(*) AS events, count(DISTINCT day) AS active_days, count(DISTINCT person_id) AS people,
+              count(DISTINCT feature) AS features_used,
+              count(*) FILTER (WHERE feature = 'editing') AS edits,
+              count(*) FILTER (WHERE event = 'publish_completed') AS publishes,
+              count(*) FILTER (WHERE event = 'publish_failed') AS failed_publishes,
+              count(*) FILTER (WHERE feature = 'ai') AS ai_actions,
+              count(*) FILTER (WHERE day > DATE '2026-09-16') AS events_last_14d,
+              count(*) FILTER (WHERE day BETWEEN DATE '2026-09-03' AND DATE '2026-09-16') AS events_prior_14d
+            FROM e GROUP BY 1 ORDER BY events DESC
+            """)
+            use_cases = q("""
+            SELECT use_case, count(DISTINCT workspace_id) AS workspaces, count(*) AS events,
+              round(count(*) / count(DISTINCT workspace_id), 0) AS events_per_workspace
+            FROM e GROUP BY 1 ORDER BY workspaces DESC
+            """)
+            devices = q("SELECT coalesce(device, 'Unknown') AS device, count(*) AS events, count(DISTINCT person_id) AS people FROM e GROUP BY 1 ORDER BY 2 DESC")
+            publishing = q("""
+            SELECT day::VARCHAR AS day,
+              count(*) FILTER (WHERE event = 'publish_started') AS started,
+              count(*) FILTER (WHERE event = 'publish_completed') AS completed,
+              count(*) FILTER (WHERE event = 'publish_failed') AS failed
+            FROM e WHERE feature = 'publish' GROUP BY 1 ORDER BY 1
+            """)
+            publishing["success_rate"] = (publishing.completed / (publishing.completed + publishing.failed)).round(4)
+            display({"application/json": {
+                "dataset": {**DATASET, "note": "all workspaces" if FULL else "every 10th workspace"},
+                "period": "2026-09-01 to 2026-09-30",
+                "summary": {
+                    "active_workspaces": int(active),
+                    "active_people": int(one("SELECT count(DISTINCT person_id) FROM e")),
+                    "events": int(one("SELECT count(*) FROM e")),
+                    "publish_success_rate": round(float(publishing.completed.sum() / (publishing.completed.sum() + publishing.failed.sum())), 4),
+                },
+                "features": records(features),
+                "daily": records(daily),
+                "feature_by_plan": records(by_plan),
+                "workspaces": records(workspaces),
+                "use_cases": records(use_cases),
+                "devices": records(devices),
+                "publishing_daily": records(publishing),
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 3608eb0f-ec95-18f2-c671-cea42dce1233
+      name: Product usage
+version: 1.0.0

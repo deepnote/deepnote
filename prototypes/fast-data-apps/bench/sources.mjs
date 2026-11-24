@@ -16,11 +16,12 @@ import { getEnvironmentVariablesForIntegrations } from '../../../packages/databa
 import { parseSnapshot, runWithInputs } from '../../../packages/local-runner/dist/index.js'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const CONFIG = join(root, 'sources.json')
 const requireFromRunner = createRequire(join(root, '../../packages/database-integrations/package.json'))
 const YAML = requireFromRunner('yaml')
 
 export const resolvePath = p => (isAbsolute(p) ? p : join(root, p))
+// SOURCES=<file> picks another config, e.g. sources.pagemantle.json.
+const CONFIG = resolvePath(process.env.SOURCES ?? 'sources.json')
 
 export function loadConfig() {
   return existsSync(CONFIG) ? JSON.parse(readFileSync(CONFIG, 'utf8')) : []
@@ -45,8 +46,10 @@ export function describeConfig() {
   return loadConfig().map(s => {
     const snap = resolvePath(s.snapshot)
     const nb = s.notebook ? resolvePath(s.notebook) : null
+    const full = resolvePath(variantPath(s, 'full'))
     return {
       ...s,
+      fullUpdated: s.inputs && 'dataset' in s.inputs && existsSync(full) ? statSync(full).mtime.toISOString() : null,
       snapshotExists: existsSync(snap),
       snapshotUpdated: existsSync(snap) ? statSync(snap).mtime.toISOString() : null,
       notebookExists: nb ? existsSync(nb) : false,
@@ -69,11 +72,23 @@ export function readSnapshot(path) {
   return mergeJsonOutputs(view.notebooks.flatMap(n => n.blocks))
 }
 
-/** The selected sources' snapshots, read now, keyed by source name. */
-export function readSelected(names) {
+/** Where a variant run (e.g. the full dataset) of a source keeps its snapshot: x.json -> x.full.json. */
+export const variantPath = (source, variant) =>
+  variant ? source.snapshot.replace(/(\.[^./]+)?$/, m => `.${variant}${m || '.json'}`) : source.snapshot
+
+/**
+ * The selected sources' snapshots, read now, keyed by source name. With a variant, each source
+ * uses its variant snapshot when one exists, else its default one.
+ */
+export function readSelected(names, { variant } = {}) {
   const config = loadConfig()
   const chosen = names?.length ? config.filter(s => names.includes(s.name)) : config
-  return Object.fromEntries(chosen.map(s => [s.name, readSnapshot(s.snapshot)]))
+  return Object.fromEntries(
+    chosen.map(s => {
+      const v = variant && existsSync(resolvePath(variantPath(s, variant))) ? variantPath(s, variant) : s.snapshot
+      return [s.name, readSnapshot(v)]
+    })
+  )
 }
 
 /** Integrations from a .deepnote.env.yaml next to the notebook, as the CLI does. */
@@ -112,13 +127,13 @@ async function runNotebook(source, inputs) {
  * Run a source's notebook for real and write the fresh result to its snapshot file.
  * Returns { ms, keys, warning }.
  */
-export async function runSource(source) {
+export async function runSource(source, { overrides, variant } = {}) {
   const t0 = performance.now()
-  const { data, result, warning } = await runNotebook(source, source.inputs ?? {})
-  const target = resolvePath(source.snapshot)
+  const { data, result, warning } = await runNotebook(source, { ...(source.inputs ?? {}), ...overrides })
+  const target = resolvePath(variantPath(source, variant))
   if (/\.json$/i.test(target)) writeFileSync(target, JSON.stringify(data, null, 1))
   else writeFileSync(target, result.snapshotYaml)
-  rmSync(cacheDir(source), { recursive: true, force: true }) // fresh data: per-input results are stale
+  if (!variant) rmSync(cacheDir(source), { recursive: true, force: true }) // fresh data: per-input results are stale
   return { ms: performance.now() - t0, keys: Object.keys(data), warning }
 }
 

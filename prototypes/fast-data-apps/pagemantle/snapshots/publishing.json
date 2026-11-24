@@ -1,0 +1,1710 @@
+{
+ "dataset": {
+  "mode": "sample",
+  "note": "every 10th customer"
+ },
+ "period": "2026-09-01 to 2026-09-30",
+ "summary": {
+  "attempts": 14029,
+  "failed": 543,
+  "success_rate": 0.9613,
+  "worst_day": "2026-09-01",
+  "customers_affected": 229
+ },
+ "daily": [
+  {
+   "day": "2026-09-01",
+   "attempts": 468,
+   "successful": 441,
+   "failed": 27,
+   "success_rate": 0.9423,
+   "customers_with_failures": 25
+  },
+  {
+   "day": "2026-09-02",
+   "attempts": 480,
+   "successful": 467,
+   "failed": 13,
+   "success_rate": 0.9729,
+   "customers_with_failures": 13
+  },
+  {
+   "day": "2026-09-03",
+   "attempts": 464,
+   "successful": 446,
+   "failed": 18,
+   "success_rate": 0.9612,
+   "customers_with_failures": 16
+  },
+  {
+   "day": "2026-09-04",
+   "attempts": 485,
+   "successful": 470,
+   "failed": 15,
+   "success_rate": 0.9691,
+   "customers_with_failures": 15
+  },
+  {
+   "day": "2026-09-05",
+   "attempts": 424,
+   "successful": 409,
+   "failed": 15,
+   "success_rate": 0.9646,
+   "customers_with_failures": 15
+  },
+  {
+   "day": "2026-09-06",
+   "attempts": 426,
+   "successful": 413,
+   "failed": 13,
+   "success_rate": 0.9695,
+   "customers_with_failures": 13
+  },
+  {
+   "day": "2026-09-07",
+   "attempts": 474,
+   "successful": 453,
+   "failed": 21,
+   "success_rate": 0.9557,
+   "customers_with_failures": 20
+  },
+  {
+   "day": "2026-09-08",
+   "attempts": 438,
+   "successful": 416,
+   "failed": 22,
+   "success_rate": 0.9498,
+   "customers_with_failures": 18
+  },
+  {
+   "day": "2026-09-09",
+   "attempts": 486,
+   "successful": 463,
+   "failed": 23,
+   "success_rate": 0.9527,
+   "customers_with_failures": 20
+  },
+  {
+   "day": "2026-09-10",
+   "attempts": 429,
+   "successful": 417,
+   "failed": 12,
+   "success_rate": 0.972,
+   "customers_with_failures": 11
+  },
+  {
+   "day": "2026-09-11",
+   "attempts": 475,
+   "successful": 461,
+   "failed": 14,
+   "success_rate": 0.9705,
+   "customers_with_failures": 12
+  },
+  {
+   "day": "2026-09-12",
+   "attempts": 469,
+   "successful": 446,
+   "failed": 23,
+   "success_rate": 0.951,
+   "customers_with_failures": 22
+  },
+  {
+   "day": "2026-09-13",
+   "attempts": 497,
+   "successful": 473,
+   "failed": 24,
+   "success_rate": 0.9517,
+   "customers_with_failures": 21
+  },
+  {
+   "day": "2026-09-14",
+   "attempts": 483,
+   "successful": 461,
+   "failed": 22,
+   "success_rate": 0.9545,
+   "customers_with_failures": 21
+  },
+  {
+   "day": "2026-09-15",
+   "attempts": 462,
+   "successful": 449,
+   "failed": 13,
+   "success_rate": 0.9719,
+   "customers_with_failures": 12
+  },
+  {
+   "day": "2026-09-16",
+   "attempts": 442,
+   "successful": 424,
+   "failed": 18,
+   "success_rate": 0.9593,
+   "customers_with_failures": 15
+  },
+  {
+   "day": "2026-09-17",
+   "attempts": 450,
+   "successful": 436,
+   "failed": 14,
+   "success_rate": 0.9689,
+   "customers_with_failures": 13
+  },
+  {
+   "day": "2026-09-18",
+   "attempts": 494,
+   "successful": 484,
+   "failed": 10,
+   "success_rate": 0.9798,
+   "customers_with_failures": 8
+  },
+  {
+   "day": "2026-09-19",
+   "attempts": 466,
+   "successful": 447,
+   "failed": 19,
+   "success_rate": 0.9592,
+   "customers_with_failures": 16
+  },
+  {
+   "day": "2026-09-20",
+   "attempts": 453,
+   "successful": 433,
+   "failed": 20,
+   "success_rate": 0.9558,
+   "customers_with_failures": 19
+  },
+  {
+   "day": "2026-09-21",
+   "attempts": 483,
+   "successful": 462,
+   "failed": 21,
+   "success_rate": 0.9565,
+   "customers_with_failures": 20
+  },
+  {
+   "day": "2026-09-22",
+   "attempts": 449,
+   "successful": 432,
+   "failed": 17,
+   "success_rate": 0.9621,
+   "customers_with_failures": 17
+  },
+  {
+   "day": "2026-09-23",
+   "attempts": 503,
+   "successful": 481,
+   "failed": 22,
+   "success_rate": 0.9563,
+   "customers_with_failures": 20
+  },
+  {
+   "day": "2026-09-24",
+   "attempts": 449,
+   "successful": 433,
+   "failed": 16,
+   "success_rate": 0.9644,
+   "customers_with_failures": 14
+  },
+  {
+   "day": "2026-09-25",
+   "attempts": 481,
+   "successful": 464,
+   "failed": 17,
+   "success_rate": 0.9647,
+   "customers_with_failures": 17
+  },
+  {
+   "day": "2026-09-26",
+   "attempts": 466,
+   "successful": 448,
+   "failed": 18,
+   "success_rate": 0.9614,
+   "customers_with_failures": 14
+  },
+  {
+   "day": "2026-09-27",
+   "attempts": 454,
+   "successful": 442,
+   "failed": 12,
+   "success_rate": 0.9736,
+   "customers_with_failures": 11
+  },
+  {
+   "day": "2026-09-28",
+   "attempts": 499,
+   "successful": 480,
+   "failed": 19,
+   "success_rate": 0.9619,
+   "customers_with_failures": 18
+  },
+  {
+   "day": "2026-09-29",
+   "attempts": 469,
+   "successful": 450,
+   "failed": 19,
+   "success_rate": 0.9595,
+   "customers_with_failures": 15
+  },
+  {
+   "day": "2026-09-30",
+   "attempts": 511,
+   "successful": 485,
+   "failed": 26,
+   "success_rate": 0.9491,
+   "customers_with_failures": 22
+  }
+ ],
+ "segments": [
+  {
+   "segment": "self serve",
+   "attempts": 12087,
+   "failed": 462,
+   "success_rate": 0.9618,
+   "customers": 590
+  },
+  {
+   "segment": "enterprise",
+   "attempts": 1942,
+   "failed": 81,
+   "success_rate": 0.9583,
+   "customers": 7
+  }
+ ],
+ "customers": [
+  {
+   "customer": "Flintmoor Media",
+   "segment": "enterprise",
+   "attempts": 1324,
+   "failed": 55,
+   "success_rate": 0.9585,
+   "days_with_failures": 26,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Tidalbank Acornbank Initiative",
+   "segment": "self serve",
+   "attempts": 192,
+   "failed": 12,
+   "success_rate": 0.9375,
+   "days_with_failures": 11,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Highford Acornbank Creative",
+   "segment": "self serve",
+   "attempts": 217,
+   "failed": 11,
+   "success_rate": 0.9493,
+   "days_with_failures": 8,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Northcoast Alderbank Labs",
+   "segment": "self serve",
+   "attempts": 199,
+   "failed": 11,
+   "success_rate": 0.9447,
+   "days_with_failures": 9,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Sageglen Acornbank Design",
+   "segment": "self serve",
+   "attempts": 183,
+   "failed": 10,
+   "success_rate": 0.9454,
+   "days_with_failures": 8,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Keystonebank Alderbank Collective",
+   "segment": "self serve",
+   "attempts": 149,
+   "failed": 8,
+   "success_rate": 0.9463,
+   "days_with_failures": 7,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Cloudwood Acornbank Works",
+   "segment": "self serve",
+   "attempts": 130,
+   "failed": 8,
+   "success_rate": 0.9385,
+   "days_with_failures": 8,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Pinebridge Initiative",
+   "segment": "self serve",
+   "attempts": 44,
+   "failed": 7,
+   "success_rate": 0.8409,
+   "days_with_failures": 7,
+   "last_failure": "2026-09-26"
+  },
+  {
+   "customer": "Birchmill Acornbank Company",
+   "segment": "self serve",
+   "attempts": 95,
+   "failed": 7,
+   "success_rate": 0.9263,
+   "days_with_failures": 7,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Briarcross Advisory",
+   "segment": "self serve",
+   "attempts": 156,
+   "failed": 7,
+   "success_rate": 0.9551,
+   "days_with_failures": 6,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Cinderview Acornbank Creative",
+   "segment": "self serve",
+   "attempts": 151,
+   "failed": 7,
+   "success_rate": 0.9536,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Briarhaven Works",
+   "segment": "self serve",
+   "attempts": 177,
+   "failed": 7,
+   "success_rate": 0.9605,
+   "days_with_failures": 7,
+   "last_failure": "2026-09-25"
+  },
+  {
+   "customer": "Clearpeak Network",
+   "segment": "enterprise",
+   "attempts": 180,
+   "failed": 6,
+   "success_rate": 0.9667,
+   "days_with_failures": 6,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Rosecape Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 148,
+   "failed": 6,
+   "success_rate": 0.9595,
+   "days_with_failures": 6,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Mistpoint Group",
+   "segment": "enterprise",
+   "attempts": 95,
+   "failed": 6,
+   "success_rate": 0.9368,
+   "days_with_failures": 6,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Highland Foundation",
+   "segment": "self serve",
+   "attempts": 89,
+   "failed": 6,
+   "success_rate": 0.9326,
+   "days_with_failures": 6,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Cobaltmarsh Group",
+   "segment": "enterprise",
+   "attempts": 137,
+   "failed": 6,
+   "success_rate": 0.9562,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Summitheath Consulting",
+   "segment": "self serve",
+   "attempts": 226,
+   "failed": 6,
+   "success_rate": 0.9735,
+   "days_with_failures": 6,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Summitmarsh Acornbank Works",
+   "segment": "self serve",
+   "attempts": 273,
+   "failed": 5,
+   "success_rate": 0.9817,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Dawnbay Advisory",
+   "segment": "self serve",
+   "attempts": 247,
+   "failed": 5,
+   "success_rate": 0.9798,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Ironbarrow Acornbank Labs",
+   "segment": "self serve",
+   "attempts": 131,
+   "failed": 5,
+   "success_rate": 0.9618,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Auroramill Consulting",
+   "segment": "self serve",
+   "attempts": 94,
+   "failed": 5,
+   "success_rate": 0.9468,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-26"
+  },
+  {
+   "customer": "Rowanpath Institute",
+   "segment": "enterprise",
+   "attempts": 150,
+   "failed": 5,
+   "success_rate": 0.9667,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Whitekeep Acornbank Media",
+   "segment": "self serve",
+   "attempts": 58,
+   "failed": 5,
+   "success_rate": 0.9138,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Anchorland Acornbank Agency",
+   "segment": "self serve",
+   "attempts": 70,
+   "failed": 5,
+   "success_rate": 0.9286,
+   "days_with_failures": 5,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Lindenlane Acornbank Design",
+   "segment": "self serve",
+   "attempts": 15,
+   "failed": 4,
+   "success_rate": 0.7333,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Lindenway Alderbank Initiative",
+   "segment": "self serve",
+   "attempts": 87,
+   "failed": 4,
+   "success_rate": 0.954,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Cairnbury Services",
+   "segment": "self serve",
+   "attempts": 65,
+   "failed": 4,
+   "success_rate": 0.9385,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Rainbarrow Acornbank Creative",
+   "segment": "self serve",
+   "attempts": 94,
+   "failed": 4,
+   "success_rate": 0.9574,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Copperstrand Acornbank Press",
+   "segment": "self serve",
+   "attempts": 88,
+   "failed": 4,
+   "success_rate": 0.9545,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Whitelane Acornbank Media",
+   "segment": "self serve",
+   "attempts": 103,
+   "failed": 4,
+   "success_rate": 0.9612,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Violetdale Practice",
+   "segment": "self serve",
+   "attempts": 93,
+   "failed": 4,
+   "success_rate": 0.957,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Olivefield Acornbank Press",
+   "segment": "self serve",
+   "attempts": 87,
+   "failed": 4,
+   "success_rate": 0.954,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-22"
+  },
+  {
+   "customer": "Alderland Acornbank Software",
+   "segment": "self serve",
+   "attempts": 74,
+   "failed": 4,
+   "success_rate": 0.9459,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Jadespring Works",
+   "segment": "self serve",
+   "attempts": 141,
+   "failed": 4,
+   "success_rate": 0.9716,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Rosestrand Labs",
+   "segment": "self serve",
+   "attempts": 193,
+   "failed": 4,
+   "success_rate": 0.9793,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Violetdell Acornbank Collective",
+   "segment": "self serve",
+   "attempts": 112,
+   "failed": 4,
+   "success_rate": 0.9643,
+   "days_with_failures": 4,
+   "last_failure": "2026-09-18"
+  },
+  {
+   "customer": "Briarthorn Acornbank Company",
+   "segment": "self serve",
+   "attempts": 100,
+   "failed": 3,
+   "success_rate": 0.97,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Covebend Practice",
+   "segment": "self serve",
+   "attempts": 61,
+   "failed": 3,
+   "success_rate": 0.9508,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-19"
+  },
+  {
+   "customer": "Zephyrbend Alderbank Consulting",
+   "segment": "self serve",
+   "attempts": 69,
+   "failed": 3,
+   "success_rate": 0.9565,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-26"
+  },
+  {
+   "customer": "Keystoneheath Collective",
+   "segment": "self serve",
+   "attempts": 32,
+   "failed": 3,
+   "success_rate": 0.9063,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Aspenhollow Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 26,
+   "failed": 3,
+   "success_rate": 0.8846,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Copperridge Software",
+   "segment": "self serve",
+   "attempts": 14,
+   "failed": 3,
+   "success_rate": 0.7857,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Everhall Media",
+   "segment": "self serve",
+   "attempts": 54,
+   "failed": 3,
+   "success_rate": 0.9444,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-13"
+  },
+  {
+   "customer": "Birchshore Acornbank Software",
+   "segment": "self serve",
+   "attempts": 55,
+   "failed": 3,
+   "success_rate": 0.9455,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Dawnterra Creative",
+   "segment": "self serve",
+   "attempts": 73,
+   "failed": 3,
+   "success_rate": 0.9589,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-25"
+  },
+  {
+   "customer": "Zephyrbarrow Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 107,
+   "failed": 3,
+   "success_rate": 0.972,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Aspenbrook Alderbank Creative",
+   "segment": "self serve",
+   "attempts": 66,
+   "failed": 3,
+   "success_rate": 0.9545,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Fernhall Acornbank Works",
+   "segment": "self serve",
+   "attempts": 44,
+   "failed": 3,
+   "success_rate": 0.9318,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Solarwick Studio",
+   "segment": "self serve",
+   "attempts": 92,
+   "failed": 3,
+   "success_rate": 0.9674,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-18"
+  },
+  {
+   "customer": "Meridiancoast Acornbank Media",
+   "segment": "self serve",
+   "attempts": 56,
+   "failed": 3,
+   "success_rate": 0.9464,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-12"
+  },
+  {
+   "customer": "Meridiantrail Works",
+   "segment": "self serve",
+   "attempts": 170,
+   "failed": 3,
+   "success_rate": 0.9824,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-10"
+  },
+  {
+   "customer": "Dawncoast Acornbank Practice",
+   "segment": "self serve",
+   "attempts": 19,
+   "failed": 3,
+   "success_rate": 0.8421,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-19"
+  },
+  {
+   "customer": "Summitforge Acornbank Collective",
+   "segment": "self serve",
+   "attempts": 27,
+   "failed": 3,
+   "success_rate": 0.8889,
+   "days_with_failures": 3,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Willowmere Acornbank Software",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 2,
+   "success_rate": 0.75,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-19"
+  },
+  {
+   "customer": "Forestbarrow Collective",
+   "segment": "self serve",
+   "attempts": 25,
+   "failed": 2,
+   "success_rate": 0.92,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-12"
+  },
+  {
+   "customer": "Forestbend Acornbank Practice",
+   "segment": "self serve",
+   "attempts": 24,
+   "failed": 2,
+   "success_rate": 0.9167,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-25"
+  },
+  {
+   "customer": "Jadestrand Alderbank Creative",
+   "segment": "self serve",
+   "attempts": 20,
+   "failed": 2,
+   "success_rate": 0.9,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-07"
+  },
+  {
+   "customer": "Alderedge Creative",
+   "segment": "self serve",
+   "attempts": 10,
+   "failed": 2,
+   "success_rate": 0.8,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-22"
+  },
+  {
+   "customer": "Greenstone Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 39,
+   "failed": 2,
+   "success_rate": 0.9487,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Forestshore Alderbank Company",
+   "segment": "self serve",
+   "attempts": 91,
+   "failed": 2,
+   "success_rate": 0.978,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Moonhall Works",
+   "segment": "self serve",
+   "attempts": 39,
+   "failed": 2,
+   "success_rate": 0.9487,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-17"
+  },
+  {
+   "customer": "Aspenrock Initiative",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 2,
+   "success_rate": 0.75,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Rainheath Studio",
+   "segment": "self serve",
+   "attempts": 69,
+   "failed": 2,
+   "success_rate": 0.971,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-22"
+  },
+  {
+   "customer": "Zephyrrock Acornbank Consulting",
+   "segment": "self serve",
+   "attempts": 15,
+   "failed": 2,
+   "success_rate": 0.8667,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Whitebrook Studio",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 2,
+   "success_rate": 0.75,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-04"
+  },
+  {
+   "customer": "Arrowmount Acornbank Creative",
+   "segment": "self serve",
+   "attempts": 14,
+   "failed": 2,
+   "success_rate": 0.8571,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Cairncliff Project",
+   "segment": "self serve",
+   "attempts": 24,
+   "failed": 2,
+   "success_rate": 0.9167,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Pinebury Works",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 2,
+   "success_rate": 0.75,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Violetvale Partners",
+   "segment": "self serve",
+   "attempts": 23,
+   "failed": 2,
+   "success_rate": 0.913,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-19"
+  },
+  {
+   "customer": "Sageshore Creative",
+   "segment": "self serve",
+   "attempts": 20,
+   "failed": 2,
+   "success_rate": 0.9,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Silverforge Works",
+   "segment": "self serve",
+   "attempts": 20,
+   "failed": 2,
+   "success_rate": 0.9,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-15"
+  },
+  {
+   "customer": "Irongrove Design",
+   "segment": "self serve",
+   "attempts": 12,
+   "failed": 2,
+   "success_rate": 0.8333,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-27"
+  },
+  {
+   "customer": "Arrowbury Acornbank Design",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 2,
+   "success_rate": 0.8462,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-12"
+  },
+  {
+   "customer": "Everworth Acornbank Works",
+   "segment": "self serve",
+   "attempts": 10,
+   "failed": 2,
+   "success_rate": 0.8,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Ironheath Press",
+   "segment": "self serve",
+   "attempts": 4,
+   "failed": 2,
+   "success_rate": 0.5,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Cloudcrest Works",
+   "segment": "self serve",
+   "attempts": 27,
+   "failed": 2,
+   "success_rate": 0.9259,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-17"
+  },
+  {
+   "customer": "Hearthgrove Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 33,
+   "failed": 2,
+   "success_rate": 0.9394,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Wrenpath Software",
+   "segment": "enterprise",
+   "attempts": 38,
+   "failed": 2,
+   "success_rate": 0.9474,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Northvale Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 28,
+   "failed": 2,
+   "success_rate": 0.9286,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Marblepeak Studio",
+   "segment": "self serve",
+   "attempts": 114,
+   "failed": 2,
+   "success_rate": 0.9825,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Winterthorn Acornbank Foundation",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 2,
+   "success_rate": 0.8462,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-12"
+  },
+  {
+   "customer": "Northstead Services",
+   "segment": "self serve",
+   "attempts": 24,
+   "failed": 2,
+   "success_rate": 0.9167,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Driftcliff Acornbank Agency",
+   "segment": "self serve",
+   "attempts": 7,
+   "failed": 2,
+   "success_rate": 0.7143,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-18"
+  },
+  {
+   "customer": "Rainspring Studio",
+   "segment": "self serve",
+   "attempts": 11,
+   "failed": 2,
+   "success_rate": 0.8182,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Lindenrock Design",
+   "segment": "self serve",
+   "attempts": 79,
+   "failed": 2,
+   "success_rate": 0.9747,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-08"
+  },
+  {
+   "customer": "Arrowdale Acornbank Project",
+   "segment": "self serve",
+   "attempts": 47,
+   "failed": 2,
+   "success_rate": 0.9574,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Marbleforge Studio",
+   "segment": "self serve",
+   "attempts": 15,
+   "failed": 2,
+   "success_rate": 0.8667,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Dawnfall Acornbank Media",
+   "segment": "self serve",
+   "attempts": 30,
+   "failed": 2,
+   "success_rate": 0.9333,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Solarstrand Acornbank Collective",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 2,
+   "success_rate": 0.75,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-17"
+  },
+  {
+   "customer": "Ferncross Labs",
+   "segment": "self serve",
+   "attempts": 108,
+   "failed": 2,
+   "success_rate": 0.9815,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Sageshore Acornbank Project",
+   "segment": "self serve",
+   "attempts": 64,
+   "failed": 2,
+   "success_rate": 0.9688,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Slatemark Works",
+   "segment": "self serve",
+   "attempts": 79,
+   "failed": 2,
+   "success_rate": 0.9747,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-17"
+  },
+  {
+   "customer": "Zephyrgrove Company",
+   "segment": "self serve",
+   "attempts": 26,
+   "failed": 2,
+   "success_rate": 0.9231,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Auroraport Acornbank Collective",
+   "segment": "self serve",
+   "attempts": 36,
+   "failed": 2,
+   "success_rate": 0.9444,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-13"
+  },
+  {
+   "customer": "Hearthlane Acornbank Works",
+   "segment": "self serve",
+   "attempts": 65,
+   "failed": 2,
+   "success_rate": 0.9692,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-17"
+  },
+  {
+   "customer": "Violetstead Press",
+   "segment": "self serve",
+   "attempts": 16,
+   "failed": 2,
+   "success_rate": 0.875,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Raincliff Consulting",
+   "segment": "self serve",
+   "attempts": 40,
+   "failed": 2,
+   "success_rate": 0.95,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Wintermount Acornbank Foundation",
+   "segment": "self serve",
+   "attempts": 37,
+   "failed": 2,
+   "success_rate": 0.9459,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Alderyard Alderbank Works",
+   "segment": "self serve",
+   "attempts": 17,
+   "failed": 2,
+   "success_rate": 0.8824,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-11"
+  },
+  {
+   "customer": "Fernthorn Advisory",
+   "segment": "self serve",
+   "attempts": 23,
+   "failed": 2,
+   "success_rate": 0.913,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Elmcoast Alderbank Studio",
+   "segment": "self serve",
+   "attempts": 47,
+   "failed": 2,
+   "success_rate": 0.9574,
+   "days_with_failures": 2,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Cloudbrook Acornbank Media",
+   "segment": "self serve",
+   "attempts": 20,
+   "failed": 1,
+   "success_rate": 0.95,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-08"
+  },
+  {
+   "customer": "Meridianbury Alderbank Services",
+   "segment": "self serve",
+   "attempts": 15,
+   "failed": 1,
+   "success_rate": 0.9333,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Forestmark Acornbank Collective",
+   "segment": "self serve",
+   "attempts": 4,
+   "failed": 1,
+   "success_rate": 0.75,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Summitpath Advisory",
+   "segment": "self serve",
+   "attempts": 27,
+   "failed": 1,
+   "success_rate": 0.963,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Dawnbridge Partners",
+   "segment": "self serve",
+   "attempts": 18,
+   "failed": 1,
+   "success_rate": 0.9444,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-03"
+  },
+  {
+   "customer": "Arrowpoint Acornbank Press",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 1,
+   "success_rate": 0.9231,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Covehill Press",
+   "segment": "self serve",
+   "attempts": 19,
+   "failed": 1,
+   "success_rate": 0.9474,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Ironreach Studio",
+   "segment": "self serve",
+   "attempts": 4,
+   "failed": 1,
+   "success_rate": 0.75,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Keystonebay Partners",
+   "segment": "self serve",
+   "attempts": 20,
+   "failed": 1,
+   "success_rate": 0.95,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Cloudhollow Media",
+   "segment": "self serve",
+   "attempts": 4,
+   "failed": 1,
+   "success_rate": 0.75,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Evercliff Consulting",
+   "segment": "self serve",
+   "attempts": 5,
+   "failed": 1,
+   "success_rate": 0.8,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-05"
+  },
+  {
+   "customer": "Lindengate Acornbank Works",
+   "segment": "self serve",
+   "attempts": 6,
+   "failed": 1,
+   "success_rate": 0.8333,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Birchlake Works",
+   "segment": "self serve",
+   "attempts": 14,
+   "failed": 1,
+   "success_rate": 0.9286,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Foreststrand Acornbank Initiative",
+   "segment": "self serve",
+   "attempts": 58,
+   "failed": 1,
+   "success_rate": 0.9828,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Reedreach Acornbank Project",
+   "segment": "self serve",
+   "attempts": 5,
+   "failed": 1,
+   "success_rate": 0.8,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-01"
+  },
+  {
+   "customer": "Moonheath Alderbank Studio",
+   "segment": "self serve",
+   "attempts": 5,
+   "failed": 1,
+   "success_rate": 0.8,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-05"
+  },
+  {
+   "customer": "Covebend Alderbank Foundation",
+   "segment": "self serve",
+   "attempts": 6,
+   "failed": 1,
+   "success_rate": 0.8333,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Reedway Studio",
+   "segment": "self serve",
+   "attempts": 12,
+   "failed": 1,
+   "success_rate": 0.9167,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-25"
+  },
+  {
+   "customer": "Hearthterra Acornbank Works",
+   "segment": "self serve",
+   "attempts": 6,
+   "failed": 1,
+   "success_rate": 0.8333,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-05"
+  },
+  {
+   "customer": "Copperbay Acornbank Media",
+   "segment": "self serve",
+   "attempts": 15,
+   "failed": 1,
+   "success_rate": 0.9333,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Moonmount Acornbank Collective",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 1,
+   "success_rate": 0.9231,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-20"
+  },
+  {
+   "customer": "Covecrest Works",
+   "segment": "self serve",
+   "attempts": 1,
+   "failed": 1,
+   "success_rate": 0,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-26"
+  },
+  {
+   "customer": "Greenland Acornbank Project",
+   "segment": "self serve",
+   "attempts": 21,
+   "failed": 1,
+   "success_rate": 0.9524,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Slaterock Works",
+   "segment": "self serve",
+   "attempts": 60,
+   "failed": 1,
+   "success_rate": 0.9833,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Olivestrand Acornbank Software",
+   "segment": "self serve",
+   "attempts": 2,
+   "failed": 1,
+   "success_rate": 0.5,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-08"
+  },
+  {
+   "customer": "Hearthedge Works",
+   "segment": "self serve",
+   "attempts": 18,
+   "failed": 1,
+   "success_rate": 0.9444,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-03"
+  },
+  {
+   "customer": "Zephyrpeak Partners",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 1,
+   "success_rate": 0.875,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-29"
+  },
+  {
+   "customer": "Cinderedge Foundation",
+   "segment": "self serve",
+   "attempts": 15,
+   "failed": 1,
+   "success_rate": 0.9333,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-08"
+  },
+  {
+   "customer": "Rainyard Acornbank Initiative",
+   "segment": "self serve",
+   "attempts": 4,
+   "failed": 1,
+   "success_rate": 0.75,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Sagebend Press",
+   "segment": "self serve",
+   "attempts": 17,
+   "failed": 1,
+   "success_rate": 0.9412,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-28"
+  },
+  {
+   "customer": "Willowcombe Alderbank Initiative",
+   "segment": "self serve",
+   "attempts": 10,
+   "failed": 1,
+   "success_rate": 0.9,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-21"
+  },
+  {
+   "customer": "Cinderwell Consulting",
+   "segment": "self serve",
+   "attempts": 66,
+   "failed": 1,
+   "success_rate": 0.9848,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Whitereach Advisory",
+   "segment": "self serve",
+   "attempts": 25,
+   "failed": 1,
+   "success_rate": 0.96,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Birchcross Acornbank Services",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 1,
+   "success_rate": 0.9231,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-07"
+  },
+  {
+   "customer": "Moonport Acornbank Works",
+   "segment": "self serve",
+   "attempts": 12,
+   "failed": 1,
+   "success_rate": 0.9167,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-04"
+  },
+  {
+   "customer": "Solarwell Alderbank Studio",
+   "segment": "self serve",
+   "attempts": 51,
+   "failed": 1,
+   "success_rate": 0.9804,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-12"
+  },
+  {
+   "customer": "Whiteyard Acornbank Consulting",
+   "segment": "self serve",
+   "attempts": 9,
+   "failed": 1,
+   "success_rate": 0.8889,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-24"
+  },
+  {
+   "customer": "Cinderstone Acornbank Works",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 1,
+   "success_rate": 0.9231,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-11"
+  },
+  {
+   "customer": "Ferncliff Collective",
+   "segment": "self serve",
+   "attempts": 5,
+   "failed": 1,
+   "success_rate": 0.8,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Elmbay Collective",
+   "segment": "self serve",
+   "attempts": 14,
+   "failed": 1,
+   "success_rate": 0.9286,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-23"
+  },
+  {
+   "customer": "Rainland Acornbank Studio",
+   "segment": "self serve",
+   "attempts": 10,
+   "failed": 1,
+   "success_rate": 0.9,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-01"
+  },
+  {
+   "customer": "Aurorastead Alderbank Works",
+   "segment": "self serve",
+   "attempts": 13,
+   "failed": 1,
+   "success_rate": 0.9231,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-09"
+  },
+  {
+   "customer": "Birchcliff Acornbank Creative",
+   "segment": "self serve",
+   "attempts": 8,
+   "failed": 1,
+   "success_rate": 0.875,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-30"
+  },
+  {
+   "customer": "Hearthheath Press",
+   "segment": "self serve",
+   "attempts": 14,
+   "failed": 1,
+   "success_rate": 0.9286,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-01"
+  },
+  {
+   "customer": "Highcrest Media",
+   "segment": "self serve",
+   "attempts": 9,
+   "failed": 1,
+   "success_rate": 0.8889,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-02"
+  },
+  {
+   "customer": "Silvermarsh Acornbank Agency",
+   "segment": "self serve",
+   "attempts": 7,
+   "failed": 1,
+   "success_rate": 0.8571,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-11"
+  },
+  {
+   "customer": "Roseforge Works",
+   "segment": "self serve",
+   "attempts": 7,
+   "failed": 1,
+   "success_rate": 0.8571,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-14"
+  },
+  {
+   "customer": "Forestthorn Consulting",
+   "segment": "self serve",
+   "attempts": 22,
+   "failed": 1,
+   "success_rate": 0.9545,
+   "days_with_failures": 1,
+   "last_failure": "2026-09-16"
+  }
+ ],
+ "success_bands": [
+  {
+   "success_band": "97–99%",
+   "customers": 23
+  },
+  {
+   "success_band": "90–95%",
+   "customers": 82
+  },
+  {
+   "success_band": "95–97%",
+   "customers": 51
+  },
+  {
+   "success_band": "99%+",
+   "customers": 351
+  },
+  {
+   "success_band": "Under 90%",
+   "customers": 73
+  }
+ ],
+ "errors": [
+  {
+   "error_code": "ASSET_REFERENCE_MISSING",
+   "failed_step": "asset_validation",
+   "failures": 707
+  }
+ ],
+ "by_site_type": [
+  {
+   "site_type": "marketing",
+   "completed": 8780,
+   "failed": 393,
+   "failure_rate": 0.0428,
+   "median_seconds": 1.58
+  },
+  {
+   "site_type": "docs",
+   "completed": 4475,
+   "failed": 161,
+   "failure_rate": 0.0347,
+   "median_seconds": 1.55
+  },
+  {
+   "site_type": "commerce",
+   "completed": 2572,
+   "failed": 101,
+   "failure_rate": 0.0378,
+   "median_seconds": 1.53
+  },
+  {
+   "site_type": "portfolio",
+   "completed": 1445,
+   "failed": 52,
+   "failure_rate": 0.0347,
+   "median_seconds": 1.56
+  }
+ ],
+ "by_plan": [
+  {
+   "plan": "growth",
+   "failed": 418,
+   "failure_rate": 0.0383
+  },
+  {
+   "plan": "business",
+   "failed": 272,
+   "failure_rate": 0.0417
+  },
+  {
+   "plan": "starter",
+   "failed": 10,
+   "failure_rate": 0.0319
+  },
+  {
+   "plan": "enterprise",
+   "failed": 7,
+   "failure_rate": 0.0295
+  },
+  {
+   "plan": "pilot",
+   "failed": 0,
+   "failure_rate": 0
+  }
+ ]
+}

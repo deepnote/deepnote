@@ -1,0 +1,142 @@
+metadata:
+  createdAt: 2026-11-24T09:00:00.000Z
+  modifiedAt: 2026-11-24T09:00:00.000Z
+project:
+  id: 9a54e956-c1b0-cbd8-5524-261fa483aa82
+  name: "PageMantle: Tasks"
+  notebooks:
+    - blocks:
+        - id: 4b640446fbae03a52b33d2a823e3fe6f
+          blockGroup: f9d58b7cbcf791b8330cd85f41d0cfc5
+          sortingKey: "000000"
+          type: markdown
+          content: |-
+            # Tasks
+
+            Linear issues across teams and projects as of September 30, 2026: priority, status, assignee, estimate, due date and age, so work can be ranked and overdue items found.
+
+            Reads the PageMantle company dataset from `PAGEMANTLE_DATA` (default `~/data/pagemantle`). **Dataset** picks a fast sample or the full data.
+          metadata: {}
+        - id: a37fe646f550d8cae7bfc9b2af163eb1
+          blockGroup: 4e46bc4942991b64b713bfc6426853b8
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: dataset
+            deepnote_input_label: Dataset
+            deepnote_variable_value: sample
+            deepnote_variable_default_value: sample
+            deepnote_variable_options:
+              - sample
+              - full
+            deepnote_variable_custom_options:
+              - sample
+              - full
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: e629cf40797e8b006d6c21c2d63bf0f8
+          blockGroup: 8afc714b622575270327143492c1845c
+          sortingKey: "000002"
+          type: code
+          content: |-
+            # Shared setup, copied into the first code block of every PageMantle notebook.
+            # `dataset` comes from the notebook's input: "sample" (fast, for checking apps) or "full".
+            import json
+            import os
+
+            import duckdb
+            from IPython.display import display
+
+            ROOT = os.path.expanduser(os.environ.get("PAGEMANTLE_DATA", "~/data/pagemantle"))
+            FULL = dataset == "full"
+            con = duckdb.connect()
+            con.execute("LOAD sqlite")
+
+
+            def pq(path):
+                """All Parquet partitions under a folder of the extracted dataset."""
+                return f"read_parquet('{ROOT}/{path}/**/*.parquet', union_by_name=true)"
+
+
+            def db(path):
+                return f"{ROOT}/{path}"
+
+
+            def q(sql):
+                return con.execute(sql).df()
+
+
+            def records(df):
+                return json.loads(df.to_json(orient="records", date_format="iso", double_precision=4))
+
+
+            def one(sql):
+                return con.execute(sql).fetchone()[0]
+
+
+            # Sampling keeps every 10th customer (by a stable hash), so customer tables stay consistent
+            # across notebooks. Event-level sources sample the most recent days instead (see each notebook).
+            def in_sample(col):
+                return "TRUE" if FULL else f"(hash({col}) % 10 = 0)"
+
+
+            DATASET = {"mode": "full" if FULL else "sample"}
+          metadata: {}
+        - id: b44c05ac0ffb016e1c4a362d58da800d
+          blockGroup: d6336c666ba9b4234c29075012130599
+          sortingKey: "000003"
+          type: code
+          content: |-
+            con.execute(f"ATTACH '{db('linear/linear.sqlite')}' AS lin (TYPE sqlite, READ_ONLY)")
+            issues = q("""
+            SELECT i.identifier AS issue, i.title, t.name AS team, p.name AS project, s.name AS status, s.type AS status_type,
+              CASE i.priority WHEN 1 THEN 'Urgent' WHEN 2 THEN 'High' WHEN 3 THEN 'Medium' WHEN 4 THEN 'Low' ELSE 'None' END AS priority,
+              i.priority AS priority_rank, i.estimate, u.name AS assignee, u.title AS assignee_title,
+              CAST(i.due_date AS DATE)::VARCHAR AS due_date,
+              CAST(i.created_at AS TIMESTAMP)::DATE::VARCHAR AS created,
+              date_diff('day', CAST(i.created_at AS TIMESTAMP)::DATE, DATE '2026-09-30') AS age_days,
+              CASE WHEN i.due_date IS NOT NULL THEN date_diff('day', DATE '2026-09-30', CAST(i.due_date AS DATE)) END AS days_until_due,
+              (SELECT count(*) FROM lin.comments c WHERE c.issue_id = i.id) AS comments,
+              (SELECT count(*) FROM lin.relations r WHERE r.related_issue_id = i.id AND r.type = 'blocks') AS blocking,
+              (SELECT string_agg(l.name, ', ') FROM lin.issue_labels il JOIN lin.labels l ON l.id = il.label_id WHERE il.issue_id = i.id) AS labels
+            FROM lin.issues i
+            JOIN lin.teams t ON t.id = i.team_id
+            LEFT JOIN lin.projects p ON p.id = i.project_id
+            LEFT JOIN lin.workflow_states s ON s.id = i.state_id
+            LEFT JOIN lin.users u ON u.id = i.assignee_id
+            WHERE NOT coalesce(CAST(i.archived AS BOOLEAN), FALSE)
+            ORDER BY i.priority, days_until_due NULLS LAST
+            """)
+            open_ = issues[~issues.status_type.isin(["completed", "canceled"])]
+            open_ = open_.assign(overdue=open_.days_until_due < 0)
+            # A simple ranking: priority first, then how soon it is due, then how many issues it blocks.
+            issues["score"] = (
+                (5 - issues.priority_rank.clip(1, 4)) * 25
+                + issues.days_until_due.apply(lambda d: 0 if d != d else max(0, 30 - d))
+                + issues.blocking * 10
+            ).astype(int)
+            projects = q("""
+            SELECT p.name AS project, t.name AS team, p.status, CAST(p.target_date AS DATE)::VARCHAR AS target_date,
+              count(i.id) AS issues, count(i.id) FILTER (WHERE s.type NOT IN ('completed', 'canceled')) AS open_issues
+            FROM lin.projects p JOIN lin.teams t ON t.id = p.team_id LEFT JOIN lin.issues i ON i.project_id = p.id
+            LEFT JOIN lin.workflow_states s ON s.id = i.state_id GROUP BY ALL ORDER BY open_issues DESC
+            """)
+            display({"application/json": {
+                "dataset": {**DATASET, "note": "all issues (Linear is small, so sample and full match)"},
+                "as_of": "2026-09-30",
+                "summary": {
+                    "open_issues": int(len(open_)),
+                    "urgent_or_high": int(open_.priority_rank.isin([1, 2]).sum()),
+                    "overdue": int(open_.overdue.sum()),
+                    "unassigned": int(open_.assignee.isna().sum()),
+                },
+                "issues": records(issues.sort_values("score", ascending=False)),
+                "projects": records(projects),
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: d34292d2-7184-77a3-2e01-3c5bf0c66188
+      name: Tasks
+version: 1.0.0

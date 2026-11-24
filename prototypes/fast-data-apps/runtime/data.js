@@ -177,6 +177,99 @@ export function aggregate(rows, agg = 'sum', field, of) {
   }
 }
 
+/**
+ * How a measure combines when rows are grouped and no agg was given: amounts add up, while rates,
+ * scores, shares and changes are averaged (summing 250 retention rates gives 20,000%).
+ */
+export function defaultAgg(field, rows = []) {
+  if (
+    /score|rate|ratio|share|pct|percent|grr|nrr|change|growth|margin|avg|mean|median|probability|days|age|nps|csat/i.test(
+      String(field)
+    )
+  )
+    return 'avg'
+  const vals = rows.map(r => r[field]).filter(v => typeof v === 'number')
+  // Fractions (every value within ±1.5, not all whole numbers) are rates.
+  if (vals.length && vals.every(v => Math.abs(v) <= 1.5) && vals.some(v => !Number.isInteger(v))) return 'avg'
+  return 'sum'
+}
+
+/**
+ * k-means over numeric fields. Skewed positive fields (like revenue) are log-scaled and every field
+ * is standardized, so no field dominates. Deterministic (seeded k-means++), clusters ordered by size
+ * and named by what sets them apart, e.g. "High arr · Low score". Returns one name per row.
+ */
+export function cluster(rows, fields, wanted = 4) {
+  const n = rows.length
+  if (!n || !fields.length) return rows.map(() => null)
+  const k = Math.max(1, Math.min(wanted, n))
+  const cols = fields.map(f => {
+    let vals = rows.map(r => (typeof r[f] === 'number' && Number.isFinite(r[f]) ? r[f] : null))
+    const present = vals.filter(v => v != null).sort((a, b) => a - b)
+    const median = present[Math.floor(present.length / 2)] ?? 0
+    if (present.length && present[0] > 0 && median > 0 && present.at(-1) / median > 20)
+      vals = vals.map(v => (v == null ? null : Math.log(v)))
+    const ok = vals.filter(v => v != null)
+    const mean = ok.reduce((a, b) => a + b, 0) / (ok.length || 1)
+    const sd = Math.sqrt(ok.reduce((a, b) => a + (b - mean) ** 2, 0) / (ok.length || 1)) || 1
+    return vals.map(v => (v == null ? 0 : (v - mean) / sd))
+  })
+  const points = rows.map((_, i) => cols.map(c => c[i]))
+  const dist = (a, b) => a.reduce((s, v, j) => s + (v - b[j]) ** 2, 0)
+  let seed = 1
+  const rand = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
+  const centers = [points[Math.floor(rand() * n)]]
+  while (centers.length < k) {
+    const d = points.map(p => Math.min(...centers.map(c => dist(p, c))))
+    let r = rand() * d.reduce((a, b) => a + b, 0)
+    let i = 0
+    while (i < n - 1) {
+      r -= d[i]
+      if (r <= 0) break
+      i++
+    }
+    centers.push(points[i])
+  }
+  const assign = new Array(n).fill(0)
+  for (let iter = 0; iter < 50; iter++) {
+    let moved = false
+    points.forEach((p, i) => {
+      let best = 0
+      for (let c = 1; c < k; c++) if (dist(p, centers[c]) < dist(p, centers[best])) best = c
+      if (best !== assign[i]) {
+        assign[i] = best
+        moved = true
+      }
+    })
+    for (let c = 0; c < k; c++) {
+      const members = points.filter((_, i) => assign[i] === c)
+      if (members.length) centers[c] = fields.map((_, j) => members.reduce((s, p) => s + p[j], 0) / members.length)
+    }
+    if (!moved && iter) break
+  }
+  const sizes = centers.map((_, c) => assign.filter(a => a === c).length)
+  const order = centers.map((_, c) => c).sort((a, b) => sizes[b] - sizes[a])
+  const used = new Set()
+  const names = order.map(c => {
+    const top = fields
+      .map((f, j) => ({ f, z: centers[c][j] }))
+      .filter(x => Math.abs(x.z) >= 0.35)
+      .sort((a, b) => Math.abs(b.z) - Math.abs(a.z))
+      .slice(0, 2)
+    let name = top.length
+      ? top.map(x => `${x.z > 0 ? 'High' : 'Low'} ${x.f.replaceAll('_', ' ')}`).join(' · ')
+      : 'Typical'
+    while (used.has(name)) name += ' (2)'
+    used.add(name)
+    return [c, name]
+  })
+  const byCluster = Object.fromEntries(names)
+  return assign.map(a => byCluster[a])
+}
+
 /** Group rows by keys (key fns) and aggregate measures. */
 export function groupBy(rows, keyFns, measures) {
   const groups = new Map()

@@ -1,0 +1,7703 @@
+{
+ "dataset": {
+  "mode": "sample",
+  "note": "every 10th customer"
+ },
+ "as_of": "2026-09-30",
+ "kpis": {
+  "mrr": 90227,
+  "mrr_year_ago": 41987,
+  "arr": 1082724,
+  "customers": 575,
+  "customers_year_ago": 159,
+  "churn_rate_month": 0.0035,
+  "avg_churn_rate_12m": 0.0085,
+  "failed_payments": 30,
+  "recovery_rate": 1,
+  "avg_days_to_recover": 2
+ },
+ "monthly": [
+  {
+   "month": "2021-01",
+   "mrr": 16046,
+   "customers": 55,
+   "new_customers": 1,
+   "churned_customers": 0,
+   "new_mrr": 150,
+   "churned_mrr": 0,
+   "churn_rate": null,
+   "net_new_mrr": 150
+  },
+  {
+   "month": "2021-02",
+   "mrr": 16067,
+   "customers": 55,
+   "new_customers": 1,
+   "churned_customers": 1,
+   "new_mrr": 41,
+   "churned_mrr": 20,
+   "churn_rate": 0.0182,
+   "net_new_mrr": 21
+  },
+  {
+   "month": "2021-03",
+   "mrr": 16079,
+   "customers": 56,
+   "new_customers": 1,
+   "churned_customers": 0,
+   "new_mrr": 12,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 12
+  },
+  {
+   "month": "2021-04",
+   "mrr": 16050,
+   "customers": 56,
+   "new_customers": 1,
+   "churned_customers": 1,
+   "new_mrr": 12,
+   "churned_mrr": 41,
+   "churn_rate": 0.0179,
+   "net_new_mrr": -29
+  },
+  {
+   "month": "2021-05",
+   "mrr": 16050,
+   "customers": 56,
+   "new_customers": 0,
+   "churned_customers": 0,
+   "new_mrr": 0,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 0
+  },
+  {
+   "month": "2021-06",
+   "mrr": 16655,
+   "customers": 61,
+   "new_customers": 5,
+   "churned_customers": 0,
+   "new_mrr": 605,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 605
+  },
+  {
+   "month": "2021-07",
+   "mrr": 16655,
+   "customers": 61,
+   "new_customers": 0,
+   "churned_customers": 0,
+   "new_mrr": 0,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 0
+  },
+  {
+   "month": "2021-08",
+   "mrr": 16411,
+   "customers": 55,
+   "new_customers": 1,
+   "churned_customers": 7,
+   "new_mrr": 50,
+   "churned_mrr": 295,
+   "churn_rate": 0.1148,
+   "net_new_mrr": -245
+  },
+  {
+   "month": "2021-09",
+   "mrr": 16411,
+   "customers": 55,
+   "new_customers": 0,
+   "churned_customers": 0,
+   "new_mrr": 0,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 0
+  },
+  {
+   "month": "2021-10",
+   "mrr": 16411,
+   "customers": 55,
+   "new_customers": 0,
+   "churned_customers": 0,
+   "new_mrr": 0,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 0
+  },
+  {
+   "month": "2021-11",
+   "mrr": 16721,
+   "customers": 58,
+   "new_customers": 4,
+   "churned_customers": 1,
+   "new_mrr": 410,
+   "churned_mrr": 100,
+   "churn_rate": 0.0182,
+   "net_new_mrr": 310
+  },
+  {
+   "month": "2021-12",
+   "mrr": 16721,
+   "customers": 58,
+   "new_customers": 0,
+   "churned_customers": 0,
+   "new_mrr": 0,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 0
+  },
+  {
+   "month": "2022-01",
+   "mrr": 17021,
+   "customers": 61,
+   "new_customers": 3,
+   "churned_customers": 0,
+   "new_mrr": 300,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 300
+  },
+  {
+   "month": "2022-02",
+   "mrr": 17035,
+   "customers": 63,
+   "new_customers": 3,
+   "churned_customers": 1,
+   "new_mrr": 180,
+   "churned_mrr": 165,
+   "churn_rate": 0.0164,
+   "net_new_mrr": 15
+  },
+  {
+   "month": "2022-03",
+   "mrr": 17385,
+   "customers": 65,
+   "new_customers": 2,
+   "churned_customers": 0,
+   "new_mrr": 350,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 350
+  },
+  {
+   "month": "2022-04",
+   "mrr": 17518,
+   "customers": 67,
+   "new_customers": 3,
+   "churned_customers": 1,
+   "new_mrr": 174,
+   "churned_mrr": 41,
+   "churn_rate": 0.0154,
+   "net_new_mrr": 133
+  },
+  {
+   "month": "2022-05",
+   "mrr": 17398,
+   "customers": 68,
+   "new_customers": 3,
+   "churned_customers": 2,
+   "new_mrr": 180,
+   "churned_mrr": 300,
+   "churn_rate": 0.0299,
+   "net_new_mrr": -120
+  },
+  {
+   "month": "2022-06",
+   "mrr": 17360,
+   "customers": 68,
+   "new_customers": 1,
+   "churned_customers": 1,
+   "new_mrr": 12,
+   "churned_mrr": 50,
+   "churn_rate": 0.0147,
+   "net_new_mrr": -38
+  },
+  {
+   "month": "2022-07",
+   "mrr": 19288,
+   "customers": 93,
+   "new_customers": 27,
+   "churned_customers": 2,
+   "new_mrr": 2058,
+   "churned_mrr": 130,
+   "churn_rate": 0.0294,
+   "net_new_mrr": 1928
+  },
+  {
+   "month": "2022-08",
+   "mrr": 19341,
+   "customers": 95,
+   "new_customers": 5,
+   "churned_customers": 3,
+   "new_mrr": 202,
+   "churned_mrr": 150,
+   "churn_rate": 0.0323,
+   "net_new_mrr": 52
+  },
+  {
+   "month": "2022-09",
+   "mrr": 19361,
+   "customers": 95,
+   "new_customers": 1,
+   "churned_customers": 1,
+   "new_mrr": 100,
+   "churned_mrr": 80,
+   "churn_rate": 0.0105,
+   "net_new_mrr": 20
+  },
+  {
+   "month": "2022-10",
+   "mrr": 19493,
+   "customers": 98,
+   "new_customers": 3,
+   "churned_customers": 0,
+   "new_mrr": 132,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 132
+  },
+  {
+   "month": "2022-11",
+   "mrr": 19396,
+   "customers": 97,
+   "new_customers": 1,
+   "churned_customers": 2,
+   "new_mrr": 60,
+   "churned_mrr": 157,
+   "churn_rate": 0.0204,
+   "net_new_mrr": -97
+  },
+  {
+   "month": "2022-12",
+   "mrr": 19336,
+   "customers": 95,
+   "new_customers": 2,
+   "churned_customers": 4,
+   "new_mrr": 140,
+   "churned_mrr": 200,
+   "churn_rate": 0.0412,
+   "net_new_mrr": -60
+  },
+  {
+   "month": "2023-01",
+   "mrr": 25151,
+   "customers": 101,
+   "new_customers": 7,
+   "churned_customers": 1,
+   "new_mrr": 5875,
+   "churned_mrr": 60,
+   "churn_rate": 0.0105,
+   "net_new_mrr": 5815
+  },
+  {
+   "month": "2023-02",
+   "mrr": 25441,
+   "customers": 106,
+   "new_customers": 6,
+   "churned_customers": 1,
+   "new_mrr": 350,
+   "churned_mrr": 60,
+   "churn_rate": 0.0099,
+   "net_new_mrr": 290
+  },
+  {
+   "month": "2023-03",
+   "mrr": 37941,
+   "customers": 107,
+   "new_customers": 2,
+   "churned_customers": 1,
+   "new_mrr": 12560,
+   "churned_mrr": 60,
+   "churn_rate": 0.0094,
+   "net_new_mrr": 12500
+  },
+  {
+   "month": "2023-04",
+   "mrr": 37869,
+   "customers": 105,
+   "new_customers": 1,
+   "churned_customers": 3,
+   "new_mrr": 50,
+   "churned_mrr": 122,
+   "churn_rate": 0.028,
+   "net_new_mrr": -72
+  },
+  {
+   "month": "2023-05",
+   "mrr": 38029,
+   "customers": 106,
+   "new_customers": 3,
+   "churned_customers": 2,
+   "new_mrr": 270,
+   "churned_mrr": 111,
+   "churn_rate": 0.019,
+   "net_new_mrr": 159
+  },
+  {
+   "month": "2023-06",
+   "mrr": 37975,
+   "customers": 108,
+   "new_customers": 3,
+   "churned_customers": 1,
+   "new_mrr": 122,
+   "churned_mrr": 175,
+   "churn_rate": 0.0094,
+   "net_new_mrr": -53
+  },
+  {
+   "month": "2023-07",
+   "mrr": 37758,
+   "customers": 106,
+   "new_customers": 1,
+   "churned_customers": 3,
+   "new_mrr": 60,
+   "churned_mrr": 278,
+   "churn_rate": 0.0278,
+   "net_new_mrr": -218
+  },
+  {
+   "month": "2023-08",
+   "mrr": 37903,
+   "customers": 105,
+   "new_customers": 3,
+   "churned_customers": 4,
+   "new_mrr": 289,
+   "churned_mrr": 144,
+   "churn_rate": 0.0377,
+   "net_new_mrr": 145
+  },
+  {
+   "month": "2023-09",
+   "mrr": 37903,
+   "customers": 105,
+   "new_customers": 0,
+   "churned_customers": 0,
+   "new_mrr": 0,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 0
+  },
+  {
+   "month": "2023-10",
+   "mrr": 37687,
+   "customers": 106,
+   "new_customers": 2,
+   "churned_customers": 1,
+   "new_mrr": 42,
+   "churned_mrr": 258,
+   "churn_rate": 0.0095,
+   "net_new_mrr": -216
+  },
+  {
+   "month": "2023-11",
+   "mrr": 38047,
+   "customers": 109,
+   "new_customers": 5,
+   "churned_customers": 2,
+   "new_mrr": 490,
+   "churned_mrr": 130,
+   "churn_rate": 0.0189,
+   "net_new_mrr": 360
+  },
+  {
+   "month": "2023-12",
+   "mrr": 38197,
+   "customers": 110,
+   "new_customers": 2,
+   "churned_customers": 1,
+   "new_mrr": 220,
+   "churned_mrr": 70,
+   "churn_rate": 0.0092,
+   "net_new_mrr": 150
+  },
+  {
+   "month": "2024-01",
+   "mrr": 38176,
+   "customers": 109,
+   "new_customers": 3,
+   "churned_customers": 4,
+   "new_mrr": 340,
+   "churned_mrr": 361,
+   "churn_rate": 0.0364,
+   "net_new_mrr": -21
+  },
+  {
+   "month": "2024-02",
+   "mrr": 38146,
+   "customers": 110,
+   "new_customers": 3,
+   "churned_customers": 2,
+   "new_mrr": 140,
+   "churned_mrr": 170,
+   "churn_rate": 0.0183,
+   "net_new_mrr": -30
+  },
+  {
+   "month": "2024-03",
+   "mrr": 38073,
+   "customers": 110,
+   "new_customers": 2,
+   "churned_customers": 2,
+   "new_mrr": 180,
+   "churned_mrr": 253,
+   "churn_rate": 0.0182,
+   "net_new_mrr": -73
+  },
+  {
+   "month": "2024-04",
+   "mrr": 39595,
+   "customers": 135,
+   "new_customers": 28,
+   "churned_customers": 3,
+   "new_mrr": 1694,
+   "churned_mrr": 172,
+   "churn_rate": 0.0273,
+   "net_new_mrr": 1522
+  },
+  {
+   "month": "2024-05",
+   "mrr": 39519,
+   "customers": 133,
+   "new_customers": 1,
+   "churned_customers": 3,
+   "new_mrr": 80,
+   "churned_mrr": 156,
+   "churn_rate": 0.0222,
+   "net_new_mrr": -76
+  },
+  {
+   "month": "2024-06",
+   "mrr": 39589,
+   "customers": 135,
+   "new_customers": 2,
+   "churned_customers": 0,
+   "new_mrr": 70,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 70
+  },
+  {
+   "month": "2024-07",
+   "mrr": 39680,
+   "customers": 137,
+   "new_customers": 2,
+   "churned_customers": 0,
+   "new_mrr": 91,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 91
+  },
+  {
+   "month": "2024-08",
+   "mrr": 40464,
+   "customers": 144,
+   "new_customers": 12,
+   "churned_customers": 5,
+   "new_mrr": 1184,
+   "churned_mrr": 400,
+   "churn_rate": 0.0365,
+   "net_new_mrr": 784
+  },
+  {
+   "month": "2024-09",
+   "mrr": 40551,
+   "customers": 148,
+   "new_customers": 5,
+   "churned_customers": 1,
+   "new_mrr": 237,
+   "churned_mrr": 150,
+   "churn_rate": 0.0069,
+   "net_new_mrr": 87
+  },
+  {
+   "month": "2024-10",
+   "mrr": 41101,
+   "customers": 152,
+   "new_customers": 4,
+   "churned_customers": 0,
+   "new_mrr": 550,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 550
+  },
+  {
+   "month": "2024-11",
+   "mrr": 41591,
+   "customers": 154,
+   "new_customers": 4,
+   "churned_customers": 2,
+   "new_mrr": 600,
+   "churned_mrr": 110,
+   "churn_rate": 0.0132,
+   "net_new_mrr": 490
+  },
+  {
+   "month": "2024-12",
+   "mrr": 41670,
+   "customers": 155,
+   "new_customers": 5,
+   "churned_customers": 4,
+   "new_mrr": 322,
+   "churned_mrr": 243,
+   "churn_rate": 0.026,
+   "net_new_mrr": 79
+  },
+  {
+   "month": "2025-01",
+   "mrr": 42115,
+   "customers": 158,
+   "new_customers": 7,
+   "churned_customers": 4,
+   "new_mrr": 640,
+   "churned_mrr": 195,
+   "churn_rate": 0.0258,
+   "net_new_mrr": 445
+  },
+  {
+   "month": "2025-02",
+   "mrr": 42193,
+   "customers": 158,
+   "new_customers": 4,
+   "churned_customers": 4,
+   "new_mrr": 251,
+   "churned_mrr": 173,
+   "churn_rate": 0.0253,
+   "net_new_mrr": 78
+  },
+  {
+   "month": "2025-03",
+   "mrr": 42153,
+   "customers": 156,
+   "new_customers": 3,
+   "churned_customers": 5,
+   "new_mrr": 280,
+   "churned_mrr": 320,
+   "churn_rate": 0.0316,
+   "net_new_mrr": -40
+  },
+  {
+   "month": "2025-04",
+   "mrr": 42173,
+   "customers": 157,
+   "new_customers": 2,
+   "churned_customers": 1,
+   "new_mrr": 70,
+   "churned_mrr": 50,
+   "churn_rate": 0.0064,
+   "net_new_mrr": 20
+  },
+  {
+   "month": "2025-05",
+   "mrr": 42203,
+   "customers": 158,
+   "new_customers": 3,
+   "churned_customers": 2,
+   "new_mrr": 260,
+   "churned_mrr": 230,
+   "churn_rate": 0.0127,
+   "net_new_mrr": 30
+  },
+  {
+   "month": "2025-06",
+   "mrr": 42283,
+   "customers": 160,
+   "new_customers": 3,
+   "churned_customers": 1,
+   "new_mrr": 230,
+   "churned_mrr": 150,
+   "churn_rate": 0.0063,
+   "net_new_mrr": 80
+  },
+  {
+   "month": "2025-07",
+   "mrr": 42183,
+   "customers": 159,
+   "new_customers": 1,
+   "churned_customers": 2,
+   "new_mrr": 12,
+   "churned_mrr": 111,
+   "churn_rate": 0.0125,
+   "net_new_mrr": -99
+  },
+  {
+   "month": "2025-08",
+   "mrr": 42005,
+   "customers": 160,
+   "new_customers": 5,
+   "churned_customers": 4,
+   "new_mrr": 252,
+   "churned_mrr": 430,
+   "churn_rate": 0.0252,
+   "net_new_mrr": -178
+  },
+  {
+   "month": "2025-09",
+   "mrr": 41987,
+   "customers": 159,
+   "new_customers": 1,
+   "churned_customers": 2,
+   "new_mrr": 50,
+   "churned_mrr": 69,
+   "churn_rate": 0.0125,
+   "net_new_mrr": -19
+  },
+  {
+   "month": "2025-10",
+   "mrr": 42499,
+   "customers": 162,
+   "new_customers": 4,
+   "churned_customers": 1,
+   "new_mrr": 562,
+   "churned_mrr": 50,
+   "churn_rate": 0.0063,
+   "net_new_mrr": 512
+  },
+  {
+   "month": "2025-11",
+   "mrr": 42669,
+   "customers": 164,
+   "new_customers": 2,
+   "churned_customers": 0,
+   "new_mrr": 170,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 170
+  },
+  {
+   "month": "2025-12",
+   "mrr": 42854,
+   "customers": 166,
+   "new_customers": 6,
+   "churned_customers": 4,
+   "new_mrr": 282,
+   "churned_mrr": 97,
+   "churn_rate": 0.0244,
+   "net_new_mrr": 185
+  },
+  {
+   "month": "2026-01",
+   "mrr": 49359,
+   "customers": 167,
+   "new_customers": 3,
+   "churned_customers": 2,
+   "new_mrr": 6667,
+   "churned_mrr": 162,
+   "churn_rate": 0.012,
+   "net_new_mrr": 6505
+  },
+  {
+   "month": "2026-02",
+   "mrr": 79024,
+   "customers": 488,
+   "new_customers": 325,
+   "churned_customers": 4,
+   "new_mrr": 30051,
+   "churned_mrr": 386,
+   "churn_rate": 0.024,
+   "net_new_mrr": 29665
+  },
+  {
+   "month": "2026-03",
+   "mrr": 84761,
+   "customers": 504,
+   "new_customers": 18,
+   "churned_customers": 2,
+   "new_mrr": 5849,
+   "churned_mrr": 112,
+   "churn_rate": 0.0041,
+   "net_new_mrr": 5737
+  },
+  {
+   "month": "2026-04",
+   "mrr": 85749,
+   "customers": 520,
+   "new_customers": 16,
+   "churned_customers": 0,
+   "new_mrr": 988,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 988
+  },
+  {
+   "month": "2026-05",
+   "mrr": 86471,
+   "customers": 526,
+   "new_customers": 12,
+   "churned_customers": 6,
+   "new_mrr": 1092,
+   "churned_mrr": 370,
+   "churn_rate": 0.0115,
+   "net_new_mrr": 722
+  },
+  {
+   "month": "2026-06",
+   "mrr": 87283,
+   "customers": 537,
+   "new_customers": 11,
+   "churned_customers": 0,
+   "new_mrr": 812,
+   "churned_mrr": 0,
+   "churn_rate": 0,
+   "net_new_mrr": 812
+  },
+  {
+   "month": "2026-07",
+   "mrr": 88915,
+   "customers": 556,
+   "new_customers": 22,
+   "churned_customers": 3,
+   "new_mrr": 1752,
+   "churned_mrr": 120,
+   "churn_rate": 0.0056,
+   "net_new_mrr": 1632
+  },
+  {
+   "month": "2026-08",
+   "mrr": 89265,
+   "customers": 564,
+   "new_customers": 14,
+   "churned_customers": 6,
+   "new_mrr": 1050,
+   "churned_mrr": 700,
+   "churn_rate": 0.0108,
+   "net_new_mrr": 350
+  },
+  {
+   "month": "2026-09",
+   "mrr": 90227,
+   "customers": 575,
+   "new_customers": 13,
+   "churned_customers": 2,
+   "new_mrr": 1032,
+   "churned_mrr": 70,
+   "churn_rate": 0.0035,
+   "net_new_mrr": 962
+  }
+ ],
+ "plans": [
+  {
+   "plan": "business",
+   "billing": "year",
+   "customers": 29,
+   "mrr": 42045,
+   "avg_mrr": 1450,
+   "churned_12m": 4,
+   "churn_rate_12m": 0.1212
+  },
+  {
+   "plan": "growth",
+   "billing": "month",
+   "customers": 313,
+   "mrr": 25578,
+   "avg_mrr": 82,
+   "churned_12m": 17,
+   "churn_rate_12m": 0.0515
+  },
+  {
+   "plan": "growth",
+   "billing": "year",
+   "customers": 158,
+   "mrr": 12350,
+   "avg_mrr": 78,
+   "churned_12m": 5,
+   "churn_rate_12m": 0.0307
+  },
+  {
+   "plan": "business",
+   "billing": "month",
+   "customers": 52,
+   "mrr": 8129,
+   "avg_mrr": 156,
+   "churned_12m": 3,
+   "churn_rate_12m": 0.0545
+  },
+  {
+   "plan": "starter",
+   "billing": "month",
+   "customers": 15,
+   "mrr": 1164,
+   "avg_mrr": 78,
+   "churned_12m": 0,
+   "churn_rate_12m": 0
+  },
+  {
+   "plan": "starter",
+   "billing": "year",
+   "customers": 8,
+   "mrr": 960,
+   "avg_mrr": 120,
+   "churned_12m": 1,
+   "churn_rate_12m": 0.1111
+  }
+ ],
+ "payment_failures": [
+  {
+   "payment_id": "pi_aa9a648057610735487b8a6c",
+   "customer": "Keystonepath Alderbank Collective",
+   "failed_on": "2026-09-04",
+   "month": "2026-09",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 100,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_a99445a4df3b47b85adabb8c",
+   "customer": "Slategate Acornbank Collective",
+   "failed_on": "2026-09-04",
+   "month": "2026-09",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 150,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_9470bebc14d4d323ead3493d",
+   "customer": "Highkeep Acornbank Works",
+   "failed_on": "2026-09-04",
+   "month": "2026-09",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 200,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_549dada6006044c3036a6ea1",
+   "customer": "Sagemoor Acornbank Initiative",
+   "failed_on": "2026-09-04",
+   "month": "2026-09",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 80,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_4e36d0e13b9a7dab04bc1b92",
+   "customer": "Summitdale Acornbank Company",
+   "failed_on": "2026-09-04",
+   "month": "2026-09",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 100,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_540e332c542379307da53e9d",
+   "customer": "Lindenhollow Acornbank Studio",
+   "failed_on": "2026-09-03",
+   "month": "2026-09",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 30,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_1e44166db237acf3f06397b2",
+   "customer": "Cloudisle Acornbank Works",
+   "failed_on": "2026-09-03",
+   "month": "2026-09",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 100,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_acea854a066cc80472789f48",
+   "customer": "Meridianfall Advisory",
+   "failed_on": "2026-09-03",
+   "month": "2026-09",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 100,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_2163d6e4b1a9172422387359",
+   "customer": "Briarheath Studio",
+   "failed_on": "2026-09-02",
+   "month": "2026-09",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 150,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_62aca9da9d4ea9cdbe79d258",
+   "customer": "Highstead Collective",
+   "failed_on": "2026-08-04",
+   "month": "2026-08",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 600,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_524051eeeafd5905e799ac09",
+   "customer": "Driftwell Advisory",
+   "failed_on": "2026-08-03",
+   "month": "2026-08",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 2400,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_62396e4e162348291e85aa1b",
+   "customer": "Winterspring Project",
+   "failed_on": "2026-08-03",
+   "month": "2026-08",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 1800,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_d4eaceb6a54164250b815838",
+   "customer": "Alderbarrow Press",
+   "failed_on": "2026-03-04",
+   "month": "2026-03",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 144,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_41b1f22f98f8f1f447bd1637",
+   "customer": "Crimsonmoor Commerce",
+   "failed_on": "2026-01-03",
+   "month": "2026-01",
+   "reason": "processing error",
+   "method": "us_bank_account",
+   "amount": 63000,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_b653bb3947cc5fdd00dcc724",
+   "customer": "Pineford Advisory",
+   "failed_on": "2026-01-03",
+   "month": "2026-01",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 720,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_f56c75714e724d6cc1d422b8",
+   "customer": "Copperglen Acornbank Creative",
+   "failed_on": "2026-01-02",
+   "month": "2026-01",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 960,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_5a25192f962d858efe6c756e",
+   "customer": "Copperwell Acornbank Creative",
+   "failed_on": "2025-10-03",
+   "month": "2025-10",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 2400,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_cea9de904f1fd140a4cafbe0",
+   "customer": "Rosekeep Works",
+   "failed_on": "2025-08-03",
+   "month": "2025-08",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 1121,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_814829ffaec1c6c9ef3fed81",
+   "customer": "Whitelake Creative",
+   "failed_on": "2025-08-03",
+   "month": "2025-08",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 336,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_553a11f62af70df672ecb6be",
+   "customer": "Anchorpoint Creative",
+   "failed_on": "2025-08-03",
+   "month": "2025-08",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 896,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_4df8f20035c0a437b4f07214",
+   "customer": "Forestthorn Consulting",
+   "failed_on": "2025-06-03",
+   "month": "2025-06",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 673,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_afac160fa3d0b652de912dcd",
+   "customer": "Auroramill Acornbank Works",
+   "failed_on": "2025-06-03",
+   "month": "2025-06",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 1681,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_908e1a35134aff3cdd27c033",
+   "customer": "Oliveport Acornbank Company",
+   "failed_on": "2025-04-03",
+   "month": "2025-04",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 800,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_5eb4cffbbc01c301c848f2ff",
+   "customer": "Aurorayard Project",
+   "failed_on": "2024-08-03",
+   "month": "2024-08",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 1681,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_e63d0f7e0768786a942f980d",
+   "customer": "Willowstone Initiative",
+   "failed_on": "2023-08-03",
+   "month": "2023-08",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 315,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_d4aef759e28da61f26890b4a",
+   "customer": "Driftwell Advisory",
+   "failed_on": "2022-08-03",
+   "month": "2022-08",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 2102,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_f076ff7fb43e69adb140aca3",
+   "customer": "Willowstone Initiative",
+   "failed_on": "2021-08-03",
+   "month": "2021-08",
+   "reason": "insufficient funds",
+   "method": "card",
+   "amount": 298,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_89810a28b12f7c63f0f404b0",
+   "customer": "Marblewick Services",
+   "failed_on": "2021-08-03",
+   "month": "2021-08",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 199,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_107d3c9035c6abd23e7809f5",
+   "customer": "Cinderbrook Agency",
+   "failed_on": "2021-08-03",
+   "month": "2021-08",
+   "reason": "processing error",
+   "method": "card",
+   "amount": 297,
+   "recovered": true,
+   "days_to_recover": 2
+  },
+  {
+   "payment_id": "pi_407fe51ed119d887b36a1966",
+   "customer": "Cindermount Press",
+   "failed_on": "2020-08-03",
+   "month": "2020-08",
+   "reason": "card declined",
+   "method": "card",
+   "amount": 640,
+   "recovered": true,
+   "days_to_recover": 2
+  }
+ ],
+ "payments_monthly": [
+  {
+   "month": "2020-08",
+   "payments": 391,
+   "failed": 14,
+   "failed_amount": 11809,
+   "failure_rate": 0.0346
+  },
+  {
+   "month": "2020-10",
+   "payments": 12,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2020-11",
+   "payments": 12,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2020-12",
+   "payments": 8,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-01",
+   "payments": 11,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-02",
+   "payments": 16,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-03",
+   "payments": 10,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-04",
+   "payments": 9,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-05",
+   "payments": 13,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-06",
+   "payments": 11,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-07",
+   "payments": 14,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2021-08",
+   "payments": 400,
+   "failed": 17,
+   "failed_amount": 10837,
+   "failure_rate": 0.0408
+  },
+  {
+   "month": "2021-10",
+   "payments": 24,
+   "failed": 3,
+   "failed_amount": 1160,
+   "failure_rate": 0.1111
+  },
+  {
+   "month": "2021-11",
+   "payments": 28,
+   "failed": 1,
+   "failed_amount": 1593,
+   "failure_rate": 0.0345
+  },
+  {
+   "month": "2021-12",
+   "payments": 20,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2022-01",
+   "payments": 30,
+   "failed": 1,
+   "failed_amount": 137,
+   "failure_rate": 0.0323
+  },
+  {
+   "month": "2022-02",
+   "payments": 27,
+   "failed": 1,
+   "failed_amount": 1459,
+   "failure_rate": 0.0357
+  },
+  {
+   "month": "2022-03",
+   "payments": 21,
+   "failed": 1,
+   "failed_amount": 176,
+   "failure_rate": 0.0455
+  },
+  {
+   "month": "2022-04",
+   "payments": 26,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2022-05",
+   "payments": 25,
+   "failed": 1,
+   "failed_amount": 35299,
+   "failure_rate": 0.0385
+  },
+  {
+   "month": "2022-06",
+   "payments": 24,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2022-07",
+   "payments": 25,
+   "failed": 1,
+   "failed_amount": 127,
+   "failure_rate": 0.0385
+  },
+  {
+   "month": "2022-08",
+   "payments": 412,
+   "failed": 11,
+   "failed_amount": 7846,
+   "failure_rate": 0.026
+  },
+  {
+   "month": "2022-10",
+   "payments": 42,
+   "failed": 1,
+   "failed_amount": 1126,
+   "failure_rate": 0.0233
+  },
+  {
+   "month": "2022-11",
+   "payments": 40,
+   "failed": 3,
+   "failed_amount": 262243,
+   "failure_rate": 0.0698
+  },
+  {
+   "month": "2022-12",
+   "payments": 38,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2023-01",
+   "payments": 49,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2023-02",
+   "payments": 53,
+   "failed": 2,
+   "failed_amount": 1729,
+   "failure_rate": 0.0364
+  },
+  {
+   "month": "2023-03",
+   "payments": 38,
+   "failed": 1,
+   "failed_amount": 3091,
+   "failure_rate": 0.0256
+  },
+  {
+   "month": "2023-04",
+   "payments": 41,
+   "failed": 1,
+   "failed_amount": 127,
+   "failure_rate": 0.0238
+  },
+  {
+   "month": "2023-05",
+   "payments": 36,
+   "failed": 2,
+   "failed_amount": 653,
+   "failure_rate": 0.0526
+  },
+  {
+   "month": "2023-06",
+   "payments": 34,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2023-07",
+   "payments": 39,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2023-08",
+   "payments": 429,
+   "failed": 15,
+   "failed_amount": 12002,
+   "failure_rate": 0.0338
+  },
+  {
+   "month": "2023-09",
+   "payments": 1,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2023-10",
+   "payments": 59,
+   "failed": 2,
+   "failed_amount": 2926,
+   "failure_rate": 0.0328
+  },
+  {
+   "month": "2023-11",
+   "payments": 63,
+   "failed": 1,
+   "failed_amount": 225,
+   "failure_rate": 0.0156
+  },
+  {
+   "month": "2023-12",
+   "payments": 61,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2024-01",
+   "payments": 70,
+   "failed": 4,
+   "failed_amount": 5403,
+   "failure_rate": 0.0541
+  },
+  {
+   "month": "2024-02",
+   "payments": 70,
+   "failed": 2,
+   "failed_amount": 525,
+   "failure_rate": 0.0278
+  },
+  {
+   "month": "2024-03",
+   "payments": 57,
+   "failed": 4,
+   "failed_amount": 4147,
+   "failure_rate": 0.0656
+  },
+  {
+   "month": "2024-04",
+   "payments": 68,
+   "failed": 1,
+   "failed_amount": 336,
+   "failure_rate": 0.0145
+  },
+  {
+   "month": "2024-05",
+   "payments": 58,
+   "failed": 3,
+   "failed_amount": 4252,
+   "failure_rate": 0.0492
+  },
+  {
+   "month": "2024-06",
+   "payments": 54,
+   "failed": 1,
+   "failed_amount": 673,
+   "failure_rate": 0.0182
+  },
+  {
+   "month": "2024-07",
+   "payments": 69,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2024-08",
+   "payments": 455,
+   "failed": 10,
+   "failed_amount": 9102,
+   "failure_rate": 0.0215
+  },
+  {
+   "month": "2024-09",
+   "payments": 1,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2024-10",
+   "payments": 96,
+   "failed": 1,
+   "failed_amount": 1800,
+   "failure_rate": 0.0103
+  },
+  {
+   "month": "2024-11",
+   "payments": 85,
+   "failed": 2,
+   "failed_amount": 3600,
+   "failure_rate": 0.023
+  },
+  {
+   "month": "2024-12",
+   "payments": 90,
+   "failed": 2,
+   "failed_amount": 960,
+   "failure_rate": 0.0217
+  },
+  {
+   "month": "2025-01",
+   "payments": 93,
+   "failed": 2,
+   "failed_amount": 1192,
+   "failure_rate": 0.0211
+  },
+  {
+   "month": "2025-02",
+   "payments": 104,
+   "failed": 5,
+   "failed_amount": 1703,
+   "failure_rate": 0.0459
+  },
+  {
+   "month": "2025-03",
+   "payments": 82,
+   "failed": 4,
+   "failed_amount": 3909,
+   "failure_rate": 0.0465
+  },
+  {
+   "month": "2025-04",
+   "payments": 96,
+   "failed": 3,
+   "failed_amount": 2616,
+   "failure_rate": 0.0303
+  },
+  {
+   "month": "2025-05",
+   "payments": 97,
+   "failed": 1,
+   "failed_amount": 560,
+   "failure_rate": 0.0102
+  },
+  {
+   "month": "2025-06",
+   "payments": 87,
+   "failed": 3,
+   "failed_amount": 2914,
+   "failure_rate": 0.0333
+  },
+  {
+   "month": "2025-07",
+   "payments": 107,
+   "failed": 6,
+   "failed_amount": 3136,
+   "failure_rate": 0.0531
+  },
+  {
+   "month": "2025-08",
+   "payments": 500,
+   "failed": 22,
+   "failed_amount": 18346,
+   "failure_rate": 0.0421
+  },
+  {
+   "month": "2025-09",
+   "payments": 7,
+   "failed": 0,
+   "failed_amount": null,
+   "failure_rate": 0
+  },
+  {
+   "month": "2025-10",
+   "payments": 139,
+   "failed": 1,
+   "failed_amount": 2400,
+   "failure_rate": 0.0071
+  },
+  {
+   "month": "2025-11",
+   "payments": 130,
+   "failed": 6,
+   "failed_amount": 6024,
+   "failure_rate": 0.0441
+  },
+  {
+   "month": "2025-12",
+   "payments": 123,
+   "failed": 1,
+   "failed_amount": 1800,
+   "failure_rate": 0.0081
+  },
+  {
+   "month": "2026-01",
+   "payments": 133,
+   "failed": 5,
+   "failed_amount": 66120,
+   "failure_rate": 0.0362
+  },
+  {
+   "month": "2026-02",
+   "payments": 163,
+   "failed": 2,
+   "failed_amount": 1080,
+   "failure_rate": 0.0121
+  },
+  {
+   "month": "2026-03",
+   "payments": 123,
+   "failed": 7,
+   "failed_amount": 6624,
+   "failure_rate": 0.0538
+  },
+  {
+   "month": "2026-04",
+   "payments": 143,
+   "failed": 2,
+   "failed_amount": 960,
+   "failure_rate": 0.0138
+  },
+  {
+   "month": "2026-05",
+   "payments": 134,
+   "failed": 4,
+   "failed_amount": 3624,
+   "failure_rate": 0.029
+  },
+  {
+   "month": "2026-06",
+   "payments": 137,
+   "failed": 4,
+   "failed_amount": 3624,
+   "failure_rate": 0.0284
+  },
+  {
+   "month": "2026-07",
+   "payments": 161,
+   "failed": 4,
+   "failed_amount": 5040,
+   "failure_rate": 0.0242
+  },
+  {
+   "month": "2026-08",
+   "payments": 667,
+   "failed": 18,
+   "failed_amount": 15948,
+   "failure_rate": 0.0263
+  },
+  {
+   "month": "2026-09",
+   "payments": 4038,
+   "failed": 117,
+   "failed_amount": 10438,
+   "failure_rate": 0.0282
+  }
+ ],
+ "invoices_monthly": [
+  {
+   "month": "2020-08",
+   "invoices": 38,
+   "invoiced": 149256,
+   "paid": 149256,
+   "avg_days_to_pay": 0.14,
+   "avg_attempts": 1.03
+  },
+  {
+   "month": "2020-10",
+   "invoices": 1,
+   "invoiced": 318,
+   "paid": 318,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2021-01",
+   "invoices": 1,
+   "invoiced": 1028,
+   "paid": 1028,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2021-03",
+   "invoices": 1,
+   "invoiced": 119,
+   "paid": 119,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2021-04",
+   "invoices": 1,
+   "invoiced": 119,
+   "paid": 119,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2021-06",
+   "invoices": 3,
+   "invoiced": 3371,
+   "paid": 3371,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2021-08",
+   "invoices": 38,
+   "invoiced": 147988,
+   "paid": 147988,
+   "avg_days_to_pay": 0.24,
+   "avg_attempts": 1.08
+  },
+  {
+   "month": "2021-10",
+   "invoices": 1,
+   "invoiced": 318,
+   "paid": 318,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2021-11",
+   "invoices": 4,
+   "invoiced": 4353,
+   "paid": 4353,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-01",
+   "invoices": 4,
+   "invoiced": 5214,
+   "paid": 5214,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-02",
+   "invoices": 2,
+   "invoiced": 1191,
+   "paid": 1191,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-03",
+   "invoices": 3,
+   "invoiced": 3590,
+   "paid": 3590,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-04",
+   "invoices": 4,
+   "invoiced": 1803,
+   "paid": 1803,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-05",
+   "invoices": 2,
+   "invoiced": 723,
+   "paid": 723,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-06",
+   "invoices": 4,
+   "invoiced": 3490,
+   "paid": 3490,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-07",
+   "invoices": 2,
+   "invoiced": 1367,
+   "paid": 1367,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-08",
+   "invoices": 39,
+   "invoiced": 157054,
+   "paid": 157054,
+   "avg_days_to_pay": 0.13,
+   "avg_attempts": 1.03
+  },
+  {
+   "month": "2022-10",
+   "invoices": 3,
+   "invoiced": 1036,
+   "paid": 1036,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-11",
+   "invoices": 4,
+   "invoiced": 4616,
+   "paid": 4616,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2022-12",
+   "invoices": 2,
+   "invoiced": 1576,
+   "paid": 1576,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-01",
+   "invoices": 9,
+   "invoiced": 67961,
+   "paid": 67961,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-02",
+   "invoices": 6,
+   "invoiced": 3603,
+   "paid": 3603,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-03",
+   "invoices": 5,
+   "invoiced": 135842,
+   "paid": 135842,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-04",
+   "invoices": 5,
+   "invoiced": 2439,
+   "paid": 2439,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-05",
+   "invoices": 4,
+   "invoiced": 3394,
+   "paid": 3394,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-06",
+   "invoices": 6,
+   "invoiced": 4459,
+   "paid": 4459,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-07",
+   "invoices": 2,
+   "invoiced": 1367,
+   "paid": 1367,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-08",
+   "invoices": 40,
+   "invoiced": 158252,
+   "paid": 158252,
+   "avg_days_to_pay": 0.13,
+   "avg_attempts": 1.02
+  },
+  {
+   "month": "2023-10",
+   "invoices": 5,
+   "invoiced": 1509,
+   "paid": 1509,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-11",
+   "invoices": 6,
+   "invoiced": 7768,
+   "paid": 7768,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2023-12",
+   "invoices": 4,
+   "invoiced": 4052,
+   "paid": 4052,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-01",
+   "invoices": 12,
+   "invoiced": 72389,
+   "paid": 72389,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-02",
+   "invoices": 9,
+   "invoiced": 5150,
+   "paid": 5150,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-03",
+   "invoices": 7,
+   "invoiced": 91107,
+   "paid": 91107,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-04",
+   "invoices": 9,
+   "invoiced": 4608,
+   "paid": 4608,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-05",
+   "invoices": 4,
+   "invoiced": 3620,
+   "paid": 3620,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-06",
+   "invoices": 7,
+   "invoiced": 4977,
+   "paid": 4977,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-07",
+   "invoices": 2,
+   "invoiced": 1456,
+   "paid": 1456,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-08",
+   "invoices": 42,
+   "invoiced": 170305,
+   "paid": 170305,
+   "avg_days_to_pay": 0.13,
+   "avg_attempts": 1.02
+  },
+  {
+   "month": "2024-10",
+   "invoices": 8,
+   "invoiced": 6117,
+   "paid": 6081,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-11",
+   "invoices": 10,
+   "invoiced": 15480,
+   "paid": 15480,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2024-12",
+   "invoices": 8,
+   "invoiced": 5958,
+   "paid": 5958,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-01",
+   "invoices": 18,
+   "invoiced": 81453,
+   "paid": 81453,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-02",
+   "invoices": 12,
+   "invoiced": 8180,
+   "paid": 8120,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-03",
+   "invoices": 9,
+   "invoiced": 99140,
+   "paid": 99140,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-04",
+   "invoices": 11,
+   "invoiced": 5670,
+   "paid": 5514,
+   "avg_days_to_pay": 0.27,
+   "avg_attempts": 1.09
+  },
+  {
+   "month": "2025-05",
+   "invoices": 7,
+   "invoiced": 6493,
+   "paid": 6493,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-06",
+   "invoices": 9,
+   "invoiced": 6994,
+   "paid": 6718,
+   "avg_days_to_pay": 0.53,
+   "avg_attempts": 1.22
+  },
+  {
+   "month": "2025-07",
+   "invoices": 3,
+   "invoiced": 1591,
+   "paid": 1591,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-08",
+   "invoices": 47,
+   "invoiced": 172702,
+   "paid": 172702,
+   "avg_days_to_pay": 0.21,
+   "avg_attempts": 1.06
+  },
+  {
+   "month": "2025-09",
+   "invoices": 1,
+   "invoiced": 1121,
+   "paid": 1121,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-10",
+   "invoices": 12,
+   "invoiced": 14352,
+   "paid": 14352,
+   "avg_days_to_pay": 0.25,
+   "avg_attempts": 1.08
+  },
+  {
+   "month": "2025-11",
+   "invoices": 13,
+   "invoiced": 17540,
+   "paid": 17540,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2025-12",
+   "invoices": 13,
+   "invoiced": 9408,
+   "paid": 9408,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2026-01",
+   "invoices": 20,
+   "invoiced": 161360,
+   "paid": 161360,
+   "avg_days_to_pay": 0.38,
+   "avg_attempts": 1.15
+  },
+  {
+   "month": "2026-02",
+   "invoices": 16,
+   "invoiced": 12504,
+   "paid": 12504,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2026-03",
+   "invoices": 12,
+   "invoiced": 211064,
+   "paid": 211064,
+   "avg_days_to_pay": 0.25,
+   "avg_attempts": 1.08
+  },
+  {
+   "month": "2026-04",
+   "invoices": 14,
+   "invoiced": 7656,
+   "paid": 7656,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2026-05",
+   "invoices": 10,
+   "invoiced": 11400,
+   "paid": 11400,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2026-06",
+   "invoices": 13,
+   "invoiced": 12408,
+   "paid": 12408,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2026-07",
+   "invoices": 8,
+   "invoiced": 5544,
+   "paid": 5544,
+   "avg_days_to_pay": 0.08,
+   "avg_attempts": 1
+  },
+  {
+   "month": "2026-08",
+   "invoices": 61,
+   "invoiced": 191044,
+   "paid": 191044,
+   "avg_days_to_pay": 0.18,
+   "avg_attempts": 1.05
+  },
+  {
+   "month": "2026-09",
+   "invoices": 392,
+   "invoiced": 45335,
+   "paid": 45335,
+   "avg_days_to_pay": 0.13,
+   "avg_attempts": 1.02
+  }
+ ],
+ "payment_speed": [
+  {
+   "customer": "Cindershore Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1681,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ferndell Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderstead Alderbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Atlaspeak Care",
+   "segment": "enterprise",
+   "billing_cadence": "quarterly",
+   "payment_days": 30,
+   "contract_value": 129000,
+   "pays": "16–30 days"
+  },
+  {
+   "customer": "Aspenlake Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedshore Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetterra Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosebrook Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covepath Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperridge Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnhall Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatecombe Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagebury Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppermark Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 560,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covefield Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernmere Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highhollow Alderbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenbend Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowfield Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarmere Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenhall Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sageford Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthwater Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenland Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowstone Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonforge Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadestream Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rivermere Retail",
+   "segment": "enterprise",
+   "billing_cadence": "quarterly",
+   "payment_days": 30,
+   "contract_value": 96000,
+   "pays": "16–30 days"
+  },
+  {
+   "customer": "Greenbury Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudwell Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthmere Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroralane Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everspring Alderbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coverock Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterstream Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowbay Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 673,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchgrove Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowworth Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthhill Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowbury Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosedale Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainway Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenrock Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterworth Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowmere Alderbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedstead Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrbend Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawndale Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudvale Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnbrook Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspencoast Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarpeak Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenbury Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrcliff Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadehollow Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppermark Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppermere Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnpath Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalspring Alderbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterdale Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenstrand Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarbay Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainpoint Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarbarrow Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppercrest Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Irondale Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aurorahall Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestheath Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonedge Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northhaven Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 372,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenisle Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchpoint Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainbay Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblepath Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarforge Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonbridge Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblebarrow Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthridge Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairncape Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ferncombe Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Evergate Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverspring Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianreach Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmport Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greengrove Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonewick Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pineland Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedwick Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinethorn Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroraford Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagelake Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldport Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatepoint Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whiteshore Alderbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagemere Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironcape Alderbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblebend Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinepoint Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarwater Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldcliff Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadebay Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldyard Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironstream Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenstead Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthway Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowstone Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reededge Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatestrand Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernforge Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosemount Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Olivespring Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppermoor Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarway Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cindercoast Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Foreststream Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalpath Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianstead Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetdell Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarstone Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadeshore Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1121,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarmark Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silvermount Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aurorafall Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainhill Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnedge Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudmark Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Wintercape Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchbrook Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coveterra Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadestrand Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadestead Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenworth Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmstrand Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadehaven Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftview Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosecombe Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowbarrow Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenmere Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnglen Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmshore Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernhaven Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestdale Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowmill Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solaryard Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderdell Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperbrook Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterpath Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorport Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marbleport Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorcoast Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftshore Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 561,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowtrail Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairncombe Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironedge Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowbarrow Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowcape Alderbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aurorabrook Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatedale Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowwater Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnstream Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coveedge Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenisle Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1681,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Foxmill Education",
+   "segment": "enterprise",
+   "billing_cadence": "annual",
+   "payment_days": 30,
+   "contract_value": 79000,
+   "pays": "16–30 days"
+  },
+  {
+   "customer": "Marblebrook Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnheath Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnrock Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Mosspeak Network",
+   "segment": "enterprise",
+   "billing_cadence": "annual",
+   "payment_days": 30,
+   "contract_value": 47000,
+   "pays": "16–30 days"
+  },
+  {
+   "customer": "Meridianlake Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covelane Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 336,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitespring Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowport Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadeedge Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderrock Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderbay Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2241,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudwell Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterhall Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenridge Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderwood Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinereach Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sageterra Alderbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northbrook Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagebank Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 135,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marbleterra Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrbay Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnwell Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderwater Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowwell Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarvale Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudmere Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Drifttrail Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestedge Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarstone Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonemarsh Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 673,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderview Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slateedge Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marbleyard Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblecross Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slateport Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldvale Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainmere Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrshore Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldcliff Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greendale Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarcrest Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderfall Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinerock Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagemark Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterwick Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 774,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnbury Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenbury Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroraforge Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinemount Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cindermere Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderport Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whiteisle Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmthorn Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterbrook Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinewater Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnmere Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedhill Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonbarrow Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedworth Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedforge Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterhollow Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonecrest Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchterra Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironbury Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitevale Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalpath Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderstead Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarthorn Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnpeak Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverford Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetglen Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironstead Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenwick Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinespring Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadewater Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everbridge Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorbay Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitridge Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblegrove Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldermoor Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrmere Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftmere Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadeterra Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covebrook Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinecliff Alderbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aurorabarrow Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northbarrow Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestcape Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitpoint Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosegate Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernworth Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinefield Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianvale Alderbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmforge Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystoneisle Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitvale Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmridge Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ferncrest Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenmill Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedbarrow Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudmount Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverview Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironfield Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrcape Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudterra Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadebarrow Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestworth Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnedge Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderbury Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonbank Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetspring Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowvale Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jademount Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterstead Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudreach Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmstream Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonstrand Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderhill Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderstone Alderbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatestead Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Irondale Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestlane Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroramill Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenbend Alderbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblereach Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1121,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenforge Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosedell Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestland Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthkeep Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblemill Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarpoint Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solaryard Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosestone Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironbay Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterford Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverwick Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1681,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverhollow Alderbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagehill Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetstead Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchcliff Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnforge Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Wintergrove Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrmount Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmcoast Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppervale Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawncoast Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winteryard Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudhollow Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cedarmill Commerce",
+   "segment": "enterprise",
+   "billing_cadence": "annual",
+   "payment_days": 45,
+   "contract_value": 281000,
+   "pays": "Over 30 days"
+  },
+  {
+   "customer": "Rainheath Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblecliff Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrtrail Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everpoint Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnpoint Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whiteview Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetbridge Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblemount Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperbend Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblespring Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northstrand Labs",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowcross Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonewater Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainstrand Alderbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitebank Software",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinecross Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridiancrest Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftdell Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrfall Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorbarrow Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterfield Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Wintermarsh Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblebend Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianbury Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidaldale Alderbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadefall Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinebay Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudfield Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagehaven Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmwell Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroracross Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marbleport Alderbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatemount Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinebank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernstream Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowvale Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldfall Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperstone Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonepath Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadehaven Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrmill Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthbridge Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnbay Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarwater Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetpoint Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrbridge Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitehill Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marbleheath Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmridge Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperland Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northport Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrpath Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblestream Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorisle Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosemoor Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainstream Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldforge Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterwood Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmmarsh Alderbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrmarsh Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covemill Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covebury Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenstead Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironmarsh Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenlane Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroraglen Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironcombe Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highfield Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarmill Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverbrook Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonrock Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudstone Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestview Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenheath Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Foreststrand Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenland Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblegate Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarhall Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Olivegate Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrstrand Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldwater Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernbay Alderbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briaryard Labs",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidallane Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmcoast Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarkeep Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainshore Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperpath Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridiancross Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftrock Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironpath Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderstone Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderwood Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenway Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperterra Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowstream Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverport Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterdell Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalcliff Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highpoint Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosepath Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperlake Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenreach Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroragate Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldermount Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Mooncross Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenbay Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Pinehollow Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Mooncape Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystoneyard Alderbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblehall Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetlane Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudcrest Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnglen Alderbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnisle Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Olivespring Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedgate Alderbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowwood Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitedale Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aurorastone Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenpoint Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northrock Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highbridge Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldgate Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestshore Alderbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everspring Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whiteway Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftbridge Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetpoint Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Roseland Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northcombe Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jaderidge Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainthorn Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenridge Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainpoint Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitecrest Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrbrook Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianpeak Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowkeep Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatelane Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverstream Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 155,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridiandale Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenwater Project",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonedge Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderdell Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestthorn Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedterra Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenrock Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorbury Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northview Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridiancoast Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironhollow Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironlane Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarreach Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalheath Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnkeep Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrheath Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestreach Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedstone Alderbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Roseterra Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Foresthollow Acornbank Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironmere Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperford Alderbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystoneway Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonegrove Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonepoint Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenstone Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestfield Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainstream Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagecombe Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Olivebank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalisle Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 560,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitstead Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowhollow Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northmark Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northhollow Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenmarsh Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silvergrove Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorstrand Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatefall Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalpeak Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppershore Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowdale Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenisle Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrford Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Solarport Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covestream Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northisle Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthhollow Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystoneyard Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnmere Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetforge Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonegrove Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldercliff Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarwell Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldercoast Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnmill Alderbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderreach Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironpoint Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalforge Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftterra Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnpoint Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainspring Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagevale Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudglen Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmpoint Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetmark Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everbarrow Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchordale Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainisle Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianstream Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatehaven Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblestead Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnmount Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Roseyard Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covecrest Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cindercross Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highmarsh Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northbury Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whiteedge Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterheath Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestpoint Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonland Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainland Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernwater Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highstream Alderbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarmoor Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverlane Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenglen Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greencross Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everwater Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainford Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowrock Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitbay Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblewater Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchmark Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorhall Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnshore Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarhollow Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestbay Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldercoast Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderford Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northgrove Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highmere Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitpath Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jademarsh Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridiancoast Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenstone Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernthorn Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchdell Acornbank Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridiangate Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everridge Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldbarrow Alderbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetwick Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrridge Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Auroraisle Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonewater Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Wintercross Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppermill Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairncliff Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1084,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sagestrand Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestcape Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverheath Acornbank Project",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coveworth Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthstone Acornbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblelane Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covemark Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northhall Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchstrand Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudbrook Alderbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthglen Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorgrove Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldwood Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Everstrand Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawncoast Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadecape Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Goldcombe Alderbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftstone Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Arrowvale Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblestream Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Zephyrmark Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetbank Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernhill Acornbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppervale Creative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonemoor Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperwick Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppercombe Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironland Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorbrook Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covebay Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonbrook Alderbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Reedbarrow Alderbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonebend Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchorport Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitwell Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Moonport Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2241,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cindercombe Alderbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covemark Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderhollow Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarstrand Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Hearthhall Acornbank Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderland Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterterra Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cindercrest Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Atlasmere Publishing",
+   "segment": "enterprise",
+   "billing_cadence": "annual",
+   "payment_days": 30,
+   "contract_value": 58000,
+   "pays": "16–30 days"
+  },
+  {
+   "customer": "Marblestone Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Anchordell Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldermount Alderbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenstead Partners",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestland Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderbay Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonebrook Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Greenbridge Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystonestrand Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Copperbay Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Keystoneridge Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainfield Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestbridge Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northcliff Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rosespring Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whiteport Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestlane Acornbank Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderdell Acornbank Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnhill Alderbank Services",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblerock Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitkeep Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterstone Acornbank Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Alderhaven Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchkeep Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Jadecoast Media",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cinderheath Partners",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cloudcliff Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Timbermark Collective",
+   "segment": "enterprise",
+   "billing_cadence": "annual",
+   "payment_days": 45,
+   "contract_value": 75000,
+   "pays": "Over 30 days"
+  },
+  {
+   "customer": "Keystonevale Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainbury Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Sageshore Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Ironwater Services",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covewood Acornbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Dawnhollow Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianhill Design",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Cairnhaven Practice",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Slatebay Company",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Willowlake Alderbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 240,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aldergate Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Birchbend Press",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briarheath Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmhollow Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitstream Press",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Winterreach Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Forestcliff Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitereach Advisory",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Olivemark Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblebridge Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Wintercliff Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Rainport Creative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverbend Alderbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Silverport Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Driftcrest Acornbank Company",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Highbend Acornbank Media",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitespring Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Whitewick Alderbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Lindenspring Acornbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Tidalgate Acornbank Design",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Northpath Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Violetkeep Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Meridianpoint Alderbank Agency",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 2400,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenyard Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Mooncombe Acornbank Labs",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmmarsh Initiative",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 600,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Covecliff Works",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 360,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Aspenport Acornbank Foundation",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 720,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Fernbend Alderbank Consulting",
+   "segment": "self_serve",
+   "billing_cadence": "annual",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Marblemarsh Acornbank Works",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Briargrove Alderbank Software",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1200,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Elmstream Acornbank Studio",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 144,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Coppercoast Acornbank Collective",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 960,
+   "pays": "On receipt"
+  },
+  {
+   "customer": "Summitwater Company",
+   "segment": "self_serve",
+   "billing_cadence": "monthly",
+   "payment_days": 0,
+   "contract_value": 1800,
+   "pays": "On receipt"
+  }
+ ]
+}

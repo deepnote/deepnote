@@ -1,0 +1,114 @@
+[
+  {
+    "name": "billing",
+    "snapshot": "pagemantle/snapshots/billing.json",
+    "notebook": "pagemantle/notebooks/billing.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "content",
+    "snapshot": "pagemantle/snapshots/content.json",
+    "notebook": "pagemantle/notebooks/content.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "customers",
+    "snapshot": "pagemantle/snapshots/customers.json",
+    "notebook": "pagemantle/notebooks/customers.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "hosting",
+    "snapshot": "pagemantle/snapshots/hosting.json",
+    "notebook": "pagemantle/notebooks/hosting.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "meetings",
+    "snapshot": "pagemantle/snapshots/meetings.json",
+    "notebook": "pagemantle/notebooks/meetings.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "product_usage",
+    "snapshot": "pagemantle/snapshots/product_usage.json",
+    "notebook": "pagemantle/notebooks/product_usage.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "publishing",
+    "snapshot": "pagemantle/snapshots/publishing.json",
+    "notebook": "pagemantle/notebooks/publishing.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "sales",
+    "snapshot": "pagemantle/snapshots/sales.json",
+    "notebook": "pagemantle/notebooks/sales.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "search",
+    "snapshot": "pagemantle/snapshots/search.json",
+    "notebook": "pagemantle/notebooks/search.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "site_performance",
+    "snapshot": "pagemantle/snapshots/site_performance.json",
+    "notebook": "pagemantle/notebooks/site_performance.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "slack",
+    "snapshot": "pagemantle/snapshots/slack.json",
+    "notebook": "pagemantle/notebooks/slack.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "support",
+    "snapshot": "pagemantle/snapshots/support.json",
+    "notebook": "pagemantle/notebooks/support.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "tasks",
+    "snapshot": "pagemantle/snapshots/tasks.json",
+    "notebook": "pagemantle/notebooks/tasks.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  },
+  {
+    "name": "web_traffic",
+    "snapshot": "pagemantle/snapshots/web_traffic.json",
+    "notebook": "pagemantle/notebooks/web_traffic.deepnote",
+    "inputs": {
+      "dataset": "sample"
+    }
+  }
+]

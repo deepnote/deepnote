@@ -1,0 +1,3061 @@
+{
+ "dataset": {
+  "mode": "sample",
+  "note": "every 10th request (totals are about a tenth)"
+ },
+ "period": "2026-09-01 to 2026-09-30",
+ "summary": {
+  "requests": 164457,
+  "gb": 0.821,
+  "server_error_rate": 0.01001,
+  "client_error_rate": 0.01957,
+  "median_ms": 34,
+  "p95_ms": 87,
+  "slow_share": 0.00002,
+  "cache_hit_rate": 0.7208
+ },
+ "daily": [
+  {
+   "day": "2026-09-01",
+   "requests": 5287,
+   "gb": 0.026,
+   "server_error_rate": 0.0091,
+   "client_error_rate": 0.0185,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7155
+  },
+  {
+   "day": "2026-09-02",
+   "requests": 5814,
+   "gb": 0.029,
+   "server_error_rate": 0.0102,
+   "client_error_rate": 0.0186,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0.0002,
+   "cache_hit_rate": 0.7171
+  },
+  {
+   "day": "2026-09-03",
+   "requests": 6017,
+   "gb": 0.03,
+   "server_error_rate": 0.0108,
+   "client_error_rate": 0.0208,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.721
+  },
+  {
+   "day": "2026-09-04",
+   "requests": 5638,
+   "gb": 0.028,
+   "server_error_rate": 0.0122,
+   "client_error_rate": 0.0195,
+   "median_ms": 33,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7254
+  },
+  {
+   "day": "2026-09-05",
+   "requests": 5466,
+   "gb": 0.027,
+   "server_error_rate": 0.0079,
+   "client_error_rate": 0.0183,
+   "median_ms": 33,
+   "p95_ms": 87,
+   "slow_share": 0.0002,
+   "cache_hit_rate": 0.7267
+  },
+  {
+   "day": "2026-09-06",
+   "requests": 4885,
+   "gb": 0.024,
+   "server_error_rate": 0.0129,
+   "client_error_rate": 0.0223,
+   "median_ms": 34,
+   "p95_ms": 90,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7128
+  },
+  {
+   "day": "2026-09-07",
+   "requests": 6281,
+   "gb": 0.032,
+   "server_error_rate": 0.0086,
+   "client_error_rate": 0.0191,
+   "median_ms": 33,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7188
+  },
+  {
+   "day": "2026-09-08",
+   "requests": 5588,
+   "gb": 0.028,
+   "server_error_rate": 0.0104,
+   "client_error_rate": 0.0211,
+   "median_ms": 33,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7194
+  },
+  {
+   "day": "2026-09-09",
+   "requests": 6062,
+   "gb": 0.03,
+   "server_error_rate": 0.0101,
+   "client_error_rate": 0.0203,
+   "median_ms": 33,
+   "p95_ms": 88,
+   "slow_share": 0.0002,
+   "cache_hit_rate": 0.7257
+  },
+  {
+   "day": "2026-09-10",
+   "requests": 5246,
+   "gb": 0.026,
+   "server_error_rate": 0.0101,
+   "client_error_rate": 0.0204,
+   "median_ms": 34,
+   "p95_ms": 91,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7108
+  },
+  {
+   "day": "2026-09-11",
+   "requests": 5325,
+   "gb": 0.026,
+   "server_error_rate": 0.0133,
+   "client_error_rate": 0.0176,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7129
+  },
+  {
+   "day": "2026-09-12",
+   "requests": 5176,
+   "gb": 0.026,
+   "server_error_rate": 0.0104,
+   "client_error_rate": 0.0164,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7228
+  },
+  {
+   "day": "2026-09-13",
+   "requests": 5282,
+   "gb": 0.026,
+   "server_error_rate": 0.0098,
+   "client_error_rate": 0.0203,
+   "median_ms": 34,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7177
+  },
+  {
+   "day": "2026-09-14",
+   "requests": 5371,
+   "gb": 0.027,
+   "server_error_rate": 0.0086,
+   "client_error_rate": 0.0177,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7045
+  },
+  {
+   "day": "2026-09-15",
+   "requests": 5520,
+   "gb": 0.028,
+   "server_error_rate": 0.0118,
+   "client_error_rate": 0.0188,
+   "median_ms": 34,
+   "p95_ms": 90,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7201
+  },
+  {
+   "day": "2026-09-16",
+   "requests": 5702,
+   "gb": 0.028,
+   "server_error_rate": 0.0105,
+   "client_error_rate": 0.0205,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7171
+  },
+  {
+   "day": "2026-09-17",
+   "requests": 5776,
+   "gb": 0.029,
+   "server_error_rate": 0.0116,
+   "client_error_rate": 0.0184,
+   "median_ms": 34,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7268
+  },
+  {
+   "day": "2026-09-18",
+   "requests": 5163,
+   "gb": 0.026,
+   "server_error_rate": 0.0093,
+   "client_error_rate": 0.0178,
+   "median_ms": 33,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7273
+  },
+  {
+   "day": "2026-09-19",
+   "requests": 5250,
+   "gb": 0.027,
+   "server_error_rate": 0.0086,
+   "client_error_rate": 0.0211,
+   "median_ms": 33,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.731
+  },
+  {
+   "day": "2026-09-20",
+   "requests": 5128,
+   "gb": 0.026,
+   "server_error_rate": 0.0111,
+   "client_error_rate": 0.0207,
+   "median_ms": 34,
+   "p95_ms": 91,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7065
+  },
+  {
+   "day": "2026-09-21",
+   "requests": 5575,
+   "gb": 0.028,
+   "server_error_rate": 0.0095,
+   "client_error_rate": 0.0183,
+   "median_ms": 34,
+   "p95_ms": 83,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7227
+  },
+  {
+   "day": "2026-09-22",
+   "requests": 5774,
+   "gb": 0.029,
+   "server_error_rate": 0.0104,
+   "client_error_rate": 0.0249,
+   "median_ms": 34,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 0.729
+  },
+  {
+   "day": "2026-09-23",
+   "requests": 5945,
+   "gb": 0.03,
+   "server_error_rate": 0.0088,
+   "client_error_rate": 0.0165,
+   "median_ms": 33,
+   "p95_ms": 85,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7087
+  },
+  {
+   "day": "2026-09-24",
+   "requests": 5424,
+   "gb": 0.027,
+   "server_error_rate": 0.0094,
+   "client_error_rate": 0.0203,
+   "median_ms": 33,
+   "p95_ms": 85,
+   "slow_share": 0,
+   "cache_hit_rate": 0.726
+  },
+  {
+   "day": "2026-09-25",
+   "requests": 5687,
+   "gb": 0.028,
+   "server_error_rate": 0.0083,
+   "client_error_rate": 0.0192,
+   "median_ms": 34,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7253
+  },
+  {
+   "day": "2026-09-26",
+   "requests": 4731,
+   "gb": 0.024,
+   "server_error_rate": 0.0084,
+   "client_error_rate": 0.0199,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.722
+  },
+  {
+   "day": "2026-09-27",
+   "requests": 5443,
+   "gb": 0.028,
+   "server_error_rate": 0.0099,
+   "client_error_rate": 0.0204,
+   "median_ms": 33,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.72
+  },
+  {
+   "day": "2026-09-28",
+   "requests": 5240,
+   "gb": 0.027,
+   "server_error_rate": 0.0099,
+   "client_error_rate": 0.0208,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7296
+  },
+  {
+   "day": "2026-09-29",
+   "requests": 5347,
+   "gb": 0.026,
+   "server_error_rate": 0.0101,
+   "client_error_rate": 0.0208,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7309
+  },
+  {
+   "day": "2026-09-30",
+   "requests": 5314,
+   "gb": 0.027,
+   "server_error_rate": 0.0087,
+   "client_error_rate": 0.0179,
+   "median_ms": 33,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7281
+  }
+ ],
+ "hourly": [
+  {
+   "hour": 15,
+   "requests": 31967,
+   "gb": 0.16,
+   "server_error_rate": 0.01,
+   "client_error_rate": 0.0201,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7232
+  },
+  {
+   "hour": 16,
+   "requests": 86986,
+   "gb": 0.433,
+   "server_error_rate": 0.0104,
+   "client_error_rate": 0.0197,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7185
+  },
+  {
+   "hour": 17,
+   "requests": 21975,
+   "gb": 0.109,
+   "server_error_rate": 0.0089,
+   "client_error_rate": 0.0201,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7239
+  },
+  {
+   "hour": 18,
+   "requests": 16551,
+   "gb": 0.083,
+   "server_error_rate": 0.0086,
+   "client_error_rate": 0.019,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7249
+  },
+  {
+   "hour": 19,
+   "requests": 5953,
+   "gb": 0.03,
+   "server_error_rate": 0.0133,
+   "client_error_rate": 0.0151,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7176
+  },
+  {
+   "hour": 20,
+   "requests": 978,
+   "gb": 0.005,
+   "server_error_rate": 0.0072,
+   "client_error_rate": 0.0153,
+   "median_ms": 33,
+   "p95_ms": 83,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7239
+  },
+  {
+   "hour": 21,
+   "requests": 47,
+   "gb": 0,
+   "server_error_rate": 0.0426,
+   "client_error_rate": 0.0213,
+   "median_ms": 33,
+   "p95_ms": 128,
+   "slow_share": 0,
+   "cache_hit_rate": 0.617
+  }
+ ],
+ "regions": [
+  {
+   "region": "US East",
+   "requests": 62296,
+   "gb": 0.311,
+   "server_error_rate": 0.0102,
+   "client_error_rate": 0.0199,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7227
+  },
+  {
+   "region": "Frankfurt",
+   "requests": 41079,
+   "gb": 0.205,
+   "server_error_rate": 0.0106,
+   "client_error_rate": 0.0187,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7227
+  },
+  {
+   "region": "Sydney",
+   "requests": 23100,
+   "gb": 0.116,
+   "server_error_rate": 0.0091,
+   "client_error_rate": 0.0182,
+   "median_ms": 33,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7139
+  },
+  {
+   "region": "Singapore",
+   "requests": 21284,
+   "gb": 0.105,
+   "server_error_rate": 0.0096,
+   "client_error_rate": 0.0212,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7197
+  },
+  {
+   "region": "São Paulo",
+   "requests": 16698,
+   "gb": 0.084,
+   "server_error_rate": 0.0095,
+   "client_error_rate": 0.0205,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0.0001,
+   "cache_hit_rate": 0.7199
+  }
+ ],
+ "cache": [
+  {
+   "cache_status": "hit",
+   "requests": 118536,
+   "gb": 0.591,
+   "server_error_rate": 0.0098,
+   "client_error_rate": 0.0194,
+   "median_ms": 34,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "cache_status": "miss",
+   "requests": 32829,
+   "gb": 0.164,
+   "server_error_rate": 0.0109,
+   "client_error_rate": 0.0209,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  },
+  {
+   "cache_status": "bypass",
+   "requests": 9828,
+   "gb": 0.049,
+   "server_error_rate": 0.0099,
+   "client_error_rate": 0.0177,
+   "median_ms": 34,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  },
+  {
+   "cache_status": "stale",
+   "requests": 3264,
+   "gb": 0.016,
+   "server_error_rate": 0.0092,
+   "client_error_rate": 0.0175,
+   "median_ms": 34,
+   "p95_ms": 85,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  }
+ ],
+ "status_codes": [
+  {
+   "status_code": 200,
+   "kind": "OK",
+   "requests": 148228
+  },
+  {
+   "status_code": 304,
+   "kind": "OK",
+   "requests": 6510
+  },
+  {
+   "status_code": 204,
+   "kind": "OK",
+   "requests": 4854
+  },
+  {
+   "status_code": 500,
+   "kind": "Server error",
+   "requests": 1647
+  },
+  {
+   "status_code": 429,
+   "kind": "Client error",
+   "requests": 1618
+  },
+  {
+   "status_code": 404,
+   "kind": "Client error",
+   "requests": 1600
+  }
+ ],
+ "errors_daily": [
+  {
+   "day": "2026-09-01",
+   "status": "429",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-01",
+   "status": "500",
+   "requests": 48
+  },
+  {
+   "day": "2026-09-01",
+   "status": "404",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-02",
+   "status": "404",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-02",
+   "status": "500",
+   "requests": 59
+  },
+  {
+   "day": "2026-09-02",
+   "status": "429",
+   "requests": 59
+  },
+  {
+   "day": "2026-09-03",
+   "status": "429",
+   "requests": 73
+  },
+  {
+   "day": "2026-09-03",
+   "status": "500",
+   "requests": 65
+  },
+  {
+   "day": "2026-09-03",
+   "status": "404",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-04",
+   "status": "500",
+   "requests": 69
+  },
+  {
+   "day": "2026-09-04",
+   "status": "429",
+   "requests": 45
+  },
+  {
+   "day": "2026-09-04",
+   "status": "404",
+   "requests": 65
+  },
+  {
+   "day": "2026-09-05",
+   "status": "500",
+   "requests": 43
+  },
+  {
+   "day": "2026-09-05",
+   "status": "404",
+   "requests": 48
+  },
+  {
+   "day": "2026-09-05",
+   "status": "429",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-06",
+   "status": "404",
+   "requests": 63
+  },
+  {
+   "day": "2026-09-06",
+   "status": "500",
+   "requests": 63
+  },
+  {
+   "day": "2026-09-06",
+   "status": "429",
+   "requests": 46
+  },
+  {
+   "day": "2026-09-07",
+   "status": "500",
+   "requests": 54
+  },
+  {
+   "day": "2026-09-07",
+   "status": "404",
+   "requests": 62
+  },
+  {
+   "day": "2026-09-07",
+   "status": "429",
+   "requests": 58
+  },
+  {
+   "day": "2026-09-08",
+   "status": "429",
+   "requests": 55
+  },
+  {
+   "day": "2026-09-08",
+   "status": "500",
+   "requests": 58
+  },
+  {
+   "day": "2026-09-08",
+   "status": "404",
+   "requests": 63
+  },
+  {
+   "day": "2026-09-09",
+   "status": "404",
+   "requests": 61
+  },
+  {
+   "day": "2026-09-09",
+   "status": "500",
+   "requests": 61
+  },
+  {
+   "day": "2026-09-09",
+   "status": "429",
+   "requests": 62
+  },
+  {
+   "day": "2026-09-10",
+   "status": "404",
+   "requests": 57
+  },
+  {
+   "day": "2026-09-10",
+   "status": "429",
+   "requests": 50
+  },
+  {
+   "day": "2026-09-10",
+   "status": "500",
+   "requests": 53
+  },
+  {
+   "day": "2026-09-11",
+   "status": "500",
+   "requests": 71
+  },
+  {
+   "day": "2026-09-11",
+   "status": "429",
+   "requests": 54
+  },
+  {
+   "day": "2026-09-11",
+   "status": "404",
+   "requests": 40
+  },
+  {
+   "day": "2026-09-12",
+   "status": "404",
+   "requests": 43
+  },
+  {
+   "day": "2026-09-12",
+   "status": "500",
+   "requests": 54
+  },
+  {
+   "day": "2026-09-12",
+   "status": "429",
+   "requests": 42
+  },
+  {
+   "day": "2026-09-13",
+   "status": "500",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-13",
+   "status": "404",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-13",
+   "status": "429",
+   "requests": 55
+  },
+  {
+   "day": "2026-09-14",
+   "status": "404",
+   "requests": 40
+  },
+  {
+   "day": "2026-09-14",
+   "status": "429",
+   "requests": 55
+  },
+  {
+   "day": "2026-09-14",
+   "status": "500",
+   "requests": 46
+  },
+  {
+   "day": "2026-09-15",
+   "status": "404",
+   "requests": 51
+  },
+  {
+   "day": "2026-09-15",
+   "status": "500",
+   "requests": 65
+  },
+  {
+   "day": "2026-09-15",
+   "status": "429",
+   "requests": 53
+  },
+  {
+   "day": "2026-09-16",
+   "status": "500",
+   "requests": 60
+  },
+  {
+   "day": "2026-09-16",
+   "status": "404",
+   "requests": 48
+  },
+  {
+   "day": "2026-09-16",
+   "status": "429",
+   "requests": 69
+  },
+  {
+   "day": "2026-09-17",
+   "status": "500",
+   "requests": 67
+  },
+  {
+   "day": "2026-09-17",
+   "status": "429",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-17",
+   "status": "404",
+   "requests": 57
+  },
+  {
+   "day": "2026-09-18",
+   "status": "500",
+   "requests": 48
+  },
+  {
+   "day": "2026-09-18",
+   "status": "429",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-18",
+   "status": "404",
+   "requests": 40
+  },
+  {
+   "day": "2026-09-19",
+   "status": "500",
+   "requests": 45
+  },
+  {
+   "day": "2026-09-19",
+   "status": "404",
+   "requests": 56
+  },
+  {
+   "day": "2026-09-19",
+   "status": "429",
+   "requests": 55
+  },
+  {
+   "day": "2026-09-20",
+   "status": "429",
+   "requests": 60
+  },
+  {
+   "day": "2026-09-20",
+   "status": "500",
+   "requests": 57
+  },
+  {
+   "day": "2026-09-20",
+   "status": "404",
+   "requests": 46
+  },
+  {
+   "day": "2026-09-21",
+   "status": "404",
+   "requests": 45
+  },
+  {
+   "day": "2026-09-21",
+   "status": "500",
+   "requests": 53
+  },
+  {
+   "day": "2026-09-21",
+   "status": "429",
+   "requests": 57
+  },
+  {
+   "day": "2026-09-22",
+   "status": "429",
+   "requests": 75
+  },
+  {
+   "day": "2026-09-22",
+   "status": "404",
+   "requests": 69
+  },
+  {
+   "day": "2026-09-22",
+   "status": "500",
+   "requests": 60
+  },
+  {
+   "day": "2026-09-23",
+   "status": "500",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-23",
+   "status": "429",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-23",
+   "status": "404",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-24",
+   "status": "500",
+   "requests": 51
+  },
+  {
+   "day": "2026-09-24",
+   "status": "404",
+   "requests": 55
+  },
+  {
+   "day": "2026-09-24",
+   "status": "429",
+   "requests": 55
+  },
+  {
+   "day": "2026-09-25",
+   "status": "404",
+   "requests": 60
+  },
+  {
+   "day": "2026-09-25",
+   "status": "429",
+   "requests": 49
+  },
+  {
+   "day": "2026-09-25",
+   "status": "500",
+   "requests": 47
+  },
+  {
+   "day": "2026-09-26",
+   "status": "429",
+   "requests": 38
+  },
+  {
+   "day": "2026-09-26",
+   "status": "500",
+   "requests": 40
+  },
+  {
+   "day": "2026-09-26",
+   "status": "404",
+   "requests": 56
+  },
+  {
+   "day": "2026-09-27",
+   "status": "500",
+   "requests": 54
+  },
+  {
+   "day": "2026-09-27",
+   "status": "404",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-27",
+   "status": "429",
+   "requests": 59
+  },
+  {
+   "day": "2026-09-28",
+   "status": "429",
+   "requests": 47
+  },
+  {
+   "day": "2026-09-28",
+   "status": "404",
+   "requests": 62
+  },
+  {
+   "day": "2026-09-28",
+   "status": "500",
+   "requests": 52
+  },
+  {
+   "day": "2026-09-29",
+   "status": "429",
+   "requests": 46
+  },
+  {
+   "day": "2026-09-29",
+   "status": "500",
+   "requests": 54
+  },
+  {
+   "day": "2026-09-29",
+   "status": "404",
+   "requests": 65
+  },
+  {
+   "day": "2026-09-30",
+   "status": "404",
+   "requests": 45
+  },
+  {
+   "day": "2026-09-30",
+   "status": "500",
+   "requests": 46
+  },
+  {
+   "day": "2026-09-30",
+   "status": "429",
+   "requests": 50
+  }
+ ],
+ "error_paths": [
+  {
+   "path": "/",
+   "requests": 27466,
+   "server_errors": 275,
+   "not_found": 270,
+   "rate_limited": 294,
+   "error_rate": 0.0305
+  },
+  {
+   "path": "/contact",
+   "requests": 27173,
+   "server_errors": 284,
+   "not_found": 288,
+   "rate_limited": 265,
+   "error_rate": 0.0308
+  },
+  {
+   "path": "/assets/app.js",
+   "requests": 27543,
+   "server_errors": 266,
+   "not_found": 288,
+   "rate_limited": 276,
+   "error_rate": 0.0301
+  },
+  {
+   "path": "/pricing",
+   "requests": 27569,
+   "server_errors": 292,
+   "not_found": 251,
+   "rate_limited": 257,
+   "error_rate": 0.029
+  },
+  {
+   "path": "/features",
+   "requests": 27268,
+   "server_errors": 260,
+   "not_found": 244,
+   "rate_limited": 284,
+   "error_rate": 0.0289
+  },
+  {
+   "path": "/templates",
+   "requests": 27438,
+   "server_errors": 270,
+   "not_found": 259,
+   "rate_limited": 242,
+   "error_rate": 0.0281
+  }
+ ],
+ "slow_paths": [
+  {
+   "path": "/",
+   "requests": 27466,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.718
+  },
+  {
+   "path": "/assets/app.js",
+   "requests": 27543,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7208
+  },
+  {
+   "path": "/contact",
+   "requests": 27173,
+   "p95_ms": 87,
+   "slow_share": 0.0001,
+   "cache_hit_rate": 0.7231
+  },
+  {
+   "path": "/templates",
+   "requests": 27438,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7224
+  },
+  {
+   "path": "/features",
+   "requests": 27268,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7244
+  },
+  {
+   "path": "/pricing",
+   "requests": 27569,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7161
+  }
+ ],
+ "customers": [
+  {
+   "customer": "Cedarmill Commerce",
+   "segment": "enterprise",
+   "websites": 44,
+   "requests": 834,
+   "gb": 0.004,
+   "server_error_rate": 0.0108,
+   "client_error_rate": 0.0204,
+   "median_ms": 34,
+   "p95_ms": 92,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7206
+  },
+  {
+   "customer": "Ivypoint Capital",
+   "segment": "enterprise",
+   "websites": 29,
+   "requests": 524,
+   "gb": 0.003,
+   "server_error_rate": 0.0095,
+   "client_error_rate": 0.0191,
+   "median_ms": 33,
+   "p95_ms": 83,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7004
+  },
+  {
+   "customer": "Snowland Commerce",
+   "segment": "enterprise",
+   "websites": 40,
+   "requests": 559,
+   "gb": 0.003,
+   "server_error_rate": 0.0054,
+   "client_error_rate": 0.0161,
+   "median_ms": 33,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7317
+  },
+  {
+   "customer": "Juniperpeak Group",
+   "segment": "enterprise",
+   "websites": 47,
+   "requests": 561,
+   "gb": 0.003,
+   "server_error_rate": 0.0107,
+   "client_error_rate": 0.0196,
+   "median_ms": 34,
+   "p95_ms": 92,
+   "slow_share": 0,
+   "cache_hit_rate": 0.697
+  },
+  {
+   "customer": "Harbormarsh Life Sciences",
+   "segment": "enterprise",
+   "websites": 15,
+   "requests": 329,
+   "gb": 0.002,
+   "server_error_rate": 0.003,
+   "client_error_rate": 0.0274,
+   "median_ms": 37,
+   "p95_ms": 94,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7477
+  },
+  {
+   "customer": "Wrenmarsh Financial",
+   "segment": "enterprise",
+   "websites": 30,
+   "requests": 349,
+   "gb": 0.002,
+   "server_error_rate": 0.0057,
+   "client_error_rate": 0.0143,
+   "median_ms": 34,
+   "p95_ms": 84,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6676
+  },
+  {
+   "customer": "Acornmarsh Network",
+   "segment": "enterprise",
+   "websites": 48,
+   "requests": 392,
+   "gb": 0.002,
+   "server_error_rate": 0.0051,
+   "client_error_rate": 0.0255,
+   "median_ms": 33,
+   "p95_ms": 90,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7117
+  },
+  {
+   "customer": "Flintmoor Media",
+   "segment": "enterprise",
+   "websites": 22,
+   "requests": 453,
+   "gb": 0.002,
+   "server_error_rate": 0.0044,
+   "client_error_rate": 0.0132,
+   "median_ms": 36,
+   "p95_ms": 86,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7064
+  },
+  {
+   "customer": "Windpeak Partners",
+   "segment": "enterprise",
+   "websites": 17,
+   "requests": 435,
+   "gb": 0.002,
+   "server_error_rate": 0.0138,
+   "client_error_rate": 0.0184,
+   "median_ms": 33,
+   "p95_ms": 92,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7494
+  },
+  {
+   "customer": "Mistmill Collective",
+   "segment": "enterprise",
+   "websites": 19,
+   "requests": 117,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0171,
+   "median_ms": 33,
+   "p95_ms": 62,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6752
+  },
+  {
+   "customer": "Ambermark Cloud",
+   "segment": "enterprise",
+   "websites": 18,
+   "requests": 223,
+   "gb": 0.001,
+   "server_error_rate": 0.009,
+   "client_error_rate": 0.0179,
+   "median_ms": 34,
+   "p95_ms": 83,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7085
+  },
+  {
+   "customer": "Sandmount Studios",
+   "segment": "enterprise",
+   "websites": 22,
+   "requests": 198,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0101,
+   "median_ms": 34,
+   "p95_ms": 84,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6768
+  },
+  {
+   "customer": "Ashmill Academy",
+   "segment": "enterprise",
+   "websites": 7,
+   "requests": 113,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0177,
+   "median_ms": 33,
+   "p95_ms": 94,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7876
+  },
+  {
+   "customer": "Dawnbay Advisory",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 89,
+   "gb": 0.001,
+   "server_error_rate": 0.0112,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 73,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7079
+  },
+  {
+   "customer": "Arbormoor Health",
+   "segment": "enterprise",
+   "websites": 16,
+   "requests": 275,
+   "gb": 0.001,
+   "server_error_rate": 0.0109,
+   "client_error_rate": 0.0364,
+   "median_ms": 33,
+   "p95_ms": 91,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6909
+  },
+  {
+   "customer": "Aurorafield Acornbank Creative",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 127,
+   "gb": 0.001,
+   "server_error_rate": 0.0079,
+   "client_error_rate": 0.0394,
+   "median_ms": 34,
+   "p95_ms": 101,
+   "slow_share": 0.0079,
+   "cache_hit_rate": 0.6378
+  },
+  {
+   "customer": "Meridianhill Design",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 94,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0213,
+   "median_ms": 36,
+   "p95_ms": 72,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7234
+  },
+  {
+   "customer": "Keystonemark Acornbank Studio",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 105,
+   "gb": 0.001,
+   "server_error_rate": 0.0095,
+   "client_error_rate": 0.0286,
+   "median_ms": 35,
+   "p95_ms": 75,
+   "slow_share": 0,
+   "cache_hit_rate": 0.819
+  },
+  {
+   "customer": "Ashpoint Media",
+   "segment": "enterprise",
+   "websites": 9,
+   "requests": 138,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 73,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7029
+  },
+  {
+   "customer": "Embermarsh Institute",
+   "segment": "enterprise",
+   "websites": 6,
+   "requests": 103,
+   "gb": 0.001,
+   "server_error_rate": 0.0194,
+   "client_error_rate": 0.0097,
+   "median_ms": 32,
+   "p95_ms": 79,
+   "slow_share": 0,
+   "cache_hit_rate": 0.699
+  },
+  {
+   "customer": "Sagestead Consulting",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 110,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0091,
+   "median_ms": 36,
+   "p95_ms": 85,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6727
+  },
+  {
+   "customer": "Redmill Software",
+   "segment": "enterprise",
+   "websites": 10,
+   "requests": 138,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0145,
+   "median_ms": 34,
+   "p95_ms": 91,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7174
+  },
+  {
+   "customer": "Anchorhall Studio",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 129,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0155,
+   "median_ms": 35,
+   "p95_ms": 79,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6512
+  },
+  {
+   "customer": "Highmark Acornbank Media",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 130,
+   "gb": 0.001,
+   "server_error_rate": 0.0077,
+   "client_error_rate": 0.0385,
+   "median_ms": 36,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7692
+  },
+  {
+   "customer": "Fairmount Capital",
+   "segment": "enterprise",
+   "websites": 44,
+   "requests": 268,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0224,
+   "median_ms": 34,
+   "p95_ms": 84,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7239
+  },
+  {
+   "customer": "Everfield Media",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 134,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0522,
+   "median_ms": 37,
+   "p95_ms": 93,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7015
+  },
+  {
+   "customer": "Skylane Retail",
+   "segment": "enterprise",
+   "websites": 35,
+   "requests": 207,
+   "gb": 0.001,
+   "server_error_rate": 0.0145,
+   "client_error_rate": 0.0097,
+   "median_ms": 32,
+   "p95_ms": 77,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6618
+  },
+  {
+   "customer": "Crimsonlane Software",
+   "segment": "enterprise",
+   "websites": 24,
+   "requests": 156,
+   "gb": 0.001,
+   "server_error_rate": 0.0128,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 97,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7051
+  },
+  {
+   "customer": "Sunpath Consulting",
+   "segment": "enterprise",
+   "websites": 10,
+   "requests": 94,
+   "gb": 0.001,
+   "server_error_rate": 0.0106,
+   "client_error_rate": 0,
+   "median_ms": 40,
+   "p95_ms": 77,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6596
+  },
+  {
+   "customer": "Clearmere Systems",
+   "segment": "enterprise",
+   "websites": 13,
+   "requests": 141,
+   "gb": 0.001,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0071,
+   "median_ms": 34,
+   "p95_ms": 77,
+   "slow_share": 0,
+   "cache_hit_rate": 0.695
+  },
+  {
+   "customer": "Foxpoint Technologies",
+   "segment": "enterprise",
+   "websites": 19,
+   "requests": 133,
+   "gb": 0.001,
+   "server_error_rate": 0.0301,
+   "client_error_rate": 0.0301,
+   "median_ms": 39,
+   "p95_ms": 92,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7293
+  },
+  {
+   "customer": "Southpeak Collective",
+   "segment": "enterprise",
+   "websites": 10,
+   "requests": 125,
+   "gb": 0.001,
+   "server_error_rate": 0.032,
+   "client_error_rate": 0.008,
+   "median_ms": 34,
+   "p95_ms": 85,
+   "slow_share": 0,
+   "cache_hit_rate": 0.784
+  },
+  {
+   "customer": "Sunmarsh Retail",
+   "segment": "enterprise",
+   "websites": 21,
+   "requests": 170,
+   "gb": 0.001,
+   "server_error_rate": 0.0176,
+   "client_error_rate": 0.0235,
+   "median_ms": 35,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7529
+  },
+  {
+   "customer": "Meridianmarsh Acornbank Press",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 120,
+   "gb": 0.001,
+   "server_error_rate": 0.0167,
+   "client_error_rate": 0.0083,
+   "median_ms": 31,
+   "p95_ms": 74,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7833
+  },
+  {
+   "customer": "Rivermere Retail",
+   "segment": "enterprise",
+   "websites": 19,
+   "requests": 147,
+   "gb": 0.001,
+   "server_error_rate": 0.0204,
+   "client_error_rate": 0.0408,
+   "median_ms": 34,
+   "p95_ms": 100,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7483
+  },
+  {
+   "customer": "Coveforge Consulting",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 112,
+   "gb": 0.001,
+   "server_error_rate": 0.0089,
+   "client_error_rate": 0.0268,
+   "median_ms": 34,
+   "p95_ms": 111,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6607
+  },
+  {
+   "customer": "Westmoor Health",
+   "segment": "enterprise",
+   "websites": 20,
+   "requests": 129,
+   "gb": 0.001,
+   "server_error_rate": 0.0078,
+   "client_error_rate": 0.0233,
+   "median_ms": 37,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7752
+  },
+  {
+   "customer": "Brightmoor Press",
+   "segment": "enterprise",
+   "websites": 44,
+   "requests": 276,
+   "gb": 0.001,
+   "server_error_rate": 0.0145,
+   "client_error_rate": 0.029,
+   "median_ms": 31,
+   "p95_ms": 80,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7391
+  },
+  {
+   "customer": "Quartzlane Medical",
+   "segment": "enterprise",
+   "websites": 17,
+   "requests": 186,
+   "gb": 0.001,
+   "server_error_rate": 0.0161,
+   "client_error_rate": 0.0161,
+   "median_ms": 36,
+   "p95_ms": 85,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7043
+  },
+  {
+   "customer": "Cobaltpath Network",
+   "segment": "enterprise",
+   "websites": 18,
+   "requests": 169,
+   "gb": 0.001,
+   "server_error_rate": 0.0059,
+   "client_error_rate": 0.0118,
+   "median_ms": 33,
+   "p95_ms": 90,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6805
+  },
+  {
+   "customer": "Greenfall Foundation",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 11,
+   "gb": 0,
+   "server_error_rate": 0.0909,
+   "client_error_rate": 0,
+   "median_ms": 65,
+   "p95_ms": 126,
+   "slow_share": 0,
+   "cache_hit_rate": 0.9091
+  },
+  {
+   "customer": "Greenkeep Acornbank Works",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 15,
+   "gb": 0,
+   "server_error_rate": 0.0667,
+   "client_error_rate": 0,
+   "median_ms": 37,
+   "p95_ms": 73,
+   "slow_share": 0,
+   "cache_hit_rate": 0.4667
+  },
+  {
+   "customer": "Cairnbank Acornbank Agency",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 22,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 40,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6818
+  },
+  {
+   "customer": "Fernvale Software",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 26,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 39,
+   "p95_ms": 68,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7692
+  },
+  {
+   "customer": "Moonport Acornbank Works",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 28,
+   "p95_ms": 58,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Covepath Acornbank Media",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 31,
+   "p95_ms": 41,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Solarcape Acornbank Works",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 29,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 42,
+   "p95_ms": 83,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6207
+  },
+  {
+   "customer": "Zephyrdale Acornbank Media",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 43,
+   "p95_ms": 58,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Arrowstone Works",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 33,
+   "gb": 0,
+   "server_error_rate": 0.0303,
+   "client_error_rate": 0.0303,
+   "median_ms": 33,
+   "p95_ms": 83,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8182
+  },
+  {
+   "customer": "Violetmoor Agency",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 42,
+   "p95_ms": 57,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Moonhaven Company",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 66,
+   "p95_ms": 67,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6
+  },
+  {
+   "customer": "Violetmoor Acornbank Company",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 25,
+   "p95_ms": 25,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Cloudtrail Practice",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 81,
+   "gb": 0,
+   "server_error_rate": 0.0124,
+   "client_error_rate": 0.0124,
+   "median_ms": 30,
+   "p95_ms": 81,
+   "slow_share": 0,
+   "cache_hit_rate": 0.679
+  },
+  {
+   "customer": "Jadebrook Acornbank Studio",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 36,
+   "p95_ms": 46,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Slateglen Company",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 40,
+   "slow_share": 0,
+   "cache_hit_rate": 0.3333
+  },
+  {
+   "customer": "Willowvale Alderbank Studio",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 27,
+   "p95_ms": 41,
+   "slow_share": 0,
+   "cache_hit_rate": 0.3333
+  },
+  {
+   "customer": "Zephyrfall Acornbank Press",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 27,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Everrock Acornbank Studio",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 25,
+   "p95_ms": 26,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Rosebank Acornbank Works",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 32,
+   "p95_ms": 32,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Olivedale Acornbank Services",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 37,
+   "p95_ms": 51,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Anchorthorn Acornbank Works",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 17,
+   "p95_ms": 25,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5
+  },
+  {
+   "customer": "Alderterra Alderbank Studio",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 11,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 32,
+   "p95_ms": 65,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6364
+  },
+  {
+   "customer": "Hearthwood Acornbank Works",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 27,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 31,
+   "p95_ms": 73,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Hearthhollow Acornbank Services",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 75,
+   "p95_ms": 97,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8
+  },
+  {
+   "customer": "Silverhollow Alderbank Project",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 48,
+   "p95_ms": 64,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8
+  },
+  {
+   "customer": "Olivefield Acornbank Press",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 31,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 33,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7419
+  },
+  {
+   "customer": "Foresthill Foundation",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 24,
+   "p95_ms": 126,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Keystonebank Alderbank Collective",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 44,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 80,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5909
+  },
+  {
+   "customer": "Tidalgate Acornbank Design",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 28,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0357,
+   "median_ms": 35,
+   "p95_ms": 107,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7857
+  },
+  {
+   "customer": "Cloudwood Acornbank Works",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 39,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0513,
+   "median_ms": 31,
+   "p95_ms": 91,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6923
+  },
+  {
+   "customer": "Meridianisle Foundation",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 12,
+   "p95_ms": 26,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Forestwell Acornbank Studio",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0.2,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 47,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6
+  },
+  {
+   "customer": "Elmrock Acornbank Creative",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 47,
+   "p95_ms": 107,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Aspenford Design",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 12,
+   "gb": 0,
+   "server_error_rate": 0.0833,
+   "client_error_rate": 0.0833,
+   "median_ms": 30,
+   "p95_ms": 103,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Dawnfall Acornbank Media",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 7,
+   "gb": 0,
+   "server_error_rate": 0.1429,
+   "client_error_rate": 0,
+   "median_ms": 26,
+   "p95_ms": 75,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8571
+  },
+  {
+   "customer": "Goldgate Acornbank Project",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 24,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0833,
+   "median_ms": 33,
+   "p95_ms": 91,
+   "slow_share": 0,
+   "cache_hit_rate": 0.875
+  },
+  {
+   "customer": "Goldforge Acornbank Project",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 39,
+   "p95_ms": 44,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Cloudbarrow Consulting",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 14,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0714,
+   "median_ms": 40,
+   "p95_ms": 62,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7857
+  },
+  {
+   "customer": "Cindervale Alderbank Project",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 8,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 34,
+   "p95_ms": 81,
+   "slow_share": 0,
+   "cache_hit_rate": 0.875
+  },
+  {
+   "customer": "Aspenthorn Acornbank Works",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.25,
+   "median_ms": 33,
+   "p95_ms": 52,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Goldglen Acornbank Foundation",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 9,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.1111,
+   "median_ms": 33,
+   "p95_ms": 70,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7778
+  },
+  {
+   "customer": "Marblemoor Acornbank Works",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 44,
+   "p95_ms": 95,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Covewick Acornbank Project",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 45,
+   "p95_ms": 50,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5
+  },
+  {
+   "customer": "Lindenland Advisory",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 32,
+   "p95_ms": 69,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6
+  },
+  {
+   "customer": "Cairnfall Alderbank Initiative",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 23,
+   "p95_ms": 23,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Jadepoint Acornbank Agency",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 25,
+   "p95_ms": 48,
+   "slow_share": 0,
+   "cache_hit_rate": 0.3333
+  },
+  {
+   "customer": "Keystonestone Alderbank Works",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 22,
+   "p95_ms": 72,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Birchcliff Initiative",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 7,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 28,
+   "p95_ms": 46,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8571
+  },
+  {
+   "customer": "Greenview Acornbank Works",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 38,
+   "p95_ms": 68,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Lindenworth Acornbank Works",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 10,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 20,
+   "p95_ms": 107,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7
+  },
+  {
+   "customer": "Dawncape Acornbank Consulting",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 22,
+   "p95_ms": 30,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Goldhaven Acornbank Foundation",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 26,
+   "p95_ms": 71,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Hearthstead Initiative",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 38,
+   "p95_ms": 66,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Keystoneport Acornbank Studio",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 33,
+   "p95_ms": 82,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Goldbarrow Acornbank Agency",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 22,
+   "p95_ms": 22,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  },
+  {
+   "customer": "Northstrand Acornbank Works",
+   "segment": "self serve",
+   "websites": 6,
+   "requests": 65,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0308,
+   "median_ms": 37,
+   "p95_ms": 92,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7077
+  },
+  {
+   "customer": "Raingate Partners",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 48,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Whitestead Acornbank Collective",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 18,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0556,
+   "median_ms": 38,
+   "p95_ms": 96,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Whitecrest Creative",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 9,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 31,
+   "p95_ms": 58,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8889
+  },
+  {
+   "customer": "Driftview Collective",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 19,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0526,
+   "median_ms": 38,
+   "p95_ms": 71,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7895
+  },
+  {
+   "customer": "Whitegrove Works",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 31,
+   "p95_ms": 66,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Aspenkeep Acornbank Creative",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 39,
+   "p95_ms": 46,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5
+  },
+  {
+   "customer": "Willowbarrow Collective",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 47,
+   "p95_ms": 103,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Whitefall Partners",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 16,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 33,
+   "p95_ms": 88,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8125
+  },
+  {
+   "customer": "Northtrail Alderbank Studio",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 46,
+   "p95_ms": 57,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Dawnbarrow Acornbank Studio",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 39,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Fernstrand Advisory",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 21,
+   "gb": 0,
+   "server_error_rate": 0.0476,
+   "client_error_rate": 0.0476,
+   "median_ms": 32,
+   "p95_ms": 71,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8571
+  },
+  {
+   "customer": "Hearthwater Alderbank Practice",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 19,
+   "p95_ms": 24,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  },
+  {
+   "customer": "Highpath Acornbank Collective",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 9,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 30,
+   "p95_ms": 54,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5556
+  },
+  {
+   "customer": "Silvershore Alderbank Project",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 29,
+   "p95_ms": 94,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5
+  },
+  {
+   "customer": "Elmstream Acornbank Studio",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 21,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 36,
+   "p95_ms": 80,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8571
+  },
+  {
+   "customer": "Briarlake Acornbank Software",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 20,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.05,
+   "median_ms": 38,
+   "p95_ms": 89,
+   "slow_share": 0,
+   "cache_hit_rate": 0.65
+  },
+  {
+   "customer": "Anchormount Acornbank Works",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 32,
+   "p95_ms": 57,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Violetbay Consulting",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.1667,
+   "median_ms": 35,
+   "p95_ms": 46,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Birchmere Acornbank Studio",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 37,
+   "gb": 0,
+   "server_error_rate": 0.027,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 82,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7838
+  },
+  {
+   "customer": "Oakmarsh Retail",
+   "segment": "enterprise",
+   "websites": 8,
+   "requests": 76,
+   "gb": 0,
+   "server_error_rate": 0.0263,
+   "client_error_rate": 0.0132,
+   "median_ms": 28,
+   "p95_ms": 82,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7105
+  },
+  {
+   "customer": "Mooncrest Services",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 32,
+   "p95_ms": 39,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Everstrand Acornbank Agency",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 10,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 30,
+   "p95_ms": 90,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6
+  },
+  {
+   "customer": "Elmwood Acornbank Works",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 22,
+   "gb": 0,
+   "server_error_rate": 0.0454,
+   "client_error_rate": 0.0454,
+   "median_ms": 50,
+   "p95_ms": 80,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7273
+  },
+  {
+   "customer": "Dawnhill Acornbank Project",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 5,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 45,
+   "p95_ms": 77,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6
+  },
+  {
+   "customer": "Aspenpath Acornbank Project",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 40,
+   "p95_ms": 63,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Fernhollow Initiative",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 7,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 60,
+   "p95_ms": 84,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Dawnvale Alderbank Works",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 33,
+   "gb": 0,
+   "server_error_rate": 0.0303,
+   "client_error_rate": 0,
+   "median_ms": 31,
+   "p95_ms": 87,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8182
+  },
+  {
+   "customer": "Slatemere Works",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 46,
+   "p95_ms": 66,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Willowstead Acornbank Foundation",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 50,
+   "p95_ms": 75,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Driftlake Acornbank Press",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 42,
+   "p95_ms": 75,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Greenpeak Acornbank Agency",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 7,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 29,
+   "p95_ms": 96,
+   "slow_share": 0,
+   "cache_hit_rate": 0.5714
+  },
+  {
+   "customer": "Briarcrest Works",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 53,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0189,
+   "median_ms": 31,
+   "p95_ms": 65,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7358
+  },
+  {
+   "customer": "Whitemoor Acornbank Design",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 30,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 26,
+   "p95_ms": 82,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7
+  },
+  {
+   "customer": "Driftmere Acornbank Creative",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 29,
+   "p95_ms": 29,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  },
+  {
+   "customer": "Aldervale Acornbank Works",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 51,
+   "p95_ms": 129,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8333
+  },
+  {
+   "customer": "Goldyard Collective",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 18,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 40,
+   "p95_ms": 78,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8889
+  },
+  {
+   "customer": "Ironpath Acornbank Software",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 19,
+   "gb": 0,
+   "server_error_rate": 0.0526,
+   "client_error_rate": 0.0526,
+   "median_ms": 32,
+   "p95_ms": 114,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7895
+  },
+  {
+   "customer": "Aspenmarsh Acornbank Project",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 67,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 34,
+   "p95_ms": 76,
+   "slow_share": 0,
+   "cache_hit_rate": 0.791
+  },
+  {
+   "customer": "Summitcross Works",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 8,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 39,
+   "p95_ms": 68,
+   "slow_share": 0,
+   "cache_hit_rate": 0.625
+  },
+  {
+   "customer": "Cinderheath Acornbank Collective",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 41,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 33,
+   "p95_ms": 81,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6341
+  },
+  {
+   "customer": "Everhall Media",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 14,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 32,
+   "p95_ms": 63,
+   "slow_share": 0,
+   "cache_hit_rate": 0.8571
+  },
+  {
+   "customer": "Everterra Alderbank Project",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 26,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0769,
+   "median_ms": 39,
+   "p95_ms": 105,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7692
+  },
+  {
+   "customer": "Copperview Collective",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 29,
+   "p95_ms": 65,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Birchcoast Alderbank Press",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 35,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0.0286,
+   "median_ms": 31,
+   "p95_ms": 69,
+   "slow_share": 0,
+   "cache_hit_rate": 0.7429
+  },
+  {
+   "customer": "Hearthgate Acornbank Creative",
+   "segment": "self serve",
+   "websites": 4,
+   "requests": 6,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 31,
+   "p95_ms": 47,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Tidalwood Collective",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 57,
+   "p95_ms": 57,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Tidalbend Alderbank Labs",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 4,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 23,
+   "p95_ms": 36,
+   "slow_share": 0,
+   "cache_hit_rate": 0.75
+  },
+  {
+   "customer": "Lindenlane Creative",
+   "segment": "self serve",
+   "websites": 2,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 43,
+   "p95_ms": 56,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Forestcoast Collective",
+   "segment": "self serve",
+   "websites": 3,
+   "requests": 8,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 35,
+   "p95_ms": 103,
+   "slow_share": 0,
+   "cache_hit_rate": 0.625
+  },
+  {
+   "customer": "Silvershore Acornbank Studio",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 48,
+   "p95_ms": 48,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  },
+  {
+   "customer": "Rainland Acornbank Studio",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 3,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 46,
+   "p95_ms": 53,
+   "slow_share": 0,
+   "cache_hit_rate": 0.6667
+  },
+  {
+   "customer": "Olivebank Software",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 1,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 55,
+   "p95_ms": 55,
+   "slow_share": 0,
+   "cache_hit_rate": 0
+  },
+  {
+   "customer": "Sagemark Acornbank Press",
+   "segment": "self serve",
+   "websites": 5,
+   "requests": 12,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 36,
+   "p95_ms": 67,
+   "slow_share": 0,
+   "cache_hit_rate": 0.3333
+  },
+  {
+   "customer": "Dawncliff Acornbank Studio",
+   "segment": "self serve",
+   "websites": 1,
+   "requests": 2,
+   "gb": 0,
+   "server_error_rate": 0,
+   "client_error_rate": 0,
+   "median_ms": 36,
+   "p95_ms": 49,
+   "slow_share": 0,
+   "cache_hit_rate": 1
+  }
+ ]
+}

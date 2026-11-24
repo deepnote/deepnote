@@ -1,0 +1,160 @@
+metadata:
+  createdAt: 2026-11-24T09:00:00.000Z
+  modifiedAt: 2026-11-24T09:00:00.000Z
+project:
+  id: 7f834f85-0af4-c7b6-ba94-55c2ef1ab730
+  name: "PageMantle: Website traffic"
+  notebooks:
+    - blocks:
+        - id: 227b540e204666528a9605a20cd6b75b
+          blockGroup: 2c78a86d50b64b0fb39cf5b76bdffde4
+          sortingKey: "000000"
+          type: markdown
+          content: |-
+            # Website traffic
+
+            Website sessions from Google Analytics for September 2026 (the period the export covers): daily traffic, channels, campaigns, devices, landing pages, countries, new and returning visitors, and time of day.
+
+            Reads the PageMantle company dataset from `PAGEMANTLE_DATA` (default `~/data/pagemantle`). **Dataset** picks a fast sample or the full data.
+          metadata: {}
+        - id: 0bb62e29a17f9e4bc3cb868a7a273e9b
+          blockGroup: bf53bf2c92e378ded6942031b73f6421
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: dataset
+            deepnote_input_label: Dataset
+            deepnote_variable_value: sample
+            deepnote_variable_default_value: sample
+            deepnote_variable_options:
+              - sample
+              - full
+            deepnote_variable_custom_options:
+              - sample
+              - full
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 246aed368f7b1aa5775a856b44521952
+          blockGroup: cffab115e910c9f886d2b4f7cd9c0ad8
+          sortingKey: "000002"
+          type: code
+          content: |-
+            # Shared setup, copied into the first code block of every PageMantle notebook.
+            # `dataset` comes from the notebook's input: "sample" (fast, for checking apps) or "full".
+            import json
+            import os
+
+            import duckdb
+            from IPython.display import display
+
+            ROOT = os.path.expanduser(os.environ.get("PAGEMANTLE_DATA", "~/data/pagemantle"))
+            FULL = dataset == "full"
+            con = duckdb.connect()
+            con.execute("LOAD sqlite")
+
+
+            def pq(path):
+                """All Parquet partitions under a folder of the extracted dataset."""
+                return f"read_parquet('{ROOT}/{path}/**/*.parquet', union_by_name=true)"
+
+
+            def db(path):
+                return f"{ROOT}/{path}"
+
+
+            def q(sql):
+                return con.execute(sql).df()
+
+
+            def records(df):
+                return json.loads(df.to_json(orient="records", date_format="iso", double_precision=4))
+
+
+            def one(sql):
+                return con.execute(sql).fetchone()[0]
+
+
+            # Sampling keeps every 10th customer (by a stable hash), so customer tables stay consistent
+            # across notebooks. Event-level sources sample the most recent days instead (see each notebook).
+            def in_sample(col):
+                return "TRUE" if FULL else f"(hash({col}) % 10 = 0)"
+
+
+            DATASET = {"mode": "full" if FULL else "sample"}
+          metadata: {}
+        - id: 11e2324b36b49ea982d785b55a0fd8ca
+          blockGroup: c3feeaece12a5e323e3facfdbfb863f2
+          sortingKey: "000003"
+          type: code
+          content: |-
+            con.execute(f"""
+            CREATE TEMP TABLE s AS
+            SELECT date, day_of_week, hour, host_name, landing_page_path, landing_page_title, content_group,
+              session_default_channel_group AS channel, session_source AS source, session_medium AS medium,
+              session_campaign_name AS campaign, country, device_category AS device, browser, operating_system AS os,
+              new_or_returning, plan_tier,
+              session_count, active_user_count, new_user_count, returning_user_count, engaged_session_count,
+              engagement_duration_seconds, view_count, key_event_count, key_event_session_count, transaction_count, total_revenue
+            FROM {pq('analytics/sessions')}
+            WHERE {in_sample('row_id')}
+            """)
+            M = """sum(session_count) AS sessions, sum(active_user_count) AS users, sum(new_user_count) AS new_users,
+              round(sum(engaged_session_count) / nullif(sum(session_count), 0), 4) AS engagement_rate,
+              round(sum(key_event_session_count) / nullif(sum(session_count), 0), 4) AS conversion_rate,
+              sum(key_event_count) AS conversions,
+              round(sum(engagement_duration_seconds) / nullif(sum(session_count), 0), 1) AS avg_engagement_seconds,
+              round(sum(view_count) / nullif(sum(session_count), 0), 2) AS views_per_session"""
+            daily = q(f"SELECT date::VARCHAR AS day, {M} FROM s GROUP BY 1 ORDER BY 1")
+            daily_channel = q("SELECT date::VARCHAR AS day, channel, sum(session_count) AS sessions, sum(key_event_count) AS conversions FROM s GROUP BY ALL ORDER BY 1, 2")
+            daily_device = q("SELECT date::VARCHAR AS day, device, sum(session_count) AS sessions, round(sum(key_event_session_count) / nullif(sum(session_count), 0), 4) AS conversion_rate, round(sum(engaged_session_count) / nullif(sum(session_count), 0), 4) AS engagement_rate FROM s GROUP BY ALL ORDER BY 1, 2")
+            channels = q(f"SELECT channel, {M} FROM s GROUP BY 1 ORDER BY sessions DESC")
+            sources = q(f"SELECT source, medium, channel, {M} FROM s GROUP BY ALL ORDER BY sessions DESC LIMIT 40")
+            campaigns = q(f"SELECT campaign, channel, {M} FROM s WHERE campaign IS NOT NULL AND campaign NOT IN ('(not set)', '(direct)', '(organic)', '(referral)') GROUP BY ALL ORDER BY sessions DESC")
+            devices = q(f"SELECT device, {M} FROM s GROUP BY 1 ORDER BY sessions DESC")
+            device_os = q(f"SELECT device, os, browser, {M} FROM s GROUP BY ALL ORDER BY sessions DESC LIMIT 40")
+            pages = q(f"SELECT landing_page_path AS page, any_value(landing_page_title) AS title, any_value(content_group) AS content_group, {M} FROM s GROUP BY 1 ORDER BY sessions DESC LIMIT {200 if FULL else 80}")
+            countries = q(f"SELECT country, {M} FROM s GROUP BY 1 ORDER BY sessions DESC LIMIT 25")
+            visitors = q(f"SELECT new_or_returning AS visitor, {M} FROM s GROUP BY 1 ORDER BY sessions DESC")
+            visitors_daily = q("SELECT date::VARCHAR AS day, new_or_returning AS visitor, sum(session_count) AS sessions, round(sum(key_event_session_count) / nullif(sum(session_count), 0), 4) AS conversion_rate FROM s GROUP BY ALL ORDER BY 1")
+            returning_by_channel = q("""
+            SELECT channel, sum(session_count) FILTER (WHERE new_or_returning = 'returning') AS returning_sessions,
+              sum(session_count) AS sessions,
+              round(sum(session_count) FILTER (WHERE new_or_returning = 'returning') / sum(session_count), 4) AS returning_share
+            FROM s GROUP BY 1 ORDER BY sessions DESC
+            """)
+            hourly = q("SELECT day_of_week, hour, sum(session_count) AS sessions FROM s GROUP BY ALL ORDER BY 1, 2")
+            sites = q(f"SELECT host_name AS site, {M} FROM s GROUP BY 1 ORDER BY sessions DESC")
+            tot = q(f"SELECT {M} FROM s").iloc[0]
+            first, second = daily.iloc[:15].sessions.sum(), daily.iloc[15:].sessions.sum()
+            display({"application/json": {
+                "dataset": {**DATASET, "note": "all session rows" if FULL else "every 10th session row (totals are about a tenth)"},
+                "period": "2026-09-01 to 2026-09-30",
+                "summary": {
+                    "sessions": int(tot.sessions), "users": int(tot.users), "new_users": int(tot.new_users),
+                    "engagement_rate": float(tot.engagement_rate), "conversion_rate": float(tot.conversion_rate),
+                    "conversions": int(tot.conversions),
+                    "second_half_change": round(float(second / first - 1), 4),
+                },
+                "daily": records(daily),
+                "daily_by_channel": records(daily_channel),
+                "daily_by_device": records(daily_device),
+                "channels": records(channels),
+                "sources": records(sources),
+                "campaigns": records(campaigns),
+                "devices": records(devices),
+                "device_os": records(device_os),
+                "landing_pages": records(pages),
+                "countries": records(countries),
+                "visitors": records(visitors),
+                "visitors_daily": records(visitors_daily),
+                "returning_by_channel": records(returning_by_channel),
+                "hourly": records(hourly),
+                "sites": records(sites),
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 6812b79d-2d2d-5885-1cf4-006b646077fb
+      name: Website traffic
+version: 1.0.0

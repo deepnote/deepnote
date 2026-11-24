@@ -58,7 +58,11 @@ export function compile(expr) {
     for (const m of src.matchAll(TOKEN)) {
       const tok = m[0]
       const next = src.slice(m.index + tok.length).trimStart()[0]
-      if (/^['"]/.test(tok) || /^\d/.test(tok)) js += tok
+      // A full date literal next to < > <= >= becomes a Date, so it compares with date fields
+      // (day >= '2026-09-24'); as text it would compare as NaN and match nothing.
+      if (/^['"]\d{4}-\d{2}-\d{2}['"]$/.test(tok) && (/[<>]=?\s*$/.test(js) || /^[<>]/.test(next ?? '')))
+        js += `new Date(${tok.slice(0, -1)}T00:00:00Z${tok.at(-1)})`
+      else if (/^['"]/.test(tok) || /^\d/.test(tok)) js += tok
       else if (tok.startsWith('$')) {
         inputs.push(tok.slice(1))
         js += `__i(${JSON.stringify(tok.slice(1))})`

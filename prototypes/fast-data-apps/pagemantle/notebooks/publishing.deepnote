@@ -1,0 +1,175 @@
+metadata:
+  createdAt: 2026-11-24T09:00:00.000Z
+  modifiedAt: 2026-11-24T09:00:00.000Z
+project:
+  id: 48286575-6c4a-2a03-5b57-8d53b92c957a
+  name: "PageMantle: Publishing reliability"
+  notebooks:
+    - blocks:
+        - id: d879f479c31b3cf3d37d7b25a3353a6e
+          blockGroup: fae898cf30067f915cdc79b70b675069
+          sortingKey: "000000"
+          type: markdown
+          content: |-
+            # Publishing reliability
+
+            Site publishing in September 2026 from the Snowflake reliability model and PostHog publish events: daily attempts, failures and success rate, by segment and plan, the customers with the most failures, and why publishes failed.
+
+            Reads the PageMantle company dataset from `PAGEMANTLE_DATA` (default `~/data/pagemantle`). **Dataset** picks a fast sample or the full data.
+          metadata: {}
+        - id: 73b040f6b006aa402115584fc5034b5b
+          blockGroup: 833a9addb13bfd603e218cab5f59a65a
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: dataset
+            deepnote_input_label: Dataset
+            deepnote_variable_value: sample
+            deepnote_variable_default_value: sample
+            deepnote_variable_options:
+              - sample
+              - full
+            deepnote_variable_custom_options:
+              - sample
+              - full
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: 5012e0f7ab403b3400a17793a0efebde
+          blockGroup: 2ee12bd0cceaabe8fd7e924f9cf39532
+          sortingKey: "000002"
+          type: code
+          content: |-
+            # Shared setup, copied into the first code block of every PageMantle notebook.
+            # `dataset` comes from the notebook's input: "sample" (fast, for checking apps) or "full".
+            import json
+            import os
+
+            import duckdb
+            from IPython.display import display
+
+            ROOT = os.path.expanduser(os.environ.get("PAGEMANTLE_DATA", "~/data/pagemantle"))
+            FULL = dataset == "full"
+            con = duckdb.connect()
+            con.execute("LOAD sqlite")
+
+
+            def pq(path):
+                """All Parquet partitions under a folder of the extracted dataset."""
+                return f"read_parquet('{ROOT}/{path}/**/*.parquet', union_by_name=true)"
+
+
+            def db(path):
+                return f"{ROOT}/{path}"
+
+
+            def q(sql):
+                return con.execute(sql).df()
+
+
+            def records(df):
+                return json.loads(df.to_json(orient="records", date_format="iso", double_precision=4))
+
+
+            def one(sql):
+                return con.execute(sql).fetchone()[0]
+
+
+            # Sampling keeps every 10th customer (by a stable hash), so customer tables stay consistent
+            # across notebooks. Event-level sources sample the most recent days instead (see each notebook).
+            def in_sample(col):
+                return "TRUE" if FULL else f"(hash({col}) % 10 = 0)"
+
+
+            DATASET = {"mode": "full" if FULL else "sample"}
+          metadata: {}
+        - id: 938368a4a492d84088dbc959fd0f2209
+          blockGroup: ff205a5e9a03f937a6f5c7223e1e64a9
+          sortingKey: "000003"
+          type: code
+          content: |-
+            # cspell:ignore cust
+            con.execute(f"""
+            CREATE TEMP TABLE cust AS
+            SELECT CUSTOMER_ID AS customer_id, arg_max(CUSTOMER_NAME, REFRESHED_AT) AS customer, arg_max(SEGMENT, REFRESHED_AT) AS segment
+            FROM {pq('snowflake/PAGEMANTLE_ANALYTICS/CORE/CUSTOMERS')} GROUP BY 1
+            """)
+            con.execute(f"""
+            CREATE TEMP TABLE p AS
+            SELECT CUSTOMER_ID AS customer_id, ACTIVITY_DATE AS day,
+              arg_max(PUBLISH_ATTEMPTS, REFRESHED_AT) AS attempts, arg_max(SUCCESSFUL_PUBLISHES, REFRESHED_AT) AS ok,
+              arg_max(FAILED_PUBLISHES, REFRESHED_AT) AS failed
+            FROM {pq('snowflake/PAGEMANTLE_ANALYTICS/OPERATIONS/PUBLISH_RELIABILITY_DAILY')}
+            WHERE {in_sample('CUSTOMER_ID')}
+            GROUP BY ALL
+            """)
+            daily = q("""
+            SELECT day::VARCHAR AS day, sum(attempts) AS attempts, sum(ok) AS successful, sum(failed) AS failed,
+              round(sum(ok) / sum(attempts), 4) AS success_rate, count(DISTINCT customer_id) FILTER (WHERE failed > 0) AS customers_with_failures
+            FROM p GROUP BY 1 ORDER BY 1
+            """)
+            segments = q("""
+            SELECT replace(c.segment, '_', ' ') AS segment, sum(attempts) AS attempts, sum(failed) AS failed,
+              round(sum(ok) / sum(attempts), 4) AS success_rate, count(DISTINCT p.customer_id) AS customers
+            FROM p LEFT JOIN cust c USING (customer_id) GROUP BY 1 ORDER BY attempts DESC
+            """)
+            customers = q(f"""
+            SELECT c.customer, replace(c.segment, '_', ' ') AS segment, sum(attempts) AS attempts, sum(failed) AS failed,
+              round(sum(ok) / sum(attempts), 4) AS success_rate, count(*) FILTER (WHERE failed > 0) AS days_with_failures,
+              max(day) FILTER (WHERE failed > 0)::VARCHAR AS last_failure
+            FROM p LEFT JOIN cust c USING (customer_id)
+            GROUP BY ALL HAVING sum(failed) > 0 ORDER BY failed DESC LIMIT {500 if FULL else 150}
+            """)
+            bands = q("""
+            SELECT CASE WHEN rate >= 0.99 THEN '99%+' WHEN rate >= 0.97 THEN '97–99%' WHEN rate >= 0.95 THEN '95–97%' WHEN rate >= 0.9 THEN '90–95%' ELSE 'Under 90%' END AS success_band,
+              count(*) AS customers
+            FROM (SELECT customer_id, sum(ok) / sum(attempts) AS rate FROM p GROUP BY 1 HAVING sum(attempts) > 0) GROUP BY 1
+            """)
+            # Why publishes failed, from the product's own publish events.
+            con.execute(f"""
+            CREATE TEMP TABLE pe AS
+            SELECT CAST(timestamp AS TIMESTAMP)::DATE AS day, event_name,
+              json_extract_string(properties_json, '$.error_code') AS error_code,
+              json_extract_string(properties_json, '$.failed_step') AS failed_step,
+              json_extract_string(properties_json, '$.site_type') AS site_type,
+              json_extract_string(properties_json, '$.plan') AS plan,
+              TRY_CAST(json_extract_string(properties_json, '$.duration_ms') AS DOUBLE) AS duration_ms
+            FROM {pq('posthog/events')}
+            WHERE event_family = 'publish' AND {in_sample('workspace_id')}
+            """)
+            errors = q("SELECT error_code, failed_step, count(*) AS failures FROM pe WHERE event_name = 'publish_failed' GROUP BY ALL ORDER BY 3 DESC")
+            by_site_type = q("""
+            SELECT site_type, count(*) FILTER (WHERE event_name = 'publish_completed') AS completed, count(*) FILTER (WHERE event_name = 'publish_failed') AS failed,
+              round(count(*) FILTER (WHERE event_name = 'publish_failed') / count(*) FILTER (WHERE event_name IN ('publish_completed', 'publish_failed')), 4) AS failure_rate,
+              round(median(duration_ms) FILTER (WHERE event_name = 'publish_completed') / 1000, 2) AS median_seconds
+            FROM pe GROUP BY 1 ORDER BY completed DESC
+            """)
+            by_plan = q("""
+            SELECT plan, count(*) FILTER (WHERE event_name = 'publish_failed') AS failed,
+              round(count(*) FILTER (WHERE event_name = 'publish_failed') / count(*) FILTER (WHERE event_name IN ('publish_completed', 'publish_failed')), 4) AS failure_rate
+            FROM pe GROUP BY 1 ORDER BY failed DESC
+            """)
+            tot = daily[["attempts", "successful", "failed"]].sum()
+            display({"application/json": {
+                "dataset": {**DATASET, "note": "all customers" if FULL else "every 10th customer"},
+                "period": "2026-09-01 to 2026-09-30",
+                "summary": {
+                    "attempts": int(tot.attempts), "failed": int(tot.failed),
+                    "success_rate": round(float(tot.successful / tot.attempts), 4),
+                    "worst_day": daily.sort_values("success_rate").iloc[0].day,
+                    "customers_affected": int(one("SELECT count(DISTINCT customer_id) FROM p WHERE failed > 0")),
+                },
+                "daily": records(daily),
+                "segments": records(segments),
+                "customers": records(customers),
+                "success_bands": records(bands),
+                "errors": records(errors),
+                "by_site_type": records(by_site_type),
+                "by_plan": records(by_plan),
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 525b8039-1603-d33e-f072-0b5b189bc6a5
+      name: Publishing reliability
+version: 1.0.0

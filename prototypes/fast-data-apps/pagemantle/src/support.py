@@ -1,0 +1,89 @@
+# cspell:ignore dayname
+# title: Customer support
+# description: Customer support in September 2026: conversations in Slack support and customer channels with time to first reply and whether they were answered, customer emails in HubSpot, and each customer's open issues, satisfaction (CSAT), support tier and revenue, so support load can be compared with what customers pay.
+con.execute(f"ATTACH '{db('hubspot/hubspot.sqlite')}' AS hs (TYPE sqlite, READ_ONLY)")
+con.execute(f"ATTACH '{db('stripe/stripe.sqlite')}' AS st (TYPE sqlite, READ_ONLY)")
+con.execute(f"""
+CREATE TEMP TABLE msg AS
+SELECT m.channel_id, c.name AS channel, m.ts, m.thread_ts, m.user_id,
+  coalesce(u.real_name, u.name, m.user_id) AS person, coalesce(u.is_bot, m.subtype = 'bot_message') AS bot,
+  to_timestamp(CAST(m.ts AS DOUBLE)) AS sent_at
+FROM {pq('slack/messages')} m
+JOIN read_parquet('{ROOT}/slack/channels.parquet') c ON c.id = m.channel_id
+LEFT JOIN read_parquet('{ROOT}/slack/users.parquet') u ON u.id = m.user_id
+WHERE c.name LIKE 'customer-%' OR c.name LIKE '%support%'
+""")
+conversations = q("""
+WITH parents AS (SELECT * FROM msg WHERE (thread_ts IS NULL OR thread_ts = ts) AND NOT bot),
+first_reply AS (
+  SELECT r.channel_id, r.thread_ts, min(r.sent_at) AS replied_at, count(*) AS replies, any_value(r.person) AS first_responder
+  FROM msg r JOIN parents p ON p.channel_id = r.channel_id AND p.ts = r.thread_ts
+  WHERE r.thread_ts <> r.ts AND r.user_id <> p.user_id GROUP BY ALL
+)
+SELECT p.channel,
+  CASE WHEN p.channel LIKE 'customer-%' THEN 'Customer channel' ELSE 'Support channel' END AS kind,
+  replace(replace(p.channel, 'customer-', ''), '-', ' ') AS customer_slug,
+  p.person AS opened_by, strftime(p.sent_at, '%Y-%m-%d') AS day, dayname(p.sent_at) AS weekday, hour(p.sent_at) AS hour,
+  coalesce(f.replies, 0) AS replies, f.first_responder,
+  round(date_diff('second', p.sent_at, f.replied_at) / 60.0, 1) AS minutes_to_reply,
+  f.replied_at IS NOT NULL AS answered
+FROM parents p LEFT JOIN first_reply f ON f.channel_id = p.channel_id AND f.thread_ts = p.ts
+ORDER BY day DESC
+""")
+props = ["name", "customer_segment", "open_support_issues", "csat_score", "support_tier", "customer_health", "annual_contract_value", "stripe_customer_id"]
+cols = ",\n".join(f"max(value) FILTER (WHERE property_name = '{p}') AS {p}" for p in props)
+con.execute(f"CREATE TEMP TABLE co AS SELECT record_id AS company_id, {cols} FROM hs.property_values WHERE object_type = 'companies' AND {in_sample('record_id')} GROUP BY 1")
+con.execute("""
+CREATE TEMP TABLE mrr AS
+SELECT s.customer_id, sum(p.unit_amount * s.quantity / 100.0 / (CASE WHEN p.recurring_interval = 'year' THEN 12 ELSE 1 END)) AS mrr
+FROM st.subscriptions s JOIN st.prices p ON p.id = s.price_id WHERE s.status = 'active' GROUP BY 1
+""")
+# Customer emails about problems: replies ("Re: …") received from or sent to the customer.
+con.execute("""
+CREATE TEMP TABLE em AS
+SELECT aa.record_id AS company_id, a.status, a.title, CAST(a.occurred_at AS TIMESTAMP) AS at
+FROM hs.activities a JOIN hs.activity_associations aa ON aa.activity_id = a.id AND aa.object_type = 'companies'
+WHERE a.activity_type = 'email' AND a.title LIKE 'Re:%'
+""")
+conv_by_slug = conversations.groupby("customer_slug").agg(conversations=("answered", "size"), median_minutes_to_reply=("minutes_to_reply", "median")).reset_index()
+customers = q("""
+SELECT co.company_id, co.name AS customer, co.customer_segment AS segment, co.support_tier,
+  co.customer_health AS health, TRY_CAST(co.open_support_issues AS INT) AS open_issues, TRY_CAST(co.csat_score AS DOUBLE) AS csat,
+  round(coalesce(m.mrr, 0) * 12, 0) AS arr,
+  (SELECT count(*) FROM em WHERE em.company_id = co.company_id AND em.status = 'RECEIVED') AS emails_received,
+  (SELECT count(*) FROM em WHERE em.company_id = co.company_id) AS support_emails,
+  lower(regexp_replace(co.name, '[^A-Za-z0-9]+', ' ', 'g')) AS customer_slug
+FROM co LEFT JOIN mrr m ON m.customer_id = co.stripe_customer_id
+""")
+customers["customer_slug"] = customers.customer_slug.str.strip()
+customers = customers.merge(conv_by_slug, on="customer_slug", how="left").drop(columns=["customer_slug", "company_id"])
+customers["conversations"] = customers.conversations.fillna(0).astype(int)
+customers["support_touches"] = customers.conversations + customers.support_emails
+customers = customers[(customers.support_touches > 0) | (customers.open_issues > 0) | customers.csat.notna()]
+customers = customers.sort_values(["support_touches", "arr"], ascending=False).head(None if FULL else 400)
+topics = q("SELECT regexp_replace(title, '^Re: ', '') AS topic, count(*) AS emails, count(DISTINCT company_id) AS customers FROM em GROUP BY 1 ORDER BY 2 DESC")
+daily = conversations.groupby("day").agg(conversations=("answered", "size"), answered=("answered", "sum"), median_minutes=("minutes_to_reply", "median")).reset_index()
+by_channel = conversations.groupby(["channel", "kind"]).agg(conversations=("answered", "size"), answered_rate=("answered", "mean"), median_minutes=("minutes_to_reply", "median")).reset_index().sort_values("conversations", ascending=False)
+responders = conversations[conversations.answered].groupby("first_responder").agg(first_replies=("answered", "size"), median_minutes=("minutes_to_reply", "median")).reset_index().sort_values("first_replies", ascending=False).head(40)
+csat = customers[customers.csat.notna()].groupby(["segment", "support_tier"]).agg(customers=("csat", "size"), avg_csat=("csat", "mean"), arr=("arr", "sum")).reset_index()
+answered = conversations[conversations.answered]
+display({"application/json": {
+    "dataset": {**DATASET, "note": "all customers" if FULL else "every 10th customer for customer-level figures; all conversations"},
+    "period": "2026-09-01 to 2026-09-30",
+    "summary": {
+        "conversations": int(len(conversations)),
+        "answered_rate": round(float(conversations.answered.mean()), 3),
+        "median_minutes_to_reply": round(float(answered.minutes_to_reply.median()), 1),
+        "p90_minutes_to_reply": round(float(answered.minutes_to_reply.quantile(0.9)), 1),
+        "support_emails": int(one("SELECT count(*) FROM em")),
+        "avg_csat": round(float(customers.csat.mean()), 2),
+        "customers_with_open_issues": int((customers.open_issues > 0).sum()),
+    },
+    "conversations": records(conversations.drop(columns="customer_slug")),
+    "daily": records(daily.round(1)),
+    "channels": records(by_channel.round(3)),
+    "responders": records(responders.round(1)),
+    "customers": records(customers.round(2)),
+    "email_topics": records(topics),
+    "csat_by_segment": records(csat.round(2)),
+}}, raw=True)

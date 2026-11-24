@@ -15,10 +15,19 @@ import { SPEC_SYSTEM, userPrompt } from './prompts.mjs'
 const OUTLINE_SYSTEM = `You plan a data app page from a request and a description of the data. Output one line per section, in page order, nothing else:
 part <id> kind=<kind> data=<dataset path> span=<1-12> : <what this section shows, a few words>
 kinds: kpi (a row of KPI cards; add count=<2-4>), chart, trend (a chart over time), table, list (rows people scan or pick from), detail (one record explained; pair it with a list: give both select=<name> key=<id column>), text, setup (inputs or derived data that later sections use; put it first).
-Rules: include only what the request asks for, nothing it did not ask for. Usually a kpi part first when headline numbers fit. At most 8 parts. Spans: kpi 12, chart/trend 6 or 12, list/detail 6, table 12; rows sum to 12. ids are short words.`
+Rules: include only what the request asks for, nothing it did not ask for. If the request names something the data lacks (a field, a metric, a source), still plan the most useful page from the closest data that exists, e.g. another breakdown dimension instead of a missing one; never plan a page that only says it can't be done. A model, forecast, what-if or calculator: a setup part (inputs and derived projections from the rates in the data), then the results. Clustering or segmenting: a setup part that derives the clusters, then sections that show them. Each section shows something different: never the same chart twice. At most 8 parts. ids are short words.
+Layout: pick the shape that fits what this request is for, not a default:
+- overview (how is X doing): kpi row, then a hero trend (span 12), then breakdowns side by side.
+- story (what changed, where did it go): a hero chart first (span 12), then a kpi row explaining it, then the drivers.
+- finder (find, spot, follow up, prioritize): first a chart showing where the items stand (a quadrant, ranked bars or heatmap; span 12 or 7), then the ranked list and its detail side by side (list 7 + detail 5); kpis small or none. Never open the page with a bare list.
+- explorer (explore, compare): filters do the work; pairs of charts side by side (6+6, or 8+4), a table last.
+- calculator/model: setup first, then the result kpis, then the projection chart.
+Spans: kpi 12 (count 2-4); chart/trend 4, 6, 8 or 12; list/detail 4-8; table 12; rows sum to 12.
+Say the visual in the description when one fits better than a bar or line: heatmap (two categories, e.g. weekday × hour, cohort × month), funnel (ordered stages narrowing), quadrant (two measures whose corners mean something), ranked bars (a list read top to bottom), kpis with trend lines (headline numbers with history) or targets.`
 
 const KIND_GUIDE = {
-  kpi: p => `exactly ${p.count ?? 4} kpi lines (span ${Math.floor(12 / (p.count ?? 4))} each)`,
+  kpi: p =>
+    `exactly ${p.count ?? 4} kpi lines (span ${Math.floor(12 / (p.count ?? 4))} each)${/spark|trend line/i.test(p.desc) ? '; give each a spark= of its history when the data has one' : ''}`,
   list: p =>
     `one list${p.select ? ` with select=${p.select} key=${p.key}` : ''}${p.data ? ` and data=${p.data}` : ''}, nothing else`,
   detail: p => `one detail${p.select ? ` with data=${p.data} select=${p.select} key=${p.key}` : ''}, nothing else`,
@@ -55,6 +64,9 @@ export async function generateOutlined({
   onLine = () => {},
   onSkeleton = () => {},
   onPartDone = () => {},
+  // Optional: resolves to a shorter data description holding only what this request needs. The
+  // header starts at once on the full one; the outline and sections wait for the short one.
+  focus = null,
 }) {
   const t0 = performance.now()
   const now = () => performance.now() - t0
@@ -64,6 +76,7 @@ export async function generateOutlined({
   const waiting = []
   const workers = []
   const kpiValues = new Set()
+  const shown = new Set() // what each chart/table shows, so parallel writers don't repeat one
   const outline = []
   let seq = 0
   let firstOp = null
@@ -79,18 +92,40 @@ export async function generateOutlined({
       if (kpiValues.has(k)) return
       kpiValues.add(k)
     }
+    const shows = ['chart', 'table', 'vega'].includes(parsed.t)
+      ? JSON.stringify([
+          parsed.t,
+          parsed.data,
+          parsed.rows,
+          parsed.kind,
+          parsed.x,
+          parsed.y,
+          parsed.color,
+          parsed.group,
+          parsed.spec,
+        ])
+      : null
+    if (shows && shown.has(shows)) return
     const res = checkOp(parsed, ctx)
     if (res.op) {
+      if (shows) shown.add(shows)
       commitOp(ctx, res.op)
       firstOp ??= now()
       const out = JSON.stringify(parsed, (k, v) => (k === '__seq' ? undefined : v))
-      accepted.push({ slot, seq: parsed.__seq, line: out })
+      accepted.push({ slot, seq: parsed.__seq, line: out, id: res.op.id, t: res.op.t })
       if (w) w.lines++
       onLine(out, now(), res, slot)
       for (const p of waiting.splice(0)) tryAccept(p.parsed, p.line, p.slot, p.w)
     } else if (onlyMissing(res.errors)) waiting.push({ parsed, line, slot, w, errors: res.errors })
     else rejected.push({ line: line.trim(), errors: res.errors, slot })
   }
+
+  // The data description the outline and sections see (the header always gets the full one).
+  const focused = focus
+    ? Promise.race([focus(), new Promise(r => setTimeout(() => r(null), 4000))])
+        .catch(() => null)
+        .then(d => d ?? sources.description)
+    : Promise.resolve(sources.description)
 
   async function writePart(slot, part, assignment, { allowApp = false } = {}) {
     const w = { key: part.id, slot, firstToken: null, done: null, lines: 0, tokens: 0 }
@@ -107,7 +142,7 @@ export async function generateOutlined({
     })
     const r = await completeHedged({
       system: SPEC_SYSTEM,
-      user: `${userPrompt({ request, sources, currentSpec: setupSpec || undefined })}\n\n${assignment}`,
+      user: `${userPrompt({ request, sources: slot === 0 ? sources : { ...sources, description: await focused }, currentSpec: setupSpec || undefined })}\n\n${assignment}`,
       model,
       effort: part.kind === 'setup' ? 'medium' : 'low',
       onText: chunk => {
@@ -119,6 +154,17 @@ export async function generateOutlined({
     w.done = now()
     w.tokens = r.usage?.output_tokens ?? 0
     outputTokens += w.tokens
+    // A section heading whose part produced nothing under it would leave an empty heading.
+    const mine = accepted.filter(a => a.slot === slot)
+    if (slot > 0 && part.kind !== 'setup' && mine.length && mine.every(a => ['section', 'text'].includes(a.t))) {
+      for (const a of mine.filter(x => x.t === 'section')) {
+        const res = checkOp({ t: 'del', id: a.id }, ctx)
+        if (!res.op) continue
+        commitOp(ctx, res.op)
+        accepted.splice(accepted.indexOf(a), 1)
+        onLine(JSON.stringify({ t: 'del', id: a.id }), now(), res, slot)
+      }
+    }
     onPartDone(slot)
   }
 
@@ -128,7 +174,7 @@ export async function generateOutlined({
     writePart(
       0,
       { id: 'head', kind: 'head' },
-      'Write ONLY the app line (title, subtitle, kicker); a theme line if the request asks for a look (a brand, colors, fonts, dark mode, "prettier"); and filter lines if the request would benefit from filtering. Nothing else.',
+      'Write ONLY the app line (title, subtitle, kicker; if the data lacks something the request names, the subtitle says briefly what the app uses instead); a theme line if the request asks for a look (a brand, colors, fonts, dark mode, "prettier"); and filter lines if the request would benefit from filtering. Nothing else.',
       { allowApp: true }
     ),
   ]
@@ -174,21 +220,29 @@ export async function generateOutlined({
     }
     jobs.push(job)
   })
-  const outlineCall = completeHedged({
-    system: OUTLINE_SYSTEM,
-    user: `Data:\n${sources.description}\n\nRequest: ${request}`,
-    model,
-    effort: 'low',
-    onText: chunk => {
-      outlineWorker.firstToken ??= now()
-      outlineSplitter.push(chunk)
-    },
-  }).then(r => {
-    outlineSplitter.end()
-    outlineWorker.done = now()
-    outputTokens += r.usage?.output_tokens ?? 0
-  })
-  await outlineCall
+  const planOutline = extra =>
+    completeHedged({
+      system: OUTLINE_SYSTEM,
+      user: `Data:\n${dataForPlan}\n\nRequest: ${request}${extra}`,
+      model,
+      effort: 'low',
+      onText: chunk => {
+        outlineWorker.firstToken ??= now()
+        outlineSplitter.push(chunk)
+      },
+    }).then(r => {
+      outlineSplitter.end()
+      outlineWorker.done = now()
+      outputTokens += r.usage?.output_tokens ?? 0
+    })
+  const dataForPlan = await focused
+  await planOutline('')
+  // Now and then the plan stops after one section. Ask once more for the rest: sections already
+  // planned are skipped by the duplicate check above, and their writers keep going meanwhile.
+  if (outline.length < 2)
+    await planOutline(
+      `\n\nAlready planned:\n${outline.map(o => o.line).join('\n')}\nPlan the whole page: 3 to 6 sections in total, starting with the ones above.`
+    )
   await Promise.all(jobs)
   for (const p of waiting.splice(0)) rejected.push({ line: p.line.trim(), errors: p.errors, slot: p.slot })
 

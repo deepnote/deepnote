@@ -1,0 +1,2895 @@
+{
+ "dataset": {
+  "mode": "sample",
+  "note": "every 10th measurement"
+ },
+ "period": "2026-09-01 to 2026-09-30",
+ "thresholds": {
+  "LCP_good_ms": 2500,
+  "LCP_poor_ms": 4000,
+  "INP_good_ms": 200,
+  "INP_poor_ms": 500,
+  "CLS_good": 0.1,
+  "CLS_poor": 0.25
+ },
+ "metric_names": {
+  "LCP": "Largest contentful paint (ms)",
+  "INP": "Interaction to next paint (ms)",
+  "CLS": "Cumulative layout shift"
+ },
+ "summary": [
+  {
+   "metric": "CLS",
+   "measurements": 9214,
+   "p75": 0.091,
+   "good_share": 0.7899,
+   "poor_share": 0.0217
+  },
+  {
+   "metric": "INP",
+   "measurements": 22917,
+   "p75": 228.44,
+   "good_share": 0.6398,
+   "poor_share": 0.0055
+  },
+  {
+   "metric": "LCP",
+   "measurements": 29298,
+   "p75": 2520.358,
+   "good_share": 0.743,
+   "poor_share": 0.0375
+  }
+ ],
+ "daily": [
+  {
+   "day": "2026-09-01",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 564,
+   "p75": 2461.67,
+   "good_share": 0.7571,
+   "poor_share": 0.0319
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 130,
+   "p75": 0.091,
+   "good_share": 0.7923,
+   "poor_share": 0.0231
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 336,
+   "p75": 231.098,
+   "good_share": 0.6339,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 155,
+   "p75": 0.092,
+   "good_share": 0.7677,
+   "poor_share": 0.0387
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 394,
+   "p75": 2554.863,
+   "good_share": 0.7335,
+   "poor_share": 0.0533
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 32,
+   "p75": 2200.278,
+   "good_share": 0.8438,
+   "poor_share": 0.0313
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 16,
+   "p75": 0.083,
+   "good_share": 0.9375,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 444,
+   "p75": 224.085,
+   "good_share": 0.6509,
+   "poor_share": 0.0045
+  },
+  {
+   "day": "2026-09-01",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 21,
+   "p75": 227.68,
+   "good_share": 0.6667,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 152,
+   "p75": 0.08,
+   "good_share": 0.8289,
+   "poor_share": 0.0263
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 296,
+   "p75": 227.365,
+   "good_share": 0.6486,
+   "poor_share": 0.0068
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 157,
+   "p75": 0.096,
+   "good_share": 0.7707,
+   "poor_share": 0.0318
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 407,
+   "p75": 224.795,
+   "good_share": 0.6364,
+   "poor_share": 0.0049
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 536,
+   "p75": 2586.007,
+   "good_share": 0.7276,
+   "poor_share": 0.0429
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 30,
+   "p75": 2403.28,
+   "good_share": 0.8,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 35,
+   "p75": 263.155,
+   "good_share": 0.4857,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 11,
+   "p75": 0.138,
+   "good_share": 0.6364,
+   "poor_share": 0.0909
+  },
+  {
+   "day": "2026-09-02",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 426,
+   "p75": 2569.7,
+   "good_share": 0.723,
+   "poor_share": 0.0423
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 337,
+   "p75": 222.13,
+   "good_share": 0.6617,
+   "poor_share": 0.0059
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 31,
+   "p75": 2212.6,
+   "good_share": 0.7742,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.14,
+   "good_share": 0.6,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 405,
+   "p75": 2562.85,
+   "good_share": 0.7358,
+   "poor_share": 0.0321
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 120,
+   "p75": 0.101,
+   "good_share": 0.7417,
+   "poor_share": 0.025
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 406,
+   "p75": 220.288,
+   "good_share": 0.6601,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 531,
+   "p75": 2496.325,
+   "good_share": 0.7533,
+   "poor_share": 0.0339
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 146,
+   "p75": 0.094,
+   "good_share": 0.7603,
+   "poor_share": 0.0411
+  },
+  {
+   "day": "2026-09-03",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 42,
+   "p75": 210.605,
+   "good_share": 0.7143,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 283,
+   "p75": 237.015,
+   "good_share": 0.6325,
+   "poor_share": 0.0071
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 27,
+   "p75": 197.635,
+   "good_share": 0.7778,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 14,
+   "p75": 0.091,
+   "good_share": 0.8571,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 518,
+   "p75": 2561.405,
+   "good_share": 0.7317,
+   "poor_share": 0.0444
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 116,
+   "p75": 0.094,
+   "good_share": 0.7931,
+   "poor_share": 0.0345
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 457,
+   "p75": 2570.72,
+   "good_share": 0.7287,
+   "poor_share": 0.0306
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 443,
+   "p75": 225.575,
+   "good_share": 0.6366,
+   "poor_share": 0.0023
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 43,
+   "p75": 2404.655,
+   "good_share": 0.8372,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-04",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 175,
+   "p75": 0.093,
+   "good_share": 0.76,
+   "poor_share": 0.04
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 11,
+   "p75": 0.062,
+   "good_share": 0.9091,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 390,
+   "p75": 2545.803,
+   "good_share": 0.741,
+   "poor_share": 0.0282
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 321,
+   "p75": 237.1,
+   "good_share": 0.6324,
+   "poor_share": 0.0031
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 151,
+   "p75": 0.096,
+   "good_share": 0.755,
+   "poor_share": 0.0199
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 36,
+   "p75": 2607.58,
+   "good_share": 0.7222,
+   "poor_share": 0.0556
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 450,
+   "p75": 225.538,
+   "good_share": 0.6422,
+   "poor_share": 0.0133
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 36,
+   "p75": 254.808,
+   "good_share": 0.5556,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 151,
+   "p75": 0.091,
+   "good_share": 0.7947,
+   "poor_share": 0.0265
+  },
+  {
+   "day": "2026-09-05",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 546,
+   "p75": 2579.303,
+   "good_share": 0.7216,
+   "poor_share": 0.033
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 309,
+   "p75": 218.79,
+   "good_share": 0.6926,
+   "poor_share": 0.0032
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 510,
+   "p75": 2501.625,
+   "good_share": 0.749,
+   "poor_share": 0.0353
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 415,
+   "p75": 231.01,
+   "good_share": 0.6217,
+   "poor_share": 0.0096
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 7,
+   "p75": 0.095,
+   "good_share": 0.7143,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 431,
+   "p75": 2680.28,
+   "good_share": 0.6914,
+   "poor_share": 0.0464
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 38,
+   "p75": 2506.745,
+   "good_share": 0.7368,
+   "poor_share": 0.1053
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 123,
+   "p75": 0.079,
+   "good_share": 0.8293,
+   "poor_share": 0.0163
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 166,
+   "p75": 0.089,
+   "good_share": 0.7831,
+   "poor_share": 0.0301
+  },
+  {
+   "day": "2026-09-06",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 28,
+   "p75": 196.823,
+   "good_share": 0.75,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 141,
+   "p75": 0.093,
+   "good_share": 0.7801,
+   "poor_share": 0.0355
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 338,
+   "p75": 233.01,
+   "good_share": 0.6213,
+   "poor_share": 0.0059
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 534,
+   "p75": 2621.073,
+   "good_share": 0.7154,
+   "poor_share": 0.0412
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 7,
+   "p75": 0.097,
+   "good_share": 0.7143,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 446,
+   "p75": 2601.353,
+   "good_share": 0.7085,
+   "poor_share": 0.0269
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 42,
+   "p75": 2473.875,
+   "good_share": 0.7619,
+   "poor_share": 0.0238
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 163,
+   "p75": 0.087,
+   "good_share": 0.8282,
+   "poor_share": 0.0245
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 27,
+   "p75": 233.53,
+   "good_share": 0.5926,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-07",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 413,
+   "p75": 227.86,
+   "good_share": 0.6441,
+   "poor_share": 0.0073
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 393,
+   "p75": 234.97,
+   "good_share": 0.5852,
+   "poor_share": 0.0076
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 119,
+   "p75": 0.097,
+   "good_share": 0.7563,
+   "poor_share": 0.0168
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 431,
+   "p75": 2620.38,
+   "good_share": 0.7077,
+   "poor_share": 0.0557
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 317,
+   "p75": 231.28,
+   "good_share": 0.6435,
+   "poor_share": 0.0032
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 496,
+   "p75": 2582.405,
+   "good_share": 0.7077,
+   "poor_share": 0.0464
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 26,
+   "p75": 243.957,
+   "good_share": 0.6538,
+   "poor_share": 0.0385
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 43,
+   "p75": 2647.17,
+   "good_share": 0.6744,
+   "poor_share": 0.0233
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 9,
+   "p75": 0.049,
+   "good_share": 1,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-08",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 158,
+   "p75": 0.087,
+   "good_share": 0.7848,
+   "poor_share": 0.0253
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 299,
+   "p75": 222.885,
+   "good_share": 0.6522,
+   "poor_share": 0.0033
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 426,
+   "p75": 2520.8,
+   "good_share": 0.7394,
+   "poor_share": 0.0352
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 418,
+   "p75": 226.05,
+   "good_share": 0.6483,
+   "poor_share": 0.012
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 9,
+   "p75": 0.122,
+   "good_share": 0.6667,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 532,
+   "p75": 2539.673,
+   "good_share": 0.7368,
+   "poor_share": 0.0451
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 131,
+   "p75": 0.097,
+   "good_share": 0.7634,
+   "poor_share": 0.0305
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 42,
+   "p75": 2740.945,
+   "good_share": 0.5476,
+   "poor_share": 0.0238
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 176,
+   "p75": 0.087,
+   "good_share": 0.7955,
+   "poor_share": 0.017
+  },
+  {
+   "day": "2026-09-09",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 25,
+   "p75": 242.11,
+   "good_share": 0.52,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 516,
+   "p75": 2543.065,
+   "good_share": 0.7306,
+   "poor_share": 0.031
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 287,
+   "p75": 234.445,
+   "good_share": 0.5993,
+   "poor_share": 0.0035
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 45,
+   "p75": 2321.79,
+   "good_share": 0.7778,
+   "poor_share": 0.0222
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 406,
+   "p75": 228.085,
+   "good_share": 0.6478,
+   "poor_share": 0.0025
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 128,
+   "p75": 0.105,
+   "good_share": 0.7266,
+   "poor_share": 0.0156
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 14,
+   "p75": 0.097,
+   "good_share": 0.7857,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 167,
+   "p75": 0.088,
+   "good_share": 0.7964,
+   "poor_share": 0.0359
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 423,
+   "p75": 2634.345,
+   "good_share": 0.7092,
+   "poor_share": 0.0331
+  },
+  {
+   "day": "2026-09-10",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 32,
+   "p75": 219.733,
+   "good_share": 0.7188,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 423,
+   "p75": 223.545,
+   "good_share": 0.6383,
+   "poor_share": 0.0142
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.087,
+   "good_share": 0.8,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 154,
+   "p75": 0.099,
+   "good_share": 0.7597,
+   "poor_share": 0.026
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 317,
+   "p75": 225.89,
+   "good_share": 0.6404,
+   "poor_share": 0.0063
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 51,
+   "p75": 2696.165,
+   "good_share": 0.7255,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 27,
+   "p75": 223.375,
+   "good_share": 0.6667,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 395,
+   "p75": 2551.315,
+   "good_share": 0.7342,
+   "poor_share": 0.0304
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 506,
+   "p75": 2528.485,
+   "good_share": 0.7411,
+   "poor_share": 0.0395
+  },
+  {
+   "day": "2026-09-11",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 134,
+   "p75": 0.087,
+   "good_share": 0.791,
+   "poor_share": 0.0149
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 34,
+   "p75": 197.245,
+   "good_share": 0.7647,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 413,
+   "p75": 225.45,
+   "good_share": 0.6538,
+   "poor_share": 0.0024
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 516,
+   "p75": 2588.533,
+   "good_share": 0.7248,
+   "poor_share": 0.0368
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 6,
+   "p75": 0.11,
+   "good_share": 0.6667,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 124,
+   "p75": 0.091,
+   "good_share": 0.7903,
+   "poor_share": 0.0242
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 425,
+   "p75": 2511.99,
+   "good_share": 0.7482,
+   "poor_share": 0.0235
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 167,
+   "p75": 0.1,
+   "good_share": 0.7485,
+   "poor_share": 0.0299
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 40,
+   "p75": 2976.553,
+   "good_share": 0.6,
+   "poor_share": 0.025
+  },
+  {
+   "day": "2026-09-12",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 325,
+   "p75": 227.99,
+   "good_share": 0.6462,
+   "poor_share": 0.0031
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 131,
+   "p75": 0.094,
+   "good_share": 0.7863,
+   "poor_share": 0.0305
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 45,
+   "p75": 2446.51,
+   "good_share": 0.7556,
+   "poor_share": 0.0444
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 394,
+   "p75": 2590.115,
+   "good_share": 0.7157,
+   "poor_share": 0.0381
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 395,
+   "p75": 223.3,
+   "good_share": 0.638,
+   "poor_share": 0.0076
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 8,
+   "p75": 0.088,
+   "good_share": 0.75,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 36,
+   "p75": 192.015,
+   "good_share": 0.7778,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 157,
+   "p75": 0.105,
+   "good_share": 0.7325,
+   "poor_share": 0.0127
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 549,
+   "p75": 2437.06,
+   "good_share": 0.776,
+   "poor_share": 0.0346
+  },
+  {
+   "day": "2026-09-13",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 320,
+   "p75": 231.785,
+   "good_share": 0.6531,
+   "poor_share": 0.0031
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 551,
+   "p75": 2523.555,
+   "good_share": 0.7405,
+   "poor_share": 0.029
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 38,
+   "p75": 241.42,
+   "good_share": 0.5526,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 426,
+   "p75": 223.225,
+   "good_share": 0.6573,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 41,
+   "p75": 2798.46,
+   "good_share": 0.6829,
+   "poor_share": 0.0488
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 447,
+   "p75": 2414.61,
+   "good_share": 0.7919,
+   "poor_share": 0.0358
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 331,
+   "p75": 227.86,
+   "good_share": 0.6616,
+   "poor_share": 0.0091
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 163,
+   "p75": 0.108,
+   "good_share": 0.7178,
+   "poor_share": 0.0368
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.058,
+   "good_share": 0.9,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-14",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 128,
+   "p75": 0.086,
+   "good_share": 0.8203,
+   "poor_share": 0.0078
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 316,
+   "p75": 228.263,
+   "good_share": 0.6614,
+   "poor_share": 0.0032
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 34,
+   "p75": 2411.213,
+   "good_share": 0.8235,
+   "poor_share": 0.0588
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 499,
+   "p75": 2448.205,
+   "good_share": 0.7735,
+   "poor_share": 0.0401
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 419,
+   "p75": 235.155,
+   "good_share": 0.6348,
+   "poor_share": 0.0048
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 40,
+   "p75": 252.163,
+   "good_share": 0.625,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.051,
+   "good_share": 0.9,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 136,
+   "p75": 0.098,
+   "good_share": 0.7721,
+   "poor_share": 0.0074
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 177,
+   "p75": 0.09,
+   "good_share": 0.8192,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-15",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 424,
+   "p75": 2431.953,
+   "good_share": 0.7594,
+   "poor_share": 0.0354
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 330,
+   "p75": 230.085,
+   "good_share": 0.6182,
+   "poor_share": 0.0121
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 32,
+   "p75": 2385.805,
+   "good_share": 0.75,
+   "poor_share": 0.0313
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 525,
+   "p75": 2574.66,
+   "good_share": 0.7352,
+   "poor_share": 0.04
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 190,
+   "p75": 0.085,
+   "good_share": 0.8158,
+   "poor_share": 0.0158
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 20,
+   "p75": 0.095,
+   "good_share": 0.8,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 423,
+   "p75": 2460.49,
+   "good_share": 0.7589,
+   "poor_share": 0.0355
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 135,
+   "p75": 0.089,
+   "good_share": 0.7852,
+   "poor_share": 0.0148
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 33,
+   "p75": 203.2,
+   "good_share": 0.697,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-16",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 431,
+   "p75": 218.625,
+   "good_share": 0.6821,
+   "poor_share": 0.007
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 412,
+   "p75": 2477.428,
+   "good_share": 0.767,
+   "poor_share": 0.0316
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 526,
+   "p75": 2470.755,
+   "good_share": 0.7605,
+   "poor_share": 0.0304
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 404,
+   "p75": 228.94,
+   "good_share": 0.6262,
+   "poor_share": 0.0025
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 149,
+   "p75": 0.085,
+   "good_share": 0.8188,
+   "poor_share": 0.0067
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 303,
+   "p75": 239.445,
+   "good_share": 0.5908,
+   "poor_share": 0.0066
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 121,
+   "p75": 0.078,
+   "good_share": 0.8264,
+   "poor_share": 0.0083
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 28,
+   "p75": 191.675,
+   "good_share": 0.7857,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.073,
+   "good_share": 0.8,
+   "poor_share": 0.1
+  },
+  {
+   "day": "2026-09-17",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 43,
+   "p75": 2644.045,
+   "good_share": 0.6977,
+   "poor_share": 0.0698
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 406,
+   "p75": 2591.92,
+   "good_share": 0.7192,
+   "poor_share": 0.0567
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 166,
+   "p75": 0.094,
+   "good_share": 0.7651,
+   "poor_share": 0.0241
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 434,
+   "p75": 232.313,
+   "good_share": 0.6406,
+   "poor_share": 0.0023
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 22,
+   "p75": 210.315,
+   "good_share": 0.7273,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 144,
+   "p75": 0.094,
+   "good_share": 0.7708,
+   "poor_share": 0.0347
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.073,
+   "good_share": 0.9,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 312,
+   "p75": 229.548,
+   "good_share": 0.6378,
+   "poor_share": 0.0064
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 40,
+   "p75": 2698.27,
+   "good_share": 0.725,
+   "poor_share": 0.05
+  },
+  {
+   "day": "2026-09-18",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 529,
+   "p75": 2493.34,
+   "good_share": 0.7543,
+   "poor_share": 0.0435
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 404,
+   "p75": 2441.545,
+   "good_share": 0.7698,
+   "poor_share": 0.0322
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 168,
+   "p75": 0.079,
+   "good_share": 0.8452,
+   "poor_share": 0.0238
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 11,
+   "p75": 0.093,
+   "good_share": 0.7273,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 29,
+   "p75": 223.01,
+   "good_share": 0.5862,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 439,
+   "p75": 229.79,
+   "good_share": 0.6469,
+   "poor_share": 0.0046
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 329,
+   "p75": 231.33,
+   "good_share": 0.6626,
+   "poor_share": 0.003
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 42,
+   "p75": 2713.825,
+   "good_share": 0.6667,
+   "poor_share": 0.0238
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 118,
+   "p75": 0.076,
+   "good_share": 0.8898,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-19",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 464,
+   "p75": 2589.473,
+   "good_share": 0.7284,
+   "poor_share": 0.028
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 125,
+   "p75": 0.085,
+   "good_share": 0.792,
+   "poor_share": 0.016
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 164,
+   "p75": 0.114,
+   "good_share": 0.7134,
+   "poor_share": 0.0305
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 389,
+   "p75": 228.15,
+   "good_share": 0.635,
+   "poor_share": 0.0026
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 408,
+   "p75": 2416.705,
+   "good_share": 0.7843,
+   "poor_share": 0.0245
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 466,
+   "p75": 2435.79,
+   "good_share": 0.7639,
+   "poor_share": 0.0365
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 36,
+   "p75": 2385.63,
+   "good_share": 0.8056,
+   "poor_share": 0.0278
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 307,
+   "p75": 225.86,
+   "good_share": 0.6287,
+   "poor_share": 0.0033
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 11,
+   "p75": 0.151,
+   "good_share": 0.6364,
+   "poor_share": 0.1818
+  },
+  {
+   "day": "2026-09-20",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 22,
+   "p75": 254.788,
+   "good_share": 0.6364,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 511,
+   "p75": 2585.685,
+   "good_share": 0.7162,
+   "poor_share": 0.045
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 23,
+   "p75": 211.96,
+   "good_share": 0.6522,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 130,
+   "p75": 0.082,
+   "good_share": 0.8462,
+   "poor_share": 0.0077
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 36,
+   "p75": 2225.533,
+   "good_share": 0.8056,
+   "poor_share": 0.0278
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 7,
+   "p75": 0.123,
+   "good_share": 0.7143,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 406,
+   "p75": 238.878,
+   "good_share": 0.6281,
+   "poor_share": 0.0025
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 338,
+   "p75": 224.29,
+   "good_share": 0.6627,
+   "poor_share": 0.003
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 421,
+   "p75": 2471.27,
+   "good_share": 0.7553,
+   "poor_share": 0.0309
+  },
+  {
+   "day": "2026-09-21",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 172,
+   "p75": 0.089,
+   "good_share": 0.8023,
+   "poor_share": 0.0291
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 162,
+   "p75": 0.086,
+   "good_share": 0.8148,
+   "poor_share": 0.0062
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 299,
+   "p75": 248.1,
+   "good_share": 0.6187,
+   "poor_share": 0.0134
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 403,
+   "p75": 221.005,
+   "good_share": 0.6749,
+   "poor_share": 0.0025
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 131,
+   "p75": 0.085,
+   "good_share": 0.8168,
+   "poor_share": 0.0076
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 29,
+   "p75": 211.12,
+   "good_share": 0.6897,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 18,
+   "p75": 0.063,
+   "good_share": 0.9444,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 517,
+   "p75": 2547.91,
+   "good_share": 0.7234,
+   "poor_share": 0.0484
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 30,
+   "p75": 2746.88,
+   "good_share": 0.7,
+   "poor_share": 0.0667
+  },
+  {
+   "day": "2026-09-22",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 425,
+   "p75": 2648.92,
+   "good_share": 0.7129,
+   "poor_share": 0.0424
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 38,
+   "p75": 2573.155,
+   "good_share": 0.7105,
+   "poor_share": 0.0263
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 11,
+   "p75": 0.069,
+   "good_share": 0.9091,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 172,
+   "p75": 0.088,
+   "good_share": 0.7965,
+   "poor_share": 0.0174
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 326,
+   "p75": 231.31,
+   "good_share": 0.6104,
+   "poor_share": 0.0061
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 406,
+   "p75": 2443.793,
+   "good_share": 0.7635,
+   "poor_share": 0.0345
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 532,
+   "p75": 2428.045,
+   "good_share": 0.7782,
+   "poor_share": 0.0226
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 25,
+   "p75": 219.34,
+   "good_share": 0.64,
+   "poor_share": 0.04
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 434,
+   "p75": 228.052,
+   "good_share": 0.6198,
+   "poor_share": 0.0023
+  },
+  {
+   "day": "2026-09-23",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 130,
+   "p75": 0.087,
+   "good_share": 0.8308,
+   "poor_share": 0.0077
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 384,
+   "p75": 238.063,
+   "good_share": 0.6172,
+   "poor_share": 0.0052
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 35,
+   "p75": 246.135,
+   "good_share": 0.5429,
+   "poor_share": 0.0286
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 131,
+   "p75": 0.078,
+   "good_share": 0.8855,
+   "poor_share": 0.0076
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 409,
+   "p75": 2511.64,
+   "good_share": 0.7408,
+   "poor_share": 0.0293
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 29,
+   "p75": 2337.79,
+   "good_share": 0.7931,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 14,
+   "p75": 0.082,
+   "good_share": 0.7857,
+   "poor_share": 0.1429
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 169,
+   "p75": 0.096,
+   "good_share": 0.7633,
+   "poor_share": 0.0178
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 537,
+   "p75": 2477.87,
+   "good_share": 0.7616,
+   "poor_share": 0.0335
+  },
+  {
+   "day": "2026-09-24",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 346,
+   "p75": 213.11,
+   "good_share": 0.6821,
+   "poor_share": 0.0116
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 280,
+   "p75": 240.225,
+   "good_share": 0.6143,
+   "poor_share": 0.0071
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 14,
+   "p75": 0.106,
+   "good_share": 0.6429,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 405,
+   "p75": 2476.02,
+   "good_share": 0.7605,
+   "poor_share": 0.042
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 130,
+   "p75": 0.09,
+   "good_share": 0.8231,
+   "poor_share": 0.0154
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 178,
+   "p75": 0.101,
+   "good_share": 0.7416,
+   "poor_share": 0.0337
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 40,
+   "p75": 2445.888,
+   "good_share": 0.75,
+   "poor_share": 0.025
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 563,
+   "p75": 2469.145,
+   "good_share": 0.7638,
+   "poor_share": 0.0302
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 411,
+   "p75": 229.365,
+   "good_share": 0.6229,
+   "poor_share": 0.0024
+  },
+  {
+   "day": "2026-09-25",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 32,
+   "p75": 243.325,
+   "good_share": 0.625,
+   "poor_share": 0.0313
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 13,
+   "p75": 0.153,
+   "good_share": 0.6923,
+   "poor_share": 0.0769
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 183,
+   "p75": 0.104,
+   "good_share": 0.7322,
+   "poor_share": 0.0328
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 387,
+   "p75": 2520.755,
+   "good_share": 0.7416,
+   "poor_share": 0.0465
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 435,
+   "p75": 231.035,
+   "good_share": 0.6276,
+   "poor_share": 0.0046
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 529,
+   "p75": 2427.43,
+   "good_share": 0.7807,
+   "poor_share": 0.0208
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 317,
+   "p75": 228.36,
+   "good_share": 0.6341,
+   "poor_share": 0.0032
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 24,
+   "p75": 2223.76,
+   "good_share": 0.7917,
+   "poor_share": 0.0833
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 30,
+   "p75": 220.53,
+   "good_share": 0.5333,
+   "poor_share": 0.0333
+  },
+  {
+   "day": "2026-09-26",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 136,
+   "p75": 0.089,
+   "good_share": 0.8162,
+   "poor_share": 0.0147
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 412,
+   "p75": 226.755,
+   "good_share": 0.6238,
+   "poor_share": 0.0073
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 124,
+   "p75": 0.087,
+   "good_share": 0.7823,
+   "poor_share": 0.0565
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 34,
+   "p75": 198.237,
+   "good_share": 0.7647,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 144,
+   "p75": 0.088,
+   "good_share": 0.7847,
+   "poor_share": 0.0208
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 37,
+   "p75": 2393.53,
+   "good_share": 0.7838,
+   "poor_share": 0.027
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 14,
+   "p75": 0.089,
+   "good_share": 0.7857,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 401,
+   "p75": 2390.3,
+   "good_share": 0.7855,
+   "poor_share": 0.0349
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 536,
+   "p75": 2550.91,
+   "good_share": 0.7313,
+   "poor_share": 0.0429
+  },
+  {
+   "day": "2026-09-27",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 341,
+   "p75": 216.21,
+   "good_share": 0.6628,
+   "poor_share": 0.0029
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 24,
+   "p75": 269.418,
+   "good_share": 0.4167,
+   "poor_share": 0.0417
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 148,
+   "p75": 0.076,
+   "good_share": 0.8784,
+   "poor_share": 0.0135
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 376,
+   "p75": 224.015,
+   "good_share": 0.6516,
+   "poor_share": 0.0053
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 456,
+   "p75": 2456.837,
+   "good_share": 0.7675,
+   "poor_share": 0.0504
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 542,
+   "p75": 2635.878,
+   "good_share": 0.7085,
+   "poor_share": 0.0406
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 11,
+   "p75": 0.053,
+   "good_share": 0.8182,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 330,
+   "p75": 233.18,
+   "good_share": 0.6394,
+   "poor_share": 0.0121
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 24,
+   "p75": 2389.063,
+   "good_share": 0.7917,
+   "poor_share": 0.0833
+  },
+  {
+   "day": "2026-09-28",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 172,
+   "p75": 0.085,
+   "good_share": 0.8256,
+   "poor_share": 0.0116
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 127,
+   "p75": 0.084,
+   "good_share": 0.8268,
+   "poor_share": 0.0157
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 422,
+   "p75": 230.488,
+   "good_share": 0.6469,
+   "poor_share": 0.0047
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 404,
+   "p75": 2564.76,
+   "good_share": 0.7252,
+   "poor_share": 0.0396
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 20,
+   "p75": 243.655,
+   "good_share": 0.45,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 519,
+   "p75": 2464.4,
+   "good_share": 0.7707,
+   "poor_share": 0.025
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 44,
+   "p75": 2551.89,
+   "good_share": 0.7273,
+   "poor_share": 0.0455
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 10,
+   "p75": 0.064,
+   "good_share": 0.9,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 181,
+   "p75": 0.093,
+   "good_share": 0.7624,
+   "poor_share": 0.0276
+  },
+  {
+   "day": "2026-09-29",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 339,
+   "p75": 228.44,
+   "good_share": 0.6195,
+   "poor_share": 0.0029
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "CLS",
+   "device": "mobile",
+   "measurements": 127,
+   "p75": 0.109,
+   "good_share": 0.7244,
+   "poor_share": 0.0079
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "CLS",
+   "device": "tablet",
+   "measurements": 14,
+   "p75": 0.099,
+   "good_share": 0.7143,
+   "poor_share": 0
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "INP",
+   "device": "desktop",
+   "measurements": 445,
+   "p75": 234.15,
+   "good_share": 0.6135,
+   "poor_share": 0.0045
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "LCP",
+   "device": "tablet",
+   "measurements": 40,
+   "p75": 2539,
+   "good_share": 0.75,
+   "poor_share": 0.075
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "LCP",
+   "device": "mobile",
+   "measurements": 394,
+   "p75": 2510.805,
+   "good_share": 0.7411,
+   "poor_share": 0.0558
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "INP",
+   "device": "mobile",
+   "measurements": 302,
+   "p75": 227.96,
+   "good_share": 0.6623,
+   "poor_share": 0.0099
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "CLS",
+   "device": "desktop",
+   "measurements": 151,
+   "p75": 0.086,
+   "good_share": 0.8278,
+   "poor_share": 0.0132
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "INP",
+   "device": "tablet",
+   "measurements": 30,
+   "p75": 231.05,
+   "good_share": 0.6333,
+   "poor_share": 0.0333
+  },
+  {
+   "day": "2026-09-30",
+   "metric": "LCP",
+   "device": "desktop",
+   "measurements": 495,
+   "p75": 2491.815,
+   "good_share": 0.7556,
+   "poor_share": 0.0747
+  }
+ ],
+ "devices": [
+  {
+   "device": "desktop",
+   "metric": "CLS",
+   "measurements": 4953,
+   "p75": 0.093,
+   "good_share": 0.7797,
+   "poor_share": 0.024
+  },
+  {
+   "device": "desktop",
+   "metric": "INP",
+   "measurements": 12496,
+   "p75": 227.663,
+   "good_share": 0.6385,
+   "poor_share": 0.0051
+  },
+  {
+   "device": "desktop",
+   "metric": "LCP",
+   "measurements": 15695,
+   "p75": 2515.245,
+   "good_share": 0.7441,
+   "poor_share": 0.0375
+  },
+  {
+   "device": "mobile",
+   "metric": "CLS",
+   "measurements": 3921,
+   "p75": 0.088,
+   "good_share": 0.8023,
+   "poor_share": 0.0189
+  },
+  {
+   "device": "mobile",
+   "metric": "INP",
+   "measurements": 9531,
+   "p75": 229.86,
+   "good_share": 0.6413,
+   "poor_share": 0.0057
+  },
+  {
+   "device": "mobile",
+   "metric": "LCP",
+   "measurements": 12475,
+   "p75": 2522.165,
+   "good_share": 0.742,
+   "poor_share": 0.0378
+  },
+  {
+   "device": "tablet",
+   "metric": "CLS",
+   "measurements": 340,
+   "p75": 0.092,
+   "good_share": 0.7941,
+   "poor_share": 0.0206
+  },
+  {
+   "device": "tablet",
+   "metric": "INP",
+   "measurements": 890,
+   "p75": 228.195,
+   "good_share": 0.6427,
+   "poor_share": 0.0079
+  },
+  {
+   "device": "tablet",
+   "metric": "LCP",
+   "measurements": 1128,
+   "p75": 2542.253,
+   "good_share": 0.7394,
+   "poor_share": 0.0363
+  }
+ ],
+ "ratings": [
+  {
+   "metric": "INP",
+   "device": "desktop",
+   "rating": "needs improvement",
+   "measurements": 4453
+  },
+  {
+   "metric": "LCP",
+   "device": "desktop",
+   "rating": "needs improvement",
+   "measurements": 3429
+  },
+  {
+   "metric": "LCP",
+   "device": "mobile",
+   "rating": "poor",
+   "measurements": 471
+  },
+  {
+   "metric": "LCP",
+   "device": "tablet",
+   "rating": "needs improvement",
+   "measurements": 253
+  },
+  {
+   "metric": "CLS",
+   "device": "desktop",
+   "rating": "poor",
+   "measurements": 119
+  },
+  {
+   "metric": "INP",
+   "device": "tablet",
+   "rating": "poor",
+   "measurements": 7
+  },
+  {
+   "metric": "INP",
+   "device": "mobile",
+   "rating": "good",
+   "measurements": 6112
+  },
+  {
+   "metric": "CLS",
+   "device": "desktop",
+   "rating": "needs improvement",
+   "measurements": 972
+  },
+  {
+   "metric": "INP",
+   "device": "tablet",
+   "rating": "needs improvement",
+   "measurements": 311
+  },
+  {
+   "metric": "CLS",
+   "device": "mobile",
+   "rating": "needs improvement",
+   "measurements": 701
+  },
+  {
+   "metric": "LCP",
+   "device": "desktop",
+   "rating": "poor",
+   "measurements": 588
+  },
+  {
+   "metric": "LCP",
+   "device": "mobile",
+   "rating": "needs improvement",
+   "measurements": 2748
+  },
+  {
+   "metric": "LCP",
+   "device": "tablet",
+   "rating": "poor",
+   "measurements": 41
+  },
+  {
+   "metric": "CLS",
+   "device": "tablet",
+   "rating": "needs improvement",
+   "measurements": 63
+  },
+  {
+   "metric": "INP",
+   "device": "desktop",
+   "rating": "good",
+   "measurements": 7979
+  },
+  {
+   "metric": "LCP",
+   "device": "tablet",
+   "rating": "good",
+   "measurements": 834
+  },
+  {
+   "metric": "LCP",
+   "device": "desktop",
+   "rating": "good",
+   "measurements": 11678
+  },
+  {
+   "metric": "INP",
+   "device": "desktop",
+   "rating": "poor",
+   "measurements": 64
+  },
+  {
+   "metric": "INP",
+   "device": "mobile",
+   "rating": "poor",
+   "measurements": 54
+  },
+  {
+   "metric": "CLS",
+   "device": "tablet",
+   "rating": "good",
+   "measurements": 270
+  },
+  {
+   "metric": "CLS",
+   "device": "mobile",
+   "rating": "poor",
+   "measurements": 74
+  },
+  {
+   "metric": "INP",
+   "device": "mobile",
+   "rating": "needs improvement",
+   "measurements": 3365
+  },
+  {
+   "metric": "CLS",
+   "device": "desktop",
+   "rating": "good",
+   "measurements": 3862
+  },
+  {
+   "metric": "INP",
+   "device": "tablet",
+   "rating": "good",
+   "measurements": 572
+  },
+  {
+   "metric": "CLS",
+   "device": "mobile",
+   "rating": "good",
+   "measurements": 3146
+  },
+  {
+   "metric": "CLS",
+   "device": "tablet",
+   "rating": "poor",
+   "measurements": 7
+  },
+  {
+   "metric": "LCP",
+   "device": "mobile",
+   "rating": "good",
+   "measurements": 9256
+  }
+ ],
+ "pages": [
+  {
+   "page": "/security",
+   "measurements": 284,
+   "good_share": 0.7148,
+   "poor_share": 0.0387,
+   "lcp_p75": 2372,
+   "inp_p75": 233,
+   "cls_p75": 0.122
+  },
+  {
+   "page": "/compare/framer",
+   "measurements": 496,
+   "good_share": 0.7097,
+   "poor_share": 0.0363,
+   "lcp_p75": 2491,
+   "inp_p75": 232,
+   "cls_p75": 0.089
+  },
+  {
+   "page": "/blog/site-performance",
+   "measurements": 2039,
+   "good_share": 0.6896,
+   "poor_share": 0.026,
+   "lcp_p75": 2582,
+   "inp_p75": 232,
+   "cls_p75": 0.087
+  },
+  {
+   "page": "/visual-editor",
+   "measurements": 4727,
+   "good_share": 0.7089,
+   "poor_share": 0.0254,
+   "lcp_p75": 2543,
+   "inp_p75": 228,
+   "cls_p75": 0.091
+  },
+  {
+   "page": "/blog/content-workflow",
+   "measurements": 2343,
+   "good_share": 0.7081,
+   "poor_share": 0.0252,
+   "lcp_p75": 2544,
+   "inp_p75": 226,
+   "cls_p75": 0.089
+  },
+  {
+   "page": "/compare/wordpress",
+   "measurements": 834,
+   "good_share": 0.7278,
+   "poor_share": 0.0252,
+   "lcp_p75": 2399,
+   "inp_p75": 239,
+   "cls_p75": 0.079
+  },
+  {
+   "page": "/templates/saas",
+   "measurements": 1545,
+   "good_share": 0.723,
+   "poor_share": 0.0252,
+   "lcp_p75": 2494,
+   "inp_p75": 221,
+   "cls_p75": 0.089
+  },
+  {
+   "page": "/features",
+   "measurements": 4898,
+   "good_share": 0.7142,
+   "poor_share": 0.0251,
+   "lcp_p75": 2528,
+   "inp_p75": 230,
+   "cls_p75": 0.091
+  },
+  {
+   "page": "/collaboration",
+   "measurements": 4360,
+   "good_share": 0.7202,
+   "poor_share": 0.025,
+   "lcp_p75": 2487,
+   "inp_p75": 225,
+   "cls_p75": 0.089
+  },
+  {
+   "page": "/compare/webflow",
+   "measurements": 1005,
+   "good_share": 0.7164,
+   "poor_share": 0.0249,
+   "lcp_p75": 2573,
+   "inp_p75": 232,
+   "cls_p75": 0.081
+  },
+  {
+   "page": "/docs/getting-started",
+   "measurements": 3556,
+   "good_share": 0.7109,
+   "poor_share": 0.0247,
+   "lcp_p75": 2507,
+   "inp_p75": 228,
+   "cls_p75": 0.086
+  },
+  {
+   "page": "/blog/launch-checklist",
+   "measurements": 2570,
+   "good_share": 0.7245,
+   "poor_share": 0.0245,
+   "lcp_p75": 2497,
+   "inp_p75": 226,
+   "cls_p75": 0.089
+  },
+  {
+   "page": "/docs/accessibility",
+   "measurements": 2827,
+   "good_share": 0.711,
+   "poor_share": 0.0244,
+   "lcp_p75": 2530,
+   "inp_p75": 227,
+   "cls_p75": 0.091
+  },
+  {
+   "page": "/hosting",
+   "measurements": 3822,
+   "good_share": 0.7117,
+   "poor_share": 0.0225,
+   "lcp_p75": 2522,
+   "inp_p75": 229,
+   "cls_p75": 0.093
+  },
+  {
+   "page": "/templates/agency",
+   "measurements": 1242,
+   "good_share": 0.6924,
+   "poor_share": 0.0225,
+   "lcp_p75": 2528,
+   "inp_p75": 226,
+   "cls_p75": 0.098
+  },
+  {
+   "page": "/docs/publishing",
+   "measurements": 3276,
+   "good_share": 0.7042,
+   "poor_share": 0.0223,
+   "lcp_p75": 2568,
+   "inp_p75": 225,
+   "cls_p75": 0.098
+  },
+  {
+   "page": "/localization",
+   "measurements": 4063,
+   "good_share": 0.7022,
+   "poor_share": 0.0217,
+   "lcp_p75": 2531,
+   "inp_p75": 228,
+   "cls_p75": 0.103
+  },
+  {
+   "page": "/docs/custom-domains",
+   "measurements": 3059,
+   "good_share": 0.7277,
+   "poor_share": 0.0206,
+   "lcp_p75": 2470,
+   "inp_p75": 226,
+   "cls_p75": 0.092
+  },
+  {
+   "page": "/",
+   "measurements": 12721,
+   "good_share": 0.7128,
+   "poor_share": 0.0206,
+   "lcp_p75": 2518,
+   "inp_p75": 230,
+   "cls_p75": 0.089
+  },
+  {
+   "page": "/templates/portfolio",
+   "measurements": 1762,
+   "good_share": 0.6941,
+   "poor_share": 0.0153,
+   "lcp_p75": 2573,
+   "inp_p75": 238,
+   "cls_p75": 0.084
+  }
+ ]
+}

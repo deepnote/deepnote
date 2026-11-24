@@ -26,7 +26,20 @@ export const COMPONENT_TYPES = [
 ]
 export const PATCH_TYPES = ['set', 'del', 'move']
 export const AGGS = ['sum', 'avg', 'count', 'distinct', 'min', 'max', 'median', 'ratio', 'share']
-export const CHART_KINDS = ['line', 'area', 'bar', 'hbar', 'stacked', 'pie', 'scatter', 'hist', 'waterfall']
+export const CHART_KINDS = [
+  'line',
+  'area',
+  'bar',
+  'hbar',
+  'stacked',
+  'pie',
+  'scatter',
+  'hist',
+  'waterfall',
+  'heatmap',
+  'funnel',
+  'quadrant',
+]
 export const INPUT_KINDS = ['select', 'segmented', 'slider', 'number', 'toggle', 'text']
 export const FILTER_KINDS = ['select', 'date', 'toggle']
 const TIME_UNITS = ['day', 'week', 'month', 'quarter', 'year']
@@ -370,6 +383,18 @@ export function checkOp(input, ctx) {
         columns.push({ name, type: 'number' })
         colNames.push(name)
       }
+      if (op.cluster) {
+        const cl = op.cluster
+        const fields = [].concat(cl.fields ?? [])
+        const bad = fields.filter(f => !columns.find(c => c.name === f && c.type === 'number'))
+        if (!fields.length || bad.length)
+          errors.push(`${op.id}: cluster.fields must be numeric columns${bad.length ? ` (not ${bad.join(', ')})` : ''}`)
+        cl.fields = fields
+        cl.k = Math.min(8, Math.max(2, Number(cl.k ?? 4) || 4))
+        cl.as ??= 'cluster'
+        columns.push({ name: cl.as, type: 'string' })
+        colNames.push(cl.as)
+      }
       if (op.group) {
         op.group = [].concat(op.group)
         const keep = op.group.filter(g => columns.find(c => c.name === g))
@@ -389,6 +414,8 @@ export function checkOp(input, ctx) {
         checkWhere()
       }
       checkExpr(op.delta, 'delta', { row: false })
+      checkExpr(op.spark, 'spark', { row: false })
+      checkExpr(op.target, 'target', { row: false })
       if (typeof op.compare === 'string') checkExpr(op.compare, 'compare', { row: false })
       checkExpr(op.tone, 'tone', { row: false })
       break
@@ -398,9 +425,25 @@ export function checkOp(input, ctx) {
         for (const [i, r] of op.rows.entries())
           for (const [k, v] of Object.entries(r))
             if (typeof v === 'string' && v.startsWith('=')) checkExpr(v.slice(1), `rows[${i}].${k}`, { row: false })
-      if (op.kind === 'scatter') {
+      if (op.kind === 'scatter' || op.kind === 'quadrant') {
         fixField('x', { required: true, types: ['number'] })
         fixField('y', { required: true, types: ['number'] })
+        if (op.kind === 'quadrant') {
+          fixField('label')
+          checkExpr(op.xRef, 'xRef', { row: false })
+          checkExpr(op.yRef, 'yRef', { row: false })
+          if (op.quadrants != null && !(Array.isArray(op.quadrants) && op.quadrants.length === 4))
+            errors.push(`${op.id}: quadrants must list 4 labels: top-left, top-right, bottom-left, bottom-right`)
+        }
+      } else if (op.kind === 'heatmap') {
+        // Two category columns and a measure in `value` (rows counted when it is left out).
+        fixField('x', { required: true })
+        fixField('y', { required: true })
+        if (op.value != null) {
+          op.agg ??= 'sum'
+          fixField('value', { types: ['number'] })
+        } else op.agg = 'count'
+        fixEnum('agg', AGGS, 'sum')
       } else if (op.kind === 'hist') fixField('x', { required: true, types: ['number'] })
       else {
         const x = fixField('x', { required: true })
@@ -462,6 +505,7 @@ export function checkOp(input, ctx) {
       if (op.sort) fixField('sort')
       if (op.select && !ctx.inputs.has(op.select)) ctx.inputs.add(op.select)
       if (op.key) fixField('key')
+      fixEnum('layout', ['rows', 'cards', 'bars'], 'rows')
       checkWhere()
       break
     case 'detail':

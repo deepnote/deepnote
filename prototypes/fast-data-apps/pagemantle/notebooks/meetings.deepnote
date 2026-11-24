@@ -1,0 +1,185 @@
+metadata:
+  createdAt: 2026-11-24T09:00:00.000Z
+  modifiedAt: 2026-11-24T09:00:00.000Z
+project:
+  id: 13442647-6918-feda-b433-1aa55a1a5a40
+  name: "PageMantle: Meetings"
+  notebooks:
+    - blocks:
+        - id: 42ef6857358a9552cd8827d321c5e96b
+          blockGroup: 7af80f068b7647213a45dab23944de61
+          sortingKey: "000000"
+          type: markdown
+          content: |-
+            # Meetings
+
+            Company calendar from June to September 2026: every meeting with its length, attendees and person-hours, recurring series, each person's weekly meeting load, and when meetings happen. Person-hours times an hourly cost gives meeting cost.
+
+            Reads the PageMantle company dataset from `PAGEMANTLE_DATA` (default `~/data/pagemantle`). **Dataset** picks a fast sample or the full data.
+          metadata: {}
+        - id: 8757f74218ef46e671a4e38bf21f5882
+          blockGroup: fadaa4799c9dae3934b5222370442edc
+          sortingKey: "000001"
+          type: input-select
+          content: ""
+          metadata:
+            deepnote_variable_name: dataset
+            deepnote_input_label: Dataset
+            deepnote_variable_value: sample
+            deepnote_variable_default_value: sample
+            deepnote_variable_options:
+              - sample
+              - full
+            deepnote_variable_custom_options:
+              - sample
+              - full
+            deepnote_variable_selected_variable: ""
+            deepnote_variable_select_type: from-options
+            deepnote_allow_multiple_values: false
+        - id: b533efd2d5bf4f67ee08e33aad7a7273
+          blockGroup: 831dc73a71e536119af8ce70329d0106
+          sortingKey: "000002"
+          type: code
+          content: |-
+            # Shared setup, copied into the first code block of every PageMantle notebook.
+            # `dataset` comes from the notebook's input: "sample" (fast, for checking apps) or "full".
+            import json
+            import os
+
+            import duckdb
+            from IPython.display import display
+
+            ROOT = os.path.expanduser(os.environ.get("PAGEMANTLE_DATA", "~/data/pagemantle"))
+            FULL = dataset == "full"
+            con = duckdb.connect()
+            con.execute("LOAD sqlite")
+
+
+            def pq(path):
+                """All Parquet partitions under a folder of the extracted dataset."""
+                return f"read_parquet('{ROOT}/{path}/**/*.parquet', union_by_name=true)"
+
+
+            def db(path):
+                return f"{ROOT}/{path}"
+
+
+            def q(sql):
+                return con.execute(sql).df()
+
+
+            def records(df):
+                return json.loads(df.to_json(orient="records", date_format="iso", double_precision=4))
+
+
+            def one(sql):
+                return con.execute(sql).fetchone()[0]
+
+
+            # Sampling keeps every 10th customer (by a stable hash), so customer tables stay consistent
+            # across notebooks. Event-level sources sample the most recent days instead (see each notebook).
+            def in_sample(col):
+                return "TRUE" if FULL else f"(hash({col}) % 10 = 0)"
+
+
+            DATASET = {"mode": "full" if FULL else "sample"}
+          metadata: {}
+        - id: b11d67a46959a6802123c1d5b391459a
+          blockGroup: 9703d3d2bfc43a3f21eb83bad1b09fd0
+          sortingKey: "000003"
+          type: code
+          content: |-
+            # cspell:ignore dayname isodow
+            con.execute(f"ATTACH '{db('calendar/calendar.sqlite')}' AS cal (TYPE sqlite, READ_ONLY)")
+            con.execute(f"ATTACH '{db('linear/linear.sqlite')}' AS lin (TYPE sqlite, READ_ONLY)")
+            # Each attendee's calendar holds its own copy of a meeting: keep one copy per title and start time.
+            con.execute("""
+            CREATE TEMP TABLE m AS
+            SELECT * EXCLUDE (copy) FROM (
+              SELECT e.calendar_id, e.id, e.summary AS meeting, e.organizer_email,
+                to_timestamp(e.start_utc)::TIMESTAMP AS starts,
+                CAST(substr(e.start_time, 12, 2) AS INT) AS local_hour,
+                (e.end_utc - e.start_utc) / 3600.0 AS hours,
+                e.recurring_event_id IS NOT NULL OR EXISTS (SELECT 1 FROM cal.recurrence_rules r WHERE r.event_id = e.id) AS recurring,
+                row_number() OVER (PARTITION BY e.summary, e.start_utc ORDER BY e.organizer_email = c.owner_email DESC, e.id) AS copy
+              FROM cal.events e JOIN cal.calendars c ON c.id = e.calendar_id
+              WHERE e.status = 'confirmed' AND NOT coalesce(CAST(e.all_day AS BOOLEAN), FALSE)
+            ) WHERE copy = 1
+            """)
+            con.execute("""
+            CREATE TEMP TABLE att AS
+            SELECT DISTINCT m.id AS event_id, a.email, coalesce(u.display_name, a.display_name, a.email) AS person
+            FROM cal.attendees a
+            JOIN cal.events e ON e.id = a.event_id
+            JOIN m ON m.meeting = e.summary AND m.starts = to_timestamp(e.start_utc)::TIMESTAMP
+            LEFT JOIN cal.users u ON u.email = a.email
+            WHERE NOT coalesce(CAST(a.resource AS BOOLEAN), FALSE) AND coalesce(a.response_status, '') <> 'declined'
+            """)
+            meetings = q("""
+            WITH n AS (SELECT event_id, count(*) AS attendees FROM att GROUP BY 1)
+            SELECT m.id AS meeting_id, m.meeting, strftime(m.starts, '%Y-%m-%d') AS day, strftime(m.starts, '%Y-W%V') AS week,
+              dayname(m.starts) AS weekday, m.local_hour AS hour, round(m.hours, 2) AS hours,
+              coalesce(n.attendees, 0) AS attendees, round(m.hours * coalesce(n.attendees, 0), 2) AS person_hours,
+              m.recurring, coalesce(o.display_name, m.organizer_email) AS organizer
+            FROM m LEFT JOIN n ON n.event_id = m.id LEFT JOIN cal.users o ON o.email = m.organizer_email
+            ORDER BY day DESC
+            """)
+            con.register("meetings_t", meetings)
+            series = q("""
+            SELECT meeting, count(*) AS occurrences, round(avg(hours), 2) AS avg_hours, round(avg(attendees), 1) AS avg_attendees,
+              round(sum(person_hours), 1) AS person_hours, bool_or(recurring) AS recurring
+            FROM meetings_t
+            GROUP BY 1 ORDER BY person_hours DESC
+            """)
+            people = q("""
+            SELECT a.person, any_value(lu.title) AS title,
+              count(DISTINCT m.id) AS meetings,
+              round(sum(m.hours), 1) AS meeting_hours,
+              round(sum(m.hours) / (date_diff('day', DATE '2026-06-05', DATE '2026-09-30') / 7.0), 1) AS hours_per_week,
+              round(sum(m.hours) FILTER (WHERE m.recurring) / sum(m.hours), 3) AS recurring_share,
+              round(avg(m.hours), 2) AS avg_meeting_hours
+            FROM att a JOIN m ON m.id = a.event_id LEFT JOIN lin.users lu ON lower(lu.email) = lower(a.email)
+            GROUP BY 1 ORDER BY meeting_hours DESC
+            """)
+            people["share_of_week"] = (people.hours_per_week / 40).round(3)
+            weekly = q("""
+            SELECT strftime(m.starts, '%Y-W%V') AS week, min(m.starts)::DATE::VARCHAR AS week_start,
+              count(DISTINCT m.id) AS meetings, round(sum(m.hours), 1) AS meeting_hours,
+              round(sum(m.hours * n), 1) AS person_hours
+            FROM m JOIN (SELECT event_id, count(*) AS n FROM att GROUP BY 1) c ON c.event_id = m.id
+            GROUP BY 1 ORDER BY 1
+            """)
+            grid = q("""
+            SELECT dayname(starts) AS weekday, isodow(starts) AS weekday_number, local_hour AS hour, count(*) AS meetings
+            FROM m GROUP BY ALL ORDER BY 2, 3
+            """)
+            sizes = q("""
+            SELECT CASE WHEN attendees <= 2 THEN '1:1 (2)' WHEN attendees <= 5 THEN 'Small (3–5)' WHEN attendees <= 10 THEN 'Medium (6–10)' ELSE 'Large (11+)' END AS size,
+              count(*) AS meetings, round(sum(person_hours), 1) AS person_hours
+            FROM meetings_t
+            GROUP BY 1 ORDER BY person_hours DESC
+            """)
+            display({"application/json": {
+                "dataset": {**DATASET, "note": "all calendars (the calendar is small, so sample and full match)"},
+                "period": "2026-06-05 to 2026-09-30",
+                "assumptions": {"hourly_cost": 85, "work_hours_per_week": 40},
+                "summary": {
+                    "meetings": int(len(meetings)),
+                    "person_hours": round(float(meetings.person_hours.sum()), 0),
+                    "avg_attendees": round(float(meetings.attendees.mean()), 1),
+                    "avg_hours_per_person_week": round(float(people.hours_per_week.mean()), 1),
+                    "recurring_share": round(float(meetings[meetings.recurring].person_hours.sum() / meetings.person_hours.sum()), 3),
+                    "estimated_cost": round(float(meetings.person_hours.sum() * 85), 0),
+                },
+                "meetings": records(meetings),
+                "series": records(series),
+                "people": records(people),
+                "weekly": records(weekly),
+                "time_grid": records(grid),
+                "sizes": records(sizes),
+            }}, raw=True)
+          metadata: {}
+      executionMode: block
+      id: 217524bf-4aaa-0d7b-6018-fad9d262faff
+      name: Meetings
+version: 1.0.0

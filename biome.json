@@ -10,7 +10,8 @@
       "!**/*.html",
       "!**/*.md",
       "!**/*.yaml",
-      "!**/*.yml"
+      "!**/*.yml",
+      "!prototypes/fast-data-apps/pagemantle/snapshots"
     ]
   },
   "formatter": {

@@ -1,7 +1,8 @@
 // cspell:words cand maxbins tbls utcyear utcyearmonth utcyearmonthdate utcyearquarter utcyearweek wght
+// cspell:ignore symlog sparkline
 // Fast data app runtime. Renders an app spec (JSONL, see spec.js) on top of a
 // notebook output snapshot. Pre-built once, so the LLM only writes the spec.
-import { aggregate, bucketDate, buildRoot, groupBy, parseCsv } from './data.js'
+import { aggregate, bucketDate, buildRoot, cluster, defaultAgg, groupBy, parseCsv } from './data.js'
 import { evaluate, format, render } from './expr.js'
 import { checkOp, commitOp, createContext, parseLine, toJsonl } from './spec.js'
 
@@ -13,6 +14,33 @@ const fmtOf = spec => {
   return v => format(v, kind || undefined, arg)
 }
 const label = f => (f ? String(f).charAt(0).toUpperCase() + String(f).slice(1).replaceAll('_', ' ') : f)
+// Periods written as text: 2026, 2026-09, 2026-09-14, 2026-Q3, 2026-W38.
+const PERIOD = /^\d{4}(-(\d{2}(-\d{2})?|Q[1-4]|W\d{2}))?$/
+const WEEKDAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+/** Natural order for category values (weekdays, numbers, periods), or null to order by size. */
+function naturalOrder(values) {
+  const vs = [...new Set(values)].filter(v => v != null)
+  const day = v => WEEKDAYS.indexOf(String(v).toLowerCase().slice(0, 3))
+  if (vs.length && vs.every(v => day(v) >= 0)) return vs.sort((a, b) => day(a) - day(b))
+  if (vs.length && vs.every(v => typeof v === 'number')) return vs.sort((a, b) => a - b)
+  if (vs.length && vs.every(v => PERIOD.test(String(v)))) return vs.sort()
+  return null
+}
+/** Mix two CSS colors (hex or rgb) in JS, for scales Vega needs as plain colors. */
+function mixColor(a, b, t) {
+  const rgb = c => {
+    const probe = document.createElement('span')
+    probe.style.color = c
+    document.body.append(probe)
+    const m = getComputedStyle(probe).color.match(/[\d.]+/g)
+    probe.remove()
+    return m ? m.slice(0, 3).map(Number) : null
+  }
+  const x = rgb(a)
+  const y = rgb(b)
+  if (!x || !y) return a
+  return `rgb(${x.map((v, i) => Math.round(v * (1 - t) + y[i] * t)).join(',')})`
+}
 const TONES = ['good', 'warn', 'bad', 'neutral']
 function autoTone(text) {
   const t = String(text ?? '').toLowerCase()
@@ -265,6 +293,10 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
               return out
             })
           }
+          if (c.cluster) {
+            const names = cluster(rows, [].concat(c.cluster.fields), Number(c.cluster.k) || 4)
+            rows = rows.map((row, i) => ({ ...row, [c.cluster.as ?? 'cluster']: names[i] }))
+          }
           if (c.group) {
             const numeric = Object.keys(rows[0] ?? {}).filter(
               k => !c.group.includes(k) && typeof rows[0][k] === 'number'
@@ -272,7 +304,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
             rows = groupBy(
               rows,
               c.group.map(g => [g, r => r[g]]),
-              numeric.map(f => ({ as: f, agg: 'sum', field: f }))
+              numeric.map(f => ({ as: f, agg: defaultAgg(f, rows), field: f }))
             )
           }
           datasets[c.id] = rows
@@ -750,8 +782,28 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
   function renderKpi(el, comp) {
     let value
     let kind = comp.fmt
-    if (comp.value != null) value = ev(comp.value)
-    else {
+    // With data and agg, the aggregate wins over a value that is a literal, a list, or a stand-in
+    // for the field (writers sometimes give both, e.g. value=1 agg=count).
+    const aggWins =
+      comp.data && comp.agg && comp.value != null && (comp.field != null || typeof comp.value !== 'string')
+    if (comp.value != null && !aggWins) {
+      value = ev(comp.value)
+      if (Array.isArray(value)) {
+        const nums = value.map(Number).filter(Number.isFinite)
+        const how = comp.agg ?? 'sum'
+        value = nums.length
+          ? how === 'avg'
+            ? nums.reduce((a, b) => a + b, 0) / nums.length
+            : how === 'min'
+              ? Math.min(...nums)
+              : how === 'max'
+                ? Math.max(...nums)
+                : how === 'count'
+                  ? nums.length
+                  : nums.reduce((a, b) => a + b, 0)
+          : null
+      }
+    } else {
       value =
         comp.agg === 'share' && comp.field == null && comp.where != null
           ? rowsFor(comp).length / Math.max(1, rowsFor({ ...comp, where: undefined }).length)
@@ -765,28 +817,65 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     }
     let delta = ''
     // Comparison: explicit delta, or compare=<path>, or a sibling prior_/previous_ value found in the data.
-    let deltaExpr = comp.delta
+    const deltaExpr = comp.delta
     let deltaFmt = comp.deltaFmt
     const comparePath =
       comp.compare === false
         ? null
         : (comp.compare ?? (comp.delta == null && typeof comp.value === 'string' ? priorPath(comp.value) : null))
+    let d
     if (deltaExpr == null && comparePath) {
+      // Compare the number shown (an expression's value or an aggregate) with the prior one.
       const pct = String(kind ?? '').startsWith('percent')
-      deltaExpr = pct ? `(${comp.value}-${comparePath})*100` : `${comp.value}/${comparePath}-1`
+      const prior = Number(ev(comparePath))
+      d =
+        typeof value === 'number' && Number.isFinite(prior) && (pct || prior !== 0)
+          ? pct
+            ? (value - prior) * 100
+            : value / prior - 1
+          : null
       deltaFmt ??= pct ? 'signed:pts' : 'signed:%'
-    }
-    if (deltaExpr != null) {
-      const d = ev(deltaExpr)
+    } else if (deltaExpr != null) d = ev(deltaExpr)
+    if (d != null) {
       const good = comp.good === 'down' ? d < 0 : d > 0
       delta = `<span class="dk-delta ${d === 0 || d == null ? '' : good ? 'good' : 'bad'}">${esc(fmtOf(deltaFmt ?? 'signed')(d))}</span>`
     }
     const tone = comp.tone ? ` dk-tone-${toneClass(ev(comp.tone))}` : ''
+    // A sparkline of the recent trend, and/or progress toward a target.
+    let extra = ''
+    if (comp.spark != null) {
+      const pts = []
+        .concat(ev(comp.spark) ?? [])
+        .map(Number)
+        .filter(Number.isFinite)
+        .slice(-60)
+      if (pts.length > 1) {
+        const lo = Math.min(...pts)
+        const span = Math.max(...pts) - lo || 1
+        const xy = pts.map(
+          (v, i) => `${((i / (pts.length - 1)) * 100).toFixed(1)},${(26 - ((v - lo) / span) * 24).toFixed(1)}`
+        )
+        extra += `<svg class="dk-kpi-spark" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,28 ${xy.join(' ')} 100,28"/><polyline points="${xy.join(' ')}"/></svg>`
+      }
+    }
+    if (comp.target != null) {
+      const target = Number(ev(comp.target))
+      if (typeof value === 'number' && Number.isFinite(target) && target !== 0) {
+        const share = value / target
+        const met = comp.good === 'down' ? share <= 1 : share >= 1
+        const t = fmtOf(kind)(target)
+        const gap = String(kind ?? '').startsWith('percent')
+          ? `${Math.abs((value - target) * 100).toFixed(1)} pts ${value < target ? 'below' : 'above'} the ${t} target`
+          : `${Math.round(share * 100)}% of the ${t} target`
+        extra += `<div class="dk-kpi-target ${met ? 'good' : ''}"><span style="width:${Math.min(100, Math.max(0, share * 100)).toFixed(1)}%"></span></div><div class="dk-kpi-note">${esc(met && !String(kind ?? '').startsWith('percent') ? `Target ${t} met` : gap)}</div>`
+      }
+    }
+    el.classList.toggle('dk-kpi-has-spark', comp.spark != null)
     el.innerHTML = `<div class="dk-kpi-label">${esc(tpl(comp.label))}</div><div class="dk-kpi-value${tone}">${esc(fmtOf(kind)(value))}</div>${
       comp.note || delta
         ? `<div class="dk-kpi-note">${delta}${delta && comp.note ? ' ' : ''}${esc(tpl(comp.note))}</div>`
         : ''
-    }`
+    }${extra}`
   }
 
   /** kpis.nrr -> kpis.prior_nrr / kpis.previous_nrr / kpis.nrr_prior / kpis.nrr_prev, if present in the data. */
@@ -817,7 +906,9 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     if (comp.group?.length) {
       const measures = (comp.cols ?? [{ agg: 'count' }])
         .filter(c => !comp.group.includes(c.field))
-        .map((c, i) => ({ ...c, agg: c.agg ?? 'sum', as: `m${i}` }))
+        // Text columns that aren't group keys can't be combined; leave them out.
+        .filter(c => c.agg || !c.field || isNum(c.field))
+        .map((c, i) => ({ ...c, agg: c.agg ?? (c.field ? defaultAgg(c.field, rows) : 'count'), as: `m${i}` }))
       out = groupBy(
         rows,
         comp.group.map(g => [g, r => r[g]]),
@@ -908,7 +999,11 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     el.querySelector('h3').hidden = !comp.heading
     el.querySelector('.dk-caption').textContent = comp.caption ? tpl(comp.caption) : ''
     const list = el.querySelector('.dk-list')
-    list.className = `dk-list dk-list-${comp.layout === 'cards' ? 'cards' : 'rows'}`
+    list.className = `dk-list dk-list-${['cards', 'bars'].includes(comp.layout) ? comp.layout : 'rows'}`
+    // Bars: each row's value drawn against the largest shown, for ranking at a glance.
+    const barOf = row => Number(ev(comp.value, row))
+    const barMax =
+      comp.layout === 'bars' && comp.value != null ? Math.max(...shown.map(r => Math.abs(barOf(r)) || 0), 0) : 0
     list.replaceChildren(
       ...shown.map(row => {
         const item = document.createElement(comp.select ? 'button' : 'div')
@@ -931,7 +1026,11 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
           comp.value != null
             ? `<div class="dk-item-value">${esc(fmtOf(comp.fmt)(ev(comp.value, row)))}${comp.valueNote ? `<div class="dk-sub">${esc(tpl(comp.valueNote, row))}</div>` : ''}</div>`
             : ''
-        item.innerHTML = `${lead}<div class="dk-item-main"><div class="dk-item-title">${esc(tpl(comp.title, row))}${badge}</div>${comp.subtitle ? `<div class="dk-sub">${esc(tpl(comp.subtitle, row))}</div>` : ''}</div>${value}`
+        const v = barMax ? barOf(row) : 0
+        const bar = barMax
+          ? `<div class="dk-item-bar${v < 0 ? ' neg' : ''}"><span style="width:${((Math.abs(v) / barMax) * 100).toFixed(1)}%"></span></div>`
+          : ''
+        item.innerHTML = `${lead}<div class="dk-item-main"><div class="dk-item-title">${esc(tpl(comp.title, row))}${badge}</div>${comp.subtitle ? `<div class="dk-sub">${esc(tpl(comp.subtitle, row))}</div>` : ''}${bar}</div>${value}`
         return item
       })
     )
@@ -1002,14 +1101,30 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
           ? 'Count'
           : `${label(comp.y)}${comp.agg === 'sum' || !comp.agg ? '' : ` (${comp.agg})`}`)
     let spec
-    if (kind === 'scatter') {
+    if (kind === 'heatmap') return renderVega(el, comp, heatmapSpec(comp, rows, valueFmt, fmtKind))
+    if (kind === 'funnel') return renderVega(el, comp, funnelSpec(comp, rows, valueFmt))
+    if (kind === 'scatter' || kind === 'quadrant') {
       const sample = rows.length > 2000 ? rows.filter((_, i) => i % Math.ceil(rows.length / 2000) === 0) : rows
+      // Skewed positive axes (revenue: a few huge accounts) go logarithmic so the rest aren't squashed.
+      const axisScale = f => {
+        const v = sample
+          .map(r => r[f])
+          .filter(x => typeof x === 'number')
+          .sort((a, b) => a - b)
+        const med = v[Math.floor(v.length / 2)]
+        if (v.length > 10 && v[0] > 0 && med > 0 && v.at(-1) / med > 20) return { type: 'log' }
+        // Zeros rule out a log scale; a quadrant still needs the crowd near zero spread out.
+        if (kind === 'quadrant' && v.length > 10 && v[0] >= 0 && v.at(-1) / Math.max(med, 1e-9) > 20)
+          return { type: 'symlog', constant: Math.max(med, 1) }
+        return { zero: false }
+      }
+      if (kind === 'quadrant') return renderVega(el, comp, quadrantSpec(comp, sample, axisScale))
       spec = {
         data: { values: sample },
         mark: { type: 'point', filled: true, opacity: 0.6, size: 30 },
         encoding: {
-          x: { field: comp.x, type: 'quantitative', title: label(comp.x), scale: { zero: false } },
-          y: { field: comp.y, type: 'quantitative', title: label(comp.y), scale: { zero: false } },
+          x: { field: comp.x, type: 'quantitative', title: label(comp.x), scale: axisScale(comp.x) },
+          y: { field: comp.y, type: 'quantitative', title: label(comp.y), scale: axisScale(comp.y) },
           ...(comp.color ? { color: { field: comp.color, type: 'nominal', title: label(comp.color) } } : {}),
           tooltip: [comp.x, comp.y, comp.color].filter(Boolean).map(f => ({ field: f })),
         },
@@ -1028,8 +1143,8 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
       }
       return renderVega(el, comp, spec)
     }
-    const { data, isTime, sequential } = seriesData(comp, rows)
-    const timeFormat = { day: '%b %d', week: '%b %d', month: '%b %Y', quarter: 'Q%q %Y', year: '%Y' }[comp.time]
+    const { data, isTime, sequential, unit } = seriesData(comp, rows)
+    const timeFormat = { day: '%b %d', week: '%b %d', month: '%b %Y', quarter: 'Q%q %Y', year: '%Y' }[unit]
     const series = Boolean(comp.color || Array.isArray(comp.y))
     const seriesTitle = Array.isArray(comp.y) ? null : label(comp.color)
     let xEnc = isTime
@@ -1037,7 +1152,8 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
           field: 'x',
           type: 'temporal',
           title: comp.xTitle ?? null,
-          axis: { format: timeFormat, labelOverlap: true, grid: false },
+          scale: { type: 'utc' },
+          axis: { format: timeFormat, formatType: 'utc', labelOverlap: true, grid: false },
         }
       : sequential
         ? {
@@ -1071,7 +1187,7 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
         field: 'x',
         type: isTime ? 'temporal' : 'nominal',
         title: label(comp.x),
-        ...(isTime ? { format: timeFormat } : {}),
+        ...(isTime ? { format: timeFormat, formatType: 'utc' } : {}),
       },
       ...(series ? [{ field: 'series', title: seriesTitle ?? 'Series' }] : []),
       { field: 'label', title: yTitle ?? 'Value' },
@@ -1188,21 +1304,39 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
   /** Aggregate rows into {x, y, series?} points for line/area/bar/hbar/stacked/pie. */
   function seriesData(comp, rows) {
     const isTime = Boolean(comp.time)
-    const xKey = isTime ? r => (r[comp.x] ? bucketDate(r[comp.x], comp.time) : null) : r => r[comp.x]
-    const sequential = !isTime && ['line', 'area'].includes(comp.kind)
+    // A unit too coarse for the data (month over one month of days) would collapse the chart to a
+    // point or two: step down to the coarsest unit that still shows a shape.
+    let unit = comp.time
+    if (isTime) {
+      const raw = new Set(rows.map(r => r[comp.x]?.valueOf?.()).filter(v => v != null))
+      const bucketsOf = u => new Set([...raw].map(v => bucketDate(new Date(v), u))).size
+      const finer = ['year', 'quarter', 'month', 'week', 'day']
+      for (
+        let i = finer.indexOf(unit) + 1;
+        i > 0 && i < finer.length && raw.size >= 4 && bucketsOf(unit) < Math.min(8, raw.size);
+        i++
+      )
+        unit = finer[i]
+    }
+    const xKey = isTime ? r => (r[comp.x] ? bucketDate(r[comp.x], unit) : null) : r => r[comp.x]
+    // Periods written as text (2026-09, 2026-Q3, 2026-W38, 2026-09-14) keep their order and all
+    // their values in any chart; ranking them by value would scramble time.
+    const periodX =
+      comp.kind !== 'pie' && rows.length > 0 && rows.every(r => r[comp.x] == null || PERIOD.test(String(r[comp.x])))
+    const sequential = !isTime && (['line', 'area'].includes(comp.kind) || periodX)
     let data
     if (Array.isArray(comp.y)) {
       const names = comp.labels ?? comp.y.map(label)
       const grouped = groupBy(
         rows,
         [['x', xKey]],
-        comp.y.map((f, i) => ({ as: `y${i}`, agg: comp.agg ?? 'sum', field: f }))
+        comp.y.map((f, i) => ({ as: `y${i}`, agg: comp.agg ?? defaultAgg(f, rows), field: f }))
       )
       data = grouped.flatMap(g => comp.y.map((_, i) => ({ x: g.x, series: names[i], y: g[`y${i}`] })))
     } else {
       const keys = [['x', xKey]]
       if (comp.color) keys.push(['series', r => r[comp.color]])
-      data = groupBy(rows, keys, [{ as: 'y', agg: comp.agg ?? 'sum', field: comp.y, of: comp.of }])
+      data = groupBy(rows, keys, [{ as: 'y', agg: comp.agg ?? defaultAgg(comp.y, rows), field: comp.y, of: comp.of }])
     }
     data = data.filter(d => d.x != null)
     if (!isTime && !sequential) {
@@ -1220,7 +1354,247 @@ export function createApp(root, { snapshot, tables = {}, onEvent = () => {}, onF
     }
     if (isTime) data = data.map(d => ({ ...d, x: new Date(d.x) })).sort((a, b) => a.x - b.x)
     else if (sequential) data.sort((a, b) => (a.x > b.x ? 1 : a.x < b.x ? -1 : 0))
-    return { data, isTime, sequential }
+    return { data, isTime, sequential, unit }
+  }
+
+  /** Two categories against each other, cells shaded by the measure (weekday × hour, cohort × month). */
+  function heatmapSpec(comp, rows, valueFmt, fmtKind) {
+    const agg = comp.agg ?? (comp.value ? 'sum' : 'count')
+    let cells = groupBy(
+      rows.filter(r => r[comp.x] != null && r[comp.y] != null),
+      [
+        ['x', r => r[comp.x]],
+        ['y', r => r[comp.y]],
+      ],
+      [{ as: 'v', agg, field: comp.value }]
+    )
+    const order = (key, max) => {
+      const natural = naturalOrder(cells.map(c => c[key]))
+      if (natural) return natural
+      const totals = new Map()
+      for (const c of cells) totals.set(c[key], (totals.get(c[key]) ?? 0) + (Number(c.v) || 0))
+      return [...totals]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, max)
+        .map(([k]) => k)
+    }
+    const xs = order('x', 24)
+    const ys = order('y', 15)
+    cells = cells.filter(c => xs.includes(c.x) && ys.includes(c.y)).map(c => ({ ...c, label: valueFmt(c.v) }))
+    const max = Math.max(...cells.map(c => Number(c.v) || 0))
+    const accent = cssVar('--accent') || '#3b5bdb'
+    const low = mixColor(cssVar('--surface') || '#fff', accent, 0.08)
+    const enc = {
+      x: {
+        field: 'x',
+        type: 'ordinal',
+        sort: xs,
+        title: label(comp.x),
+        axis: { labelAngle: 0, labelOverlap: true, domain: false, ticks: false },
+      },
+      y: {
+        field: 'y',
+        type: 'ordinal',
+        sort: ys,
+        title: label(comp.y),
+        axis: { domain: false, ticks: false, labelLimit: 140 },
+      },
+    }
+    return {
+      height: comp.height ?? Math.max(180, ys.length * 34 + 30),
+      data: { values: cells },
+      encoding: enc,
+      layer: [
+        {
+          mark: { type: 'rect', cornerRadius: 3, stroke: cssVar('--surface') || '#fff', strokeWidth: 2 },
+          encoding: {
+            color: {
+              field: 'v',
+              type: 'quantitative',
+              title: comp.value ? label(comp.value) : 'Count',
+              scale: { range: [low, accent] },
+              legend: { format: d3Format(fmtKind), orient: 'bottom', gradientLength: 160 },
+            },
+            tooltip: [
+              { field: 'x', title: label(comp.x) },
+              { field: 'y', title: label(comp.y) },
+              { field: 'label', title: comp.value ? label(comp.value) : 'Count' },
+            ],
+          },
+        },
+        ...(xs.length * ys.length <= 96
+          ? [
+              {
+                mark: { type: 'text', fontSize: 10 },
+                encoding: {
+                  text: { field: 'label' },
+                  color: {
+                    condition: { test: `datum.v > ${max * 0.55}`, value: '#fff' },
+                    value: cssVar('--fg-muted') || '#666',
+                  },
+                },
+              },
+            ]
+          : []),
+      ],
+    }
+  }
+
+  /** Ordered stages narrowing down, each with its share of the first stage and of the one before. */
+  function funnelSpec(comp, rows, valueFmt) {
+    let steps = groupBy(
+      rows.filter(r => r[comp.x] != null),
+      [['x', r => r[comp.x]]],
+      [{ as: 'v', agg: comp.agg ?? 'sum', field: comp.y }]
+    )
+    if (comp.sort === true) steps.sort((a, b) => b.v - a.v)
+    steps = steps.slice(0, comp.top ?? 8)
+    const first = Number(steps[0]?.v) || 0
+    const max = Math.max(...steps.map(d => Number(d.v) || 0), 1)
+    const pct = v => `${(v * 100).toFixed(v < 0.1 ? 1 : 0)}%`
+    const data = steps.map((d, i) => ({
+      step: String(d.x),
+      i,
+      x0: (max - d.v) / 2,
+      x1: (max + d.v) / 2,
+      label: `${valueFmt(d.v)}${i ? ` · ${pct(first ? d.v / first : 0)} of first${i > 1 ? `, ${pct(steps[i - 1].v ? d.v / steps[i - 1].v : 0)} of previous` : ''}` : ''}`,
+    }))
+    const y = {
+      field: 'step',
+      type: 'ordinal',
+      sort: data.map(d => d.step),
+      title: null,
+      axis: { domain: false, ticks: false, labelLimit: 160, labelPadding: 8 },
+    }
+    return {
+      height: comp.height ?? Math.max(160, data.length * 44),
+      data: { values: data },
+      layer: [
+        {
+          mark: { type: 'bar', cornerRadius: 4, height: { band: 0.78 } },
+          encoding: {
+            y,
+            x: { field: 'x0', type: 'quantitative', axis: null, scale: { domain: [0, max] } },
+            x2: { field: 'x1' },
+            color: {
+              field: 'i',
+              type: 'quantitative',
+              legend: null,
+              scale: {
+                range: [
+                  cssVar('--accent') || '#3b5bdb',
+                  mixColor(cssVar('--accent') || '#3b5bdb', cssVar('--surface') || '#fff', 0.45),
+                ],
+              },
+            },
+            tooltip: [
+              { field: 'step', title: label(comp.x) },
+              { field: 'label', title: label(comp.y) },
+            ],
+          },
+        },
+        {
+          mark: { type: 'text', fontSize: 11, fontWeight: 600, color: cssVar('--heading') || '#111' },
+          encoding: { y, x: { datum: max / 2, type: 'quantitative' }, text: { field: 'label' } },
+        },
+      ],
+    }
+  }
+
+  /** Two measures split at reference lines (median by default) into four labelled corners. */
+  function quadrantSpec(comp, rows, axisScale) {
+    const nums = f =>
+      rows
+        .map(r => r[f])
+        .filter(v => typeof v === 'number')
+        .sort((a, b) => a - b)
+    const xv = nums(comp.x)
+    const yv = nums(comp.y)
+    const median = v => v[Math.floor(v.length / 2)] ?? 0
+    const xRef = comp.xRef != null ? Number(ev(comp.xRef)) : median(xv)
+    const yRef = comp.yRef != null ? Number(ev(comp.yRef)) : median(yv)
+    const [tl, tr, bl, br] = comp.quadrants ?? [
+      `Low ${label(comp.x).toLowerCase()}, high ${label(comp.y).toLowerCase()}`,
+      `High ${label(comp.x).toLowerCase()}, high ${label(comp.y).toLowerCase()}`,
+      `Low ${label(comp.x).toLowerCase()}, low ${label(comp.y).toLowerCase()}`,
+      `High ${label(comp.x).toLowerCase()}, low ${label(comp.y).toLowerCase()}`,
+    ]
+    const corner = r => (r[comp.y] >= yRef ? (r[comp.x] >= xRef ? tr : tl) : r[comp.x] >= xRef ? br : bl)
+    const data = rows
+      .filter(r => typeof r[comp.x] === 'number' && typeof r[comp.y] === 'number')
+      .map(r => ({ ...r, __q: corner(r) }))
+    // Name the most extreme points (farthest from the reference lines, relative to each spread).
+    const spread = v => v.at(-1) - v[0] || 1
+    const far = r => Math.abs(r[comp.x] - xRef) / spread(xv) + Math.abs(r[comp.y] - yRef) / spread(yv)
+    // top=N keeps only the N most extreme points, each named; otherwise all points, 6 named.
+    const ranked = [...data].sort((a, b) => far(b) - far(a))
+    const shown = comp.top ? ranked.slice(0, comp.top) : data
+    const named = comp.label ? new Set(ranked.slice(0, comp.top ? Math.min(comp.top, 20) : 6)) : new Set()
+    for (const r of data) r.__name = named.has(r) ? String(r[comp.label]) : ''
+    const xs = axisScale(comp.x)
+    const ys = axisScale(comp.y)
+    const muted = cssVar('--fg-muted') || '#777'
+    const x = { field: comp.x, type: 'quantitative', title: label(comp.x), scale: xs }
+    const y = { field: comp.y, type: 'quantitative', title: label(comp.y), scale: ys }
+    const once = { values: [{}] } // reference marks are drawn once, not once per row
+    const cornerText = (text, xPos, yPos, align, baseline) => ({
+      data: once,
+      mark: {
+        type: 'text',
+        align,
+        baseline,
+        fontSize: 11,
+        fontWeight: 600,
+        color: muted,
+        dx: align === 'left' ? 4 : -4,
+        dy: baseline === 'top' ? 4 : -4,
+      },
+      encoding: {
+        x: { datum: xPos, type: 'quantitative', scale: xs },
+        y: { datum: yPos, type: 'quantitative', scale: ys },
+        text: { value: text },
+      },
+    })
+    return {
+      height: comp.height ?? 320,
+      data: { values: shown },
+      layer: [
+        {
+          data: once,
+          mark: { type: 'rule', strokeDash: [4, 4], color: muted },
+          encoding: { x: { datum: xRef, type: 'quantitative', scale: xs } },
+        },
+        {
+          data: once,
+          mark: { type: 'rule', strokeDash: [4, 4], color: muted },
+          encoding: { y: { datum: yRef, type: 'quantitative', scale: ys } },
+        },
+        {
+          mark: { type: 'point', filled: true, opacity: 0.7, size: 36 },
+          encoding: {
+            x,
+            y,
+            color: { field: '__q', type: 'nominal', legend: null, scale: { domain: [tr, tl, br, bl] } },
+            tooltip: [comp.label, comp.x, comp.y]
+              .filter(Boolean)
+              .map(f => ({ field: f, title: label(f) }))
+              .concat([{ field: '__q', title: 'Group' }]),
+          },
+        },
+        ...(comp.label
+          ? [
+              {
+                mark: { type: 'text', align: 'left', dx: 6, fontSize: 10, color: cssVar('--heading') || '#222' },
+                encoding: { x, y, text: { field: '__name' } },
+              },
+            ]
+          : []),
+        cornerText(tl, xv[0], yv.at(-1), 'left', 'top'),
+        cornerText(tr, xv.at(-1), yv.at(-1), 'right', 'top'),
+        cornerText(bl, xv[0], yv[0], 'left', 'bottom'),
+        cornerText(br, xv.at(-1), yv[0], 'right', 'bottom'),
+      ],
+    }
   }
 
   function waterfallSpec(comp, rows, valueFmt) {
