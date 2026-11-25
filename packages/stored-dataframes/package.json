@@ -1,0 +1,60 @@
+{
+  "name": "@deepnote/stored-dataframes",
+  "version": "0.1.0",
+  "description": "Read the dataframes deepnote-toolkit stores: storage layout, manifest, page planning, and Arrow-to-JSON encoding (Node.js)",
+  "keywords": [
+    "deepnote",
+    "dataframe",
+    "arrow"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/stored-dataframes"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "apache-arrow": "^21.2.0"
+  },
+  "devDependencies": {
+    "apache-arrow": "^21.2.0"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

@@ -23,7 +23,8 @@ deepnote/
 │   ├── local-runner/          # @deepnote/local-runner - Local Python-backed runner and static UI
 │   ├── mcp/                   # @deepnote/mcp - MCP server for AI-assisted notebook creation
 │   ├── reactivity/            # @deepnote/reactivity - Reactivity and dependency graph
-│   └── runtime-core/          # @deepnote/runtime-core - Core runtime for executing Deepnote projects
+│   ├── runtime-core/          # @deepnote/runtime-core - Core runtime for executing Deepnote projects
+│   └── stored-dataframes/     # @deepnote/stored-dataframes - Read the dataframes deepnote-toolkit stores
 ├── skills/deepnote/ # Agent-facing reference docs (kept in sync with the packages above)
 ├── test-fixtures/   # Shared test fixtures used across packages
 ├── docs/            # Documentation files
