@@ -92,19 +92,16 @@ Design the UI around its supported operations:
 - Read notebook inputs and block metadata, without source content.
 - Start a detached run and poll that viewer's own run by ID.
 - Render the returned `snapshotBlocks`; raw snapshot YAML and download URLs are unavailable.
-- Read pages of a DataFrame stored by name with `GET /v2/projects/{projectId}/dataframes/{name}`,
-  at most 1000 rows per page. `int64` and `decimal` values arrive as strings. Start again at page 0
-  when `referenceId` changes or a page below a `pageCount` returned earlier comes back 400. Notebooks
-  store frames with `deepnote_toolkit.artifacts.store_dataframe(df, name)` in a run with writable
-  project storage. A viewer's run stores frames too unless it is started with
-  `detachedRunStorageMode: "readonly"`, so an app that reads stored frames starts its viewers' runs
-  with it. In a privately-run project the read returns 403.
+- Read pages of a
+  [stored DataFrame](https://deepnote.com/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page),
+  except in a privately-run project.
 
-Pages that load `https://deepnote.com/static/app-client/v1.js` read a page with
-`Deepnote.connect().dataframe(name, { pageIndex, pageSize })`, which reads the app's own project and
-retries a busy `429`. It rejects with an `Error` that carries the server's message but not the
-status, so when a page after page 0 rejects, read page 0 again and start over if its `referenceId`
-changed.
+A viewer's run replaces stored DataFrames unless it is started with
+`detachedRunStorageMode: "readonly"`, so an app that reads them starts its viewers' runs with it.
+Instead of the handshake, a page can load `https://deepnote.com/static/app-client/v1.js`, whose
+`Deepnote.connect()` gets and refreshes the token for the app's own project. Errors from its
+`dataframe(name, { pageIndex, pageSize })` carry the server's message but not the status, so when a
+page after page 0 fails, read page 0 again and start over if its `referenceId` changed.
 
 Do not offer notebook enumeration, run history, or access to another viewer's runs in the embedded
 app. Other endpoints return 403. If a local preview has these features, hide them when `isEmbedded`
