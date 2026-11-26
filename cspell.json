@@ -89,6 +89,7 @@
     "CACERTIFICATENAME",
     "CACERTIFICATETEXT",
     "catppuccin",
+    "chunksize",
     "chàracters",
     "cleye",
     "CLIENTID",
@@ -111,6 +112,7 @@
     "dropna",
     "ename",
     "encodeddata",
+    "ENOENT",
     "eslint",
     "evalue",
     "execv",
@@ -191,6 +193,7 @@
     "rseidelsohn",
     "résumé",
     "sandboxed",
+    "scaleb",
     "Shiki",
     "shikijs",
     "shopt",
@@ -212,6 +215,7 @@
     "trae",
     "typescript",
     "unconfigured",
+    "unservable",
     "unstub",
     "urlparse",
     "USERPROFILE",
@@ -219,6 +223,8 @@
     "venvs",
     "vscode",
     "windsurf",
-    "workflows"
+    "workflows",
+    "zstd",
+    "žluťoučký"
   ]
 }

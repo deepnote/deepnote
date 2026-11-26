@@ -18,26 +18,28 @@ This is a TypeScript monorepo for Deepnote's open-source packages, managed with 
 - **packages/mcp** - MCP server for AI-assisted Deepnote notebook creation and manipulation
 - **packages/reactivity** - Reactivity and dependency graph for Deepnote notebooks
 - **packages/runtime-core** - Core runtime for executing Deepnote projects
+- **packages/stored-dataframes** - Node-only reader format for dataframes deepnote-toolkit stores (storage layout, manifest, page planning, Arrow-to-JSON encoding)
 
 ### Repository Routing
 
 Start with the owning package and its README before searching broadly. Avoid traversing unrelated packages.
 
-| When working on                                                | Start with                                            |
-| -------------------------------------------------------------- | ----------------------------------------------------- |
-| `.deepnote` schemas, block behavior, or Python code generation | `packages/blocks/`                                    |
-| Notebook format conversion                                     | `packages/convert/`                                   |
-| CLI commands and output                                        | `packages/cli/`                                       |
-| MCP tools and resources                                        | `packages/mcp/`                                       |
-| Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
-| Syncing and publishing local folders with Deepnote Cloud       | `packages/cloud-sync/`                                |
-| Mocking the Deepnote Cloud API in tests                        | `packages/cloud-mock/`                                |
-| Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
-| Dependency and reactivity analysis                             | `packages/reactivity/`                                |
-| Database integration definitions                               | `packages/database-integrations/`                     |
-| Google OAuth for federated database integrations               | `packages/federated-auth/`                            |
-| Shared test data                                               | `test-fixtures/`                                      |
-| Agent-facing format, CLI, and MCP references                   | `skills/deepnote/references/`                         |
+| When working on                                                    | Start with                                            |
+| ------------------------------------------------------------------ | ----------------------------------------------------- |
+| `.deepnote` schemas, block behavior, or Python code generation     | `packages/blocks/`                                    |
+| Notebook format conversion                                         | `packages/convert/`                                   |
+| CLI commands and output                                            | `packages/cli/`                                       |
+| MCP tools and resources                                            | `packages/mcp/`                                       |
+| Deepnote Cloud runs and schedules API clients                      | `packages/cloud/`                                     |
+| Syncing and publishing local folders with Deepnote Cloud           | `packages/cloud-sync/`                                |
+| Mocking the Deepnote Cloud API in tests                            | `packages/cloud-mock/`                                |
+| Local notebook execution and serving                               | `packages/local-runner/` and `packages/runtime-core/` |
+| Dependency and reactivity analysis                                 | `packages/reactivity/`                                |
+| Database integration definitions                                   | `packages/database-integrations/`                     |
+| Google OAuth for federated database integrations                   | `packages/federated-auth/`                            |
+| Reading stored dataframes (manifest, paging, Arrow-to-JSON values) | `packages/stored-dataframes/`                         |
+| Shared test data                                                   | `test-fixtures/`                                      |
+| Agent-facing format, CLI, and MCP references                       | `skills/deepnote/references/`                         |
 
 ## Development Workflow
 
