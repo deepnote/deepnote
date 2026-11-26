@@ -87,8 +87,8 @@ origin. Keep personal development tokens out of the published build.
 An app's viewer token can access notebooks in the hosting project and other projects in the
 same workspace where the viewer has direct access; starting runs in other projects also requires
 execute permission. The token cannot list notebooks. Use the handshake reply's `notebookId` for the
-app's own notebook, so a copy of the project keeps working, and supply other notebooks' IDs
-explicitly. Design the UI around its supported operations:
+app's own notebook and supply other notebooks' IDs explicitly. Design the UI around its supported
+operations:
 
 - Read notebook inputs and block metadata, without source content.
 - Start a detached run and poll that viewer's own run by ID.

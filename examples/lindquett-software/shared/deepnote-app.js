@@ -21,7 +21,7 @@ function requestToken() {
       // Only believe a token from the frame we asked, on the origin we expect.
       if (event.source !== window.parent || event.origin !== SHELL_ORIGIN) return
       if (event.data?.type !== 'deepnote-static-files-api-token-response') return
-      // notebookId is the data app's own notebook, so the page never names it and a copy of the project works.
+      // notebookId is the data app's own notebook.
       const { token, apiOrigin, expiresAtSeconds, notebookId } = event.data
       if (!token || !apiOrigin || !Number.isFinite(expiresAtSeconds)) return
       try {
@@ -73,6 +73,7 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 async function runInDeepnote(inputs) {
   const { notebookId } = await ensureCredential()
+  if (!notebookId) throw new Error('Deepnote did not name the notebook this app runs. Open the app from Deepnote.')
   const started = await api('/v2/runs', { method: 'POST', body: JSON.stringify({ notebookId, inputs }) })
   const runId = (started.run ?? started).runId ?? (started.run ?? started).id
   const terminal = new Set(['success', 'error', 'internal_error', 'stopped'])

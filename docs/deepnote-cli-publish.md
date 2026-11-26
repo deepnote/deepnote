@@ -78,9 +78,9 @@ publishes, since each `--create` makes another project. A new project isn't in a
 creating another.
 
 A data app project has exactly one notebook, and the command prints its ID after publishing. A page
-doesn't need to set this ID: the [token handshake](#calling-the-api-as-the-viewer) hands it to the page
-as `notebookId`, so a copy of the project keeps working. To replace that notebook's blocks with a local `.deepnote` file, push it to that ID (this also runs the
-notebook):
+doesn't need to set this ID: the [token handshake](#calling-the-api-as-the-viewer) hands it to the
+page as `notebookId`, so a copy of the project keeps working. To replace that notebook's blocks with a
+local `.deepnote` file, push it to that ID (this also runs the notebook):
 
 ```bash
 deepnote run app.deepnote --cloud --notebook-id <notebook-id> --push --yes
@@ -140,7 +140,8 @@ them, so read their results from app data once the run succeeds. Every other end
 answers `403`, so features you built against a local preview with a personal token can fail in the
 published app. See the
 [cloud app example](https://github.com/deepnote/deepnote/tree/main/examples/local-runner/cloud-app)
-for the token handshake.
+for the token handshake. The handshake reply also names the project's notebook as `notebookId`, so the
+page doesn't need to set it.
 
 ### Remove files from an earlier build
 
