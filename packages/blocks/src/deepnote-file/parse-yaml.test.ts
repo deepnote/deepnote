@@ -201,6 +201,12 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(/duplicate/i)
     })
 
+    it('reports a prohibited feature before a duplicate key', () => {
+      expect(() => parseYaml('a: &x 1\nb: *x\nb: 2\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML anchors (&) are not allowed in Deepnote files', { feature: 'anchor' })
+      )
+    })
+
     it('allows same key names in different nested objects', () => {
       const yamlContent = `
       project1:
@@ -237,6 +243,18 @@ describe('parseYaml', () => {
       // Both anchor and alias are present, so either error is acceptable
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/anchor|alias/i)
+    })
+
+    it('throws the alias error for an alias with no anchor', () => {
+      expect(() => parseYaml('b: *x\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML aliases (*) are not allowed in Deepnote files', { feature: 'alias' })
+      )
+    })
+
+    it('reports an anchor on a !!pairs item ahead of the tag', () => {
+      expect(() => parseYaml('d: !!pairs\n  - &x {a: 1}\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML anchors (&) are not allowed in Deepnote files', { feature: 'anchor' })
+      )
     })
 
     it('does not reject Markdown emphasis in strings', () => {
@@ -293,6 +311,18 @@ describe('parseYaml', () => {
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/merge keys.*not allowed/i)
     })
+
+    it('throws an error for a merge key in a YAML 1.1 document', () => {
+      expect(() => parseYaml('%YAML 1.1\n---\nm:\n  <<: {x: 1}\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML merge keys (<<) are not allowed in Deepnote files', {
+          feature: 'merge-key',
+        })
+      )
+    })
+
+    it('allows a quoted "<<" key', () => {
+      expect(parseYaml('"<<": q\n')).toEqual({ '<<': 'q' })
+    })
   })
 
   describe('custom tag rejection', () => {
@@ -328,6 +358,20 @@ describe('parseYaml', () => {
     `
       expect(() => parseYaml(yamlContent)).toThrow(ProhibitedYamlFeatureError)
       expect(() => parseYaml(yamlContent)).toThrow(/tags.*not allowed/i)
+    })
+
+    it('throws an error for core schema tags', () => {
+      expect(() => parseYaml('d: !!str 12\n')).toThrow(
+        new ProhibitedYamlFeatureError('YAML tags are not allowed in Deepnote files: tag:yaml.org,2002:str', {
+          feature: 'tag',
+        })
+      )
+    })
+  })
+
+  describe('YAML-like text inside block scalars', () => {
+    it.each(['- *a*', '- &b', '- !c', 'x <<: y'])('parses a >- block scalar containing %j as text', line => {
+      expect(parseYaml(`v: >-\n  ${line}\n`)).toEqual({ v: line })
     })
   })
 

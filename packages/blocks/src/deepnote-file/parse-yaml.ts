@@ -1,4 +1,4 @@
-import { parseDocument } from 'yaml'
+import { type Document, isAlias, isNode, isPair, isScalar, parseDocument, visit } from 'yaml'
 
 import { DeepnoteError, EncodingError, ParseError, ProhibitedYamlFeatureError, YamlParseError } from '../errors'
 
@@ -52,54 +52,68 @@ function validateNoBomPrefix(yamlContent: string): void {
  * Validates that the YAML document doesn't contain prohibited features:
  * - No anchors/aliases (&anchor, *alias)
  * - No merge keys (<<)
- * - No custom tags (!tag)
+ * - No tags (!tag, !!tag)
  */
-function validateYamlStructure(yamlContent: string): void {
-  // Check for anchors - must appear as a value after : or - (not in URLs or other content)
-  // Matches patterns like "key: &anchor" or "- &anchor"
-  if (/(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)&\w+/.test(yamlContent)) {
+function validateYamlStructure(doc: Document): void {
+  let hasAnchor = false
+  let hasAlias = false
+  let hasMergeKey = false
+  const tags: string[] = []
+
+  visit(doc, (_key, node) => {
+    if (isAlias(node)) {
+      hasAlias = true
+    } else if (isNode(node)) {
+      if (node.anchor) {
+        hasAnchor = true
+      }
+      if (node.tag) {
+        tags.push(node.tag)
+      }
+    }
+    // A key that resolves to the merge type holds Symbol('<<'), not the string '<<'.
+    if (
+      isPair(node) &&
+      isScalar(node.key) &&
+      (typeof node.key.value === 'symbol' || (node.key.value === '<<' && node.key.type === 'PLAIN'))
+    ) {
+      hasMergeKey = true
+    }
+  })
+
+  if (hasAnchor) {
     throw new ProhibitedYamlFeatureError('YAML anchors (&) are not allowed in Deepnote files', { feature: 'anchor' })
   }
-
-  // Check for aliases - must appear as a value after : or - (not in Markdown like *bold*)
-  // Matches patterns like "key: *alias" or "- *alias"
-  if (/(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)\*\w+/.test(yamlContent)) {
+  if (hasAlias) {
     throw new ProhibitedYamlFeatureError('YAML aliases (*) are not allowed in Deepnote files', { feature: 'alias' })
   }
-
-  // Check for merge keys
-  if (/<<:/.test(yamlContent)) {
+  if (hasMergeKey) {
     throw new ProhibitedYamlFeatureError('YAML merge keys (<<) are not allowed in Deepnote files', {
       feature: 'merge-key',
     })
   }
-
-  // Check for YAML tags (must appear after : or - at start of value, not inside strings)
-  // Tags look like: "key: !tag value" or "- !tag value"
-  // Tags can contain word chars, hyphens, and slashes: !custom-type, !python/object
-  // We need to avoid false positives from ! inside quoted strings or as part of operators like !== or !event
-  const tagPattern = /(?:^|\n)\s*(?:-\s+|[\w-]+:\s*)(![\w/-]+)/gm
-  const matches = yamlContent.match(tagPattern)
-  if (matches) {
-    const tags = matches.map(m => m.match(/(![\w/-]+)/)?.[1]).filter(Boolean)
-    if (tags.length > 0) {
-      throw new ProhibitedYamlFeatureError(`YAML tags are not allowed in Deepnote files: ${tags.join(', ')}`, {
-        feature: 'tag',
-      })
-    }
+  if (tags.length > 0) {
+    throw new ProhibitedYamlFeatureError(`YAML tags are not allowed in Deepnote files: ${tags.join(', ')}`, {
+      feature: 'tag',
+    })
   }
 }
 
 /**
  * Parse and validate YAML document in a single pass.
- * Checks for duplicate keys and other parsing errors, then converts to JavaScript object.
+ * Checks for prohibited features, duplicate keys and other parsing errors, then converts to JavaScript object.
  */
 function parseAndValidate(yamlContent: string): unknown {
   const doc = parseDocument(yamlContent, {
     strict: true,
     uniqueKeys: true,
     version: '1.2',
+    // Resolving !!pairs or !!omap replaces each item map with its first pair,
+    // so validateYamlStructure would never see the map's anchor or tag.
+    resolveKnownTags: false,
   })
+
+  validateYamlStructure(doc)
 
   if (doc.errors.length > 0) {
     const duplicateKeyError = doc.errors.find(err => err.message.includes('duplicate') || err.message.includes('key'))
@@ -118,7 +132,7 @@ function parseAndValidate(yamlContent: string): unknown {
  * - UTF-8 only
  * - No duplicate keys
  * - No anchors/aliases/merge keys
- * - No custom tags
+ * - No tags
  * - Explicit typing enforced by schema
  */
 export function parseYaml(yamlContent: string): unknown {
@@ -126,9 +140,6 @@ export function parseYaml(yamlContent: string): unknown {
     // Validate no BOM prefix (string-level check only)
     // Note: For proper UTF-8 validation, use decodeUtf8NoBom() on raw bytes before calling this
     validateNoBomPrefix(yamlContent)
-
-    // Validate YAML structure (no anchors, aliases, merge keys, custom tags)
-    validateYamlStructure(yamlContent)
 
     // Parse and validate in a single pass (checks duplicate keys and converts to JS)
     const parsed = parseAndValidate(yamlContent)

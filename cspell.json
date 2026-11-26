@@ -157,6 +157,7 @@
     "numpy",
     "nvmrc",
     "Ollama",
+    "omap",
     "opencode",
     "oss",
     "Papermill",

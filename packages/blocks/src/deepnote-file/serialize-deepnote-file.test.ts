@@ -44,13 +44,24 @@ const createFileWithBlocks = (): DeepnoteFile => ({
             type: 'code',
             content: 'print("hello")',
             metadata: {},
+            outputs: [
+              { output_type: 'stream', name: 'stdout', text: 'Summary\n- *Region*: Europe\n' },
+              {
+                output_type: 'display_data',
+                data: {
+                  'text/markdown': 'Findings:\n- *Revenue* grew 5%\n',
+                  'application/json': { note: 'a\n- *b*' },
+                },
+                metadata: {},
+              },
+            ],
           },
           {
             id: 'block-2',
             blockGroup: 'group-1',
             sortingKey: '000001',
             type: 'markdown',
-            content: '# Title',
+            content: '# Title\n- *a*\n- *b*',
             metadata: {},
           },
         ],
