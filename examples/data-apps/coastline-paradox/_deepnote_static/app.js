@@ -1,6 +1,5 @@
 ;(() => {
-  const NOTEBOOK_ID = '4e816d2eaff74817ae800f8cd09e972e'
-  const notebook = Deepnote.connect().notebook(NOTEBOOK_ID)
+  const notebook = Deepnote.connect().notebook()
 
   const PLANCK = 1.616255e-35
   const P_REAL = 450,
