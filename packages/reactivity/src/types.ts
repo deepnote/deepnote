@@ -15,6 +15,7 @@ export const BlockDependencySchema = z.object({
   importedPackages: z.array(z.string()).optional(),
   // Note: if this field is not returned by AST parser, it will be calculated within webapp
   usedImportedModules: z.array(z.string()).optional(),
+  canMutateUsedVariables: z.boolean().optional(),
   error: BlockErrorSchema.optional(),
 })
 
