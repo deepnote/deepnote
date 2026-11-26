@@ -916,6 +916,28 @@ describe('encodeRows', () => {
       expect(heapAtCharge - heapBefore).toBeLessThan(64 * 2 ** 20)
     })
 
+    it('charges a binary value before it builds the base64, which is a third longer than the value', async () => {
+      const data = new Uint8Array(2 ** 25)
+      const vector = makeVector(
+        makeData({ type: new Binary(), length: 1, valueOffsets: Int32Array.of(0, data.length), data })
+      )
+      const before = process.memoryUsage()
+      let allocatedAtCharge = Number.NaN
+      const chargeJsonBytes = (bytes: number) => {
+        if (bytes >= 2 ** 25) {
+          const atCharge = process.memoryUsage()
+          allocatedAtCharge = atCharge.heapUsed + atCharge.external - before.heapUsed - before.external
+          throw new Error('Over budget')
+        }
+      }
+
+      await expect(
+        encodeRows([{ field: new Field('b', vector.type), vector }], 1, { chargeJsonBytes })
+      ).rejects.toThrow('Over budget')
+      // Node keeps a string this long outside the V8 heap, so the 43 MiB of base64 counts as external memory.
+      expect(allocatedAtCharge).toBeLessThan(16 * 2 ** 20)
+    })
+
     it.each<[string, ArrowPageColumn[]]>([
       [
         'the next field of a struct',

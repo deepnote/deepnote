@@ -280,10 +280,9 @@ function encodeScalar(value: unknown, field: Field, type: DataType): Scalar {
     assert(typeof value === 'string', 'apache-arrow reads a string from a string column')
     return value
   }
-  if (isBinary(type)) {
+  if (isUuid(field, type)) {
     assert(value instanceof Uint8Array, 'apache-arrow reads a Uint8Array from a binary column')
-    const bytes = Buffer.from(value.buffer, value.byteOffset, value.byteLength)
-    return isUuid(field, type) ? formatUuid(bytes.toString('hex')) : bytes.toString('base64')
+    return formatUuid(Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('hex'))
   }
   if (DataType.isDate(type)) {
     const milliseconds = typeof value === 'bigint' ? Number(value) : value
@@ -326,6 +325,12 @@ function encodeDecimal(value: unknown, type: Decimal, hooks: EncodeRowsHooks): s
   const padded = digits.padStart(scale + 1, '0')
 
   return `${sign}${padded.slice(0, -scale)}.${padded.slice(-scale)}`
+}
+
+function encodeBinary(value: unknown, hooks: EncodeRowsHooks): string {
+  assert(value instanceof Uint8Array, 'apache-arrow reads a Uint8Array from a binary column')
+  hooks.chargeJsonBytes?.(4 * Math.ceil(value.byteLength / 3) + 2)
+  return Buffer.from(value.buffer, value.byteOffset, value.byteLength).toString('base64')
 }
 
 function encodeList(value: unknown, itemField: Field, hooks: EncodeRowsHooks): JsonValue[] {
@@ -421,6 +426,9 @@ function encodeValue(value: unknown, field: Field, hooks: EncodeRowsHooks): Json
   }
   if (isDecimal(type)) {
     return encodeDecimal(value, type, hooks)
+  }
+  if (isBinary(type) && !isUuid(field, type)) {
+    return encodeBinary(value, hooks)
   }
   return leaf(encodeScalar(value, field, type), hooks)
 }
