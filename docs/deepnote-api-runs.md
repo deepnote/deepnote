@@ -236,13 +236,45 @@ curl -s -X POST "https://api.deepnote.com/v2/notebooks/$NOTEBOOK_ID/schedule" \
 ```
 
 The same path takes `GET` to read the schedule, including `nextRunAt` and whether it is paused, and
-`DELETE` to remove it. Each notebook has at most one schedule. Posting again updates its `cron` and
-`timezone`, keeps its notification settings, resumes it if it was paused after failures, and makes
-you its owner. `timezone` defaults to UTC. Creating or changing a schedule needs a plan that includes
+`DELETE` to remove it. It manages the notebook's only schedule: when the notebook has several, all
+three answer `409` with the `GET /v2/schedules` request that lists them. Posting again updates its
+`cron` and `timezone`, keeps its notification settings, resumes it if it was paused, and makes you
+its owner. `timezone` defaults to UTC. Creating or changing a schedule needs a plan that includes
 scheduling, hourly and custom cron schedules need Team or Enterprise, and schedules that run
 more often than once an hour need Enterprise. See
 [Scheduling](/docs/scheduling) for what a scheduled run does, and
 [`deepnote schedule`](/docs/deepnote-cli) for the same from the terminal.
+
+### Schedules by ID
+
+To manage every schedule of a notebook, address them by `id`:
+
+```bash
+# List the notebook's schedules, oldest first
+curl -s "https://api.deepnote.com/v2/schedules?notebookId=$NOTEBOOK_ID" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN"
+
+# Add one that runs with its own input values
+curl -s -X POST "https://api.deepnote.com/v2/schedules" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{ "notebookId": "'"$NOTEBOOK_ID"'", "cron": "0 7 * * 1-5", "name": "EU", "inputs": { "region": "EU" } }'
+```
+
+The list is complete, with no pagination. `PATCH /v2/schedules/{scheduleId}` changes only the fields
+you send, and `DELETE /v2/schedules/{scheduleId}` removes the schedule on any plan.
+
+- **`inputs`** are the input values the schedule's runs use, keyed like the `inputs` of a run in
+  step 2. In a `PATCH` they replace the schedule's whole set, so to change one value send the full
+  map from the list with that value changed. `null` goes back to the notebook's saved values.
+- **`updatesNotebook`** says whether the schedule's runs write their results back to the notebook.
+  Only one schedule of a notebook does, never one with `inputs`, and never in a project that runs
+  privately. A new schedule takes that role only when no other schedule has it. Setting `inputs`
+  turns it off, and clearing them doesn't turn it back on. You can change it in Deepnote.
+- **Owner:** like posting to the notebook path, any successful `PATCH` resumes a paused schedule
+  and makes you its owner, so its runs use your permissions and sign-ins from then on.
+- In a workspace that allows one schedule per notebook, adding a second schedule answers `409` and
+  setting `inputs` answers `400`. Clearing `inputs` always works.
 
 ## Related
 
