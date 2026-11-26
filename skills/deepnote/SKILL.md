@@ -321,23 +321,27 @@ must name that ID. Put a local notebook into the project with
 
 ### Publish a Streamlit app
 
-This command installs nothing and uploads nothing. Put the third-party packages the entrypoint
-imports in the project's `requirements.txt`, which the Init notebook installs on every machine
-start — an ad-hoc `!pip install` is gone after the restart below. The entrypoint and its local
-dependencies must already be in the project's Files, and the paths are project-relative:
+This command installs nothing, and uploads nothing unless you pass `--upload`, which uploads the
+entrypoint from the current directory first. Put the third-party packages the entrypoint imports in
+the project's `requirements.txt`, which the Init notebook installs on every machine start — an
+ad-hoc `!pip install` is gone after the restart below. The entrypoint's local dependencies must
+already be in the project's Files, and so must the entrypoint without `--upload`; the paths are
+project-relative:
 
 ```bash
 deepnote streamlit publish apps/dashboard.py --project-id <uuid>
+deepnote streamlit publish apps/dashboard.py --project-id <uuid> --upload
 ```
 
 Creating a new Streamlit app restarts the project machine; re-publishing an existing entrypoint does
 not, so a package added afterwards reaches the app only when the project's shared machine restarts —
 never from a notebook or terminal install, which in a privately-run project lands on your own
 machine instead. Never delete and re-upload an entrypoint to change it: that drops the app
-registration and the next publish returns a new URL. To change an entrypoint, upload the edited file
-to the same path in the project's Files in Deepnote, which keeps the app and its URL; through the MCP
-server that means `write_file` with `overwrite`, or Deepnote writes a uniquely named copy and the app
-goes on serving the old file. Open the printed URL and test it as the intended viewer.
+registration and the next publish returns a new URL. To change an entrypoint, publish again with
+`--upload`, or upload the edited file to the same path in the project's Files in Deepnote; both keep
+the app and its URL. Through the MCP server, upload with `write_file` and `overwrite`, or Deepnote
+writes a uniquely named copy and the app goes on serving the old file. Open the printed URL and test
+it as the intended viewer.
 
 Apps published from notebook blocks are deprecated; do not build new ones.
 
@@ -360,7 +364,7 @@ Apps published from notebook blocks are deprecated; do not build new ones.
 | `deepnote schedule <path>`                    | Create, update, or remove (`--remove`) a notebook's recurring Deepnote Cloud schedule                                                                                                                                                                                                               |
 | `deepnote publish <dir>`                      | Publish a build directory as a data app. Needs a data app project; `--create <name>` makes one.                                                                                                                                                                                                     |
 | `deepnote unpublish`                          | Make a data app editor-only again without changing its files.                                                                                                                                                                                                                                       |
-| `deepnote streamlit publish <file>`           | Serve a file already in the project as a Streamlit app.                                                                                                                                                                                                                                             |
+| `deepnote streamlit publish <file>`           | Serve a project file as a Streamlit app, optionally uploading it first.                                                                                                                                                                                                                             |
 | `deepnote sync [dir]`                         | Sync Deepnote Cloud projects with a local directory, both ways: pull every project into `<folder path>/<project name>/` (one `.deepnote` per notebook), push local edits back (the exact-inverse ZIP import). State in `.deepnote-sync.json`; conflicts prompt (or `--on-conflict skip\|override`). |
 | `deepnote integrations pull\|add\|edit\|auth` | Manage database integrations in the local integrations file (`pull`, `add`, `edit`); `auth` authenticates a `big-query` + Google OAuth integration for local `deepnote run`, storing its token under `~/.deepnote/` instead                                                                         |
 
