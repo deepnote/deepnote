@@ -241,7 +241,7 @@ The `skills/deepnote/` directory contains reference documentation used by AI age
 - **`.deepnote` file format** (block types, metadata, schema) — update `skills/deepnote/references/blocks-*.md` and `skills/deepnote/references/schema.ts`
 - **CLI commands** (options, output formats, exit codes, new commands) — update the corresponding `skills/deepnote/references/cli-*.md`
 - **Local `@deepnote/mcp`** (tool names, parameters, behavior) — update `packages/mcp/README.md` and any local-MCP skill reference that describes it. Do not record local MCP behavior in the CLI references: the local MCP server is its own surface, not a mirror of the CLI
-- **Hosted MCP** (`https://deepnote.com/mcp`) — update `docs/deepnote-mcp.md`, and coordinate the separate codex-plugin consumer, which is not maintained in this repository
+- **Hosted MCP** (`https://deepnote.com/mcp`) — update `docs/deepnote-mcp.md`, and coordinate the [Deepnote agent plugin](https://github.com/deepnote/agent-plugins) for Claude Code and Codex, whose skills describe the hosted MCP tools and which is not maintained in this repository
 - **App types, publishing ownership, runtime choices, or token boundaries** — update `skills/deepnote/references/apps.md`
 
 Update more than one reference only when the underlying behavior actually crosses those surfaces.
