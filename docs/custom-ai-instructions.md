@@ -28,6 +28,8 @@ Custom AI Instructions is a new feature in Deepnote that allows you to personali
   - Code styling preferences
   - Or just making your docstrings sounds uwu
 
+Custom instructions apply to all your requests. For instructions about one kind of task that your team shares, use [skills](/docs/skills).
+
 ## **Example use case**
 
 Let's look at a practical example:
