@@ -134,5 +134,8 @@ with the viewer API flow before publishing it to Deepnote.
   or unpublish it. Set `overwrite` when replacing an existing file, and check the returned path:
   without it, Deepnote writes a uniquely named copy and the app keeps serving the old file. Do not use notebook execution to write app files. Hosted MCP can also write a
   Streamlit entrypoint with `write_file` and serve it with `create_streamlit_app`.
+- To show a data app to the user, call hosted MCP's `show_data_app`. Clients that render MCP Apps, such as
+  Claude, ChatGPT, and the Codex app, show the app in the conversation, running as the signed-in user; other
+  clients get its link. You don't see the rendered app, so this doesn't test it.
 - Use local `@deepnote/mcp` for local `.deepnote` file work. It does not manage hosted apps or
   publish files.
