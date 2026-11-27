@@ -76,6 +76,15 @@ function describeConflict(conflict: SyncConflict): { question: string; overrideL
         overrideLabel: 'Overwrite the Deepnote copies with the local files',
       }
     }
+    case 'local-working-files-changed': {
+      const summary = conflict.files.map(file => `${file.path} (${file.reason})`).join(', ')
+      return {
+        question:
+          `Local working files of "${conflict.projectName}" differ from their Deepnote versions: ${summary}. ` +
+          'Replace your local copies with the Deepnote versions?',
+        overrideLabel: 'Replace the local copies with the Deepnote versions (discards local changes)',
+      }
+    }
     case 'changed-on-both-sides':
       return {
         question: `"${conflict.projectName}" changed both locally and in Deepnote. Overwrite the local files with the cloud version?`,
@@ -110,7 +119,7 @@ function promptForConflict(conflict: SyncConflict): Promise<SyncConflictDecision
   return select({
     message: question,
     choices: [
-      { name: 'Skip this project for now', value: 'skip' as const },
+      { name: 'Skip for now', value: 'skip' as const },
       { name: overrideLabel, value: 'override' as const },
     ],
   })
@@ -226,6 +235,7 @@ function renderHumanSummary(result: WorkspaceSyncResult): void {
   const filesDownloaded = sum(outcome => outcome.filesDownloaded)
   const filesUploaded = sum(outcome => outcome.filesUploaded)
   const filesSkipped = sum(outcome => outcome.filesSkipped)
+  const localFilesKept = sum(outcome => outcome.localFilesKept)
   const parts = [
     `${count('pulled')} pulled`,
     ...(count('pushed') > 0 ? [`${count('pushed')} pushed`] : []),
@@ -235,6 +245,7 @@ function renderHumanSummary(result: WorkspaceSyncResult): void {
     ...(filesDownloaded > 0 ? [`${filesDownloaded} file(s) downloaded`] : []),
     ...(filesUploaded > 0 ? [`${filesUploaded} file(s) uploaded`] : []),
     ...(filesSkipped > 0 ? [`${filesSkipped} file(s) kept from Deepnote`] : []),
+    ...(localFilesKept > 0 ? [`${localFilesKept} local file(s) kept`] : []),
   ]
   log('')
   log(`${result.dryRun ? `${c.yellow('Dry run')} — ` : ''}${parts.join(', ')}`)

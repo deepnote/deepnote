@@ -45,8 +45,8 @@ function isSafeProjectDirectory(dir: string): boolean {
 const manifestFileRecordSchema = z.object({
   size: z.number(),
   updatedAt: z.string().optional(),
-  /** SHA-256 of the file's bytes at the last sync. Lets push detect a local edit that preserves the
-   * size, which `size` alone would miss. Absent for files synced before this was tracked. */
+  /** SHA-256 of the file's bytes at the last sync, which push and pull compare to detect local edits
+   * that `size` alone would miss. Absent for files synced before this was tracked. */
   hash: z.string().optional(),
 })
 

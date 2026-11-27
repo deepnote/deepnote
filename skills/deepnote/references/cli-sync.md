@@ -95,11 +95,22 @@ Skipped files appear as `N file(s) kept from Deepnote` in the summary and as `fi
 since the upload started or is missing. The retry re-creates a pending file deleted in Deepnote,
 unlike the cloud-deletion conflict above. A pending path whose cloud copy changed since is a
 conflict, not a retry; keeping the cloud copy ends the retry, and the next pull brings that copy
-down. A cloud-deleted file kept locally by a pull keeps its manifest record (with a
+down, asking first when the local copy differs. A cloud-deleted file kept locally by a pull keeps its
+manifest record (with a
 warning), so a later edited push still surfaces the deletion as a conflict instead of resurrecting
 the file. A record written before `updatedAt` was tracked has no baseline to compare
 and is still overwritten; the next pull makes it verifiable (a push does too when the server echoes
 upload timestamps).
+
+Pull checks the other direction before it replaces a local copy of a file that changed in Deepnote.
+A copy whose content hash differs from the manifest record, a local file with no record (never
+synced), or a record without a hash (written before hashes were tracked) is a conflict unless it
+already matches the Deepnote copy. A size difference proves the mismatch without a download; with
+equal sizes, pull downloads the file once to compare, and a match becomes the new baseline without
+writing the file. Override replaces the local copy with the Deepnote version, skip keeps the copy
+and its old record, if any, so the next sync asks again. Files a pull skips appear as
+`N local file(s) kept` in the summary and as `localFilesKept` in `-o json`. A local copy that
+matches its record is downloaded over without asking.
 
 ## Boundaries
 
