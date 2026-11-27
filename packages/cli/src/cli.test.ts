@@ -107,6 +107,7 @@ describe('CLI', () => {
           '--no-create',
           '--open',
           '--remove',
+          '--list',
           '-o, --output <format>',
         ])
       )
@@ -178,7 +179,7 @@ describe('CLI', () => {
         return 0
     fi`)
       expect(output).toContain('--storage-mode --timeout --push --yes --url')
-      expect(output).toContain('--no-create --open --remove -o --output')
+      expect(output).toContain('--no-create --open --remove --list -o --output')
       expect(output).toContain(`integrations)
             COMPREPLY=( $(compgen -W "pull auth" -- "\${cur}") )`)
       expect(output).toContain(`auth)
@@ -206,6 +207,7 @@ describe('CLI', () => {
       expect(output).toContain("'--push[Push the local .deepnote blocks to the Deepnote notebook before running]'")
       expect(output).toContain("'--yes[Skip the --push confirmation prompt]'")
       expect(output).toContain("'--remove[Remove the notebook schedule]'")
+      expect(output).toContain("'--list[List the notebook schedules and their ids]'")
       expect(output).toContain("'1: :->subcommand'")
       const integrationsBlock = output.slice(output.indexOf("'integrations subcommands'"))
       expect(integrationsBlock).toContain('case $words[1] in')
@@ -238,6 +240,9 @@ describe('CLI', () => {
       )
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l remove -d 'Remove the notebook schedule'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l list -d 'List the notebook schedules and their ids'"
       )
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from integrations' -a auth -d 'Authenticate a big-query integration using Google OAuth'"

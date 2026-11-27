@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { deleteNotebookSchedule, upsertNotebookSchedule } from './schedules'
+import { deleteNotebookSchedule, listSchedules, upsertNotebookSchedule } from './schedules'
 
 const BASE_URL = 'https://api.deepnote.com'
 const TOKEN = 'token'
@@ -10,6 +10,20 @@ const SCHEDULE = {
   nextRunAt: '2026-07-30T08:00:00Z',
   createdAt: '2026-07-29T12:00:00Z',
   updatedAt: '2026-07-29T12:00:00Z',
+}
+const STORED_SCHEDULE = {
+  id: '15',
+  notebookId: 'notebook/with spaces',
+  cron: '0 9 * * *',
+  timezone: 'Europe/Prague',
+  nextRunAt: '2026-11-28T08:00:00.000Z',
+  isPaused: false,
+  pauseReason: null,
+  createdAt: '2026-11-01T12:00:00.000Z',
+  updatedAt: '2026-11-01T12:00:00.000Z',
+  name: 'Morning refresh',
+  inputs: { region: 'EU' },
+  updatesNotebook: false,
 }
 
 afterEach(() => {
@@ -203,6 +217,54 @@ describe('deleteNotebookSchedule', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(deleteNotebookSchedule(BASE_URL, TOKEN, ' ')).rejects.toThrow(/notebookId/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('listSchedules', () => {
+  it("lists a notebook's schedules and encodes the notebook id", async () => {
+    const second = { ...STORED_SCHEDULE, id: '16', name: null, inputs: null }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ schedules: [STORED_SCHEDULE, second] }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const schedules = await listSchedules(BASE_URL, TOKEN, 'notebook/with spaces', { requestTimeoutMs: 1_000 })
+
+    expect(schedules).toEqual([STORED_SCHEDULE, second])
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepnote.com/v2/schedules?notebookId=notebook%2Fwith%20spaces',
+      expect.objectContaining({ method: 'GET', headers: expect.objectContaining({ Authorization: `Bearer ${TOKEN}` }) })
+    )
+  })
+
+  it('accepts a schedule without a next run, with an unknown pause reason and null input values', async () => {
+    const unusual = {
+      ...STORED_SCHEDULE,
+      nextRunAt: null,
+      isPaused: true,
+      pauseReason: 'plan-downgraded',
+      inputs: { region: null, flags: ['a', 'b'], dry_run: true },
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ schedules: [unusual] }))))
+
+    await expect(listSchedules(BASE_URL, TOKEN, 'nb-1')).resolves.toEqual([unusual])
+  })
+
+  it('explains a 403 without a message from Deepnote', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 403, statusText: 'Forbidden' })))
+
+    await expect(listSchedules(BASE_URL, TOKEN, 'nb-1')).rejects.toMatchObject({
+      statusCode: 403,
+      message: expect.stringMatching(/permission to view this notebook's schedules/),
+    })
+  })
+
+  it('validates an empty notebook id before making a request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(listSchedules(BASE_URL, TOKEN, ' ')).rejects.toThrow(/notebookId/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

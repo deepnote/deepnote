@@ -479,6 +479,7 @@ ${c.bold('Exit Codes:')}
     .option('--no-create', 'Do not create the project in Deepnote Cloud when it is missing')
     .option('--open', 'Open the scheduled notebook in your default browser')
     .option('--remove', "Remove the notebook's schedule")
+    .option('--list', "List the notebook's schedules and their ids")
     .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
@@ -507,6 +508,9 @@ ${c.bold('Examples:')}
 
   ${c.dim("# Remove one notebook's schedule")}
   $ deepnote schedule project.deepnote --notebook "Daily report" --remove
+
+  ${c.dim("# List the notebook's schedules and their ids")}
+  $ deepnote schedule report.deepnote --list
 
 ${c.bold('Authentication:')}
   Set ${c.dim(DEEPNOTE_TOKEN_ENV)} in your environment or in a .env file next to the notebook.

@@ -70,7 +70,9 @@ export {
 } from './projects'
 export {
   deleteNotebookSchedule,
+  listSchedules,
   type NotebookSchedule,
+  type Schedule,
   type ScheduleRequestOptions,
   type UpsertNotebookScheduleBody,
   upsertNotebookSchedule,
