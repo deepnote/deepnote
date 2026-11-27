@@ -18,6 +18,8 @@ export default defineConfig([
     minify: true,
     dts: false,
     deps: { onlyBundle: ['modern-screenshot'] },
+    // The sources are ES modules, which always run in strict mode; an IIFE runs sloppy unless it says so.
+    outputOptions: { strict: true },
     // modern-screenshot's MIT license requires its notice in every copy, and its own files carry none.
     banner: `/*!\n${modernScreenshotLicense}*/`,
   },
