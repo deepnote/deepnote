@@ -4,9 +4,15 @@ import os from 'node:os'
 import path from 'node:path'
 import { exportProject, importProject } from '@deepnote/cloud'
 import { type MockCloudRequest, type MockDeepnoteCloud, startMockDeepnoteCloud } from '@deepnote/cloud-mock'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest'
 import { loadSyncManifest, SYNC_MANIFEST_FILENAME, saveSyncManifest } from './sync-manifest'
-import { canonicalProjectHash, type SyncConflict, type SyncConflictDecision, syncWorkspace } from './sync-workspace'
+import {
+  canonicalProjectHash,
+  type SyncConflict,
+  type SyncConflictDecision,
+  type SyncEvent,
+  syncWorkspace,
+} from './sync-workspace'
 
 const TOKEN = 'test-token'
 const ALPHA_ID = '2f7c1b3a-4d5e-4f60-8a1b-2c3d4e5f6a7b'
@@ -39,12 +45,12 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
   let onCloudRequest: ((request: MockCloudRequest) => Promise<void>) | undefined
   let rootDir: string
   let conflicts: SyncConflict[]
-  let warnings: string[]
+  let onEvent: Mock<(event: SyncEvent) => void>
 
   beforeEach(async () => {
     onCloudRequest = undefined
     conflicts = []
-    warnings = []
+    onEvent = vi.fn()
     cloud = await startMockDeepnoteCloud({ onRequest: request => onCloudRequest?.(request) })
     rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'sync-cloud-mock-'))
   })
@@ -84,11 +90,7 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
         conflicts.push(conflict)
         return decision
       },
-      onEvent: event => {
-        if (event.kind === 'warning') {
-          warnings.push(event.message)
-        }
-      },
+      onEvent,
     })
   }
 
@@ -217,10 +219,12 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
       expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('m\n')
       expect(await fs.readFile(localPath('.files', 'clean.csv'), 'utf-8')).toBe('theirs too\n')
       expect(await fileRecord('edited.csv')).toEqual(baseline)
-      expect(warnings).toEqual([
-        'Kept the local copy of 1 file in "Alpha": edited.csv (edited locally). ' +
+      expect(onEvent).toHaveBeenCalledWith({
+        kind: 'warning',
+        message:
+          'Kept the local copy of 1 file in "Alpha": edited.csv (edited locally). ' +
           'To take the Deepnote versions, sync again and choose to replace your local copies.',
-      ])
+      })
 
       await sync({ allFiles: true })
 
@@ -238,7 +242,7 @@ describe('syncWorkspace against @deepnote/cloud-mock', () => {
       expect(result.projects[0].localFilesKept).toBeUndefined()
       expect(await fs.readFile(localPath('.files', 'edited.csv'), 'utf-8')).toBe('theirs\n')
       expect((await fileRecord('edited.csv'))?.hash).toBe(sha256Hex('theirs\n'))
-      expect(warnings).toEqual([])
+      expect(onEvent).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'warning' }))
     })
 
     it('keeps the skipped local copy on a sync that prunes', async () => {
