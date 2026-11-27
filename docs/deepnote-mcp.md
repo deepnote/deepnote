@@ -80,7 +80,7 @@ The server exposes the following tools. Read-only tools never modify your worksp
 - `create_run`: Start running a notebook and return the created run. Runs are detached by default and can use a different machine type than the project's; set `detached` to false for live mode or to run specific blocks.
 - `get_run`: Get a notebook run. Returns a presigned snapshot download URL when available, or optionally the inline snapshot content or the executed blocks with their outputs. Large outputs are shortened unless `fullOutputs` is set.
 - `list_notebook_runs`: List historical runs for a notebook.
-- `get_project_dataframe`: Read one page of a DataFrame that notebook code stored by name with `store_dataframe(df, name)`, as JSON rows, without running the notebook. A page over 16 KiB of JSON returns an error that suggests a smaller `pageSize`. See [Read a stored DataFrame page by page](/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page).
+- `get_project_dataframe`: Read one page of a DataFrame that notebook code stored by name with `store_dataframe(df, name)`, as JSON rows, without running the notebook. A page over 64 KiB of JSON returns an error that suggests a smaller `pageSize`. See [Read a stored DataFrame page by page](/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page).
 
 ### Machines and environments
 
