@@ -5,7 +5,7 @@ noIndex: false
 noContent: false
 ---
 
-Deepnote has two kinds of app project for putting an analysis in front of other people: data app projects and Streamlit app projects. Both are built by chatting with [Deepnote Agent](/docs/deepnote-agent), both keep the queries in a notebook, and both are shared only with people who have access to the project. This page compares them, and covers what to use when the numbers have to appear somewhere else.
+Deepnote has two kinds of app project for putting an analysis in front of other people: data app projects and Streamlit app projects. Both are built by chatting with [Deepnote Agent](/docs/deepnote-agent), both keep the queries in a notebook, and both are shared with people who have access to the project. A data app can also be made public. This page compares them, and covers what to use when the numbers have to appear somewhere else.
 
 ## The options
 
@@ -24,7 +24,7 @@ Then:
 
 - **The tool is mostly Python logic with many interactions.** A Streamlit app project gives you Streamlit's components and session state, written in `app.py` by you or the agent.
 - **Many people ask the same few questions and want answers instantly.** A Streamlit app can cache results for every viewer with `st.cache_data`. A data app can show everyone with access the results of the latest scheduled or editor run, but an answer for other inputs comes only once a viewer runs the notebook themselves, and they then see their own last run until they run it again.
-- **The numbers need to live in another tool.** Embed the block in Notion, Confluence or a website. Data apps can't be embedded in other sites.
+- **The numbers need to live in another tool.** Embed the block in Notion, Confluence or a website. A data app can be embedded in another site only once it's [public](/docs/data-app-projects#embedding-a-public-app).
 - **Your own product shows the result.** Call the notebook from your server with the [Deepnote API](/docs/deepnote-api). See [A notebook as a backend](/docs/playbook-notebook-as-a-backend).
 - **Viewers must not open the notebook.** Share the project with them at **App user** access, which lets them use the app without seeing the notebook or the app's code. A person gets the most permissive of all their grants, so App user only works if workspace access, groups and direct sharing don't give them more. App users can still read every output of their own runs through the app's API access, not only what the page shows, so keep anything a viewer may not see out of the notebook's outputs. Keep secrets in integrations and environment variables, never in the app's code.
 
@@ -62,6 +62,7 @@ Greek islands — are built that way: a custom page, with the notebook behind it
 
 - **Data app projects, Streamlit app projects and embedded blocks:** all plans.
 - **App user access for individual people:** Pro, Team and Enterprise.
+- **Public data apps:** Team and Enterprise.
 - **Per-user OAuth integrations:** Enterprise.
 
 ## Related

@@ -19,8 +19,11 @@ Data apps run in the browser; their notebook runs use project hardware. Streamli
 project hardware. A local server runs on the operator's machine and can send notebook runs
 to Deepnote.
 
-Data app viewers must sign in and have project access; data apps have no public or link-only sharing.
-Streamlit apps follow the project's sharing settings, but only signed-in viewers with project access can
+Data app viewers must sign in and have project access, unless the app is public. A project admin can
+make a published data app public in its **Share** dialog in Deepnote (Team and Enterprise plans);
+anyone with its link can then open it without a Deepnote account, and other sites can embed it in an
+iframe. The CLI, the API, and hosted MCP can publish and unpublish a data app but cannot make it
+public. Streamlit apps follow the project's sharing settings, but only signed-in viewers with project access can
 use their viewer API access. Apps published from notebook blocks are deprecated; do not build new ones.
 
 ## Prepare a Streamlit app
@@ -91,8 +94,13 @@ app's own notebook and supply other notebooks' IDs explicitly. Design the UI aro
 operations:
 
 - Read notebook inputs and block metadata, without source content.
+- Read the notebook's [app data](https://deepnote.com/docs/deepnote-api-runs#return-structured-data-from-a-notebook).
 - Start a detached run and poll that viewer's own run by ID.
 - Render the returned `snapshotBlocks`; raw snapshot YAML and download URLs are unavailable.
+
+Visitors of a public data app can start runs only when its public access is **Execute**. They get an
+empty `snapshotBlocks` and no `error` for their runs, so read their results from app data once the
+run succeeds.
 
 Do not offer notebook enumeration, run history, or access to another viewer's runs in the embedded
 app. Other endpoints return 403. If a local preview has these features, hide them when `isEmbedded`
