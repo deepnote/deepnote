@@ -163,6 +163,7 @@
     "Pclass",
     "pgrep",
     "pgsql",
+    "Pickable",
     "pids",
     "PKCE",
     "plannable",

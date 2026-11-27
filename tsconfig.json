@@ -23,5 +23,5 @@
     "target": "ES2022",
     "types": ["vitest"]
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "packages/app-client"]
 }

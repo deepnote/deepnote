@@ -1,0 +1,46 @@
+{
+  "name": "@deepnote/app-client",
+  "version": "0.1.0",
+  "description": "Browser client that Deepnote data app pages load as window.Deepnote",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deepnote/deepnote.git",
+    "directory": "packages/app-client"
+  },
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./v1": "./dist/v1.iife.js"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest",
+    "watch": "tsdown --watch"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.0",
+    "modern-screenshot": "4.7.0"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "pnpm": ">=10.17.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}
