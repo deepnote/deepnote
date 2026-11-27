@@ -519,9 +519,6 @@ ${c.bold('Examples:')}
   ${c.dim('# Move schedule 15 to 09:00 every day, keeping its timezone')}
   $ deepnote schedule report.deepnote --schedule-id 15 --daily --at 09:00
 
-  ${c.dim('# Change only the timezone of schedule 15')}
-  $ deepnote schedule report.deepnote --schedule-id 15 --timezone Europe/Prague
-
   ${c.dim('# Remove only schedule 15')}
   $ deepnote schedule report.deepnote --schedule-id 15 --remove
 
