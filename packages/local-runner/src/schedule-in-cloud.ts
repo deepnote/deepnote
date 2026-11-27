@@ -374,7 +374,7 @@ async function rethrowWithScheduleCount(
   { baseUrl, token, requestOptions }: Pick<CloudNotebookLookup, 'baseUrl' | 'token' | 'requestOptions'>,
   notebookId: string
 ): Promise<never> {
-  if (errorStatusCode(error) !== 409) {
+  if (errorStatusCode(error) !== 409 || (error instanceof Error && error.message === 'Project is suspended')) {
     throw error
   }
   const schedules = await listSchedules(baseUrl, token, notebookId, requestOptions).catch(() => [])

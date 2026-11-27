@@ -758,20 +758,23 @@ describe('a notebook with several schedules on the singular routes', () => {
     ['one schedule', () => cloudMock.listSchedules.mockResolvedValueOnce([storedSchedule('15')])],
     ['a failed listing', () => cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(500, 'Cloud unavailable'))],
   ])('rethrows the original 409 after %s', async (_case, arrangeListing) => {
-    const suspended = new ApiError(409, 'Project is suspended')
-    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(suspended)
-    cloudMock.deleteNotebookSchedule.mockRejectedValueOnce(suspended)
+    const conflict = new ApiError(409, SEVERAL_SCHEDULES)
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(conflict)
+    cloudMock.deleteNotebookSchedule.mockRejectedValueOnce(conflict)
     arrangeListing()
     arrangeListing()
 
-    await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toBe(suspended)
-    await expect(unscheduleInCloud(NOTEBOOK, { token: 'token' })).rejects.toBe(suspended)
+    await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toBe(conflict)
+    await expect(unscheduleInCloud(NOTEBOOK, { token: 'token' })).rejects.toBe(conflict)
   })
 
-  it('does not list schedules for other failures', async () => {
-    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(500, 'Cloud unavailable'))
+  it.each([
+    ['other failures', new ApiError(500, 'Cloud unavailable')],
+    ['a suspended project', new ApiError(409, 'Project is suspended')],
+  ])('does not list schedules for %s', async (_case, error) => {
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(error)
 
-    await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toThrow(/Cloud unavailable/)
+    await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toBe(error)
     expect(cloudMock.listSchedules).not.toHaveBeenCalled()
   })
 })
