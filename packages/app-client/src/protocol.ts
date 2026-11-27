@@ -96,7 +96,8 @@ export function readFields<T>(data: unknown): { [K in keyof T]?: unknown } | nul
 }
 
 export function isShellMessage<
-  M extends DeepnotePreviewRequestMessage | DeepnotePickStartMessage | DeepnotePickStopMessage,
+  M extends (DeepnotePreviewRequestMessage | DeepnotePickStartMessage | DeepnotePickStopMessage) &
+    Record<Exclude<keyof M, 'type'>, never>,
 >(data: unknown, type: M['type']): data is M {
   return readFields<M>(data)?.type === type
 }
