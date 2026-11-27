@@ -1,5 +1,6 @@
 import { ApiError } from '@deepnote/database-integrations'
 import { z } from 'zod'
+import type { RunInputValue } from './cloud-runs'
 import { request } from './http'
 import { parseApiErrorMessage } from './parse-api-error'
 
@@ -66,9 +67,21 @@ export interface UpsertNotebookScheduleBody {
   timezone?: string
 }
 
+export interface CreateScheduleBody {
+  notebookId: string
+  cron: string
+  /** IANA timezone for the cron expression. Deepnote defaults to UTC. */
+  timezone?: string
+  name?: string
+  inputs?: Record<string, RunInputValue>
+}
+
 export interface UpdateScheduleBody {
   cron?: string
   timezone?: string
+  name?: string | null
+  /** Replaces all of the schedule's input values; `null` removes them. */
+  inputs?: Record<string, unknown> | null
 }
 
 export interface ScheduleRequestOptions {
@@ -204,6 +217,32 @@ export async function listSchedules(
   return response.schedules
 }
 
+/** Add a schedule to `body.notebookId`, next to any it already has. Deepnote answers 409 where it allows only one. */
+export async function createSchedule(
+  baseUrl: string,
+  token: string,
+  body: CreateScheduleBody,
+  options: ScheduleRequestOptions = {}
+): Promise<Schedule> {
+  if (!body.notebookId.trim()) {
+    throw new TypeError('createSchedule: notebookId cannot be empty.')
+  }
+  if (!body.cron.trim()) {
+    throw new TypeError('createSchedule: cron cannot be empty.')
+  }
+
+  const response = await request(baseUrl, token, {
+    method: 'POST',
+    path: '/v2/schedules',
+    schema: scheduleResponseSchema,
+    body,
+    timeoutMs: options.requestTimeoutMs,
+    fallback: 'create schedule',
+    forbiddenMessage: 'Access denied. Scheduling may not be enabled for this workspace or plan.',
+  })
+  return response.schedule
+}
+
 /** Change one schedule. Deepnote also resumes it if it was paused and makes the token's owner its owner. */
 export async function updateSchedule(
   baseUrl: string,
@@ -215,7 +254,7 @@ export async function updateSchedule(
   if (!scheduleId.trim()) {
     throw new TypeError('updateSchedule: scheduleId cannot be empty.')
   }
-  if (body.cron === undefined && body.timezone === undefined) {
+  if (body.cron === undefined && body.timezone === undefined && body.name === undefined && body.inputs === undefined) {
     throw new TypeError('updateSchedule: nothing to update.')
   }
 

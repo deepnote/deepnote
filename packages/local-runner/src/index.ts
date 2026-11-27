@@ -21,6 +21,8 @@ export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
 export type {
+  AddScheduleInCloudBody,
+  AddScheduleInCloudResult,
   ListSchedulesInCloudResult,
   ScheduleInCloudOptions,
   ScheduleInCloudResult,
@@ -29,6 +31,7 @@ export type {
   UpdateScheduleInCloudResult,
 } from './schedule-in-cloud'
 export {
+  addScheduleInCloud,
   listSchedulesInCloud,
   MultipleSchedulesError,
   removeScheduleInCloud,

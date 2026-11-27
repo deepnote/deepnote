@@ -1,6 +1,7 @@
 import type {
   addNotebooksToProject,
   createProject,
+  createSchedule,
   deleteNotebookSchedule,
   deleteSchedule,
   findNotebook,
@@ -25,6 +26,7 @@ const cloudMock = vi.hoisted(() => ({
   findNotebook: vi.fn<typeof findNotebook>(),
   findProject: vi.fn<typeof findProject>(),
   createProject: vi.fn<typeof createProject>(),
+  createSchedule: vi.fn<typeof createSchedule>(),
   addNotebooksToProject: vi.fn<typeof addNotebooksToProject>(),
   getWorkspace: vi.fn<typeof getWorkspace>(),
 }))
@@ -39,6 +41,7 @@ vi.mock('@deepnote/cloud', () => ({
   findNotebook: cloudMock.findNotebook,
   findProject: cloudMock.findProject,
   createProject: cloudMock.createProject,
+  createSchedule: cloudMock.createSchedule,
   addNotebooksToProject: cloudMock.addNotebooksToProject,
   getWorkspace: cloudMock.getWorkspace,
   notebookUrl: (params: { workspaceId: string; projectId: string; notebookId: string }) =>
@@ -46,6 +49,7 @@ vi.mock('@deepnote/cloud', () => ({
 }))
 
 import {
+  addScheduleInCloud,
   listSchedulesInCloud,
   MultipleSchedulesError,
   removeScheduleInCloud,
@@ -72,6 +76,28 @@ project:
           type: code
 version: '1.0.0'
 `
+
+const INPUT_NOTEBOOK = NOTEBOOK.replace(
+  "          type: code\nversion: '1.0.0'",
+  `          type: code
+        - blockGroup: group-2
+          content: ''
+          id: block-region
+          metadata:
+            deepnote_variable_name: region
+            deepnote_variable_value: EU
+          sortingKey: a1
+          type: input-text
+        - blockGroup: group-3
+          content: ''
+          id: block-dry-run
+          metadata:
+            deepnote_variable_name: dry_run
+            deepnote_variable_value: false
+          sortingKey: a2
+          type: input-checkbox
+version: '1.0.0'`
+)
 
 const MULTI_NOTEBOOK = NOTEBOOK.replace(
   "version: '1.0.0'",
@@ -776,5 +802,175 @@ describe('a notebook with several schedules on the singular routes', () => {
 
     await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toBe(error)
     expect(cloudMock.listSchedules).not.toHaveBeenCalled()
+  })
+})
+
+describe('addScheduleInCloud', () => {
+  const evening = { cron: '0 18 * * *', timezone: 'Europe/Prague', name: 'Evening', inputs: { region: 'US' } }
+
+  it('adds a schedule next to the notebook’s others', async () => {
+    const created = storedSchedule('17', { ...evening, inputs: { region: 'US' } })
+    cloudMock.createSchedule.mockResolvedValueOnce(created)
+
+    const result = await addScheduleInCloud(INPUT_NOTEBOOK, evening, { token: 'token' })
+
+    expect(cloudMock.createSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      { ...evening, notebookId: 'notebook-local' },
+      { requestTimeoutMs: undefined }
+    )
+    expect(result).toEqual({ notebookId: 'notebook-local', added: true, schedule: created })
+  })
+
+  it('adds the schedule to the notebook matched by a unique project and notebook name', async () => {
+    cloudMock.listSchedules
+      .mockRejectedValueOnce(Object.assign(new Error('Notebook not found'), { statusCode: 404 }))
+      .mockResolvedValueOnce([])
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'notebook-cloud', projectId: 'project-cloud' })
+    cloudMock.createSchedule.mockResolvedValueOnce(storedSchedule('17', { notebookId: 'notebook-cloud' }))
+
+    const result = await addScheduleInCloud(INPUT_NOTEBOOK, evening, { token: 'token' })
+
+    expect(cloudMock.createSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      { ...evening, notebookId: 'notebook-cloud' },
+      expect.anything()
+    )
+    expect(result).toMatchObject({ notebookId: 'notebook-cloud', added: true })
+  })
+
+  it('types input values by the notebook’s input blocks, and defaults the timezone to UTC', async () => {
+    cloudMock.createSchedule.mockResolvedValueOnce(storedSchedule('17'))
+
+    await addScheduleInCloud(INPUT_NOTEBOOK, { cron: '0 18 * * *', inputs: { dry_run: 'true' } }, { token: 'token' })
+
+    expect(cloudMock.createSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      { cron: '0 18 * * *', timezone: 'UTC', inputs: { dry_run: true }, notebookId: 'notebook-local' },
+      expect.anything()
+    )
+  })
+
+  it('refuses an input the notebook doesn’t define before any request', async () => {
+    await expect(
+      addScheduleInCloud(INPUT_NOTEBOOK, { cron: '0 18 * * *', inputs: { missing: 'x' } }, { token: 'token' })
+    ).rejects.toThrow(/addScheduleInCloud: "missing" is not an input of this notebook/)
+    expect(cloudMock.listSchedules).not.toHaveBeenCalled()
+  })
+
+  it('does not add a schedule with the same timing, name and inputs as an existing one', async () => {
+    const existing = storedSchedule('15', { ...evening, inputs: { dry_run: false, region: 'US' } })
+    cloudMock.listSchedules.mockResolvedValueOnce([existing])
+
+    const result = await addScheduleInCloud(
+      INPUT_NOTEBOOK,
+      { ...evening, inputs: { region: 'US', dry_run: 'false' } },
+      { token: 'token' }
+    )
+
+    expect(cloudMock.createSchedule).not.toHaveBeenCalled()
+    expect(result).toEqual({ notebookId: 'notebook-local', added: false, schedule: existing })
+  })
+
+  it('treats no inputs and empty inputs alike, and still adds a schedule with another name', async () => {
+    const existing = storedSchedule('15', { cron: '0 18 * * *', timezone: 'Europe/Prague', inputs: {} })
+    cloudMock.listSchedules.mockResolvedValue([existing])
+    cloudMock.createSchedule.mockResolvedValueOnce(storedSchedule('17'))
+
+    const same = await addScheduleInCloud(
+      INPUT_NOTEBOOK,
+      { cron: '0 18 * * *', timezone: 'Europe/Prague' },
+      { token: 'token' }
+    )
+    const named = await addScheduleInCloud(
+      INPUT_NOTEBOOK,
+      { cron: '0 18 * * *', timezone: 'Europe/Prague', name: 'Other' },
+      { token: 'token' }
+    )
+
+    expect(same.added).toBe(false)
+    expect(named.added).toBe(true)
+    expect(cloudMock.createSchedule).toHaveBeenCalledOnce()
+  })
+
+  it('adds nothing to a notebook that is not in Deepnote, and creates nothing', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+
+    const result = await addScheduleInCloud(INPUT_NOTEBOOK, evening, { token: 'token' })
+
+    expect(result).toEqual({ notebookId: null, added: false })
+    expect(cloudMock.createSchedule).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+})
+
+describe('updateScheduleInCloud with a name and inputs', () => {
+  const stored = storedSchedule('15', { name: 'Morning', inputs: { region: 'EU', dry_run: false } })
+
+  beforeEach(() => {
+    cloudMock.listSchedules.mockResolvedValue([stored])
+    cloudMock.updateSchedule.mockResolvedValue(stored)
+  })
+
+  it('merges given inputs into the stored ones', async () => {
+    await updateScheduleInCloud(INPUT_NOTEBOOK, '15', { inputs: { region: 'US' } }, { token: 'token' })
+
+    expect(cloudMock.updateSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      '15',
+      { inputs: { region: 'US', dry_run: false } },
+      expect.anything()
+    )
+  })
+
+  it('refuses an input the notebook doesn’t define before any request', async () => {
+    await expect(
+      updateScheduleInCloud(INPUT_NOTEBOOK, '15', { inputs: { missing: 'x' } }, { token: 'token' })
+    ).rejects.toThrow(/updateScheduleInCloud: "missing" is not an input of this notebook/)
+    expect(cloudMock.listSchedules).not.toHaveBeenCalled()
+  })
+
+  it('removes all inputs with null, and sends nothing when there are none', async () => {
+    await updateScheduleInCloud(INPUT_NOTEBOOK, '15', { inputs: null }, { token: 'token' })
+    cloudMock.listSchedules.mockResolvedValue([storedSchedule('15', { inputs: null })])
+    const unchanged = await updateScheduleInCloud(INPUT_NOTEBOOK, '15', { inputs: null }, { token: 'token' })
+
+    expect(cloudMock.updateSchedule).toHaveBeenCalledOnce()
+    expect(cloudMock.updateSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      '15',
+      { inputs: null },
+      expect.anything()
+    )
+    expect(unchanged.changed).toBe(false)
+  })
+
+  it('changes only the name', async () => {
+    await updateScheduleInCloud(INPUT_NOTEBOOK, '15', { name: 'Evening' }, { token: 'token' })
+
+    expect(cloudMock.updateSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      '15',
+      { name: 'Evening' },
+      expect.anything()
+    )
+  })
+
+  it('sends nothing when the name and inputs are already stored', async () => {
+    const result = await updateScheduleInCloud(
+      INPUT_NOTEBOOK,
+      '15',
+      { name: 'Morning', inputs: { dry_run: false, region: 'EU' } },
+      { token: 'token' }
+    )
+
+    expect(cloudMock.updateSchedule).not.toHaveBeenCalled()
+    expect(result.changed).toBe(false)
   })
 })

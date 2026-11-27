@@ -5,6 +5,8 @@ import type { Schedule } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import {
+  type AddScheduleInCloudResult,
+  addScheduleInCloud,
   type ListSchedulesInCloudResult,
   listSchedulesInCloud,
   MultipleSchedulesError,
@@ -24,7 +26,9 @@ import { debug, getChalk, log, error as logError, output, outputJson, warn } fro
 import { MissingTokenError, resolveToken } from '../utils/auth'
 import { openInBrowser } from '../utils/browser'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
+import { InvalidInputError, parseInputs } from '../utils/parse-inputs'
 import {
+  resolveScheduleAddition,
   resolveScheduleChange,
   resolveScheduleExpression,
   ScheduleExpressionError,
@@ -40,6 +44,10 @@ export interface ScheduleOptions extends ScheduleExpressionOptions {
   remove?: boolean
   list?: boolean
   scheduleId?: string
+  add?: boolean
+  name?: string
+  input?: string[]
+  clearInputs?: boolean
   output?: 'json'
 }
 
@@ -53,6 +61,8 @@ export function createScheduleAction(
         await listDeepnoteFileSchedules(path, options)
       } else if (options.remove) {
         await removeDeepnoteFileSchedule(path, options)
+      } else if (options.add) {
+        await addDeepnoteFileSchedule(path, options)
       } else if (options.scheduleId !== undefined) {
         await updateDeepnoteFileSchedule(path, options.scheduleId, options)
       } else {
@@ -70,6 +80,7 @@ export function createScheduleAction(
         error instanceof ScheduleExpressionError ||
         error instanceof MissingTokenError ||
         error instanceof ScheduleNotFoundError ||
+        error instanceof InvalidInputError ||
         isUsageApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
@@ -85,6 +96,11 @@ export function createScheduleAction(
 
 /** Resolve a file and schedule its selected notebook in Deepnote Cloud. */
 async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleOptions): Promise<void> {
+  rejectClearInputs(options)
+  if (options.name !== undefined || options.input?.length) {
+    throw new ScheduleExpressionError('--name and --input need --add or --schedule-id.')
+  }
+
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const file = deserializeDeepnoteFile(await fs.readFile(absolutePath, 'utf8'))
   const notebookId = resolveNotebookId(file, options.notebook)
@@ -127,7 +143,7 @@ async function scheduleDeepnoteFile(path: string | undefined, options: ScheduleO
 
 /** Resolve a file and remove its selected notebook's schedule from Deepnote Cloud. */
 async function removeDeepnoteFileSchedule(path: string | undefined, options: ScheduleOptions): Promise<void> {
-  const conflicting = scheduleOnlyFlags(options)
+  const conflicting = [...scheduleOnlyFlags(options), ...(options.add ? ['--add'] : [])]
   if (conflicting.length > 0) {
     throw new ScheduleExpressionError(`--remove cannot be combined with ${conflicting.join(', ')}.`)
   }
@@ -146,6 +162,7 @@ async function listDeepnoteFileSchedules(path: string | undefined, options: Sche
     ...scheduleOnlyFlags(options),
     ...(options.remove ? ['--remove'] : []),
     ...(options.scheduleId !== undefined ? ['--schedule-id'] : []),
+    ...(options.add ? ['--add'] : []),
   ]
   if (conflicting.length > 0) {
     throw new ScheduleExpressionError(`--list cannot be combined with ${conflicting.join(', ')}.`)
@@ -162,24 +179,67 @@ async function updateDeepnoteFileSchedule(
   scheduleId: string,
   options: ScheduleOptions
 ): Promise<void> {
+  if (options.clearInputs && options.input?.length) {
+    throw new ScheduleExpressionError('--clear-inputs cannot be combined with --input.')
+  }
+  if (options.name !== undefined && !options.name.trim()) {
+    throw new ScheduleExpressionError('--name cannot be empty.')
+  }
   const { description, ...timing } = resolveScheduleChange(options)
-  if (timing.cron === undefined && timing.timezone === undefined) {
+  if (
+    timing.cron === undefined &&
+    timing.timezone === undefined &&
+    options.name === undefined &&
+    !options.input?.length &&
+    !options.clearInputs
+  ) {
     throw new ScheduleExpressionError(
-      'Choose what to change: a frequency with --at (for example --daily --at 09:00), --cron, or --timezone.'
+      'Choose what to change: a frequency with --at (for example --daily --at 09:00), --cron, --timezone, --name, --input or --clear-inputs.'
     )
   }
-  const { absolutePath, cloudOptions } = await resolveScheduleTarget(path, options)
+  const { absolutePath, file, cloudOptions } = await resolveScheduleTarget(path, options)
+  const inputs = options.clearInputs ? null : parseInputFlags(file, cloudOptions.notebookId, options.input)
 
   debug(`Updating schedule ${scheduleId} for file: ${absolutePath}`)
-  const result = await updateScheduleInCloud(absolutePath, scheduleId, timing, cloudOptions)
-  if (options.open && result.viewUrl) {
-    try {
-      await openInBrowser(result.viewUrl)
-    } catch (error) {
-      warn(`The notebook URL could not be opened: ${error instanceof Error ? error.message : error}`)
-    }
+  const result = await updateScheduleInCloud(
+    absolutePath,
+    scheduleId,
+    { ...timing, name: options.name, inputs },
+    cloudOptions
+  )
+  if (options.open) {
+    await openNotebookUrl(result.viewUrl)
   }
   renderUpdate(absolutePath, description, result, options)
+}
+
+async function addDeepnoteFileSchedule(path: string | undefined, options: ScheduleOptions): Promise<void> {
+  if (options.scheduleId !== undefined) {
+    throw new ScheduleExpressionError('--add cannot be combined with --schedule-id.')
+  }
+  rejectClearInputs(options)
+  if (options.name !== undefined && !options.name.trim()) {
+    throw new ScheduleExpressionError('--name cannot be empty.')
+  }
+  const schedule = resolveScheduleAddition(options)
+  const { absolutePath, file, cloudOptions } = await resolveScheduleTarget(path, options)
+  const inputs = parseInputFlags(file, cloudOptions.notebookId, options.input)
+
+  debug(`Adding a schedule for file: ${absolutePath}`)
+  const result = await addScheduleInCloud(
+    absolutePath,
+    { cron: schedule.cron, timezone: schedule.timezone, name: options.name, inputs },
+    cloudOptions
+  )
+  if (result.notebookId === null) {
+    throw new ScheduleExpressionError(
+      'This notebook was not found in Deepnote Cloud. Create it first with deepnote schedule <path> and a frequency.'
+    )
+  }
+  if (options.open) {
+    await openNotebookUrl(result.viewUrl)
+  }
+  renderAddition(absolutePath, schedule.description, result, options)
 }
 
 async function resolveScheduleTarget(path: string | undefined, options: ScheduleOptions) {
@@ -192,7 +252,30 @@ async function resolveScheduleTarget(path: string | undefined, options: Schedule
   if (!token) {
     throw new MissingTokenError()
   }
-  return { absolutePath, cloudOptions: { token, baseUrl: options.url ?? DEFAULT_API_URL, notebookId } }
+  return { absolutePath, file, cloudOptions: { token, baseUrl: options.url ?? DEFAULT_API_URL, notebookId } }
+}
+
+/** Type `--input` values against the scheduled notebook's input blocks, as `run --cloud` does. */
+function parseInputFlags(file: DeepnoteFile, notebookId: string | undefined, flags: string[] | undefined) {
+  const notebook = file.project.notebooks.find(candidate => candidate.id === notebookId)
+  return flags?.length ? parseInputs(file, flags, notebook?.name) : undefined
+}
+
+function rejectClearInputs(options: ScheduleOptions): void {
+  if (options.clearInputs) {
+    throw new ScheduleExpressionError('--clear-inputs needs --schedule-id.')
+  }
+}
+
+async function openNotebookUrl(viewUrl: string | undefined): Promise<void> {
+  if (!viewUrl) {
+    return
+  }
+  try {
+    await openInBrowser(viewUrl)
+  } catch (error) {
+    warn(`The notebook URL could not be opened: ${error instanceof Error ? error.message : error}`)
+  }
 }
 
 function describeError(error: unknown): string {
@@ -216,6 +299,9 @@ function scheduleOnlyFlags(options: ScheduleOptions): string[] {
     options.at !== undefined ? '--at' : null,
     options.timezone !== undefined ? '--timezone' : null,
     options.open ? '--open' : null,
+    options.name !== undefined ? '--name' : null,
+    options.input?.length ? '--input' : null,
+    options.clearInputs ? '--clear-inputs' : null,
   ].filter((flag): flag is string => flag !== null)
 }
 
@@ -363,11 +449,59 @@ function renderUpdate(
   output(`${c.dim('Frequency:')} ${description ?? `cron ${schedule.cron}`}`)
   output(`${c.dim('Timezone:')} ${schedule.timezone}`)
   output(`${c.dim('Next run:')} ${nextRun(schedule)}`)
+  if (options.name !== undefined || options.input?.length || options.clearInputs) {
+    output(`${c.dim('Name:')} ${schedule.name ?? 'none'}`)
+    output(`${c.dim('Inputs:')} ${Object.keys(schedule.inputs ?? {}).join(', ') || 'none'}`)
+  }
   if (!result.changed) {
     return
   }
   if (previous.isPaused && !schedule.isPaused) {
     output(`${c.dim('Resumed:')} it was ${pauseDescription(previous)}.`)
+  }
+  if (options.input?.length && previous.updatesNotebook && !schedule.updatesNotebook) {
+    warn("This schedule no longer updates the notebook's outputs, because it has inputs.")
+  }
+  if (result.viewUrl) {
+    output(`${c.dim('URL:')} ${result.viewUrl}`)
+  }
+  output(c.dim('Other schedules are not affected.'))
+}
+
+function renderAddition(
+  path: string,
+  description: string,
+  result: Extract<AddScheduleInCloudResult, { notebookId: string }>,
+  options: ScheduleOptions
+): void {
+  const { schedule } = result
+  if (options.output === 'json') {
+    outputJson({
+      success: true,
+      path,
+      notebookId: result.notebookId,
+      added: result.added,
+      schedule: toScheduleJson(schedule),
+      url: result.viewUrl,
+    })
+    return
+  }
+
+  if (!result.added) {
+    output(`Schedule ${schedule.id} already exists with the same timing, name and inputs.`)
+    return
+  }
+  const c = getChalk()
+  output(`${c.green('✓')} Added schedule ${schedule.id}`)
+  if (schedule.name) {
+    output(`${c.dim('Name:')} ${schedule.name}`)
+  }
+  output(`${c.dim('Frequency:')} ${description}`)
+  output(`${c.dim('Timezone:')} ${schedule.timezone}`)
+  output(`${c.dim('Next run:')} ${nextRun(schedule)}`)
+  const inputNames = Object.keys(schedule.inputs ?? {})
+  if (inputNames.length > 0) {
+    output(`${c.dim('Inputs:')} ${inputNames.join(', ')}`)
   }
   if (result.viewUrl) {
     output(`${c.dim('URL:')} ${result.viewUrl}`)

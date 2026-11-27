@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import type { Schedule } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
 import {
+  type addScheduleInCloud,
   type listSchedulesInCloud,
   MultipleSchedulesError,
   type removeScheduleInCloud,
@@ -20,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetOutputConfig, setOutputConfig } from '../output'
 
 const localRunnerMock = vi.hoisted(() => ({
+  addScheduleInCloud: vi.fn<typeof addScheduleInCloud>(),
   scheduleInCloud: vi.fn<typeof scheduleInCloud>(),
   unscheduleInCloud: vi.fn<typeof unscheduleInCloud>(),
   listSchedulesInCloud: vi.fn<typeof listSchedulesInCloud>(),
@@ -32,6 +34,7 @@ vi.mock('@deepnote/local-runner', async importOriginal => {
   return {
     MultipleSchedulesError: actual.MultipleSchedulesError,
     ScheduleNotFoundError: actual.ScheduleNotFoundError,
+    addScheduleInCloud: localRunnerMock.addScheduleInCloud,
     scheduleInCloud: localRunnerMock.scheduleInCloud,
     unscheduleInCloud: localRunnerMock.unscheduleInCloud,
     listSchedulesInCloud: localRunnerMock.listSchedulesInCloud,
@@ -52,6 +55,21 @@ const MULTI_NOTEBOOK_FILE = fileURLToPath(
   new URL('../../../../test-fixtures/Dashboard-using-modules.deepnote', import.meta.url)
 )
 const NOTEBOOK_ID = '7061f86dec6e4e11893288f295a82017'
+const COMPOSED_FILE = `metadata:
+  createdAt: '2026-01-01T00:00:00.000Z'
+project:
+  id: project-local
+  name: Composed report
+  initNotebookId: notebook-init
+  notebooks:
+    - id: notebook-init
+      name: Setup
+      blocks: []
+    - id: notebook-main
+      name: Daily report
+      blocks: []
+version: '1.0.0'
+`
 
 const RESULT: ScheduleInCloudResult = {
   notebookId: NOTEBOOK_ID,
@@ -132,6 +150,30 @@ function updateOptions(overrides: Partial<ScheduleOptions> = {}): ScheduleOption
   return { create: true, token: 'test-token', scheduleId: '15', daily: true, at: '07:30', ...overrides }
 }
 
+function addOptions(overrides: Partial<ScheduleOptions> = {}): ScheduleOptions {
+  return {
+    create: true,
+    token: 'test-token',
+    add: true,
+    daily: true,
+    at: '18:00',
+    timezone: 'Europe/Prague',
+    ...overrides,
+  }
+}
+
+const INPUTS_FILE = fileURLToPath(new URL('../../../../examples/6_with_inputs.deepnote', import.meta.url))
+
+const ADDED: Schedule = {
+  ...STORED,
+  id: '17',
+  cron: '0 18 * * *',
+  nextRunAt: '2026-11-27T17:00:00.000Z',
+  name: 'Evening',
+  inputs: { greeting: 'Hi', enabled: true },
+  updatesNotebook: false,
+}
+
 const STORED_JSON = {
   id: '15',
   name: 'Morning refresh',
@@ -170,6 +212,12 @@ describe('schedule command', () => {
     localRunnerMock.listSchedulesInCloud.mockResolvedValue({ notebookId: NOTEBOOK_ID, schedules: [STORED, PAUSED] })
     localRunnerMock.updateScheduleInCloud.mockResolvedValue(UPDATE_RESULT)
     localRunnerMock.removeScheduleInCloud.mockResolvedValue({ notebookId: NOTEBOOK_ID, removed: true })
+    localRunnerMock.addScheduleInCloud.mockResolvedValue({
+      notebookId: NOTEBOOK_ID,
+      added: true,
+      schedule: ADDED,
+      viewUrl: RESULT.viewUrl,
+    })
     vi.mocked(openInBrowser).mockResolvedValue(undefined)
   })
 
@@ -342,24 +390,7 @@ describe('schedule command', () => {
   it('schedules the main notebook of a composed [init, main] file without --notebook', async () => {
     // Two notebooks, but only one of them is runnable — the other is the init that runs before it.
     // Every other command resolves this shape rather than calling it ambiguous.
-    const path = writeTempFile(
-      'composed.deepnote',
-      `metadata:
-  createdAt: '2026-01-01T00:00:00.000Z'
-project:
-  id: project-local
-  name: Composed report
-  initNotebookId: notebook-init
-  notebooks:
-    - id: notebook-init
-      name: Setup
-      blocks: []
-    - id: notebook-main
-      name: Daily report
-      blocks: []
-version: '1.0.0'
-`
-    )
+    const path = writeTempFile('composed.deepnote', COMPOSED_FILE)
 
     await createScheduleAction(new Command())(path, options())
 
@@ -429,6 +460,10 @@ version: '1.0.0'
       ['--at', { at: '09:00' }],
       ['--timezone', { timezone: 'UTC' }],
       ['--open', { open: true }],
+      ['--add', { add: true }],
+      ['--name', { name: 'Evening' }],
+      ['--input', { input: ['region=EU'] }],
+      ['--clear-inputs', { clearInputs: true }],
     ] satisfies Array<[string, Partial<ScheduleOptions>]>)(
       'rejects --remove combined with %s',
       async (flag, overrides) => {
@@ -572,6 +607,7 @@ version: '1.0.0'
       ['--daily', { daily: true }],
       ['--remove', { remove: true }],
       ['--schedule-id', { scheduleId: '15' }],
+      ['--add', { add: true }],
     ] satisfies Array<[string, Partial<ScheduleOptions>]>)(
       'rejects --list combined with %s',
       async (flag, overrides) => {
@@ -764,6 +800,285 @@ version: '1.0.0'
         removed: false,
       })
       expect(process.exitCode).toBeUndefined()
+    })
+  })
+
+  it.each([
+    [{ name: 'Evening' }, '--name and --input need --add or --schedule-id.'],
+    [{ input: ['region=EU'] }, '--name and --input need --add or --schedule-id.'],
+    [{ clearInputs: true }, '--clear-inputs needs --schedule-id.'],
+  ] satisfies Array<[Partial<ScheduleOptions>, string]>)(
+    'refuses %j without --add or --schedule-id',
+    async (overrides, message) => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, options(overrides))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(message)
+      expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+    }
+  )
+
+  describe('--add', () => {
+    it('adds a schedule with a name and input values typed by the notebook', async () => {
+      await createScheduleAction(new Command())(
+        INPUTS_FILE,
+        addOptions({ name: 'Evening', input: ['greeting=Hi', 'enabled=true'] })
+      )
+
+      expect(localRunnerMock.addScheduleInCloud).toHaveBeenCalledWith(
+        INPUTS_FILE,
+        { cron: '0 18 * * *', timezone: 'Europe/Prague', name: 'Evening', inputs: { greeting: 'Hi', enabled: true } },
+        { token: 'test-token', baseUrl: 'https://api.deepnote.com', notebookId: undefined }
+      )
+      expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+      expect(logSpy.mock.calls.flat().join('\n')).toBe(
+        [
+          '✓ Added schedule 17',
+          'Name: Evening',
+          'Frequency: daily at 18:00',
+          'Timezone: Europe/Prague',
+          'Next run: 2026-11-27T17:00:00.000Z',
+          'Inputs: greeting, enabled',
+          `URL: ${RESULT.viewUrl}`,
+          'Other schedules are not affected.',
+        ].join('\n')
+      )
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('uses the system timezone when --timezone is omitted', async () => {
+      const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions({ timezone: undefined }))
+
+      expect(localRunnerMock.addScheduleInCloud).toHaveBeenCalledWith(
+        HELLO_WORLD_FILE,
+        { cron: '0 18 * * *', timezone: systemTimezone },
+        expect.anything()
+      )
+    })
+
+    it('requires --at with a frequency', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions({ at: undefined }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('With --add, a frequency needs --at')
+      expect(localRunnerMock.addScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it('reports an identical schedule without adding another', async () => {
+      localRunnerMock.addScheduleInCloud.mockResolvedValueOnce({
+        notebookId: NOTEBOOK_ID,
+        added: false,
+        schedule: STORED,
+      })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions())
+
+      expect(logSpy.mock.calls.flat().join('\n')).toBe(
+        'Schedule 15 already exists with the same timing, name and inputs.'
+      )
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('outputs the schedule as JSON with input names but no input values', async () => {
+      localRunnerMock.addScheduleInCloud.mockResolvedValueOnce({
+        notebookId: NOTEBOOK_ID,
+        added: false,
+        schedule: STORED,
+      })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions({ output: 'json' }))
+
+      const printed = logSpy.mock.calls.flat().join('\n')
+      expect(JSON.parse(printed)).toStrictEqual({
+        success: true,
+        path: HELLO_WORLD_FILE,
+        notebookId: NOTEBOOK_ID,
+        added: false,
+        schedule: STORED_JSON,
+      })
+      expect(printed).not.toContain('hunter2')
+    })
+
+    it('refuses a notebook that is not in Deepnote Cloud', async () => {
+      localRunnerMock.addScheduleInCloud.mockResolvedValueOnce({ notebookId: null, added: false })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions())
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(
+        'This notebook was not found in Deepnote Cloud. Create it first with deepnote schedule <path> and a frequency.'
+      )
+    })
+
+    it.each([
+      ['missing=1', 'Input "missing" is not defined for the selected notebook scope'],
+      ['enabled=maybe', 'Input "enabled"'],
+    ])('refuses the input %s before calling Deepnote', async (input, message) => {
+      await createScheduleAction(new Command())(INPUTS_FILE, addOptions({ input: [input] }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(message)
+      expect(localRunnerMock.addScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      [{ scheduleId: '15' }, '--add cannot be combined with --schedule-id.'],
+      [{ clearInputs: true }, '--clear-inputs needs --schedule-id.'],
+      [{ list: true }, '--list cannot be combined with --daily, --at, --timezone, --add.'],
+      [{ remove: true }, '--remove cannot be combined with --daily, --at, --timezone, --add.'],
+    ] satisfies Array<[Partial<ScheduleOptions>, string]>)('refuses --add with %j', async (overrides, message) => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions(overrides))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(message)
+      expect(localRunnerMock.addScheduleInCloud).not.toHaveBeenCalled()
+      expect(localRunnerMock.updateScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it('opens the notebook when requested', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions({ open: true }))
+
+      expect(openInBrowser).toHaveBeenCalledWith(RESULT.viewUrl)
+    })
+
+    it('refuses an input that only the init notebook of a composed file defines', async () => {
+      const path = writeTempFile(
+        'composed.deepnote',
+        COMPOSED_FILE.replace(
+          '      name: Setup\n      blocks: []',
+          `      name: Setup
+      blocks:
+        - blockGroup: group-1
+          content: ''
+          id: block-setup
+          metadata:
+            deepnote_variable_name: setup_only
+            deepnote_variable_value: x
+          sortingKey: a0
+          type: input-text`
+        )
+      )
+
+      await createScheduleAction(new Command())(path, addOptions({ input: ['setup_only=y'] }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(
+        'Input "setup_only" is not defined for the selected notebook scope'
+      )
+      expect(localRunnerMock.addScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it.each(['', '  '])('refuses the blank name %j', async name => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions({ name }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('--name cannot be empty.')
+      expect(localRunnerMock.addScheduleInCloud).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('--schedule-id with a name or inputs', () => {
+    const nameOrInputs = (overrides: Partial<ScheduleOptions>) =>
+      updateOptions({ daily: undefined, at: undefined, ...overrides })
+
+    it('renames a schedule without changing its timing', async () => {
+      localRunnerMock.updateScheduleInCloud.mockResolvedValueOnce({
+        ...UPDATE_RESULT,
+        schedule: { ...STORED, name: 'Morning' },
+      })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, nameOrInputs({ name: 'Morning' }))
+
+      expect(localRunnerMock.updateScheduleInCloud).toHaveBeenCalledWith(
+        HELLO_WORLD_FILE,
+        '15',
+        { name: 'Morning' },
+        expect.anything()
+      )
+      expect(logSpy.mock.calls.flat().join('\n')).toBe(
+        [
+          '✓ Schedule 15 updated',
+          'Frequency: cron 0 9 * * *',
+          'Timezone: Europe/Prague',
+          'Next run: 2026-11-28T08:00:00.000Z',
+          'Name: Morning',
+          'Inputs: region, api_secret',
+          `URL: ${RESULT.viewUrl}`,
+          'Other schedules are not affected.',
+        ].join('\n')
+      )
+    })
+
+    it('sends input values typed by the notebook', async () => {
+      await createScheduleAction(new Command())(INPUTS_FILE, nameOrInputs({ input: ['enabled=false', 'count=3'] }))
+
+      expect(localRunnerMock.updateScheduleInCloud).toHaveBeenCalledWith(
+        INPUTS_FILE,
+        '15',
+        { inputs: { enabled: false, count: '3' } },
+        expect.anything()
+      )
+    })
+
+    it('removes all input values with --clear-inputs', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, nameOrInputs({ clearInputs: true }))
+
+      expect(localRunnerMock.updateScheduleInCloud).toHaveBeenCalledWith(
+        HELLO_WORLD_FILE,
+        '15',
+        { inputs: null },
+        expect.anything()
+      )
+    })
+
+    it('refuses a blank name', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, nameOrInputs({ name: ' ' }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('--name cannot be empty.')
+      expect(localRunnerMock.updateScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it('refuses --clear-inputs with --input', async () => {
+      await createScheduleAction(new Command())(
+        INPUTS_FILE,
+        nameOrInputs({ clearInputs: true, input: ['enabled=true'] })
+      )
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('--clear-inputs cannot be combined with --input.')
+      expect(localRunnerMock.updateScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it('warns when inputs stop the schedule from updating the notebook', async () => {
+      localRunnerMock.updateScheduleInCloud.mockResolvedValueOnce({
+        ...UPDATE_RESULT,
+        schedule: { ...STORED, inputs: { enabled: true }, updatesNotebook: false },
+      })
+
+      await createScheduleAction(new Command())(INPUTS_FILE, nameOrInputs({ input: ['enabled=true'] }))
+
+      expect(errorSpy.mock.calls.flat().join('\n')).toBe(
+        "This schedule no longer updates the notebook's outputs, because it has inputs."
+      )
+      expect(logSpy.mock.calls.flat().join('\n')).toContain('Inputs: enabled')
+    })
+
+    it.each([
+      ['the schedule did not update the notebook before', { updatesNotebook: false }, {}],
+      ['the output is JSON', { updatesNotebook: true }, { output: 'json' as const }],
+    ])('does not warn when %s', async (_case, previous, overrides) => {
+      localRunnerMock.updateScheduleInCloud.mockResolvedValueOnce({
+        ...UPDATE_RESULT,
+        previous: { ...STORED, ...previous },
+        schedule: { ...STORED, updatesNotebook: false },
+      })
+
+      await createScheduleAction(new Command())(INPUTS_FILE, nameOrInputs({ input: ['enabled=true'], ...overrides }))
+
+      expect(errorSpy).not.toHaveBeenCalled()
     })
   })
 

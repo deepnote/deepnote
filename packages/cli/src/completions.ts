@@ -144,7 +144,7 @@ _deepnote_completions() {
         schedule)
             # Complete .deepnote files and scheduling flags
             if [[ "\${cur}" == -* ]]; then
-                COMPREPLY=( $(compgen -W "--hourly --daily --weekly --monthly --cron --at --timezone --notebook --token --url --no-create --open --remove --list --schedule-id -o --output" -- "\${cur}") )
+                COMPREPLY=( $(compgen -W "--hourly --daily --weekly --monthly --cron --at --timezone --notebook --token --url --no-create --open --remove --list --schedule-id --add --name --input -i --clear-inputs -o --output" -- "\${cur}") )
             else
                 COMPREPLY=( $(compgen -f -X '!*.deepnote' -- "\${cur}") $(compgen -d -- "\${cur}") )
             fi
@@ -404,6 +404,10 @@ ${commandEntries}
                         '--remove[Remove the notebook schedule]' \\
                         '--list[List the notebook schedules and their ids]' \\
                         '--schedule-id[Change or remove one schedule of the notebook]:schedule id:' \\
+                        '--add[Add another schedule to the notebook]' \\
+                        '--name[Name of the schedule]:name:' \\
+                        '*'{-i,--input}'[Input value for the schedule runs]:key=value:' \\
+                        '--clear-inputs[Remove the schedule input values]' \\
                         '(-o --output)'{-o,--output}'[Output format]:format:(json)' \\
                         '*:deepnote file:_files -g "*.deepnote"'
                     ;;
@@ -647,6 +651,10 @@ complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l open -d 'Open 
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l remove -d 'Remove the notebook schedule'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l list -d 'List the notebook schedules and their ids'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l schedule-id -d 'Change or remove one schedule of the notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l add -d 'Add another schedule to the notebook'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l name -d 'Name of the schedule'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -s i -l input -d 'Input value for the schedule runs (can be repeated)'
+complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l clear-inputs -d 'Remove the schedule input values'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -s o -l output -d 'Output format' -xa 'json'
 complete -c deepnote -n '__fish_seen_subcommand_from schedule' -F -a '*.deepnote'
 

@@ -138,6 +138,56 @@ It finds the notebook like `scheduleInCloud`, but never creates anything and won
 same-named projects. `removed` is `false` when there was no schedule, and `notebookId` is `null`
 when the notebook is not in Deepnote.
 
+### List, add, change, or remove a notebook's schedules
+
+Where the workspace allows several schedules per notebook, `scheduleInCloud` and
+`unscheduleInCloud` throw `MultipleSchedulesError` for a notebook that has more than one. It keeps
+the server's `statusCode` (409) and message, and adds `notebookId` and `scheduleCount`. Pick a
+schedule by its id instead:
+
+```ts
+import {
+  addScheduleInCloud,
+  listSchedulesInCloud,
+  removeScheduleInCloud,
+  updateScheduleInCloud,
+} from "@deepnote/local-runner";
+
+const options = { token: process.env.DEEPNOTE_TOKEN };
+const { schedules } = await listSchedulesInCloud("report.deepnote", options);
+// schedules[0].id / .cron / .timezone / .nextRunAt / .isPaused / .pauseReason / .name / .inputs
+
+const updated = await updateScheduleInCloud(
+  "report.deepnote",
+  schedules[0].id,
+  { timezone: "Europe/Prague" },
+  options,
+);
+// updated.changed / updated.previous / updated.schedule
+
+await removeScheduleInCloud("report.deepnote", schedules[0].id, options);
+// { notebookId, removed }
+
+const added = await addScheduleInCloud(
+  "report.deepnote",
+  { cron: "0 18 * * *", name: "Evening", inputs: { region: "EU" } },
+  options,
+);
+// added.added / added.schedule
+```
+
+These take the same options as `unscheduleInCloud`, find the notebook the same way, and never create
+a project. `listSchedulesInCloud` and `addScheduleInCloud` return `notebookId: null` when the notebook
+is not in Deepnote. They only act on an id from that notebook's schedules: for any other id
+`updateScheduleInCloud` throws `ScheduleNotFoundError` and `removeScheduleInCloud` returns
+`removed: false`. `updateScheduleInCloud` sends nothing when the schedule already has every value
+passed (`changed: false`); a real change resumes a paused schedule and makes the token's owner its
+owner. It merges `inputs` into the schedule's own, and `inputs: null` removes them.
+
+`addScheduleInCloud` returns the existing schedule with `added: false` when one already has the same
+timing, name, and inputs. Input values are typed by the file's input blocks, as with `runInCloud`, and
+a name they don't define throws before any request.
+
 ### Serve it to a static page
 
 ```ts

@@ -117,6 +117,8 @@ If the orchestrator itself is down, nothing triggers the notebook. A schedule th
 - `GET /v2/notebooks/{notebookId}/schedule` returns the next run time, whether the schedule is paused, and why: `access-revoked` or `consecutive-failures`.
 - `DELETE /v2/notebooks/{notebookId}/schedule` removes it.
 
+Where the workspace allows several schedules, these routes answer 409 for a notebook that has more than one: list its schedules with `GET /v2/schedules?notebookId={notebookId}` and change or remove one with `PATCH` or `DELETE /v2/schedules/{scheduleId}`.
+
 Schedules created through the API start with auto-pause off; turn it on in the scheduling settings if you want repeated failures to pause the schedule. Schedules more frequent than hourly need the Enterprise plan.
 
 ## Monitor from one place

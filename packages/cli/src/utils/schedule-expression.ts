@@ -151,6 +151,13 @@ export function resolveScheduleChange(options: ScheduleExpressionOptions): Resol
   return { cron, description, ...(timezone !== undefined ? { timezone } : {}) }
 }
 
+/** Like {@link resolveScheduleExpression}, but a frequency needs `--at`. */
+export function resolveScheduleAddition(options: ScheduleExpressionOptions): ResolvedScheduleExpression {
+  const resolved = resolveScheduleExpression(options)
+  requireAt(options, '--add')
+  return resolved
+}
+
 function requireAt(options: ScheduleExpressionOptions, flag: string): void {
   if (options.cron === undefined && options.at === undefined) {
     throw new ScheduleExpressionError(

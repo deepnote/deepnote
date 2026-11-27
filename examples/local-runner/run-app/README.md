@@ -60,8 +60,9 @@ frontends can still send raw cron.
 
 Scheduling creates the cloud notebook if necessary but does not run it immediately. Recurring runs
 use the input values stored in Deepnote; when scheduling creates the notebook, those are the
-defaults committed in the `.deepnote` file. Each notebook has its own schedule, so saving again
-updates this notebook's schedule.
+defaults committed in the `.deepnote` file. Saving again updates this notebook's schedule. Where the
+workspace allows several schedules per notebook, saving fails for a notebook that has more than one;
+change those with `deepnote schedule <path> --list` and `--schedule-id`.
 
 The scheduler remains available while a cloud run is active. The local-runner library coordinates
 the first create-if-missing operation, so custom frontends can safely offer the same concurrency

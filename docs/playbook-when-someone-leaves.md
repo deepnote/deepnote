@@ -18,7 +18,7 @@ This playbook explains what happens, and gives a checklist for handing over some
 | A schedule's owner is deactivated or suspended, or loses access to the project | The schedule is paused the next time it's due to run                                     |
 | An API key's creator leaves the workspace, or is deactivated or suspended      | The key stops working on its next request                                                |
 
-A paused schedule keeps its timing and notification settings. Deepnote emails the schedule's owner and, unless the project is private, the workspace admins. Through the API, `GET /v2/notebooks/{notebookId}/schedule` reports the schedule as paused with the reason `access-revoked`.
+A paused schedule keeps its timing and notification settings. Deepnote emails the schedule's owner and, unless the project is private, the workspace admins. Through the API, `GET /v2/notebooks/{notebookId}/schedule` reports the schedule as paused with the reason `access-revoked`. Where the workspace allows several schedules, that route answers 409 for a notebook that has more than one; `GET /v2/schedules?notebookId={notebookId}` reports each schedule's pause status and reason.
 
 No new scheduled run starts, and no new API request is accepted, as a person who has left, so their access isn't silently used from then on.
 

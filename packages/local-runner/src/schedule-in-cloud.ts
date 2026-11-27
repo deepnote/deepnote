@@ -1,5 +1,7 @@
-import type { DeepnoteFile } from '@deepnote/blocks'
+import { isDeepStrictEqual } from 'node:util'
+import type { DeepnoteFile, InputBlockValueOverride } from '@deepnote/blocks'
 import {
+  createSchedule,
   deleteNotebookSchedule,
   deleteSchedule,
   type FoundNotebook,
@@ -16,6 +18,7 @@ import {
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { buildViewUrl, DEFAULT_CLOUD_API_URL, notebookNameFor, requireToken } from './cloud-common'
 import { coordinateCloudNotebook } from './cloud-notebook-coordinator'
+import { coerceInputValueForBlocks, inputBlocksByName, notebooksInScope } from './coerce-input-value'
 import type { DeepnoteInput } from './load-file'
 import { loadDeepnoteFile } from './load-file'
 import { createFromFile } from './run-in-cloud'
@@ -84,6 +87,20 @@ export interface UpdateScheduleInCloudResult {
   changed: boolean
   viewUrl?: string
 }
+
+export interface AddScheduleInCloudBody {
+  cron: string
+  /** IANA timezone for the cron expression; defaults to UTC. */
+  timezone?: string
+  name?: string
+  /** Input values by name, typed by the file's input blocks before they are sent. */
+  inputs?: Record<string, unknown>
+}
+
+/** `added` is `false` when the notebook already has a schedule with the same timing, name and inputs. */
+export type AddScheduleInCloudResult =
+  | { notebookId: null; added: false }
+  | { notebookId: string; added: boolean; schedule: Schedule; viewUrl?: string }
 
 /** A singular schedule route answered 409 because the notebook has several schedules. */
 export class MultipleSchedulesError extends Error {
@@ -250,7 +267,10 @@ export async function listSchedulesInCloud(
   return { notebookId: found.notebookId, schedules: found.schedules }
 }
 
-/** Change the timing of one of a local notebook's Deepnote Cloud schedules. Never creates anything. */
+/**
+ * Change one of a local notebook's Deepnote Cloud schedules. Given inputs merge into the stored ones,
+ * and `inputs: null` removes them. Never creates anything.
+ */
 export async function updateScheduleInCloud(
   input: DeepnoteInput,
   scheduleId: string,
@@ -258,24 +278,60 @@ export async function updateScheduleInCloud(
   options: UnscheduleInCloudOptions = {}
 ): Promise<UpdateScheduleInCloudResult> {
   const lookup = cloudNotebookLookup('updateScheduleInCloud', input, options)
+  const given = body.inputs ? cloudInputs(lookup, body.inputs) : body.inputs
   const found = await findCloudSchedules(lookup)
   const previous = found?.schedules.find(schedule => schedule.id === scheduleId)
   if (!found || !previous) {
     throw new ScheduleNotFoundError(scheduleId, found?.notebookId ?? null)
   }
 
+  const inputs = given ? { ...previous.inputs, ...given } : given
   const changed =
     (body.cron !== undefined && body.cron !== previous.cron) ||
-    (body.timezone !== undefined && body.timezone !== previous.timezone)
+    (body.timezone !== undefined && body.timezone !== previous.timezone) ||
+    (body.name !== undefined && (body.name?.trim() || null) !== previous.name) ||
+    (inputs !== undefined && !isDeepStrictEqual(inputs ?? {}, previous.inputs ?? {}))
   const schedule = changed
-    ? await updateSchedule(lookup.baseUrl, lookup.token, scheduleId, body, lookup.requestOptions)
+    ? await updateSchedule(lookup.baseUrl, lookup.token, scheduleId, { ...body, inputs }, lookup.requestOptions)
     : previous
-  const viewUrl = localNotebookIdIfKnown(lookup.file, lookup.notebookId)
-    ? await buildViewUrl(lookup.baseUrl, lookup.token, lookup.file, found.notebookId, found.projectId).catch(
-        () => undefined
-      )
-    : undefined
+  const viewUrl = await scheduleViewUrl(lookup, found)
   return { notebookId: found.notebookId, previous, schedule, changed, ...(viewUrl ? { viewUrl } : {}) }
+}
+
+/** Add a schedule to a local notebook in Deepnote Cloud, next to its others. Never creates the notebook. */
+export async function addScheduleInCloud(
+  input: DeepnoteInput,
+  body: AddScheduleInCloudBody,
+  options: UnscheduleInCloudOptions = {}
+): Promise<AddScheduleInCloudResult> {
+  const lookup = cloudNotebookLookup('addScheduleInCloud', input, options)
+  const wanted = {
+    ...body,
+    timezone: body.timezone ?? 'UTC',
+    inputs: body.inputs ? cloudInputs(lookup, body.inputs) : undefined,
+  }
+  const found = await findCloudSchedules(lookup)
+  if (found === null) {
+    return { notebookId: null, added: false }
+  }
+
+  const existing = found.schedules.find(
+    schedule =>
+      schedule.cron === wanted.cron &&
+      schedule.timezone === wanted.timezone &&
+      schedule.name === (wanted.name?.trim() || null) &&
+      isDeepStrictEqual(schedule.inputs ?? {}, wanted.inputs ?? {})
+  )
+  const schedule =
+    existing ??
+    (await createSchedule(
+      lookup.baseUrl,
+      lookup.token,
+      { ...wanted, notebookId: found.notebookId },
+      lookup.requestOptions
+    ))
+  const viewUrl = await scheduleViewUrl(lookup, found)
+  return { notebookId: found.notebookId, added: existing === undefined, schedule, ...(viewUrl ? { viewUrl } : {}) }
 }
 
 /** Remove one of a local notebook's Deepnote Cloud schedules. Never creates anything. */
@@ -382,6 +438,32 @@ async function rethrowWithScheduleCount(
     throw error
   }
   throw new MultipleSchedulesError(error instanceof Error ? error.message : String(error), notebookId, schedules.length)
+}
+
+async function scheduleViewUrl(lookup: CloudNotebookLookup, found: CloudSchedules): Promise<string | undefined> {
+  if (!localNotebookIdIfKnown(lookup.file, lookup.notebookId)) {
+    return undefined
+  }
+  return buildViewUrl(lookup.baseUrl, lookup.token, lookup.file, found.notebookId, found.projectId).catch(
+    () => undefined
+  )
+}
+
+function cloudInputs(
+  lookup: CloudNotebookLookup,
+  inputs: Record<string, unknown>
+): Record<string, InputBlockValueOverride> {
+  const notebookId = localNotebookId(lookup.file, lookup.notebookId, lookup.fnName)
+  const blocksByName = inputBlocksByName(notebooksInScope(lookup.file, { notebookId }))
+  return Object.fromEntries(
+    Object.entries(inputs).map(([name, value]) => {
+      const blocks = blocksByName.get(name)
+      if (!blocks) {
+        throw new Error(`${lookup.fnName}: "${name}" is not an input of this notebook.`)
+      }
+      return [name, coerceInputValueForBlocks(blocks, value)]
+    })
+  )
 }
 
 /** Read the public status-code contract without depending on a cross-bundle class identity. */

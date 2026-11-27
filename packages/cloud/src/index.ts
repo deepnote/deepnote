@@ -69,6 +69,8 @@ export {
   type Workspace,
 } from './projects'
 export {
+  type CreateScheduleBody,
+  createSchedule,
   deleteNotebookSchedule,
   deleteSchedule,
   listSchedules,

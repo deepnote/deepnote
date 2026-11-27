@@ -481,6 +481,18 @@ ${c.bold('Exit Codes:')}
     .option('--remove', "Remove the notebook's schedule, or the one named by --schedule-id")
     .option('--list', "List the notebook's schedules and their ids")
     .option('--schedule-id <id>', 'Change or remove one schedule of a notebook that has several')
+    .option('--add', 'Add another schedule to the notebook')
+    .option('--name <name>', 'Name of the schedule, with --add or --schedule-id')
+    .option(
+      '-i, --input <key=value>',
+      "Input value for the schedule's runs, with --add or --schedule-id (repeatable)",
+      (val, prev: string[]) => {
+        prev.push(val)
+        return prev
+      },
+      []
+    )
+    .option('--clear-inputs', "Remove the schedule's input values, with --schedule-id")
     .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
@@ -493,6 +505,10 @@ ${c.bold('Description:')}
   When the notebook has several schedules, pick one with --schedule-id; --list shows them.
   With --schedule-id, --hourly, --daily, --weekly and --monthly need --at, and an omitted
   --timezone keeps the schedule's own. A change resumes a paused schedule and makes you its owner.
+  Where the workspace allows several schedules per notebook, --add adds another; its frequency
+  needs --at too. --input values are typed by the notebook's input blocks and, with
+  --schedule-id, merged into the schedule's own. Added schedules don't update the notebook's
+  outputs, and input values stop a schedule from updating them for good.
 
 ${c.bold('Examples:')}
   ${c.dim('# Run every day at 09:00 in your local timezone')}
@@ -522,15 +538,22 @@ ${c.bold('Examples:')}
   ${c.dim('# Remove only schedule 15')}
   $ deepnote schedule report.deepnote --schedule-id 15 --remove
 
+  ${c.dim('# Add an evening schedule with its own input value')}
+  $ deepnote schedule report.deepnote --add --daily --at 18:00 --name Evening -i region=EU
+
+  ${c.dim('# Rename schedule 15 and change one of its input values')}
+  $ deepnote schedule report.deepnote --schedule-id 15 --name Morning -i region=US
+
 ${c.bold('Authentication:')}
   Set ${c.dim(DEEPNOTE_TOKEN_ENV)} in your environment or in a .env file next to the notebook.
   You can also pass ${c.dim('--token')}. Scheduling availability depends on your Deepnote plan;
   --remove works on any plan.
 
 ${c.bold('Exit Codes:')}
-  ${c.dim('0')}  Success, including --remove with nothing to remove
+  ${c.dim('0')}  Success, including --remove with nothing to remove and --add of a schedule that exists
   ${c.dim('1')}  API or network failure, or several schedules and no --schedule-id
-  ${c.dim('2')}  Invalid usage, authentication, plan permissions, or an unknown --schedule-id
+  ${c.dim('2')}  Invalid usage, authentication, plan permissions, an unknown --schedule-id,
+     or --add for a notebook that is not in Deepnote
 `
     })
     .action(createScheduleAction(program))
