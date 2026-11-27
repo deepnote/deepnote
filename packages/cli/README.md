@@ -721,8 +721,9 @@ Where the workspace allows several schedules per notebook, the command and `--re
 notebook that has more than one. `--list` shows its schedules and their ids, `--schedule-id <id>`
 changes or removes one of them, and `--add` adds another. None of them creates a project.
 
-With `--schedule-id` and `--add`, a frequency needs `--at`. With `--schedule-id`, an omitted
-`--timezone` keeps the schedule's own, and a change resumes a paused schedule and makes you its owner.
+With `--schedule-id` and `--add`, `--hourly`, `--daily`, `--weekly` and `--monthly` need `--at`, and
+`--cron` takes none. With `--schedule-id`, an omitted `--timezone` keeps the schedule's own, and a
+change resumes a paused schedule and makes you its owner.
 `--add` exits `2` for a notebook that is not in Deepnote, and `0` without adding anything when a
 schedule with the same timing, name and inputs exists. `--input` values are typed by the notebook's
 input blocks, as with `run`; with `--schedule-id` they are merged into the schedule's own.
