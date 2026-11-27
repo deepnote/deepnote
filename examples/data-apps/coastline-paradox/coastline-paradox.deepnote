@@ -132,4 +132,5 @@ project:
       isModule: false
       name: Build data
   settings: {}
+  type: data_app
 version: 1.0.0

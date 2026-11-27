@@ -28,6 +28,7 @@ export type {
   ExecutionSummary,
   InputBlock,
   McpServerConfig,
+  ProjectType,
   SnapshotHashInput,
   SqlBlock,
 } from './deepnote-file/deepnote-file-schema'
@@ -40,9 +41,11 @@ export {
   executionSchema,
   executionSummarySchema,
   mcpServerSchema,
+  PROJECT_TYPES,
 } from './deepnote-file/deepnote-file-schema'
 export { deserializeDeepnoteFile } from './deepnote-file/deserialize-deepnote-file'
 export { decodeUtf8NoBom, parseYaml } from './deepnote-file/parse-yaml'
+export { getProjectType, isSingleNotebookProjectType } from './deepnote-file/project-type'
 export {
   generateSortingKey,
   serializeDeepnoteFile,

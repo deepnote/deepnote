@@ -44,6 +44,8 @@ project:
 
 **Top-level fields:** `version` (required, "1.0.0"), `metadata` (required), `project` (required), `integrations` (optional), `environment` (optional).
 
+**`project.type`** (optional): the project's Deepnote type, `standard`, `notebook`, `agent`, `data_app` or `streamlit_app`. Absent means `standard`. It records the Deepnote Cloud project's type and does not set it.
+
 ### Schema Reference
 
 - [TypeScript schema](references/schema.ts) — auto-generated types for .deepnote and .snapshot.deepnote files

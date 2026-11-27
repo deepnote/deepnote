@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parse } from 'yaml'
 
 import type { DeepnoteFile, DeepnoteSnapshot } from './deepnote-file-schema'
 import { deserializeDeepnoteFile } from './deserialize-deepnote-file'
@@ -138,6 +139,10 @@ const createSnapshot = (): DeepnoteSnapshot => ({
   },
 })
 
+function getProjectKeys(yaml: string): string[] {
+  return Object.keys(parse(yaml).project)
+}
+
 describe('serializeDeepnoteFile', () => {
   describe('roundtrip', () => {
     it('serializes and deserializes a minimal file correctly', () => {
@@ -158,6 +163,15 @@ describe('serializeDeepnoteFile', () => {
 
     it('serializes and deserializes a pivot table block with its undeclared metadata intact', () => {
       const file = createFileWithPivotTableBlock()
+      const yaml = serializeDeepnoteFile(file)
+      const parsed = deserializeDeepnoteFile(yaml)
+
+      expect(parsed).toEqual(file)
+    })
+
+    it('serializes and deserializes an unknown project type unchanged', () => {
+      const file = createMinimalFile()
+      file.project.type = 'future_kind'
       const yaml = serializeDeepnoteFile(file)
       const parsed = deserializeDeepnoteFile(yaml)
 
@@ -220,6 +234,29 @@ describe('serializeDeepnoteFile', () => {
 
       // The first field of a block should be 'id' (from baseBlockFields)
       expect(blockMatch?.[1]).toBe('id')
+    })
+
+    it('outputs the project type as the last project field', () => {
+      const file = createFileWithBlocks()
+      file.project = { type: 'data_app', ...file.project, settings: { requirements: ['pandas'] } }
+
+      expect(getProjectKeys(serializeDeepnoteFile(file))).toEqual(['id', 'name', 'notebooks', 'settings', 'type'])
+    })
+
+    it('outputs the project type of a snapshot as the last project field', () => {
+      const snapshot = createSnapshot()
+      snapshot.project = { type: 'data_app', ...snapshot.project, settings: { requirements: ['pandas'] } }
+      const yaml = serializeDeepnoteSnapshot(snapshot)
+
+      expect(getProjectKeys(yaml)).toEqual(['id', 'name', 'notebooks', 'settings', 'type'])
+      expect(deserializeDeepnoteFile(yaml).project.type).toBe('data_app')
+    })
+
+    it('omits a project type set to undefined', () => {
+      const file = createMinimalFile()
+      file.project.type = undefined
+
+      expect(getProjectKeys(serializeDeepnoteFile(file))).toEqual(['id', 'name', 'notebooks'])
     })
 
     it('outputs snapshot metadata with snapshotHash', () => {
