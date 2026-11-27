@@ -103,7 +103,7 @@ are not part of the format, so they never sync.
 ## Conflicts
 
 By default sync asks, per project, whether to keep the cloud version (discarding your local changes)
-or skip the project for now.
+or skip it for now.
 
 ```bash
 # Answer up front instead of being prompted
@@ -111,11 +111,11 @@ deepnote sync ./workspace --on-conflict skip
 deepnote sync ./workspace --on-conflict override
 ```
 
-| Mode       | Behavior                                       |
-| ---------- | ---------------------------------------------- |
-| `ask`      | Prompt per conflicting project (default)       |
-| `skip`     | Leave every conflicting project untouched      |
-| `override` | Overwrite local changes with the cloud version |
+| Mode       | Behavior                                                                    |
+| ---------- | --------------------------------------------------------------------------- |
+| `ask`      | Prompt per conflicting project (default)                                    |
+| `skip`     | Leave every conflicting project untouched, or only the listed working files |
+| `override` | Overwrite local changes with the cloud version                              |
 
 <Callout status="info">
 Without an interactive terminal — in CI, or with output piped — conflicts are skipped rather than
