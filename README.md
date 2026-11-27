@@ -42,6 +42,19 @@ This open-source repository lets you, edit and run Deepnote notebooks directly i
 - **[Cursor extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - AI-powered notebook editing in Cursor
 - **[Windsurf extension](https://open-vsx.org/extension/Deepnote/vscode-deepnote)** - Collaborative development in Windsurf
 
+### With AI coding agents
+
+Claude Code, Codex, Cursor, Gemini CLI and other coding agents can work on `.deepnote` files directly in your repository:
+
+```bash
+npm install -g @deepnote/cli
+deepnote install-skills
+```
+
+`install-skills` teaches the agent the `.deepnote` format and the CLI. The agent can then write a notebook, check it with `deepnote lint` and `deepnote run`, and take it to Deepnote Cloud with `deepnote open`, `deepnote sync` or `deepnote schedule`. See [local setup](./docs/local-setup.md) and the [CLI docs](./docs/deepnote-cli.md).
+
+To let the agent work in your Deepnote Cloud workspace, for example to search projects, run notebooks there or build data apps, install the [Deepnote plugin](https://github.com/deepnote/agent-plugins). It connects the agent to the [hosted Deepnote MCP server](./docs/deepnote-mcp.md).
+
 ## Roadmap
 
 You'll soon be able to:

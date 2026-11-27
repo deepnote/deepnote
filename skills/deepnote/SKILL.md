@@ -12,6 +12,12 @@ description: >-
 
 `.deepnote` files are YAML-based, portable, git-friendly files that each hold a single notebook. Each notebook holds an ordered list of blocks (code, SQL, markdown, inputs, visualizations, etc.). Snapshot files (`.snapshot.deepnote`) use the same format but include execution outputs.
 
+## Local Files vs. a Deepnote Cloud Workspace
+
+This skill covers `.deepnote` files on disk and the `deepnote` CLI. Work that only exists in a Deepnote Cloud workspace, such as searching its projects, reading run history, inspecting integrations or resizing a project's machine, goes through the hosted MCP server at `https://deepnote.com/mcp`. The [Deepnote plugin](https://github.com/deepnote/agent-plugins) for Claude Code and Codex connects that server and ships the skills for it. If the hosted MCP tools are not available and the user asks about their workspace, say so and point them to the plugin; do not guess at workspace state.
+
+Move work between the two with the CLI: `deepnote sync` pulls Cloud projects into local files and pushes local edits back, `deepnote open` uploads a local file to Deepnote Cloud and opens it, and `deepnote schedule` puts a notebook on a recurring Cloud schedule.
+
 ## File Structure
 
 A minimal valid `.deepnote` file:

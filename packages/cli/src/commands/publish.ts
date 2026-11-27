@@ -194,7 +194,7 @@ export function createPublishAction(program: Command) {
     }
     if (result.notebookId !== undefined && result.errors.length === 0) {
       output(`${c.bold('Notebook ID:')} ${result.notebookId}`)
-      log(c.dim('  The notebook the app runs. A page that starts runs through the API names this ID.'))
+      log(c.dim('  The notebook the app runs. Pages get it from the token handshake, so they need not set it.'))
     }
 
     if (result.errors.length > 0) {
