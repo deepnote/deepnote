@@ -51,7 +51,7 @@ The app's controls use the notebook's [input blocks](/docs/input-blocks). When s
 
 For a table too large to load on every run, ask the agent to store it in the project as a DataFrame. The app then pages through the stored DataFrame without running the notebook, so it loads even for people who haven't run the app.
 
-Every viewer sees the same stored DataFrame, whatever inputs they choose. It changes when the block that stores it runs, in the editor or in a scheduled run, not when viewers reload the app or submit inputs. Stored DataFrames aren't available when **Private outputs** is on.
+Every viewer, including visitors of a public app, sees the same stored DataFrame, whatever inputs they choose. It changes when the block that stores it runs, in the editor or in a scheduled run, not when viewers reload the app or submit inputs. Stored DataFrames aren't available when **Private outputs** is on.
 
 ### AI summaries
 

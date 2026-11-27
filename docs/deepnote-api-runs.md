@@ -244,6 +244,8 @@ curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/dataframes/orders?page
   -H "Authorization: Bearer $DEEPNOTE_TOKEN"
 ```
 
+The response, with its rows cut to two:
+
 ```json
 {
   "referenceId": "9d1e…",

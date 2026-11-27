@@ -99,6 +99,7 @@ around its supported operations:
 
 A viewer's run replaces stored DataFrames unless it is started with
 `detachedRunStorageMode: "readonly"`, so an app that reads them starts its viewers' runs with it.
+Start over at page 0 whenever a page's `referenceId` differs from page 0's.
 Instead of the handshake, a page can load `https://deepnote.com/static/app-client/v1.js`, whose
 `Deepnote.connect()` gets and refreshes the token for the app's own project. Errors from its
 `dataframe(name, { pageIndex, pageSize })` carry the server's message but not the status, so when a
