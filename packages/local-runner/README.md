@@ -138,6 +138,49 @@ It finds the notebook like `scheduleInCloud`, but never creates anything and won
 same-named projects. `removed` is `false` when there was no schedule, and `notebookId` is `null`
 when the notebook is not in Deepnote.
 
+### List, add, change, or remove a notebook's schedules
+
+Where the workspace allows several schedules per notebook, `scheduleInCloud` and
+`unscheduleInCloud` throw `MultipleSchedulesError`, with its `scheduleCount`, for a notebook that has
+more than one. Pick a schedule by its id instead:
+
+```ts
+import {
+  addScheduleInCloud,
+  listSchedulesInCloud,
+  removeScheduleInCloud,
+  updateScheduleInCloud,
+} from "@deepnote/local-runner";
+
+const options = { token: process.env.DEEPNOTE_TOKEN };
+const { schedules } = await listSchedulesInCloud("report.deepnote", options);
+// schedules[0].id / .cron / .timezone / .nextRunAt / .isPaused / .pauseReason / .name / .inputs
+
+const { id } = schedules[0];
+await updateScheduleInCloud("report.deepnote", id, { name: "Daily" }, options);
+// { changed, previous, schedule }
+
+await removeScheduleInCloud("report.deepnote", id, options);
+// { notebookId, removed }
+
+await addScheduleInCloud(
+  "report.deepnote",
+  { cron: "0 18 * * *", name: "Evening", inputs: { region: "EU" } },
+  options,
+);
+// { added, schedule }
+```
+
+These take the same options as `unscheduleInCloud`, find the notebook the same way, and never create
+a project; `listSchedulesInCloud` and `addScheduleInCloud` return `notebookId: null` for a notebook
+that is not in Deepnote. For an id that is not one of the notebook's schedules, `updateScheduleInCloud`
+throws `ScheduleNotFoundError` and `removeScheduleInCloud` returns `removed: false`.
+`updateScheduleInCloud` sends nothing when nothing would change (`changed: false`) and merges `inputs`
+into the schedule's own (`inputs: null` removes them); a real change resumes a paused schedule and
+makes the token's owner its owner. `addScheduleInCloud` returns an existing schedule with the same
+timing, name, and inputs instead of adding one. Input values are typed by the file's input blocks, as
+with `runInCloud`.
+
 ### Serve it to a static page
 
 ```ts

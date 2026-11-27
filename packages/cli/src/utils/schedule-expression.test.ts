@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { resolveScheduleChange, resolveScheduleExpression, ScheduleExpressionError } from './schedule-expression'
+import {
+  resolveScheduleAddition,
+  resolveScheduleChange,
+  resolveScheduleExpression,
+  ScheduleExpressionError,
+} from './schedule-expression'
 
 describe('resolveScheduleExpression', () => {
   it.each([
@@ -136,5 +141,20 @@ describe('resolveScheduleChange', () => {
   ] as const)('rejects %j', (options, expected) => {
     expect(() => resolveScheduleChange(options)).toThrow(ScheduleExpressionError)
     expect(() => resolveScheduleChange(options)).toThrow(expected)
+  })
+})
+
+describe('resolveScheduleAddition', () => {
+  it('needs --at with a frequency and defaults to the system timezone', () => {
+    const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+
+    expect(resolveScheduleAddition({ daily: true, at: '18:00' })).toEqual({
+      cron: '0 18 * * *',
+      timezone: systemTimezone,
+      description: 'daily at 18:00',
+    })
+    expect(resolveScheduleAddition({ cron: '0 6 * * 1-5', timezone: 'UTC' }).cron).toBe('0 6 * * 1-5')
+    expect(() => resolveScheduleAddition({ weekly: 'Monday' })).toThrow(/With --add, a frequency needs --at/)
+    expect(() => resolveScheduleAddition({})).toThrow(/Choose a schedule/)
   })
 })

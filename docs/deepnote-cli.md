@@ -89,7 +89,7 @@ Deepnote Cloud and open it in your browser, where you sign in; they need no toke
 | `deepnote convert <path>`                              | Convert between `.ipynb`, `.py`, `.qmd` and `.deepnote`                                        |
 | `deepnote split <path>`                                | Split a multi-notebook `.deepnote` file into one file per notebook                             |
 | `deepnote open <path>`                                 | Upload a `.deepnote` file to Deepnote Cloud and open it in the browser                         |
-| `deepnote schedule <path>`                             | Create or update a recurring run in Deepnote Cloud                                             |
+| `deepnote schedule <path>`                             | Create, update, list, add or remove recurring runs in Deepnote Cloud                           |
 | [`deepnote sync [dir]`](/docs/deepnote-cli-sync)       | Mirror your workspace to a local directory and push notebook edits back                        |
 | [`deepnote publish <dir>`](/docs/deepnote-cli-publish) | Publish a local build directory as a data app                                                  |
 | `deepnote unpublish`                                   | Make a data app editor-only again without changing its files                                   |

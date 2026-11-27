@@ -109,9 +109,25 @@ describe('CLI', () => {
           '--remove',
           '--list',
           '--schedule-id <id>',
+          '--add',
+          '--name <name>',
+          '-i, --input <key=value>',
+          '--clear-inputs',
           '-o, --output <format>',
         ])
       )
+    })
+
+    it('schedule collects repeated -i and --input values in order', async () => {
+      const program = createProgram()
+      const scheduleCmd = program.commands.find(cmd => cmd.name() === 'schedule')
+      scheduleCmd?.action(() => {})
+
+      await program.parseAsync(['schedule', 'report.deepnote', '--add', '-i', 'region=EU', '--input', 'dry_run=true'], {
+        from: 'user',
+      })
+
+      expect(scheduleCmd?.opts()).toMatchObject({ add: true, input: ['region=EU', 'dry_run=true'] })
     })
 
     it('convert command is properly configured', () => {
@@ -180,7 +196,9 @@ describe('CLI', () => {
         return 0
     fi`)
       expect(output).toContain('--storage-mode --timeout --push --yes --url')
-      expect(output).toContain('--no-create --open --remove --list --schedule-id -o --output')
+      expect(output).toContain(
+        '--no-create --open --remove --list --schedule-id --add --name --input -i --clear-inputs -o --output'
+      )
       expect(output).toContain(`integrations)
             COMPREPLY=( $(compgen -W "pull auth" -- "\${cur}") )`)
       expect(output).toContain(`auth)
@@ -210,6 +228,10 @@ describe('CLI', () => {
       expect(output).toContain("'--remove[Remove the notebook schedule]'")
       expect(output).toContain("'--list[List the notebook schedules and their ids]'")
       expect(output).toContain("'--schedule-id[Change or remove one schedule of the notebook]:schedule id:'")
+      expect(output).toContain("'--add[Add another schedule to the notebook]'")
+      expect(output).toContain("'--name[Name of the schedule]:name:'")
+      expect(output).toContain("'*'{-i,--input}'[Input value for the schedule runs]:key=value:'")
+      expect(output).toContain("'--clear-inputs[Remove the schedule input values]'")
       expect(output).toContain("'1: :->subcommand'")
       const integrationsBlock = output.slice(output.indexOf("'integrations subcommands'"))
       expect(integrationsBlock).toContain('case $words[1] in')
@@ -248,6 +270,15 @@ describe('CLI', () => {
       )
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l schedule-id -d 'Change or remove one schedule of the notebook'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l add -d 'Add another schedule to the notebook'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -s i -l input -d 'Input value for the schedule runs (can be repeated)'"
+      )
+      expect(output).toContain(
+        "complete -c deepnote -n '__fish_seen_subcommand_from schedule' -l clear-inputs -d 'Remove the schedule input values'"
       )
       expect(output).toContain(
         "complete -c deepnote -n '__fish_seen_subcommand_from integrations' -a auth -d 'Authenticate a big-query integration using Google OAuth'"

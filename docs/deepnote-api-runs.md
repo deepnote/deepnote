@@ -236,13 +236,45 @@ curl -s -X POST "https://api.deepnote.com/v2/notebooks/$NOTEBOOK_ID/schedule" \
 ```
 
 The same path takes `GET` to read the schedule, including `nextRunAt` and whether it is paused, and
-`DELETE` to remove it. Each notebook has at most one schedule. Posting again updates its `cron` and
-`timezone`, keeps its notification settings, resumes it if it was paused after failures, and makes
-you its owner. `timezone` defaults to UTC. Creating or changing a schedule needs a plan that includes
-scheduling, hourly and custom cron schedules need Team or Enterprise, and schedules that run
-more often than once an hour need Enterprise. See
+`DELETE` to remove it. Posting again updates its `cron` and `timezone`, keeps its notification
+settings, resumes it if it was paused after failures, and makes you its owner. `timezone` defaults to
+UTC. Where the workspace allows several schedules per notebook, this path answers `409` for a
+notebook that has more than one; use [schedules by ID](#schedules-by-id) for it. Creating or changing
+a schedule needs a plan that includes scheduling, hourly and custom cron schedules need Team or
+Enterprise, and schedules that run more often than once an hour need Enterprise. See
 [Scheduling](/docs/scheduling) for what a scheduled run does, and
 [`deepnote schedule`](/docs/deepnote-cli) for the same from the terminal.
+
+### Schedules by ID
+
+`GET /v2/schedules?notebookId=` lists a notebook's schedules, oldest first, each with the `id` that
+`PATCH` and `DELETE` below take. `POST /v2/schedules` adds a schedule next to the notebook's others;
+where the workspace allows only one schedule per notebook, a second one answers `409`:
+
+```bash
+# Every day at 18:00 Prague time, with its own input values
+curl -s -X POST https://api.deepnote.com/v2/schedules \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "notebookId": "'"$NOTEBOOK_ID"'",
+    "cron": "0 18 * * *",
+    "timezone": "Europe/Prague",
+    "name": "Evening",
+    "inputs": { "region": "EU" }
+  }'
+```
+
+`timezone` defaults to UTC, and `name` and `inputs` are optional. A name has up to 100 characters,
+and runs of whitespace in it become one space. Where the workspace allows several schedules per
+notebook, `inputs` sets the values the schedule's runs use, as in a run; elsewhere it answers `400`.
+
+`PATCH /v2/schedules/{scheduleId}` with any of `cron`, `timezone`, `name` and `inputs` changes one
+schedule, and `DELETE /v2/schedules/{scheduleId}` removes it. `inputs` replaces all of the
+schedule's input values, `null` or `{}` removes them, and `"name": null` removes the name. A `PATCH`
+resumes a paused schedule and makes you its owner. Added schedules don't update the notebook's
+outputs, and setting input values stops a schedule from updating them; removing the values doesn't
+turn that back on, but you can in Deepnote.
 
 ## Related
 

@@ -678,37 +678,57 @@ deepnote streamlit publish apps/dashboard.py --project-id <uuid> --no-wait
 
 ### `schedule <path>`
 
-Create, update, or remove a recurring notebook run in Deepnote Cloud. This does not run the notebook
-immediately. If the local project is missing in Deepnote, the CLI creates it without opening a browser first.
+Create, update, list, add, or remove recurring notebook runs in Deepnote Cloud. This does not run the notebook
+immediately. If the local project is missing in Deepnote, scheduling creates it without opening a browser first.
 
 ```bash
 deepnote schedule report.deepnote --daily --at 09:00
 ```
 
-Choose exactly one frequency, or pass `--remove`:
+Choose exactly one frequency, or pass `--remove` or `--list`. With `--schedule-id`, `--timezone`, `--name`,
+`--input`, or `--clear-inputs` on its own is also enough:
 
-| Option                  | Description                                     | Default                    |
-| ----------------------- | ----------------------------------------------- | -------------------------- |
-| `--hourly`              | Run every hour                                  | the creation minute        |
-| `--daily`               | Run every day                                   |                            |
-| `--weekly <day>`        | Run weekly on Monday-Sunday                     |                            |
-| `--monthly <day>`       | Run monthly on day 1-31                         |                            |
-| `--cron <expression>`   | Use a custom five-field cron expression         |                            |
-| `--at <HH:mm>`          | Time for daily/weekly/monthly; minute if hourly | the creation time          |
-| `--timezone <timezone>` | IANA timezone                                   | local system timezone      |
-| `--notebook <name>`     | Target a notebook in a multi-notebook file      | single notebook            |
-| `--token <token>`       | Deepnote API token                              | `DEEPNOTE_TOKEN` or `.env` |
-| `--url <url>`           | Deepnote API base URL                           | `https://api.deepnote.com` |
-| `--no-create`           | Fail rather than create a missing project       | `false`                    |
-| `--open`                | Open the scheduled notebook after configuration | `false`                    |
-| `--remove`              | Remove the notebook's schedule                  | `false`                    |
-| `-o, --output json`     | Print machine-readable JSON                     | text                       |
+| Option                  | Description                                                         | Default                    |
+| ----------------------- | ------------------------------------------------------------------- | -------------------------- |
+| `--hourly`              | Run every hour                                                      | the creation minute        |
+| `--daily`               | Run every day                                                       |                            |
+| `--weekly <day>`        | Run weekly on Monday-Sunday                                         |                            |
+| `--monthly <day>`       | Run monthly on day 1-31                                             |                            |
+| `--cron <expression>`   | Use a custom five-field cron expression                             |                            |
+| `--at <HH:mm>`          | Time for daily/weekly/monthly; minute if hourly                     | the creation time          |
+| `--timezone <timezone>` | IANA timezone                                                       | local system timezone      |
+| `--notebook <name>`     | Target a notebook in a multi-notebook file                          | single notebook            |
+| `--token <token>`       | Deepnote API token                                                  | `DEEPNOTE_TOKEN` or `.env` |
+| `--url <url>`           | Deepnote API base URL                                               | `https://api.deepnote.com` |
+| `--no-create`           | Fail rather than create a missing project                           | `false`                    |
+| `--open`                | Open the scheduled notebook after configuration                     | `false`                    |
+| `--remove`              | Remove the notebook's schedule, or the one named by `--schedule-id` | `false`                    |
+| `--list`                | List the notebook's schedules and their ids                         | `false`                    |
+| `--schedule-id <id>`    | Change or remove one schedule of a notebook that has several        |                            |
+| `--add`                 | Add another schedule to the notebook                                | `false`                    |
+| `--name <name>`         | Name of the schedule, with `--add` or `--schedule-id`               |                            |
+| `-i, --input <key=val>` | Input value, with `--add` or `--schedule-id` (can be repeated)      |                            |
+| `--clear-inputs`        | Remove the schedule's input values, with `--schedule-id`            | `false`                    |
+| `-o, --output json`     | Print machine-readable JSON                                         | text                       |
 
-Each notebook has its own schedule. Running the command again updates that notebook's schedule;
-other notebooks keep theirs. Scheduling availability depends on the workspace plan.
+Running the command again updates the notebook's schedule; other notebooks keep theirs. Scheduling
+availability depends on the workspace plan.
 
 `--remove` deletes the notebook's schedule. It never creates a project, works on any plan, and exits
 `0` when there is nothing to remove.
+
+Where the workspace allows several schedules per notebook, the command and `--remove` exit `1` for a
+notebook that has more than one. `--list` shows its schedules and their ids, `--schedule-id <id>`
+changes or removes one, `--add` adds another, and `--input` sets values for a schedule's runs. None
+of them creates a project.
+
+With `--schedule-id` and `--add`, `--hourly`, `--daily`, `--weekly` and `--monthly` need `--at`, and
+`--cron` takes none. With `--schedule-id`, an omitted `--timezone` keeps the schedule's own, and a
+change resumes a paused schedule and makes you its owner. `--add` exits `2` for a notebook that is
+not in Deepnote, and `0` without adding anything when a schedule with the same timing, name and
+inputs exists. `--input` values are typed by the notebook's input blocks and merged into the
+schedule's own. Added schedules and schedules with input values don't update the notebook's outputs
+until you turn that on in Deepnote.
 
 Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
 monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same
@@ -732,6 +752,21 @@ deepnote schedule report.deepnote --hourly -o json
 
 # Remove one notebook's schedule
 deepnote schedule project.deepnote --notebook "Weekly review" --remove
+
+# List the notebook's schedules and their ids
+deepnote schedule report.deepnote --list
+
+# Move schedule 15 to 09:00 every day, keeping its timezone
+deepnote schedule report.deepnote --schedule-id 15 --daily --at 09:00
+
+# Remove only schedule 15
+deepnote schedule report.deepnote --schedule-id 15 --remove
+
+# Add an evening schedule with its own input value
+deepnote schedule report.deepnote --add --daily --at 18:00 --name Evening -i region=EU
+
+# Rename schedule 15 and change one of its input values
+deepnote schedule report.deepnote --schedule-id 15 --name Morning -i region=US
 ```
 
 ### `sync [dir]`

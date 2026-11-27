@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  createSchedule,
   deleteNotebookSchedule,
   deleteSchedule,
   listSchedules,
@@ -276,6 +277,19 @@ describe('listSchedules', () => {
 })
 
 describe('updateSchedule', () => {
+  it('sends a name and input values, and null to remove the inputs', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async () => new Response(JSON.stringify({ schedule: STORED_SCHEDULE }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await updateSchedule(BASE_URL, TOKEN, '15', { name: 'Morning', inputs: { region: 'US' } })
+    await updateSchedule(BASE_URL, TOKEN, '15', { inputs: null })
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ name: 'Morning', inputs: { region: 'US' } })
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ inputs: null })
+  })
+
   it('PATCHes only the fields passed and encodes the schedule id', async () => {
     const updated = { ...STORED_SCHEDULE, timezone: 'America/New_York' }
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ schedule: updated }), { status: 200 }))
@@ -361,6 +375,49 @@ describe('deleteSchedule', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(deleteSchedule(BASE_URL, TOKEN, ' ')).rejects.toThrow(/scheduleId/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('createSchedule', () => {
+  it('POSTs a new schedule with its name and input values', async () => {
+    const created = { ...STORED_SCHEDULE, id: '17', name: 'Evening', inputs: { region: 'EU', dry_run: true } }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ schedule: created }), { status: 201 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const body = {
+      notebookId: 'notebook/with spaces',
+      cron: '0 18 * * *',
+      timezone: 'Europe/Prague',
+      name: 'Evening',
+      inputs: { region: 'EU', dry_run: true },
+    }
+
+    await expect(createSchedule(BASE_URL, TOKEN, body, { requestTimeoutMs: 1_000 })).resolves.toEqual(created)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepnote.com/v2/schedules',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    )
+  })
+
+  it('explains a 403 without a message from Deepnote', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 403, statusText: 'Forbidden' })))
+
+    await expect(createSchedule(BASE_URL, TOKEN, { notebookId: 'nb-1', cron: '0 18 * * *' })).rejects.toMatchObject({
+      statusCode: 403,
+      message: expect.stringMatching(/Scheduling may not be enabled for this workspace or plan/),
+    })
+  })
+
+  it('validates an empty notebook id or cron before making a request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(createSchedule(BASE_URL, TOKEN, { notebookId: ' ', cron: '0 18 * * *' })).rejects.toThrow(/notebookId/)
+    await expect(createSchedule(BASE_URL, TOKEN, { notebookId: 'nb-1', cron: ' ' })).rejects.toThrow(/cron/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })
