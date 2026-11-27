@@ -33,11 +33,11 @@ Runs are per person. Once someone has run the app, opening or reloading it shows
 Until someone has run the app themselves, what they see depends on **Let everyone with access see results without running the app**, under **General** in the project's **Settings** sidebar:
 
 - **On:** they see the results of the latest run by an editor or admin, a scheduled run included.
-- **Off:** the app shows no data and asks them to run it.
+- **Off:** the app shows no data apart from [stored DataFrames](#stored-dataframes), and asks them to run it.
 
 The setting is always on while the app is scheduled or public, unless **Private outputs** is on, which always turns it off.
 
-Running blocks in the editor doesn't change what the app shows.
+Running blocks in the editor doesn't change what the app shows, except for [stored DataFrames](#stored-dataframes).
 
 ### Scheduling
 
@@ -46,6 +46,12 @@ To keep the app's data fresh, schedule its notebook. Click **Schedule notebook**
 ### Inputs
 
 The app's controls use the notebook's [input blocks](/docs/input-blocks). When someone changes a control and submits, the notebook runs with their values.
+
+### Stored DataFrames
+
+For a table too large to load on every run, ask the agent to store it in the project as a DataFrame. The app then pages through the stored DataFrame without running the notebook, so it loads even for people who haven't run the app.
+
+Every viewer, including visitors of a public app, sees the same stored DataFrame, whatever inputs they choose. It changes when the block that stores it runs, in the editor or in a scheduled run, not when viewers reload the app or submit inputs. Stored DataFrames aren't available when **Private outputs** is on.
 
 ### AI summaries
 

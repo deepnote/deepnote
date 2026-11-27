@@ -106,9 +106,10 @@ API key with
 
 For other API calls as the viewer, `deepnote_toolkit.streamlit.current_user_api_credentials()`
 returns the viewer's short-lived token and the API origin it is valid for. The token can read the
-notebook's inputs, start detached runs, and read the viewer's own runs and their
-[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook); other endpoints return
-`403`. To build the same kind of app as a web page instead of in Python, see
+notebook's inputs, start detached runs, read the viewer's own runs and their
+[app data](/docs/deepnote-api-runs#return-structured-data-from-a-notebook), and read pages of
+[DataFrames stored in this project by name](/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page);
+other endpoints return `403`. To build the same kind of app as a web page instead of in Python, see
 [Data app projects](/docs/data-app-projects).
 
 ## Changing the look

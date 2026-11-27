@@ -56,9 +56,9 @@ For ordinary Python integration access, use the project's integrations. Federate
 require each viewer to authenticate; see [Streamlit apps](https://deepnote.com/docs/streamlit).
 
 For public API calls as the viewer, the project owner must enable Streamlit app API access, and
-the viewer must be signed in with direct project access. This token can access notebooks only in
-the hosting project. Handle missing viewer credentials with a sign-in/access hint or saved results
-instead of offering a run that will fail.
+the viewer must be signed in with direct project access. This token can access notebooks and stored
+DataFrames only in the hosting project. Handle missing viewer credentials with a sign-in/access
+hint or saved results instead of offering a run that will fail.
 Do not substitute the publisher's personal token.
 
 ## Prepare a data app
@@ -84,15 +84,26 @@ A published data app always has viewer API access. When it needs notebook inputs
 the shell origin when sending and receiving messages, and send API requests to the returned API
 origin. Keep personal development tokens out of the published build.
 
-An app's viewer token can access notebooks in the hosting project and other projects in the
-same workspace where the viewer has direct access; starting runs in other projects also requires
-execute permission. The token cannot list notebooks. Use the handshake reply's `notebookId` for the
-app's own notebook and supply other notebooks' IDs explicitly. Design the UI around its supported
-operations:
+An app's viewer token can access notebooks and stored DataFrames in the hosting project and other
+projects in the same workspace where the viewer has direct access; starting runs in other projects
+also requires execute permission. The token cannot list notebooks. Use the handshake reply's
+`notebookId` for the app's own notebook and supply other notebooks' IDs explicitly. Design the UI
+around its supported operations:
 
 - Read notebook inputs and block metadata, without source content.
 - Start a detached run and poll that viewer's own run by ID.
 - Render the returned `snapshotBlocks`; raw snapshot YAML and download URLs are unavailable.
+- Read pages of a
+  [stored DataFrame](https://deepnote.com/docs/deepnote-api-runs#read-a-stored-dataframe-page-by-page),
+  except in a privately-run project.
+
+A viewer's run replaces stored DataFrames unless it is started with
+`detachedRunStorageMode: "readonly"`, so an app that reads them starts its viewers' runs with it.
+Start over at page 0 whenever a page's `referenceId` differs from page 0's.
+Instead of the handshake, a page can load `https://deepnote.com/static/app-client/v1.js`, whose
+`Deepnote.connect()` gets and refreshes the token for the app's own project. Errors from its
+`dataframe(name, { pageIndex, pageSize })` carry the server's message but not the status, so when a
+page after page 0 fails, read page 0 again and start over if its `referenceId` changed.
 
 Do not offer notebook enumeration, run history, or access to another viewer's runs in the embedded
 app. Other endpoints return 403. If a local preview has these features, hide them when `isEmbedded`

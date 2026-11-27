@@ -214,6 +214,84 @@ the same mechanism [data apps](/docs/data-app-projects) use to get their data. W
 data app [lets everyone with access see results without running it](/docs/data-app-projects#data-and-refreshes),
 a viewer without results of their own gets the latest results from the app's editors and admins.
 
+## Read a stored DataFrame page by page
+
+When a result is too large for one JSON output, or callers should read it without starting a run,
+have the notebook store it as a DataFrame under a name:
+
+```python
+from deepnote_toolkit.artifacts import store_dataframe
+
+store_dataframe(df, "orders")
+```
+
+`store_dataframe` stores a pandas or polars DataFrame whole in the project's files and replaces the
+one stored before under that name, which must match `[A-Za-z0-9_-]{1,128}`. Runs with read-only
+project storage store nothing and get `None`, such as a public app's visitor runs and, by default,
+the runs that data apps and `StreamlitCloudRunner` start for their viewers. Other runs store it,
+even ones started with an app's viewer token.
+
+- A pandas index other than the default `RangeIndex`, such as the one sorting, filtering or
+  `groupby` leaves, is stored as an extra column. Call `df.reset_index(drop=True)` first to leave it
+  out.
+- A SQL block in **Query preview** mode can't be stored. Switch it to
+  [DataFrame mode](/docs/sql-cells#output-modes) and run it again.
+
+`GET /v2/projects/{projectId}/dataframes/{name}` then returns one page of it:
+
+```bash
+curl -s "https://api.deepnote.com/v2/projects/$PROJECT_ID/dataframes/orders?pageIndex=0&pageSize=100" \
+  -H "Authorization: Bearer $DEEPNOTE_TOKEN"
+```
+
+The response, with its rows cut to two:
+
+```json
+{
+  "referenceId": "9d1e…",
+  "rowCount": 2500,
+  "columnCount": 2,
+  "pageIndex": 0,
+  "pageSize": 100,
+  "pageCount": 25,
+  "columns": [
+    { "name": "order_id", "type": "int64", "timezone": null },
+    { "name": "amount", "type": "float", "timezone": null }
+  ],
+  "rows": [
+    ["100001", 42.5],
+    ["100002", null]
+  ]
+}
+```
+
+`pageIndex` starts at 0, and `pageSize` defaults to 10 and can be at most 1000. Each row has one
+value per column, in the order of `columns`. A missing value is `null`; otherwise a column's `type`
+says how its values are encoded:
+
+| `type`                  | Value                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `integer`, `float`      | A number. NaN and infinities are `null`                                      |
+| `int64`, `decimal`      | A decimal string, such as `"9007199254740993"`. pandas integers are `int64`  |
+| `boolean`, `string`     | A boolean or a string                                                        |
+| `date`, `time`          | `"YYYY-MM-DD"` or `"HH:MM:SS.sss"`                                           |
+| `timestamp`             | ISO 8601 with milliseconds; with a `timezone`, in UTC and ending in `Z`      |
+| `duration`              | A number of seconds                                                          |
+| `binary`                | A base64 string                                                              |
+| `list`, `struct`, `map` | An array, an object keyed by field name, or an array of `[key, value]` pairs |
+| `null`                  | Always `null`                                                                |
+
+To read the whole DataFrame, request pages `0` to `pageCount - 1` with the same `pageSize`. When
+`referenceId` changes between pages, or a page below a `pageCount` returned earlier comes back
+`400`, a new DataFrame was stored under the name: start again at page 0.
+
+An API key reads stored DataFrames in the projects its user can view; in a private project, only
+the owner's key can. Apps read them
+[as their viewer](/docs/deepnote-api#apps-that-call-the-api-as-their-viewer). Besides the
+[usual errors](/docs/deepnote-api#conventions), the endpoint returns `400` for a page past the last
+one, `404` when nothing is stored under the name, and `422` when a page can't be served, where a
+smaller `pageSize` may help. See the [API reference](/docs/api-reference) for its parameters.
+
 ## Run history
 
 `GET /v2/notebooks/{notebookId}/runs` lists past runs of a notebook (started from the editor, a
