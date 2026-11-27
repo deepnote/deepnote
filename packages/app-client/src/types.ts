@@ -14,7 +14,7 @@ export interface DeepnoteInput {
   blockId: string
   name: string
   type: string
-  value: unknown
+  value?: unknown
   label?: string
   min?: number
   max?: number
@@ -26,7 +26,7 @@ export interface DeepnoteInput {
 export interface DeepnoteSnapshotBlock {
   id: string
   type: string
-  outputs: Array<{ data?: Record<string, unknown> }>
+  outputs: Array<{ data?: Record<string, unknown>; [key: string]: unknown }>
   metadata: Record<string, unknown>
 }
 
@@ -92,4 +92,31 @@ export interface DeepnoteClient {
 
 export interface DeepnoteConnectOptions {
   onAuthExpired: () => void
+}
+
+/** The body of `GET /v2/notebooks/{notebookId}`. */
+export interface DeepnoteNotebookResponse {
+  notebook: { inputs?: DeepnoteInput[] }
+}
+
+/** The request body of `POST /v2/runs`. */
+export interface DeepnoteCreateRunRequest {
+  notebookId: string
+  inputs: Record<string, DeepnoteInputValue>
+  detachedRunStorageMode: 'readonly'
+}
+
+/** The response body of `POST /v2/runs`. */
+export interface DeepnoteCreateRunResponse {
+  runId: string
+}
+
+/** The body of `GET /v2/runs/{runId}`. */
+export interface DeepnoteRunResponse {
+  run: DeepnoteRun
+}
+
+/** The body of any non-2xx answer from the `/v2` API. */
+export interface DeepnoteErrorResponse {
+  message: string
 }

@@ -24,3 +24,79 @@ export const STATIC_FILES_APP_PREVIEW_WIDTH = 640
 export const STATIC_FILES_APP_PICK_START_MESSAGE = 'deepnote-static-files-app-pick-start'
 export const STATIC_FILES_APP_PICK_STOP_MESSAGE = 'deepnote-static-files-app-pick-stop'
 export const STATIC_FILES_APP_PICK_MESSAGE = 'deepnote-static-files-app-pick'
+
+/** The 200 body of `POST /__deepnote/api-token`, and the shell's token reply without `type`. */
+export interface DeepnoteTokenReply {
+  token: string
+  apiOrigin: string
+  expiresAtSeconds: number
+  projectId: string | null
+  notebookId: string | null
+}
+
+/** The shell's `STATIC_FILES_API_TOKEN_RESPONSE_MESSAGE`, which answers a token request. */
+export type DeepnoteTokenResponseMessage = DeepnoteTokenReply & { type: typeof STATIC_FILES_API_TOKEN_RESPONSE_MESSAGE }
+
+/** The client's `STATIC_FILES_API_TOKEN_REQUEST_MESSAGE`, which asks the shell for an API token. */
+export interface DeepnoteTokenRequestMessage {
+  type: typeof STATIC_FILES_API_TOKEN_REQUEST_MESSAGE
+}
+
+/** The client's `STATIC_FILES_APP_ERROR_MESSAGE`, which reports one runtime error of the page. */
+export interface DeepnoteAppErrorMessage {
+  type: typeof STATIC_FILES_APP_ERROR_MESSAGE
+  message: string
+  line: number | null
+  source: string | null
+}
+
+/** The client's `STATIC_FILES_APP_READY_MESSAGE`; `ready` is `false` from `pagehide` until the page is shown again. */
+export interface DeepnoteAppReadyMessage {
+  type: typeof STATIC_FILES_APP_READY_MESSAGE
+  ready: boolean
+}
+
+/** The client's `STATIC_FILES_APP_PICK_MESSAGE`, which carries the picked element's HTML. */
+export interface DeepnoteAppPickMessage {
+  type: typeof STATIC_FILES_APP_PICK_MESSAGE
+  html: string
+}
+
+/** Every message the client posts to the shell. */
+export type DeepnoteClientMessage =
+  | DeepnoteTokenRequestMessage
+  | DeepnoteAppErrorMessage
+  | DeepnoteAppReadyMessage
+  | DeepnoteAppPickMessage
+
+/** The shell's `STATIC_FILES_APP_PREVIEW_REQUEST_MESSAGE`; the reply is posted on `ports[0]` as a PNG `Blob`, or `null`. */
+export interface DeepnotePreviewRequestMessage {
+  type: typeof STATIC_FILES_APP_PREVIEW_REQUEST_MESSAGE
+}
+
+/** The shell's `STATIC_FILES_APP_PICK_START_MESSAGE`, which starts element picking. */
+export interface DeepnotePickStartMessage {
+  type: typeof STATIC_FILES_APP_PICK_START_MESSAGE
+}
+
+/** The shell's `STATIC_FILES_APP_PICK_STOP_MESSAGE`, which stops element picking. */
+export interface DeepnotePickStopMessage {
+  type: typeof STATIC_FILES_APP_PICK_STOP_MESSAGE
+}
+
+/** Every message the shell posts to the client. */
+export type DeepnoteShellMessage =
+  | DeepnoteTokenResponseMessage
+  | DeepnotePreviewRequestMessage
+  | DeepnotePickStartMessage
+  | DeepnotePickStopMessage
+
+export function readFields<T>(data: unknown): { [K in keyof T]?: unknown } | null {
+  return typeof data === 'object' && data !== null ? data : null
+}
+
+export function isShellMessage<
+  M extends DeepnotePreviewRequestMessage | DeepnotePickStartMessage | DeepnotePickStopMessage,
+>(data: unknown, type: M['type']): data is M {
+  return readFields<M>(data)?.type === type
+}

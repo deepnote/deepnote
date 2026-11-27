@@ -1,5 +1,8 @@
 import { postToParent, shellOrigin } from './error-reporting'
 import {
+  type DeepnotePickStartMessage,
+  type DeepnotePickStopMessage,
+  isShellMessage,
   STATIC_FILES_APP_PICK_MESSAGE,
   STATIC_FILES_APP_PICK_START_MESSAGE,
   STATIC_FILES_APP_PICK_STOP_MESSAGE,
@@ -87,16 +90,16 @@ export function listenForElementPicking() {
     }
   }
 
-  window.addEventListener('message', (event: MessageEvent) => {
+  window.addEventListener('message', (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent || event.origin !== shellOrigin) {
       return
     }
 
-    if (event.data?.type === STATIC_FILES_APP_PICK_START_MESSAGE) {
+    if (isShellMessage<DeepnotePickStartMessage>(event.data, STATIC_FILES_APP_PICK_START_MESSAGE)) {
       startPicking()
       return
     }
-    if (event.data?.type === STATIC_FILES_APP_PICK_STOP_MESSAGE) {
+    if (isShellMessage<DeepnotePickStopMessage>(event.data, STATIC_FILES_APP_PICK_STOP_MESSAGE)) {
       stopPicking()
       highlight(null)
     }

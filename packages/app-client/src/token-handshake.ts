@@ -1,5 +1,7 @@
 import { postToParent, shellOrigin } from './error-reporting'
 import {
+  type DeepnoteTokenResponseMessage,
+  readFields,
   STATIC_FILES_API_TOKEN_EMBEDDED_HEADER,
   STATIC_FILES_API_TOKEN_PATH,
   STATIC_FILES_API_TOKEN_REQUEST_MESSAGE,
@@ -16,14 +18,7 @@ export interface TokenProvider {
 }
 
 function parseTokenReply(data: unknown): DeepnoteAuth | null {
-  const reply = data as {
-    type?: unknown
-    token?: unknown
-    apiOrigin?: unknown
-    expiresAtSeconds?: unknown
-    projectId?: unknown
-    notebookId?: unknown
-  } | null
+  const reply = readFields<DeepnoteTokenResponseMessage>(data)
   if (
     !reply ||
     reply.type !== STATIC_FILES_API_TOKEN_RESPONSE_MESSAGE ||
@@ -89,7 +84,7 @@ export function createTokenProvider(options: Partial<DeepnoteConnectOptions>): T
           options.onAuthExpired()
         }
       }, HANDSHAKE_TIMEOUT_MS)
-      function onMessage(event: MessageEvent) {
+      function onMessage(event: MessageEvent<unknown>) {
         if (event.source !== window.parent || event.origin !== shellOrigin) {
           return
         }

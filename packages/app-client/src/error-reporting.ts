@@ -1,4 +1,5 @@
 import {
+  type DeepnoteClientMessage,
   STATIC_FILES_APP_ERROR_MESSAGE,
   STATIC_FILES_APP_MAX_ERROR_LENGTH,
   STATIC_FILES_APP_MAX_ERRORS,
@@ -10,7 +11,7 @@ import {
 const script = document.currentScript
 export const shellOrigin = script instanceof HTMLScriptElement && script.src ? new URL(script.src).origin : null
 
-export function postToParent(message: Record<string, unknown>) {
+export function postToParent(message: DeepnoteClientMessage) {
   if (shellOrigin) {
     window.parent.postMessage(message, shellOrigin)
   }

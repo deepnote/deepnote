@@ -1,5 +1,10 @@
 import { domToBlob } from 'modern-screenshot'
-import { STATIC_FILES_APP_PREVIEW_REQUEST_MESSAGE, STATIC_FILES_APP_PREVIEW_WIDTH } from './protocol'
+import {
+  type DeepnotePreviewRequestMessage,
+  isShellMessage,
+  STATIC_FILES_APP_PREVIEW_REQUEST_MESSAGE,
+  STATIC_FILES_APP_PREVIEW_WIDTH,
+} from './protocol'
 
 const PREVIEW_ASPECT_RATIO = 16 / 10
 
@@ -34,8 +39,11 @@ export function answerPreviewRequests() {
     return
   }
 
-  window.addEventListener('message', async event => {
-    if (event.source !== window.parent || event.data?.type !== STATIC_FILES_APP_PREVIEW_REQUEST_MESSAGE) {
+  window.addEventListener('message', async (event: MessageEvent<unknown>) => {
+    if (
+      event.source !== window.parent ||
+      !isShellMessage<DeepnotePreviewRequestMessage>(event.data, STATIC_FILES_APP_PREVIEW_REQUEST_MESSAGE)
+    ) {
       return
     }
 

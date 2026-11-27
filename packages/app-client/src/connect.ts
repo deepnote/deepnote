@@ -1,15 +1,21 @@
+import { readFields } from './protocol'
 import { getRetryAfterDelayFromResponse } from './retry-after'
 import { createTokenProvider } from './token-handshake'
 import type {
   DeepnoteAppData,
   DeepnoteClient,
   DeepnoteConnectOptions,
+  DeepnoteCreateRunRequest,
+  DeepnoteCreateRunResponse,
   DeepnoteDataframePage,
   DeepnoteDataframePageOptions,
+  DeepnoteErrorResponse,
   DeepnoteInput,
   DeepnoteInputValue,
+  DeepnoteNotebookResponse,
   DeepnoteRun,
   DeepnoteRunOptions,
+  DeepnoteRunResponse,
   DeepnoteRunResult,
 } from './types'
 
@@ -66,14 +72,14 @@ export function connect(options: Partial<DeepnoteConnectOptions> = {}): Deepnote
       if (response.status === 401) {
         invalidateAuth()
       }
-      const body = await response.json().catch(() => null)
-      throw new Error(body?.message || `Request failed with status ${response.status}`)
+      const body = readFields<DeepnoteErrorResponse>(await response.json().catch(() => null))
+      throw new Error(body?.message ? String(body.message) : `Request failed with status ${response.status}`)
     }
     return response.json()
   }
 
   async function getInputs(notebookId: string): Promise<DeepnoteInput[]> {
-    const { notebook } = await api<{ notebook: { inputs?: DeepnoteInput[] } }>(`/v2/notebooks/${notebookId}`)
+    const { notebook } = await api<DeepnoteNotebookResponse>(`/v2/notebooks/${notebookId}`)
     return notebook.inputs ?? []
   }
 
@@ -87,14 +93,18 @@ export function connect(options: Partial<DeepnoteConnectOptions> = {}): Deepnote
     runOptions: Partial<DeepnoteRunOptions> = {}
   ): Promise<DeepnoteRunResult> {
     // Viewers' runs must not alter the project's files.
-    const started = await api<{ runId: string }>('/v2/runs', {
+    const started = await api<DeepnoteCreateRunResponse>('/v2/runs', {
       method: 'POST',
-      body: JSON.stringify({ notebookId, inputs, detachedRunStorageMode: 'readonly' }),
+      body: JSON.stringify({
+        notebookId,
+        inputs,
+        detachedRunStorageMode: 'readonly',
+      } satisfies DeepnoteCreateRunRequest),
     })
     const deadline = Date.now() + (runOptions.timeoutMs ?? DEFAULT_RUN_TIMEOUT_MS)
     let resultWaitPolls = 0
     for (;;) {
-      const { run: current } = await api<{ run: DeepnoteRun }>(`/v2/runs/${started.runId}`)
+      const { run: current } = await api<DeepnoteRunResponse>(`/v2/runs/${started.runId}`)
       if (current.status === 'success' && current.snapshotStatus === 'unavailable') {
         throw new Error(
           'The notebook finished, but Deepnote could not save its results. Check run history and try again.'
