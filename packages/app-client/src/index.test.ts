@@ -1,8 +1,14 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { type DeepnoteNotebookResponse, type DeepnoteSnapshotBlock, STATIC_FILES_API_TOKEN_PATH } from './index'
+import type { DeepnoteNotebookResponse, DeepnoteSnapshotBlock } from './index'
 
 describe('index', () => {
-  it('loads in Node without a DOM', () => {
+  it('loads in Node without a DOM', async () => {
+    await expect(import('./index')).resolves.toBeDefined()
+  })
+
+  it('exports the path where the page origin mints API tokens', async () => {
+    const { STATIC_FILES_API_TOKEN_PATH } = await import('./index')
     expect(STATIC_FILES_API_TOKEN_PATH).toBe('/__deepnote/api-token')
   })
 })
