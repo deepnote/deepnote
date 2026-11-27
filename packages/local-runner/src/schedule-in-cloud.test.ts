@@ -6,6 +6,8 @@ import type {
   findProject,
   getNotebook,
   getWorkspace,
+  listSchedules,
+  Schedule,
   upsertNotebookSchedule,
 } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
@@ -14,6 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const cloudMock = vi.hoisted(() => ({
   upsertNotebookSchedule: vi.fn<typeof upsertNotebookSchedule>(),
   deleteNotebookSchedule: vi.fn<typeof deleteNotebookSchedule>(),
+  listSchedules: vi.fn<typeof listSchedules>(),
   getNotebook: vi.fn<typeof getNotebook>(),
   findNotebook: vi.fn<typeof findNotebook>(),
   findProject: vi.fn<typeof findProject>(),
@@ -25,6 +28,7 @@ const cloudMock = vi.hoisted(() => ({
 vi.mock('@deepnote/cloud', () => ({
   upsertNotebookSchedule: cloudMock.upsertNotebookSchedule,
   deleteNotebookSchedule: cloudMock.deleteNotebookSchedule,
+  listSchedules: cloudMock.listSchedules,
   getNotebook: cloudMock.getNotebook,
   findNotebook: cloudMock.findNotebook,
   findProject: cloudMock.findProject,
@@ -35,7 +39,7 @@ vi.mock('@deepnote/cloud', () => ({
     `https://deepnote.com/workspace/${params.workspaceId}/project/-${params.projectId}/notebook/${params.notebookId}`,
 }))
 
-import { scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
+import { listSchedulesInCloud, scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
 
 const NOTEBOOK = `metadata:
   createdAt: '2026-01-01T00:00:00.000Z'
@@ -86,6 +90,24 @@ function schedule(notebookId: string) {
   }
 }
 
+function storedSchedule(id: string, overrides: Partial<Schedule> = {}): Schedule {
+  return {
+    id,
+    notebookId: 'notebook-local',
+    cron: '0 9 * * *',
+    timezone: 'Europe/Prague',
+    nextRunAt: '2026-11-28T08:00:00.000Z',
+    isPaused: false,
+    pauseReason: null,
+    createdAt: '2026-11-01T12:00:00.000Z',
+    updatedAt: '2026-11-01T12:00:00.000Z',
+    name: null,
+    inputs: null,
+    updatesNotebook: false,
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   cloudMock.getWorkspace.mockResolvedValue({ id: 'workspace-1' })
@@ -101,6 +123,7 @@ beforeEach(() => {
     raw: {},
   })
   cloudMock.deleteNotebookSchedule.mockResolvedValue(true)
+  cloudMock.listSchedules.mockResolvedValue([storedSchedule('15'), storedSchedule('16', { cron: '0 18 * * 1-5' })])
 })
 
 describe('scheduleInCloud', () => {
@@ -441,5 +464,105 @@ describe('unscheduleInCloud', () => {
     await expect(unscheduleInCloud(NOTEBOOK, { token: 'token' })).rejects.toThrow(/Authentication failed/)
     expect(cloudMock.findNotebook).not.toHaveBeenCalled()
     expect(cloudMock.deleteNotebookSchedule).not.toHaveBeenCalled()
+  })
+})
+
+describe('listSchedulesInCloud', () => {
+  it('lists the schedules of the notebook Deepnote holds under the local id', async () => {
+    const result = await listSchedulesInCloud(NOTEBOOK, { token: 'token', requestTimeoutMs: 1_000 })
+
+    expect(cloudMock.listSchedules).toHaveBeenCalledOnce()
+    expect(cloudMock.listSchedules).toHaveBeenCalledWith('https://api.deepnote.com', 'token', 'notebook-local', {
+      requestTimeoutMs: 1_000,
+    })
+    expect(cloudMock.findNotebook).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      notebookId: 'notebook-local',
+      schedules: [storedSchedule('15'), storedSchedule('16', { cron: '0 18 * * 1-5' })],
+    })
+  })
+
+  it('counts an empty list as finding the notebook', async () => {
+    cloudMock.listSchedules.mockResolvedValueOnce([])
+
+    const result = await listSchedulesInCloud(NOTEBOOK, { token: 'token' })
+
+    expect(result).toEqual({ notebookId: 'notebook-local', schedules: [] })
+    expect(cloudMock.findNotebook).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the notebook matched by a unique project and notebook name', async () => {
+    cloudMock.listSchedules
+      .mockRejectedValueOnce(Object.assign(new Error('Notebook not found'), { statusCode: 404 }))
+      .mockResolvedValueOnce([storedSchedule('15', { notebookId: 'notebook-cloud' })])
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'notebook-cloud', projectId: 'project-cloud' })
+
+    const result = await listSchedulesInCloud(NOTEBOOK, { token: 'token', requestTimeoutMs: 1_000 })
+
+    expect(cloudMock.findNotebook).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      { projectName: 'Scheduled report', notebookName: 'Daily report', unique: true },
+      { requestTimeoutMs: 1_000 }
+    )
+    expect(cloudMock.listSchedules).toHaveBeenLastCalledWith('https://api.deepnote.com', 'token', 'notebook-cloud', {
+      requestTimeoutMs: 1_000,
+    })
+    expect(result).toEqual({
+      notebookId: 'notebook-cloud',
+      schedules: [storedSchedule('15', { notebookId: 'notebook-cloud' })],
+    })
+  })
+
+  it('refuses to guess between same-named projects', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+    cloudMock.findNotebook.mockRejectedValueOnce(
+      new Error('2 Deepnote projects named "Scheduled report" match this notebook.')
+    )
+
+    await expect(listSchedulesInCloud(NOTEBOOK, { token: 'token' })).rejects.toThrow(/2 Deepnote projects/)
+    expect(cloudMock.listSchedules).toHaveBeenCalledOnce()
+  })
+
+  it('reports a notebook missing from Deepnote, and creates nothing', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+
+    const result = await listSchedulesInCloud(NOTEBOOK, { token: 'token' })
+
+    expect(result).toEqual({ notebookId: null, schedules: [] })
+    expect(cloudMock.findProject).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+    expect(cloudMock.addNotebooksToProject).not.toHaveBeenCalled()
+  })
+
+  it('does not match a notebook without a name to another notebook of the project', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'first-cloud-notebook', projectId: 'project-cloud' })
+
+    const result = await listSchedulesInCloud(NOTEBOOK.replace('name: Daily report', "name: ''"), { token: 'token' })
+
+    expect(result).toEqual({ notebookId: null, schedules: [] })
+    expect(cloudMock.findNotebook).not.toHaveBeenCalled()
+  })
+
+  it('does not treat a permission failure as a missing notebook', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(403, 'Insufficient permissions'))
+
+    await expect(listSchedulesInCloud(NOTEBOOK, { token: 'token' })).rejects.toThrow(/Insufficient permissions/)
+    expect(cloudMock.findNotebook).not.toHaveBeenCalled()
+  })
+
+  it('looks up the selected notebook of a multi-notebook file and names itself in errors', async () => {
+    await listSchedulesInCloud(MULTI_NOTEBOOK, { token: 'token', notebookId: 'notebook-two' })
+
+    expect(cloudMock.listSchedules).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      'notebook-two',
+      expect.anything()
+    )
+    await expect(listSchedulesInCloud(MULTI_NOTEBOOK, { token: 'token' })).rejects.toThrow(
+      /listSchedulesInCloud: could not resolve a notebook/
+    )
   })
 })

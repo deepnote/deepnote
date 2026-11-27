@@ -1,10 +1,13 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import {
   deleteNotebookSchedule,
+  type FoundNotebook,
   findNotebook,
   findProject,
   getNotebook,
+  listSchedules,
   type NotebookSchedule,
+  type Schedule,
   upsertNotebookSchedule,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
@@ -63,12 +66,25 @@ export interface UnscheduleInCloudResult {
   removed: boolean
 }
 
+export interface ListSchedulesInCloudResult {
+  /** The cloud notebook id, or `null` if the notebook is not in Deepnote. */
+  notebookId: string | null
+  schedules: Schedule[]
+}
+
 interface CloudNotebookLookup {
+  fnName: string
   baseUrl: string
   token: string
   file: DeepnoteFile
   notebookId: string | undefined
   requestOptions: { requestTimeoutMs?: number }
+}
+
+interface CloudSchedules {
+  notebookId: string
+  projectId?: string
+  schedules: Schedule[]
 }
 
 /**
@@ -165,23 +181,40 @@ export async function unscheduleInCloud(
   input: DeepnoteInput,
   options: UnscheduleInCloudOptions = {}
 ): Promise<UnscheduleInCloudResult> {
-  const token = requireToken('unscheduleInCloud', options.token)
-  const baseUrl = options.baseUrl ?? DEFAULT_CLOUD_API_URL
-  const { file } = loadDeepnoteFile(input)
-  const requestOptions = { requestTimeoutMs: options.requestTimeoutMs }
-
-  const notebookId = await findCloudNotebookId({
-    baseUrl,
-    token,
-    file,
-    notebookId: options.notebookId,
-    requestOptions,
-  })
+  const lookup = cloudNotebookLookup('unscheduleInCloud', input, options)
+  const notebookId = await findCloudNotebookId(lookup)
   if (notebookId === null) {
     return { notebookId: null, removed: false }
   }
-  const removed = await deleteNotebookSchedule(baseUrl, token, notebookId, requestOptions)
+  const removed = await deleteNotebookSchedule(lookup.baseUrl, lookup.token, notebookId, lookup.requestOptions)
   return { notebookId, removed }
+}
+
+/** List a local notebook's Deepnote Cloud schedules, oldest first. Never creates anything. */
+export async function listSchedulesInCloud(
+  input: DeepnoteInput,
+  options: UnscheduleInCloudOptions = {}
+): Promise<ListSchedulesInCloudResult> {
+  const found = await findCloudSchedules(cloudNotebookLookup('listSchedulesInCloud', input, options))
+  if (found === null) {
+    return { notebookId: null, schedules: [] }
+  }
+  return { notebookId: found.notebookId, schedules: found.schedules }
+}
+
+function cloudNotebookLookup(
+  fnName: string,
+  input: DeepnoteInput,
+  options: UnscheduleInCloudOptions
+): CloudNotebookLookup {
+  return {
+    fnName,
+    token: requireToken(fnName, options.token),
+    baseUrl: options.baseUrl ?? DEFAULT_CLOUD_API_URL,
+    file: loadDeepnoteFile(input).file,
+    notebookId: options.notebookId,
+    requestOptions: { requestTimeoutMs: options.requestTimeoutMs },
+  }
 }
 
 /**
@@ -189,14 +222,9 @@ export async function unscheduleInCloud(
  * from the file get new ids. The id is checked with a read because a schedule 404 can mean either
  * "no notebook" or "no schedule".
  */
-async function findCloudNotebookId({
-  baseUrl,
-  token,
-  file,
-  notebookId,
-  requestOptions,
-}: CloudNotebookLookup): Promise<string | null> {
-  const initialNotebookId = notebookId ?? resolveNotebookId(file, 'unscheduleInCloud')
+async function findCloudNotebookId(lookup: CloudNotebookLookup): Promise<string | null> {
+  const { baseUrl, token, file, notebookId, requestOptions, fnName } = lookup
+  const initialNotebookId = notebookId ?? resolveNotebookId(file, fnName)
   try {
     await getNotebook(baseUrl, token, initialNotebookId, requestOptions)
     return initialNotebookId
@@ -206,14 +234,45 @@ async function findCloudNotebookId({
     }
   }
 
-  const localId = localNotebookId(file, notebookId, 'unscheduleInCloud')
-  const found = await findNotebook(
-    baseUrl,
-    token,
-    { projectName: file.project.name, notebookName: notebookNameFor(file, localId), unique: true },
-    requestOptions
-  )
+  const found = await findCloudNotebookByName(lookup)
   return found?.notebookId ?? null
+}
+
+async function findCloudSchedules(lookup: CloudNotebookLookup): Promise<CloudSchedules | null> {
+  const { baseUrl, token, file, notebookId, requestOptions, fnName } = lookup
+  const initialNotebookId = notebookId ?? resolveNotebookId(file, fnName)
+  try {
+    const schedules = await listSchedules(baseUrl, token, initialNotebookId, requestOptions)
+    return { notebookId: initialNotebookId, schedules }
+  } catch (error) {
+    if (errorStatusCode(error) !== 404) {
+      throw error
+    }
+  }
+
+  const found = await findCloudNotebookByName(lookup)
+  if (!found) {
+    return null
+  }
+  const schedules = await listSchedules(baseUrl, token, found.notebookId, requestOptions)
+  return { notebookId: found.notebookId, projectId: found.projectId, schedules }
+}
+
+async function findCloudNotebookByName({
+  fnName,
+  baseUrl,
+  token,
+  file,
+  notebookId,
+  requestOptions,
+}: CloudNotebookLookup): Promise<FoundNotebook | undefined> {
+  const localId = localNotebookId(file, notebookId, fnName)
+  const notebookName = notebookNameFor(file, localId)
+  // findNotebook reads an empty name as "any notebook of the project".
+  if (!notebookName) {
+    return undefined
+  }
+  return findNotebook(baseUrl, token, { projectName: file.project.name, notebookName, unique: true }, requestOptions)
 }
 
 /** Read the public status-code contract without depending on a cross-bundle class identity. */

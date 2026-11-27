@@ -21,12 +21,13 @@ export { runInCloud } from './run-in-cloud'
 export type { RunBlockOutput, RunWithInputsOptions, RunWithInputsResult } from './run-with-inputs'
 export { runWithInputs } from './run-with-inputs'
 export type {
+  ListSchedulesInCloudResult,
   ScheduleInCloudOptions,
   ScheduleInCloudResult,
   UnscheduleInCloudOptions,
   UnscheduleInCloudResult,
 } from './schedule-in-cloud'
-export { scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
+export { listSchedulesInCloud, scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
 export type {
   CloudSchedulerFn,
   RunnerFn,

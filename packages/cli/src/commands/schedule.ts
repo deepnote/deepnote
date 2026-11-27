@@ -1,9 +1,12 @@
 import fs from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { type DeepnoteFile, deserializeDeepnoteFile, ParseError } from '@deepnote/blocks'
+import type { Schedule } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
 import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-integrations'
 import {
+  type ListSchedulesInCloudResult,
+  listSchedulesInCloud,
   type ScheduleInCloudResult,
   scheduleInCloud,
   type UnscheduleInCloudResult,
@@ -29,6 +32,7 @@ export interface ScheduleOptions extends ScheduleExpressionOptions {
   create: boolean
   open?: boolean
   remove?: boolean
+  list?: boolean
   output?: 'json'
 }
 
@@ -38,7 +42,9 @@ export function createScheduleAction(
 ): (path: string | undefined, options: ScheduleOptions) => Promise<void> {
   return async (path, options) => {
     try {
-      if (options.remove) {
+      if (options.list) {
+        await listDeepnoteFileSchedules(path, options)
+      } else if (options.remove) {
         await removeDeepnoteFileSchedule(path, options)
       } else {
         await scheduleDeepnoteFile(path, options)
@@ -116,6 +122,25 @@ async function removeDeepnoteFileSchedule(path: string | undefined, options: Sch
     throw new ScheduleExpressionError(`--remove cannot be combined with ${conflicting.join(', ')}.`)
   }
 
+  const { absolutePath, cloudOptions } = await resolveScheduleTarget(path, options)
+  debug(`Removing schedule for file: ${absolutePath}`)
+  const result = await unscheduleInCloud(absolutePath, cloudOptions)
+  renderRemoval(absolutePath, result, options)
+}
+
+async function listDeepnoteFileSchedules(path: string | undefined, options: ScheduleOptions): Promise<void> {
+  const conflicting = [...scheduleOnlyFlags(options), ...(options.remove ? ['--remove'] : [])]
+  if (conflicting.length > 0) {
+    throw new ScheduleExpressionError(`--list cannot be combined with ${conflicting.join(', ')}.`)
+  }
+
+  const { absolutePath, cloudOptions } = await resolveScheduleTarget(path, options)
+  debug(`Listing schedules for file: ${absolutePath}`)
+  const result = await listSchedulesInCloud(absolutePath, cloudOptions)
+  renderSchedules(absolutePath, result, options)
+}
+
+async function resolveScheduleTarget(path: string | undefined, options: ScheduleOptions) {
   const { absolutePath } = await resolvePathToDeepnoteFile(path)
   const file = deserializeDeepnoteFile(await fs.readFile(absolutePath, 'utf8'))
   const notebookId = resolveNotebookId(file, options.notebook)
@@ -125,14 +150,7 @@ async function removeDeepnoteFileSchedule(path: string | undefined, options: Sch
   if (!token) {
     throw new MissingTokenError()
   }
-
-  debug(`Removing schedule for file: ${absolutePath}`)
-  const result = await unscheduleInCloud(absolutePath, {
-    token,
-    baseUrl: options.url ?? DEFAULT_API_URL,
-    notebookId,
-  })
-  renderRemoval(absolutePath, result, options)
+  return { absolutePath, cloudOptions: { token, baseUrl: options.url ?? DEFAULT_API_URL, notebookId } }
 }
 
 /** Flags that only apply when setting a schedule. */
@@ -232,4 +250,61 @@ function renderRemoval(path: string, result: UnscheduleInCloudResult, options: S
   }
   const c = getChalk()
   output(`${c.green('✓')} Schedule removed from Deepnote Cloud`)
+}
+
+function renderSchedules(path: string, result: ListSchedulesInCloudResult, options: ScheduleOptions): void {
+  if (options.output === 'json') {
+    outputJson({ success: true, path, notebookId: result.notebookId, schedules: result.schedules.map(toScheduleJson) })
+    return
+  }
+
+  if (result.notebookId === null) {
+    output('This notebook was not found in Deepnote Cloud.')
+    return
+  }
+  if (result.schedules.length === 0) {
+    output('This notebook has no schedules.')
+    return
+  }
+  const c = getChalk()
+  for (const [index, schedule] of result.schedules.entries()) {
+    if (index > 0) {
+      output('')
+    }
+    const name = schedule.name ? `: ${schedule.name}` : ''
+    output(`Schedule ${schedule.id}${name}${schedule.updatesNotebook ? ' (updates notebook)' : ''}`)
+    output(`  ${c.dim('Cron:')} ${schedule.cron} (${schedule.timezone})`)
+    output(`  ${c.dim('Next run:')} ${nextRun(schedule)}`)
+    const inputNames = Object.keys(schedule.inputs ?? {})
+    if (inputNames.length > 0) {
+      output(`  ${c.dim('Inputs:')} ${inputNames.join(', ')}`)
+    }
+  }
+}
+
+function toScheduleJson(schedule: Schedule) {
+  return {
+    id: schedule.id,
+    name: schedule.name,
+    cron: schedule.cron,
+    timezone: schedule.timezone,
+    nextRunAt: schedule.nextRunAt,
+    isPaused: schedule.isPaused,
+    pauseReason: schedule.pauseReason,
+    updatesNotebook: schedule.updatesNotebook,
+    inputNames: Object.keys(schedule.inputs ?? {}),
+    createdAt: schedule.createdAt,
+    updatedAt: schedule.updatedAt,
+  }
+}
+
+function nextRun(schedule: Schedule): string {
+  if (schedule.isPaused) {
+    return pauseDescription(schedule)
+  }
+  return schedule.nextRunAt ?? 'none'
+}
+
+function pauseDescription(schedule: Schedule): string {
+  return schedule.pauseReason ? `paused (${schedule.pauseReason})` : 'paused'
 }
