@@ -1035,6 +1035,10 @@ export interface DeepnoteFile {
       requirements?: string[];
       sqlCacheMaxAge?: number;
     };
+    /**
+     * The Deepnote project type, one of standard, notebook, agent, data_app, streamlit_app. Absent means standard.
+     */
+    type?: string;
   };
   version: string;
 }

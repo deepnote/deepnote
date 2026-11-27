@@ -2,6 +2,10 @@ import { z } from 'zod'
 
 export const SQL_CELL_VARIABLE_TYPES = ['dataframe', 'query_preview'] as const
 
+export const PROJECT_TYPES = ['standard', 'notebook', 'agent', 'data_app', 'streamlit_app'] as const
+
+export type ProjectType = (typeof PROJECT_TYPES)[number]
+
 // =============================================================================
 // Backward compatibility helpers
 // =============================================================================
@@ -613,6 +617,10 @@ export const deepnoteFileSchema = z.object({
         sqlCacheMaxAge: z.number().optional(),
       })
       .optional(),
+    type: z
+      .string()
+      .optional()
+      .describe(`The Deepnote project type, one of ${PROJECT_TYPES.join(', ')}. Absent means standard.`),
   }),
   version: z.string(),
 })

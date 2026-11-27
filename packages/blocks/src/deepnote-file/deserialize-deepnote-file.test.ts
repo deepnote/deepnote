@@ -213,6 +213,27 @@ describe('deserializeDeepnoteFile', () => {
     expect(result.project.notebooks[0].blocks[0].contentHash).toBeUndefined()
   })
 
+  it.each([
+    ['a known project type', 'data_app'],
+    ['a project type this version does not know', 'future_kind'],
+  ])('keeps %s', (_, type) => {
+    parseYaml.mockReturnValue({
+      metadata: {
+        createdAt: '2025-01-01T00:00:00Z',
+      },
+      version: '1',
+      project: {
+        id: 'project-123',
+        name: 'Test Project',
+        notebooks: [],
+        type,
+      },
+    })
+
+    const result = deserializeDeepnoteFile('yaml-content')
+    expect(result.project.type).toBe(type)
+  })
+
   it('throws error if YAML parsing fails', () => {
     parseYaml.mockImplementation(() => {
       throw new Error('Failed to parse Deepnote file: invalid syntax')

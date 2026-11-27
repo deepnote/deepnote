@@ -59,6 +59,8 @@ project:
       - "pandas>=2.0.0"
       - "numpy>=1.24.0"
     sqlCacheMaxAge: 3600
+
+  type: "standard"
 ```
 
 ## Key components
@@ -85,6 +87,7 @@ The project section is the core of the file, containing:
 - **`id`**: Unique identifier for the project
 - **`name`**: Human-readable project name
 - **`initNotebookId`**: Optional ID of the notebook to open by default
+- **`type`**: Optional Deepnote project type: `standard`, `notebook`, `agent`, `data_app` or `streamlit_app`. Absent means `standard`. Deepnote Cloud sets the type when it creates a project, and this field records it. Every type other than `standard` holds exactly one notebook. Readers treat an unknown value as `standard` and keep it when they write the file.
 
 #### Notebooks array
 
