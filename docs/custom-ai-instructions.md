@@ -5,7 +5,7 @@ noContent: false
 coverImage: Ap6X0tZPT4eNYXXP6hLs
 ---
 
-Custom AI Instructions is a new feature in Deepnote that allows you to personalize how Deepnote AI responds to your queries. These instructions are user-specific and provide a way to customize the AI's behavior according to your preferences.
+Custom AI instructions tell Deepnote Agent how to work for you and your team. There are two kinds: workspace instructions, which workspace admins set for everyone in a workspace, and your own instructions, which only you see and which follow you to every workspace.
 
 <Embed url='https://www.loom.com/share/bfbca44467664ffdae27d5eccde77a74?sid=c86eaca5-dff2-4a32-91c0-b3f3555dbfaa'/>
 
@@ -13,13 +13,24 @@ Custom AI Instructions is a new feature in Deepnote that allows you to personali
 
 1. Navigate to your workspace **Settings & Members** page
 2. Click on the **AI** tab
-3. Find the **Custom instructions** field in the **Deepnote Agent** card
-4. Enter your desired instructions
-5. Click "Update" to save your changes
+3. Find the **Custom instructions** card
+4. Enter your instructions in **Your instructions**. If you're a workspace admin, you can also edit **Workspace instructions**
+5. Click **Save**
+
+Members who aren't admins see only the **Custom instructions** card on the **AI** tab, and only while Deepnote Agent is enabled in the workspace. Guests can't open the **AI** tab.
+
+## **Workspace and personal instructions**
+
+- **Workspace instructions** hold conventions for everyone in the workspace, such as the currency revenue is reported in or when the fiscal year starts. Only workspace admins can edit them. Every member can read them.
+- **Your instructions** hold your own preferences. Only you can see them, and they apply in all your workspaces.
+
+Deepnote Agent receives the workspace instructions first and your instructions after them. Both are used in Deepnote Agent, AI in code and SQL blocks, and agent blocks. Each field holds up to 3,000 characters.
+
+Workspace instructions are also used in guests' requests in the workspace's projects, because they belong to the workspace, not to a role. Guests can't read them in settings, but Deepnote Agent can repeat them in its answers, so don't put anything in them that guests shouldn't see.
 
 ## **Key features**
 
-- **Personal customization**: Custom instructions are specific to your account and are not shared with your team members
+- **Personal and shared customization**: Your instructions are specific to your account and aren't shared with your team members. Workspace instructions are shared by everyone in the workspace
 - **Persistent behavior**: Once set, the instructions will apply to all your interactions with Deepnote AI across notebooks
 - **Flexible configuration**: You can modify instructions to specify:
   - Preferred plotting libraries (e.g., Seaborn)

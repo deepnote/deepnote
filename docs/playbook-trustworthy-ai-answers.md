@@ -19,7 +19,7 @@ Deepnote gives its AI the same context your analysts use: the metric definitions
 | MCP integrations                                       | Connect the agent to tools that already define your metrics, such as dbt                           |
 | [Slack agent](/docs/slack)                             | Runs existing notebooks from Slack and summarizes the results                                      |
 | [Deepnote MCP server](/docs/deepnote-mcp)              | Gives Claude, Codex and Cursor the same workspace                                                  |
-| [Custom AI instructions](/docs/custom-ai-instructions) | Personal preferences for each analyst                                                              |
+| [Custom AI instructions](/docs/custom-ai-instructions) | Shared conventions for the workspace, and personal preferences for each analyst                    |
 | [Team permissions](/docs/team-permissions)             | Decide what every AI surface can see, because each acts as the person whose account or key it uses |
 
 ## What the agent reads
@@ -31,7 +31,7 @@ Knowing what context Deepnote's AI uses tells you where to put your effort.
 - **Queries your team already runs.** When Agent writes SQL for a database integration, it looks for relevant tables in that integration's schema and adds up to five example queries that have already been run on the same integration. It takes queries from scheduled notebooks first, then any other executed query. Only projects you can access are used.
 - **Resources you mention.** Typing `@` in a prompt lets you mention a project, integration or module, so Agent knows exactly which one you mean.
 - **Connected MCP integrations.** In Edit mode, Agent can call tools from MCP integrations connected to the project. Agent is told to look up metrics, schemas and catalogs in those services before writing its own queries.
-- **Your custom instructions.** Each person's [custom instructions](/docs/custom-ai-instructions) are added to their own requests. They're personal and aren't shared with teammates.
+- **Custom instructions.** [Workspace instructions](/docs/custom-ai-instructions), set by workspace admins, are added to every request in the workspace. Each person's own instructions are added after them, to that person's requests only.
 
 ## Set it up
 
