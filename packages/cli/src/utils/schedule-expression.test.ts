@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveScheduleExpression, ScheduleExpressionError } from './schedule-expression'
+import { resolveScheduleChange, resolveScheduleExpression, ScheduleExpressionError } from './schedule-expression'
 
 describe('resolveScheduleExpression', () => {
   it.each([
@@ -88,5 +88,53 @@ describe('resolveScheduleExpression', () => {
   ] as const)('rejects invalid options %j', (options, expected) => {
     expect(() => resolveScheduleExpression(options)).toThrow(ScheduleExpressionError)
     expect(() => resolveScheduleExpression(options)).toThrow(expected)
+  })
+})
+
+describe('resolveScheduleChange', () => {
+  it.each([
+    [{ hourly: true, at: ':15' }, '15 * * * *', 'hourly at :15'],
+    [{ daily: true, at: '09:00' }, '0 9 * * *', 'daily at 09:00'],
+    [{ weekly: 'Mon', at: '08:30' }, '30 8 * * 1', 'weekly on Mon at 08:30'],
+    [{ monthly: '1', at: '06:00' }, '0 6 1 * *', 'monthly on day 1 at 06:00'],
+    [{ cron: '0 6 * * 1-5' }, '0 6 * * 1-5', 'cron 0 6 * * 1-5'],
+  ] as const)('converts %j and keeps the stored timezone', (options, cron, description) => {
+    expect(resolveScheduleChange(options)).toStrictEqual({ cron, description })
+  })
+
+  it('changes the timezone along with the timing', () => {
+    expect(resolveScheduleChange({ daily: true, at: '09:00', timezone: 'Europe/Prague' })).toStrictEqual({
+      cron: '0 9 * * *',
+      description: 'daily at 09:00',
+      timezone: 'Europe/Prague',
+    })
+  })
+
+  it('changes only the timezone when no frequency is passed', () => {
+    expect(resolveScheduleChange({ timezone: ' Europe/Prague ' })).toStrictEqual({ timezone: 'Europe/Prague' })
+  })
+
+  it('counts an empty --timezone as omitted rather than using the system timezone', () => {
+    expect(resolveScheduleChange({ daily: true, at: '09:00', timezone: ' ' })).toStrictEqual({
+      cron: '0 9 * * *',
+      description: 'daily at 09:00',
+    })
+  })
+
+  it.each([[{}], [{ timezone: '' }]] as const)('changes no timing for %j', options => {
+    expect(resolveScheduleChange(options)).toStrictEqual({})
+  })
+
+  it.each([
+    [{ hourly: true }, /With --schedule-id, a frequency needs --at/],
+    [{ daily: true }, /a frequency needs --at/],
+    [{ weekly: 'Monday' }, /a frequency needs --at/],
+    [{ monthly: '1' }, /a frequency needs --at/],
+    [{ at: '09:00' }, /--at needs a frequency/],
+    [{ at: '09:00', timezone: 'UTC' }, /--at needs a frequency/],
+    [{ timezone: 'Mars/Olympus' }, /Invalid timezone/],
+  ] as const)('rejects %j', (options, expected) => {
+    expect(() => resolveScheduleChange(options)).toThrow(ScheduleExpressionError)
+    expect(() => resolveScheduleChange(options)).toThrow(expected)
   })
 })

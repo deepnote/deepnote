@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { deleteNotebookSchedule, listSchedules, upsertNotebookSchedule } from './schedules'
+import {
+  deleteNotebookSchedule,
+  deleteSchedule,
+  listSchedules,
+  updateSchedule,
+  upsertNotebookSchedule,
+} from './schedules'
 
 const BASE_URL = 'https://api.deepnote.com'
 const TOKEN = 'token'
@@ -265,6 +271,96 @@ describe('listSchedules', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(listSchedules(BASE_URL, TOKEN, ' ')).rejects.toThrow(/notebookId/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('updateSchedule', () => {
+  it('PATCHes only the fields passed and encodes the schedule id', async () => {
+    const updated = { ...STORED_SCHEDULE, timezone: 'America/New_York' }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ schedule: updated }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const schedule = await updateSchedule(
+      BASE_URL,
+      TOKEN,
+      'schedule/15',
+      { timezone: 'America/New_York' },
+      { requestTimeoutMs: 1_000 }
+    )
+
+    expect(schedule).toEqual(updated)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepnote.com/v2/schedules/schedule%2F15',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: 'America/New_York' }),
+      })
+    )
+  })
+
+  it('refuses an empty body or schedule id without spending a request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(updateSchedule(BASE_URL, TOKEN, '15', {})).rejects.toThrow(/nothing to update/)
+    await expect(updateSchedule(BASE_URL, TOKEN, '15', { cron: undefined, timezone: undefined })).rejects.toThrow(
+      /nothing to update/
+    )
+    await expect(updateSchedule(BASE_URL, TOKEN, ' ', { cron: '0 9 * * *' })).rejects.toThrow(/scheduleId/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('explains a 403 without a message from Deepnote', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 403, statusText: 'Forbidden' })))
+
+    await expect(updateSchedule(BASE_URL, TOKEN, '15', { cron: '0 9 * * *' })).rejects.toMatchObject({
+      statusCode: 403,
+      message: expect.stringMatching(/permission to change this schedule, or scheduling may not be enabled/),
+    })
+  })
+})
+
+describe('deleteSchedule', () => {
+  it('deletes one schedule and encodes its id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteSchedule(BASE_URL, TOKEN, 'schedule/15', { requestTimeoutMs: 1_000 })).resolves.toBe(true)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.deepnote.com/v2/schedules/schedule%2F15',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: expect.objectContaining({ Authorization: `Bearer ${TOKEN}` }),
+      })
+    )
+  })
+
+  it('reports a 404 as nothing to remove rather than an error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: 'Schedule not found' }), { status: 404 }))
+    )
+
+    await expect(deleteSchedule(BASE_URL, TOKEN, '99')).resolves.toBe(false)
+  })
+
+  it('rethrows other errors, explaining a 403 without a message from Deepnote', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 403, statusText: 'Forbidden' })))
+
+    await expect(deleteSchedule(BASE_URL, TOKEN, '15')).rejects.toMatchObject({
+      statusCode: 403,
+      message: expect.stringMatching(/permission to remove this schedule/),
+    })
+  })
+
+  it('validates an empty schedule id before making a request', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteSchedule(BASE_URL, TOKEN, ' ')).rejects.toThrow(/scheduleId/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

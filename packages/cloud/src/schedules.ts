@@ -33,6 +33,7 @@ const scheduleSchema = z.object({
 })
 
 const listSchedulesResponseSchema = z.object({ schedules: z.array(scheduleSchema) })
+const scheduleResponseSchema = z.object({ schedule: scheduleSchema })
 
 export interface NotebookSchedule {
   notebookId: string
@@ -62,6 +63,11 @@ export interface UpsertNotebookScheduleBody {
   /** Cron expression for the schedule, for example `0 9 * * 1-5`. */
   cron: string
   /** IANA timezone for the cron expression. Deepnote defaults to UTC. */
+  timezone?: string
+}
+
+export interface UpdateScheduleBody {
+  cron?: string
   timezone?: string
 }
 
@@ -196,4 +202,61 @@ export async function listSchedules(
     forbiddenMessage: "Access denied. You may not have permission to view this notebook's schedules.",
   })
   return response.schedules
+}
+
+/** Change one schedule. Deepnote also resumes it if it was paused and makes the token's owner its owner. */
+export async function updateSchedule(
+  baseUrl: string,
+  token: string,
+  scheduleId: string,
+  body: UpdateScheduleBody,
+  options: ScheduleRequestOptions = {}
+): Promise<Schedule> {
+  if (!scheduleId.trim()) {
+    throw new TypeError('updateSchedule: scheduleId cannot be empty.')
+  }
+  if (body.cron === undefined && body.timezone === undefined) {
+    throw new TypeError('updateSchedule: nothing to update.')
+  }
+
+  const response = await request(baseUrl, token, {
+    method: 'PATCH',
+    path: `/v2/schedules/${encodeURIComponent(scheduleId)}`,
+    schema: scheduleResponseSchema,
+    body,
+    timeoutMs: options.requestTimeoutMs,
+    fallback: 'update schedule',
+    forbiddenMessage:
+      'Access denied. You may not have permission to change this schedule, or scheduling may not be enabled for this workspace or plan.',
+  })
+  return response.schedule
+}
+
+/** Delete one schedule. Returns `false` if Deepnote has no schedule with that id. */
+export async function deleteSchedule(
+  baseUrl: string,
+  token: string,
+  scheduleId: string,
+  options: ScheduleRequestOptions = {}
+): Promise<boolean> {
+  if (!scheduleId.trim()) {
+    throw new TypeError('deleteSchedule: scheduleId cannot be empty.')
+  }
+
+  try {
+    await request(baseUrl, token, {
+      method: 'DELETE',
+      path: `/v2/schedules/${encodeURIComponent(scheduleId)}`,
+      schema: z.unknown(),
+      timeoutMs: options.requestTimeoutMs,
+      fallback: 'delete schedule',
+      forbiddenMessage: 'Access denied. You may not have permission to remove this schedule.',
+    })
+    return true
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode === 404) {
+      return false
+    }
+    throw error
+  }
 }
