@@ -1,6 +1,7 @@
 import type { DeepnoteFile } from '@deepnote/blocks'
 import {
   deleteNotebookSchedule,
+  deleteSchedule,
   type FoundNotebook,
   findNotebook,
   findProject,
@@ -8,6 +9,8 @@ import {
   listSchedules,
   type NotebookSchedule,
   type Schedule,
+  type UpdateScheduleBody,
+  updateSchedule,
   upsertNotebookSchedule,
 } from '@deepnote/cloud'
 import { resolveSnapshotNotebookId } from '@deepnote/convert'
@@ -72,6 +75,45 @@ export interface ListSchedulesInCloudResult {
   schedules: Schedule[]
 }
 
+export interface UpdateScheduleInCloudResult {
+  notebookId: string
+  /** The schedule as stored before this call. */
+  previous: Schedule
+  schedule: Schedule
+  /** `false` when the schedule already had every value passed, so nothing was sent. */
+  changed: boolean
+  viewUrl?: string
+}
+
+/** A singular schedule route answered 409 because the notebook has several schedules. */
+export class MultipleSchedulesError extends Error {
+  readonly statusCode = 409
+
+  constructor(
+    message: string,
+    readonly notebookId: string,
+    readonly scheduleCount: number
+  ) {
+    super(message)
+    this.name = 'MultipleSchedulesError'
+  }
+}
+
+/** The notebook is not in Deepnote (`notebookId` is `null`), or the id is not one of its schedules. */
+export class ScheduleNotFoundError extends Error {
+  constructor(
+    readonly scheduleId: string,
+    readonly notebookId: string | null
+  ) {
+    super(
+      notebookId === null
+        ? `This notebook was not found in Deepnote Cloud, so it has no schedule ${scheduleId}.`
+        : `Schedule ${scheduleId} is not one of this notebook's schedules.`
+    )
+    this.name = 'ScheduleNotFoundError'
+  }
+}
+
 interface CloudNotebookLookup {
   fnName: string
   baseUrl: string
@@ -106,9 +148,13 @@ export async function scheduleInCloud(
   const initialNotebookId = options.notebookId ?? resolveNotebookId(file, 'scheduleInCloud')
   const body = { cron, ...(options.timezone !== undefined ? { timezone: options.timezone } : {}) }
   const requestOptions = { requestTimeoutMs: options.requestTimeoutMs }
+  const upsert = (notebookId: string) =>
+    upsertNotebookSchedule(baseUrl, token, notebookId, body, requestOptions).catch(error =>
+      rethrowWithScheduleCount(error, { baseUrl, token, requestOptions }, notebookId)
+    )
 
   try {
-    const schedule = await upsertNotebookSchedule(baseUrl, token, initialNotebookId, body, requestOptions)
+    const schedule = await upsert(initialNotebookId)
     const localId = localNotebookIdIfKnown(file, options.notebookId)
     const viewUrl = localId
       ? await buildViewUrl(baseUrl, token, file, schedule.notebookId, undefined).catch(() => undefined)
@@ -165,7 +211,7 @@ export async function scheduleInCloud(
       }
     )
 
-    const schedule = await upsertNotebookSchedule(baseUrl, token, target.notebookId, body, requestOptions)
+    const schedule = await upsert(target.notebookId)
     const viewUrl = await buildViewUrl(baseUrl, token, file, target.notebookId, target.projectId).catch(() => undefined)
     return {
       notebookId: target.notebookId,
@@ -186,7 +232,9 @@ export async function unscheduleInCloud(
   if (notebookId === null) {
     return { notebookId: null, removed: false }
   }
-  const removed = await deleteNotebookSchedule(lookup.baseUrl, lookup.token, notebookId, lookup.requestOptions)
+  const removed = await deleteNotebookSchedule(lookup.baseUrl, lookup.token, notebookId, lookup.requestOptions).catch(
+    error => rethrowWithScheduleCount(error, lookup, notebookId)
+  )
   return { notebookId, removed }
 }
 
@@ -200,6 +248,52 @@ export async function listSchedulesInCloud(
     return { notebookId: null, schedules: [] }
   }
   return { notebookId: found.notebookId, schedules: found.schedules }
+}
+
+/** Change the timing of one of a local notebook's Deepnote Cloud schedules. Never creates anything. */
+export async function updateScheduleInCloud(
+  input: DeepnoteInput,
+  scheduleId: string,
+  body: UpdateScheduleBody,
+  options: UnscheduleInCloudOptions = {}
+): Promise<UpdateScheduleInCloudResult> {
+  const lookup = cloudNotebookLookup('updateScheduleInCloud', input, options)
+  const found = await findCloudSchedules(lookup)
+  const previous = found?.schedules.find(schedule => schedule.id === scheduleId)
+  if (!found || !previous) {
+    throw new ScheduleNotFoundError(scheduleId, found?.notebookId ?? null)
+  }
+
+  const changed =
+    (body.cron !== undefined && body.cron !== previous.cron) ||
+    (body.timezone !== undefined && body.timezone !== previous.timezone)
+  const schedule = changed
+    ? await updateSchedule(lookup.baseUrl, lookup.token, scheduleId, body, lookup.requestOptions)
+    : previous
+  const viewUrl = localNotebookIdIfKnown(lookup.file, lookup.notebookId)
+    ? await buildViewUrl(lookup.baseUrl, lookup.token, lookup.file, found.notebookId, found.projectId).catch(
+        () => undefined
+      )
+    : undefined
+  return { notebookId: found.notebookId, previous, schedule, changed, ...(viewUrl ? { viewUrl } : {}) }
+}
+
+/** Remove one of a local notebook's Deepnote Cloud schedules. Never creates anything. */
+export async function removeScheduleInCloud(
+  input: DeepnoteInput,
+  scheduleId: string,
+  options: UnscheduleInCloudOptions = {}
+): Promise<UnscheduleInCloudResult> {
+  const lookup = cloudNotebookLookup('removeScheduleInCloud', input, options)
+  const found = await findCloudSchedules(lookup)
+  if (found === null) {
+    return { notebookId: null, removed: false }
+  }
+  if (!found.schedules.some(schedule => schedule.id === scheduleId)) {
+    return { notebookId: found.notebookId, removed: false }
+  }
+  const removed = await deleteSchedule(lookup.baseUrl, lookup.token, scheduleId, lookup.requestOptions)
+  return { notebookId: found.notebookId, removed }
 }
 
 function cloudNotebookLookup(
@@ -273,6 +367,21 @@ async function findCloudNotebookByName({
     return undefined
   }
   return findNotebook(baseUrl, token, { projectName: file.project.name, notebookName, unique: true }, requestOptions)
+}
+
+async function rethrowWithScheduleCount(
+  error: unknown,
+  { baseUrl, token, requestOptions }: Pick<CloudNotebookLookup, 'baseUrl' | 'token' | 'requestOptions'>,
+  notebookId: string
+): Promise<never> {
+  if (errorStatusCode(error) !== 409) {
+    throw error
+  }
+  const schedules = await listSchedules(baseUrl, token, notebookId, requestOptions).catch(() => [])
+  if (schedules.length < 2) {
+    throw error
+  }
+  throw new MultipleSchedulesError(error instanceof Error ? error.message : String(error), notebookId, schedules.length)
 }
 
 /** Read the public status-code contract without depending on a cross-bundle class identity. */

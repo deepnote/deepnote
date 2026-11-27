@@ -7,10 +7,15 @@ import { ApiError, DEFAULT_API_URL, DEFAULT_ENV_FILE } from '@deepnote/database-
 import {
   type ListSchedulesInCloudResult,
   listSchedulesInCloud,
+  MultipleSchedulesError,
+  removeScheduleInCloud,
   type ScheduleInCloudResult,
+  ScheduleNotFoundError,
   scheduleInCloud,
   type UnscheduleInCloudResult,
+  type UpdateScheduleInCloudResult,
   unscheduleInCloud,
+  updateScheduleInCloud,
 } from '@deepnote/local-runner'
 import type { Command } from 'commander'
 import dotenv from 'dotenv'
@@ -20,6 +25,7 @@ import { MissingTokenError, resolveToken } from '../utils/auth'
 import { openInBrowser } from '../utils/browser'
 import { FileResolutionError, resolvePathToDeepnoteFile } from '../utils/file-resolver'
 import {
+  resolveScheduleChange,
   resolveScheduleExpression,
   ScheduleExpressionError,
   type ScheduleExpressionOptions,
@@ -33,6 +39,7 @@ export interface ScheduleOptions extends ScheduleExpressionOptions {
   open?: boolean
   remove?: boolean
   list?: boolean
+  scheduleId?: string
   output?: 'json'
 }
 
@@ -46,11 +53,13 @@ export function createScheduleAction(
         await listDeepnoteFileSchedules(path, options)
       } else if (options.remove) {
         await removeDeepnoteFileSchedule(path, options)
+      } else if (options.scheduleId !== undefined) {
+        await updateDeepnoteFileSchedule(path, options.scheduleId, options)
       } else {
         await scheduleDeepnoteFile(path, options)
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
+      const message = describeError(error)
       const isUsageApiError =
         error instanceof ApiError && (error.statusCode === 400 || error.statusCode === 401 || error.statusCode === 403)
       const exitCode =
@@ -60,6 +69,7 @@ export function createScheduleAction(
         error instanceof ParseError ||
         error instanceof ScheduleExpressionError ||
         error instanceof MissingTokenError ||
+        error instanceof ScheduleNotFoundError ||
         isUsageApiError
           ? ExitCode.InvalidUsage
           : ExitCode.Error
@@ -124,12 +134,19 @@ async function removeDeepnoteFileSchedule(path: string | undefined, options: Sch
 
   const { absolutePath, cloudOptions } = await resolveScheduleTarget(path, options)
   debug(`Removing schedule for file: ${absolutePath}`)
-  const result = await unscheduleInCloud(absolutePath, cloudOptions)
+  const result =
+    options.scheduleId === undefined
+      ? await unscheduleInCloud(absolutePath, cloudOptions)
+      : await removeScheduleInCloud(absolutePath, options.scheduleId, cloudOptions)
   renderRemoval(absolutePath, result, options)
 }
 
 async function listDeepnoteFileSchedules(path: string | undefined, options: ScheduleOptions): Promise<void> {
-  const conflicting = [...scheduleOnlyFlags(options), ...(options.remove ? ['--remove'] : [])]
+  const conflicting = [
+    ...scheduleOnlyFlags(options),
+    ...(options.remove ? ['--remove'] : []),
+    ...(options.scheduleId !== undefined ? ['--schedule-id'] : []),
+  ]
   if (conflicting.length > 0) {
     throw new ScheduleExpressionError(`--list cannot be combined with ${conflicting.join(', ')}.`)
   }
@@ -138,6 +155,31 @@ async function listDeepnoteFileSchedules(path: string | undefined, options: Sche
   debug(`Listing schedules for file: ${absolutePath}`)
   const result = await listSchedulesInCloud(absolutePath, cloudOptions)
   renderSchedules(absolutePath, result, options)
+}
+
+async function updateDeepnoteFileSchedule(
+  path: string | undefined,
+  scheduleId: string,
+  options: ScheduleOptions
+): Promise<void> {
+  const { description, ...timing } = resolveScheduleChange(options)
+  if (timing.cron === undefined && timing.timezone === undefined) {
+    throw new ScheduleExpressionError(
+      'Choose what to change: a frequency with --at (for example --daily --at 09:00), --cron, or --timezone.'
+    )
+  }
+  const { absolutePath, cloudOptions } = await resolveScheduleTarget(path, options)
+
+  debug(`Updating schedule ${scheduleId} for file: ${absolutePath}`)
+  const result = await updateScheduleInCloud(absolutePath, scheduleId, timing, cloudOptions)
+  if (options.open && result.viewUrl) {
+    try {
+      await openInBrowser(result.viewUrl)
+    } catch (error) {
+      warn(`The notebook URL could not be opened: ${error instanceof Error ? error.message : error}`)
+    }
+  }
+  renderUpdate(absolutePath, description, result, options)
 }
 
 async function resolveScheduleTarget(path: string | undefined, options: ScheduleOptions) {
@@ -151,6 +193,16 @@ async function resolveScheduleTarget(path: string | undefined, options: Schedule
     throw new MissingTokenError()
   }
   return { absolutePath, cloudOptions: { token, baseUrl: options.url ?? DEFAULT_API_URL, notebookId } }
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof MultipleSchedulesError) {
+    return `This notebook has ${error.scheduleCount} schedules. Use --list to choose one, then pass --schedule-id <id>.`
+  }
+  if (error instanceof ScheduleNotFoundError && error.notebookId !== null) {
+    return `${error.message} See them with deepnote schedule <path> --list.`
+  }
+  return error instanceof Error ? error.message : String(error)
 }
 
 /** Flags that only apply when setting a schedule. */
@@ -245,11 +297,16 @@ function renderRemoval(path: string, result: UnscheduleInCloudResult, options: S
     return
   }
   if (!result.removed) {
-    output('Nothing to remove: this notebook has no schedule.')
+    output(
+      options.scheduleId === undefined
+        ? 'Nothing to remove: this notebook has no schedule.'
+        : `Nothing to remove: schedule ${options.scheduleId} is absent from this notebook.`
+    )
     return
   }
   const c = getChalk()
-  output(`${c.green('✓')} Schedule removed from Deepnote Cloud`)
+  const schedule = options.scheduleId === undefined ? 'Schedule' : `Schedule ${options.scheduleId}`
+  output(`${c.green('✓')} ${schedule} removed from Deepnote Cloud`)
 }
 
 function renderSchedules(path: string, result: ListSchedulesInCloudResult, options: ScheduleOptions): void {
@@ -280,6 +337,42 @@ function renderSchedules(path: string, result: ListSchedulesInCloudResult, optio
       output(`  ${c.dim('Inputs:')} ${inputNames.join(', ')}`)
     }
   }
+}
+
+function renderUpdate(
+  path: string,
+  description: string | undefined,
+  result: UpdateScheduleInCloudResult,
+  options: ScheduleOptions
+): void {
+  const { schedule, previous } = result
+  if (options.output === 'json') {
+    outputJson({
+      success: true,
+      path,
+      notebookId: result.notebookId,
+      changed: result.changed,
+      schedule: toScheduleJson(schedule),
+      url: result.viewUrl,
+    })
+    return
+  }
+
+  const c = getChalk()
+  output(`${c.green('✓')} Schedule ${schedule.id} ${result.changed ? 'updated' : 'unchanged'}`)
+  output(`${c.dim('Frequency:')} ${description ?? `cron ${schedule.cron}`}`)
+  output(`${c.dim('Timezone:')} ${schedule.timezone}`)
+  output(`${c.dim('Next run:')} ${nextRun(schedule)}`)
+  if (!result.changed) {
+    return
+  }
+  if (previous.isPaused && !schedule.isPaused) {
+    output(`${c.dim('Resumed:')} it was ${pauseDescription(previous)}.`)
+  }
+  if (result.viewUrl) {
+    output(`${c.dim('URL:')} ${result.viewUrl}`)
+  }
+  output(c.dim('Other schedules are not affected.'))
 }
 
 function toScheduleJson(schedule: Schedule) {

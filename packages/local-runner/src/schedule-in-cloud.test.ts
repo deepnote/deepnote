@@ -2,12 +2,14 @@ import type {
   addNotebooksToProject,
   createProject,
   deleteNotebookSchedule,
+  deleteSchedule,
   findNotebook,
   findProject,
   getNotebook,
   getWorkspace,
   listSchedules,
   Schedule,
+  updateSchedule,
   upsertNotebookSchedule,
 } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
@@ -17,6 +19,8 @@ const cloudMock = vi.hoisted(() => ({
   upsertNotebookSchedule: vi.fn<typeof upsertNotebookSchedule>(),
   deleteNotebookSchedule: vi.fn<typeof deleteNotebookSchedule>(),
   listSchedules: vi.fn<typeof listSchedules>(),
+  updateSchedule: vi.fn<typeof updateSchedule>(),
+  deleteSchedule: vi.fn<typeof deleteSchedule>(),
   getNotebook: vi.fn<typeof getNotebook>(),
   findNotebook: vi.fn<typeof findNotebook>(),
   findProject: vi.fn<typeof findProject>(),
@@ -29,6 +33,8 @@ vi.mock('@deepnote/cloud', () => ({
   upsertNotebookSchedule: cloudMock.upsertNotebookSchedule,
   deleteNotebookSchedule: cloudMock.deleteNotebookSchedule,
   listSchedules: cloudMock.listSchedules,
+  updateSchedule: cloudMock.updateSchedule,
+  deleteSchedule: cloudMock.deleteSchedule,
   getNotebook: cloudMock.getNotebook,
   findNotebook: cloudMock.findNotebook,
   findProject: cloudMock.findProject,
@@ -39,7 +45,15 @@ vi.mock('@deepnote/cloud', () => ({
     `https://deepnote.com/workspace/${params.workspaceId}/project/-${params.projectId}/notebook/${params.notebookId}`,
 }))
 
-import { listSchedulesInCloud, scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
+import {
+  listSchedulesInCloud,
+  MultipleSchedulesError,
+  removeScheduleInCloud,
+  ScheduleNotFoundError,
+  scheduleInCloud,
+  unscheduleInCloud,
+  updateScheduleInCloud,
+} from './schedule-in-cloud'
 
 const NOTEBOOK = `metadata:
   createdAt: '2026-01-01T00:00:00.000Z'
@@ -108,6 +122,9 @@ function storedSchedule(id: string, overrides: Partial<Schedule> = {}): Schedule
   }
 }
 
+const SEVERAL_SCHEDULES =
+  'Notebook has several schedules; list them with GET /v2/schedules?notebookId=<id>, then use PATCH or DELETE /v2/schedules/{scheduleId}.'
+
 beforeEach(() => {
   vi.clearAllMocks()
   cloudMock.getWorkspace.mockResolvedValue({ id: 'workspace-1' })
@@ -124,6 +141,7 @@ beforeEach(() => {
   })
   cloudMock.deleteNotebookSchedule.mockResolvedValue(true)
   cloudMock.listSchedules.mockResolvedValue([storedSchedule('15'), storedSchedule('16', { cron: '0 18 * * 1-5' })])
+  cloudMock.deleteSchedule.mockResolvedValue(true)
 })
 
 describe('scheduleInCloud', () => {
@@ -564,5 +582,196 @@ describe('listSchedulesInCloud', () => {
     await expect(listSchedulesInCloud(MULTI_NOTEBOOK, { token: 'token' })).rejects.toThrow(
       /listSchedulesInCloud: could not resolve a notebook/
     )
+  })
+})
+
+describe('updateScheduleInCloud', () => {
+  it('changes one schedule of this notebook and returns it as stored before and after', async () => {
+    const paused = storedSchedule('15', { isPaused: true, pauseReason: 'consecutive-failures' })
+    const updated = storedSchedule('15', { cron: '30 7 * * *' })
+    cloudMock.listSchedules.mockResolvedValueOnce([paused, storedSchedule('16')])
+    cloudMock.updateSchedule.mockResolvedValueOnce(updated)
+
+    const result = await updateScheduleInCloud(NOTEBOOK, '15', { cron: '30 7 * * *' }, { token: 'token' })
+
+    expect(cloudMock.updateSchedule).toHaveBeenCalledOnce()
+    expect(cloudMock.updateSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      '15',
+      { cron: '30 7 * * *' },
+      { requestTimeoutMs: undefined }
+    )
+    expect(result).toEqual({ notebookId: 'notebook-local', previous: paused, schedule: updated, changed: true })
+  })
+
+  it('sends a timezone-only PATCH', async () => {
+    cloudMock.updateSchedule.mockResolvedValueOnce(storedSchedule('15', { timezone: 'America/New_York' }))
+
+    const result = await updateScheduleInCloud(NOTEBOOK, '15', { timezone: 'America/New_York' }, { token: 'token' })
+
+    expect(cloudMock.updateSchedule).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      '15',
+      { timezone: 'America/New_York' },
+      { requestTimeoutMs: undefined }
+    )
+    expect(result.changed).toBe(true)
+  })
+
+  it('sends nothing when every field passed already has that value', async () => {
+    const stored = storedSchedule('15', { isPaused: true, pauseReason: 'access-revoked' })
+    cloudMock.listSchedules.mockResolvedValueOnce([stored])
+
+    const result = await updateScheduleInCloud(
+      NOTEBOOK,
+      '15',
+      { cron: stored.cron, timezone: stored.timezone },
+      { token: 'token' }
+    )
+
+    expect(cloudMock.updateSchedule).not.toHaveBeenCalled()
+    expect(result).toEqual({ notebookId: 'notebook-local', previous: stored, schedule: stored, changed: false })
+  })
+
+  it('refuses an id that is not one of this notebook’s schedules', async () => {
+    const result = updateScheduleInCloud(NOTEBOOK, '99', { cron: '30 7 * * *' }, { token: 'token' })
+
+    await expect(result).rejects.toBeInstanceOf(ScheduleNotFoundError)
+    await expect(result).rejects.toMatchObject({
+      scheduleId: '99',
+      notebookId: 'notebook-local',
+      message: "Schedule 99 is not one of this notebook's schedules.",
+    })
+    expect(cloudMock.updateSchedule).not.toHaveBeenCalled()
+  })
+
+  it('refuses a schedule of a notebook that is not in Deepnote', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+
+    const result = updateScheduleInCloud(NOTEBOOK, '99', { cron: '30 7 * * *' }, { token: 'token' })
+
+    await expect(result).rejects.toBeInstanceOf(ScheduleNotFoundError)
+    await expect(result).rejects.toMatchObject({
+      scheduleId: '99',
+      notebookId: null,
+      message: 'This notebook was not found in Deepnote Cloud, so it has no schedule 99.',
+    })
+    expect(cloudMock.updateSchedule).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+
+  it('links to the notebook found by name', async () => {
+    cloudMock.listSchedules
+      .mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+      .mockResolvedValueOnce([storedSchedule('15', { notebookId: 'notebook-cloud' })])
+    cloudMock.findNotebook.mockResolvedValue({ notebookId: 'notebook-cloud', projectId: 'project-cloud' })
+    cloudMock.updateSchedule.mockResolvedValueOnce(storedSchedule('15', { notebookId: 'notebook-cloud' }))
+
+    const result = await updateScheduleInCloud(NOTEBOOK, '15', { timezone: 'UTC' }, { token: 'token' })
+
+    expect(result).toMatchObject({
+      notebookId: 'notebook-cloud',
+      viewUrl: 'https://deepnote.com/workspace/workspace-1/project/-project-cloud/notebook/notebook-cloud',
+    })
+  })
+})
+
+describe('removeScheduleInCloud', () => {
+  it('removes one schedule of this notebook', async () => {
+    const result = await removeScheduleInCloud(NOTEBOOK, '16', { token: 'token' })
+
+    expect(cloudMock.deleteSchedule).toHaveBeenCalledOnce()
+    expect(cloudMock.deleteSchedule).toHaveBeenCalledWith('https://api.deepnote.com', 'token', '16', {
+      requestTimeoutMs: undefined,
+    })
+    expect(cloudMock.deleteNotebookSchedule).not.toHaveBeenCalled()
+    expect(result).toEqual({ notebookId: 'notebook-local', removed: true })
+  })
+
+  it('reports an id that is not one of this notebook’s schedules as nothing to remove', async () => {
+    const result = await removeScheduleInCloud(NOTEBOOK, '99', { token: 'token' })
+
+    expect(cloudMock.deleteSchedule).not.toHaveBeenCalled()
+    expect(result).toEqual({ notebookId: 'notebook-local', removed: false })
+  })
+
+  it('reports a DELETE that answers 404 as nothing to remove', async () => {
+    cloudMock.deleteSchedule.mockResolvedValueOnce(false)
+
+    const result = await removeScheduleInCloud(NOTEBOOK, '15', { token: 'token' })
+
+    expect(result).toEqual({ notebookId: 'notebook-local', removed: false })
+  })
+
+  it('reports nothing to remove, and creates nothing, when the notebook is not in Deepnote', async () => {
+    cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+
+    const result = await removeScheduleInCloud(NOTEBOOK, '15', { token: 'token' })
+
+    expect(result).toEqual({ notebookId: null, removed: false })
+    expect(cloudMock.deleteSchedule).not.toHaveBeenCalled()
+    expect(cloudMock.createProject).not.toHaveBeenCalled()
+  })
+})
+
+describe('a notebook with several schedules on the singular routes', () => {
+  it.each([
+    [
+      'scheduling the local notebook id',
+      () => {
+        cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(409, SEVERAL_SCHEDULES))
+        return scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })
+      },
+      'notebook-local',
+    ],
+    [
+      'removing from the notebook found by name',
+      () => {
+        cloudMock.getNotebook.mockRejectedValueOnce(new ApiError(404, 'Notebook not found'))
+        cloudMock.findNotebook.mockResolvedValue({ notebookId: 'notebook-cloud', projectId: 'project-cloud' })
+        cloudMock.deleteNotebookSchedule.mockRejectedValueOnce(new ApiError(409, SEVERAL_SCHEDULES))
+        return unscheduleInCloud(NOTEBOOK, { token: 'token' })
+      },
+      'notebook-cloud',
+    ],
+  ])('reports the schedule count when %s conflicts', async (_case, act, notebookId) => {
+    const result = act()
+
+    await expect(result).rejects.toBeInstanceOf(MultipleSchedulesError)
+    await expect(result).rejects.toMatchObject({
+      statusCode: 409,
+      message: SEVERAL_SCHEDULES,
+      notebookId,
+      scheduleCount: 2,
+    })
+    expect(cloudMock.listSchedules).toHaveBeenCalledWith(
+      'https://api.deepnote.com',
+      'token',
+      notebookId,
+      expect.anything()
+    )
+  })
+
+  it.each([
+    ['one schedule', () => cloudMock.listSchedules.mockResolvedValueOnce([storedSchedule('15')])],
+    ['a failed listing', () => cloudMock.listSchedules.mockRejectedValueOnce(new ApiError(500, 'Cloud unavailable'))],
+  ])('rethrows the original 409 after %s', async (_case, arrangeListing) => {
+    const suspended = new ApiError(409, 'Project is suspended')
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(suspended)
+    cloudMock.deleteNotebookSchedule.mockRejectedValueOnce(suspended)
+    arrangeListing()
+    arrangeListing()
+
+    await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toBe(suspended)
+    await expect(unscheduleInCloud(NOTEBOOK, { token: 'token' })).rejects.toBe(suspended)
+  })
+
+  it('does not list schedules for other failures', async () => {
+    cloudMock.upsertNotebookSchedule.mockRejectedValueOnce(new ApiError(500, 'Cloud unavailable'))
+
+    await expect(scheduleInCloud(NOTEBOOK, '0 9 * * *', { token: 'token' })).rejects.toThrow(/Cloud unavailable/)
+    expect(cloudMock.listSchedules).not.toHaveBeenCalled()
   })
 })

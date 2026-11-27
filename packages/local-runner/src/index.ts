@@ -26,8 +26,17 @@ export type {
   ScheduleInCloudResult,
   UnscheduleInCloudOptions,
   UnscheduleInCloudResult,
+  UpdateScheduleInCloudResult,
 } from './schedule-in-cloud'
-export { listSchedulesInCloud, scheduleInCloud, unscheduleInCloud } from './schedule-in-cloud'
+export {
+  listSchedulesInCloud,
+  MultipleSchedulesError,
+  removeScheduleInCloud,
+  ScheduleNotFoundError,
+  scheduleInCloud,
+  unscheduleInCloud,
+  updateScheduleInCloud,
+} from './schedule-in-cloud'
 export type {
   CloudSchedulerFn,
   RunnerFn,

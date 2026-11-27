@@ -478,8 +478,9 @@ ${c.bold('Exit Codes:')}
     .option('--url <url>', 'Deepnote API base URL', DEFAULT_API_URL)
     .option('--no-create', 'Do not create the project in Deepnote Cloud when it is missing')
     .option('--open', 'Open the scheduled notebook in your default browser')
-    .option('--remove', "Remove the notebook's schedule")
+    .option('--remove', "Remove the notebook's schedule, or the one named by --schedule-id")
     .option('--list', "List the notebook's schedules and their ids")
+    .option('--schedule-id <id>', 'Change or remove one schedule of a notebook that has several')
     .option('-o, --output <format>', 'Output format: json', createFormatValidator(['json']))
     .addHelpText('after', () => {
       const c = getChalk()
@@ -489,10 +490,13 @@ ${c.bold('Description:')}
   Other notebooks' schedules are not affected.
   If the local project is not in Deepnote yet, it is created without running it.
   Use --remove to delete the schedule instead.
+  When the notebook has several schedules, pick one with --schedule-id; --list shows them.
+  With --schedule-id, --hourly, --daily, --weekly and --monthly need --at, and an omitted
+  --timezone keeps the schedule's own. A change resumes a paused schedule and makes you its owner.
 
 ${c.bold('Examples:')}
   ${c.dim('# Run every day at 09:00 in your local timezone')}
-  $ deepnote schedule report.deepnote --daily
+  $ deepnote schedule report.deepnote --daily --at 09:00
 
   ${c.dim('# Run every Monday at 08:30 in London')}
   $ deepnote schedule report.deepnote --weekly Monday --at 08:30 --timezone Europe/London
@@ -512,6 +516,15 @@ ${c.bold('Examples:')}
   ${c.dim("# List the notebook's schedules and their ids")}
   $ deepnote schedule report.deepnote --list
 
+  ${c.dim('# Move schedule 15 to 09:00 every day, keeping its timezone')}
+  $ deepnote schedule report.deepnote --schedule-id 15 --daily --at 09:00
+
+  ${c.dim('# Change only the timezone of schedule 15')}
+  $ deepnote schedule report.deepnote --schedule-id 15 --timezone Europe/Prague
+
+  ${c.dim('# Remove only schedule 15')}
+  $ deepnote schedule report.deepnote --schedule-id 15 --remove
+
 ${c.bold('Authentication:')}
   Set ${c.dim(DEEPNOTE_TOKEN_ENV)} in your environment or in a .env file next to the notebook.
   You can also pass ${c.dim('--token')}. Scheduling availability depends on your Deepnote plan;
@@ -519,8 +532,8 @@ ${c.bold('Authentication:')}
 
 ${c.bold('Exit Codes:')}
   ${c.dim('0')}  Success, including --remove with nothing to remove
-  ${c.dim('1')}  API or network failure
-  ${c.dim('2')}  Invalid usage, authentication, or plan permissions
+  ${c.dim('1')}  API or network failure, or several schedules and no --schedule-id
+  ${c.dim('2')}  Invalid usage, authentication, plan permissions, or an unknown --schedule-id
 `
     })
     .action(createScheduleAction(program))

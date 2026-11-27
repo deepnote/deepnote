@@ -14,6 +14,12 @@ export interface ResolvedScheduleExpression {
   description: string
 }
 
+export interface ResolvedScheduleChange {
+  cron?: string
+  timezone?: string
+  description?: string
+}
+
 const WEEKDAYS = new Map<string, number>([
   ['sunday', 0],
   ['sun', 0],
@@ -121,6 +127,35 @@ export function resolveScheduleExpression(
     cron: `${minute} ${hour} ${day} * *`,
     timezone,
     description: `monthly on day ${day} at ${display}`,
+  }
+}
+
+/** Like {@link resolveScheduleExpression}, but a frequency needs `--at` and an omitted timezone stays unset. */
+export function resolveScheduleChange(options: ScheduleExpressionOptions): ResolvedScheduleChange {
+  const timezone = options.timezone?.trim() ? resolveTimezone(options.timezone) : undefined
+  const hasFrequency =
+    options.hourly ||
+    options.daily ||
+    options.weekly !== undefined ||
+    options.monthly !== undefined ||
+    options.cron !== undefined
+  if (!hasFrequency) {
+    if (options.at !== undefined) {
+      throw new ScheduleExpressionError('--at needs a frequency, for example --daily --at 09:00.')
+    }
+    return timezone === undefined ? {} : { timezone }
+  }
+
+  const { cron, description } = resolveScheduleExpression(options)
+  requireAt(options, '--schedule-id')
+  return { cron, description, ...(timezone !== undefined ? { timezone } : {}) }
+}
+
+function requireAt(options: ScheduleExpressionOptions, flag: string): void {
+  if (options.cron === undefined && options.at === undefined) {
+    throw new ScheduleExpressionError(
+      `With ${flag}, a frequency needs --at, for example --daily --at 09:00 or --hourly --at :15.`
+    )
   }
 }
 

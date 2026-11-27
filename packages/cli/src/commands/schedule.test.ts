@@ -4,11 +4,16 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Schedule } from '@deepnote/cloud'
 import { ApiError } from '@deepnote/database-integrations'
-import type {
-  listSchedulesInCloud,
-  ScheduleInCloudResult,
-  scheduleInCloud,
-  unscheduleInCloud,
+import {
+  type listSchedulesInCloud,
+  MultipleSchedulesError,
+  type removeScheduleInCloud,
+  type ScheduleInCloudResult,
+  ScheduleNotFoundError,
+  type scheduleInCloud,
+  type UpdateScheduleInCloudResult,
+  type unscheduleInCloud,
+  type updateScheduleInCloud,
 } from '@deepnote/local-runner'
 import { Command } from 'commander'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -18,13 +23,22 @@ const localRunnerMock = vi.hoisted(() => ({
   scheduleInCloud: vi.fn<typeof scheduleInCloud>(),
   unscheduleInCloud: vi.fn<typeof unscheduleInCloud>(),
   listSchedulesInCloud: vi.fn<typeof listSchedulesInCloud>(),
+  updateScheduleInCloud: vi.fn<typeof updateScheduleInCloud>(),
+  removeScheduleInCloud: vi.fn<typeof removeScheduleInCloud>(),
 }))
 
-vi.mock('@deepnote/local-runner', () => ({
-  scheduleInCloud: localRunnerMock.scheduleInCloud,
-  unscheduleInCloud: localRunnerMock.unscheduleInCloud,
-  listSchedulesInCloud: localRunnerMock.listSchedulesInCloud,
-}))
+vi.mock('@deepnote/local-runner', async importOriginal => {
+  const actual = await importOriginal<typeof import('@deepnote/local-runner')>()
+  return {
+    MultipleSchedulesError: actual.MultipleSchedulesError,
+    ScheduleNotFoundError: actual.ScheduleNotFoundError,
+    scheduleInCloud: localRunnerMock.scheduleInCloud,
+    unscheduleInCloud: localRunnerMock.unscheduleInCloud,
+    listSchedulesInCloud: localRunnerMock.listSchedulesInCloud,
+    updateScheduleInCloud: localRunnerMock.updateScheduleInCloud,
+    removeScheduleInCloud: localRunnerMock.removeScheduleInCloud,
+  }
+})
 
 vi.mock('../utils/browser', () => ({
   openInBrowser: vi.fn().mockResolvedValue(undefined),
@@ -99,8 +113,23 @@ const PAUSED: Schedule = {
   updatesNotebook: false,
 }
 
+const UPDATE_RESULT: UpdateScheduleInCloudResult = {
+  notebookId: NOTEBOOK_ID,
+  previous: STORED,
+  schedule: { ...STORED, cron: '30 7 * * *', nextRunAt: '2026-11-28T06:30:00.000Z' },
+  changed: true,
+  viewUrl: RESULT.viewUrl,
+}
+
+const SEVERAL_SCHEDULES =
+  'Notebook has several schedules; list them with GET /v2/schedules?notebookId=<id>, then use PATCH or DELETE /v2/schedules/{scheduleId}.'
+
 function listOptions(overrides: Partial<ScheduleOptions> = {}): ScheduleOptions {
   return { create: true, token: 'test-token', list: true, ...overrides }
+}
+
+function updateOptions(overrides: Partial<ScheduleOptions> = {}): ScheduleOptions {
+  return { create: true, token: 'test-token', scheduleId: '15', daily: true, at: '07:30', ...overrides }
 }
 
 const STORED_JSON = {
@@ -139,6 +168,8 @@ describe('schedule command', () => {
     localRunnerMock.scheduleInCloud.mockResolvedValue(RESULT)
     localRunnerMock.unscheduleInCloud.mockResolvedValue({ notebookId: NOTEBOOK_ID, removed: true })
     localRunnerMock.listSchedulesInCloud.mockResolvedValue({ notebookId: NOTEBOOK_ID, schedules: [STORED, PAUSED] })
+    localRunnerMock.updateScheduleInCloud.mockResolvedValue(UPDATE_RESULT)
+    localRunnerMock.removeScheduleInCloud.mockResolvedValue({ notebookId: NOTEBOOK_ID, removed: true })
     vi.mocked(openInBrowser).mockResolvedValue(undefined)
   })
 
@@ -540,6 +571,7 @@ version: '1.0.0'
     it.each([
       ['--daily', { daily: true }],
       ['--remove', { remove: true }],
+      ['--schedule-id', { scheduleId: '15' }],
     ] satisfies Array<[string, Partial<ScheduleOptions>]>)(
       'rejects --list combined with %s',
       async (flag, overrides) => {
@@ -548,9 +580,232 @@ version: '1.0.0'
         expect(process.exitCode).toBe(2)
         expect(errorSpy.mock.calls.flat().join('\n')).toContain(`--list cannot be combined with ${flag}`)
         expect(localRunnerMock.listSchedulesInCloud).not.toHaveBeenCalled()
+        expect(localRunnerMock.updateScheduleInCloud).not.toHaveBeenCalled()
         expect(localRunnerMock.unscheduleInCloud).not.toHaveBeenCalled()
-        expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+        expect(localRunnerMock.removeScheduleInCloud).not.toHaveBeenCalled()
       }
     )
+  })
+
+  describe('--schedule-id with timing', () => {
+    it('changes one schedule and keeps its timezone when --timezone is omitted', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions())
+
+      expect(localRunnerMock.updateScheduleInCloud).toHaveBeenCalledOnce()
+      expect(localRunnerMock.updateScheduleInCloud).toHaveBeenCalledWith(
+        HELLO_WORLD_FILE,
+        '15',
+        { cron: '30 7 * * *' },
+        { token: 'test-token', baseUrl: 'https://api.deepnote.com', notebookId: undefined }
+      )
+      expect(localRunnerMock.scheduleInCloud).not.toHaveBeenCalled()
+      expect(logSpy.mock.calls.flat().join('\n')).toBe(
+        [
+          '✓ Schedule 15 updated',
+          'Frequency: daily at 07:30',
+          'Timezone: Europe/Prague',
+          'Next run: 2026-11-28T06:30:00.000Z',
+          `URL: ${RESULT.viewUrl}`,
+          'Other schedules are not affected.',
+        ].join('\n')
+      )
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('changes only the timezone', async () => {
+      localRunnerMock.updateScheduleInCloud.mockResolvedValueOnce({
+        ...UPDATE_RESULT,
+        schedule: { ...STORED, timezone: 'America/New_York' },
+      })
+
+      await createScheduleAction(new Command())(
+        HELLO_WORLD_FILE,
+        updateOptions({ daily: undefined, at: undefined, timezone: 'America/New_York' })
+      )
+
+      expect(localRunnerMock.updateScheduleInCloud).toHaveBeenCalledWith(
+        HELLO_WORLD_FILE,
+        '15',
+        { timezone: 'America/New_York' },
+        expect.anything()
+      )
+      const printed = logSpy.mock.calls.flat().join('\n')
+      expect(printed).toContain('Frequency: cron 0 9 * * *')
+      expect(printed).toContain('Timezone: America/New_York')
+    })
+
+    it('says that a paused schedule was resumed', async () => {
+      localRunnerMock.updateScheduleInCloud.mockResolvedValueOnce({ ...UPDATE_RESULT, previous: PAUSED })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions())
+
+      expect(logSpy.mock.calls.flat().join('\n')).toContain('Resumed: it was paused (consecutive-failures).')
+    })
+
+    it.each([
+      [STORED, 'Next run: 2026-11-28T08:00:00.000Z'],
+      [{ ...PAUSED, pauseReason: 'access-revoked' }, 'Next run: paused (access-revoked)'],
+    ])('reports an unchanged schedule without claiming a change (case %#)', async (stored, nextRun) => {
+      localRunnerMock.updateScheduleInCloud.mockResolvedValueOnce({
+        notebookId: NOTEBOOK_ID,
+        previous: stored,
+        schedule: stored,
+        changed: false,
+      })
+
+      await createScheduleAction(new Command())(
+        HELLO_WORLD_FILE,
+        updateOptions({ scheduleId: stored.id, at: undefined, cron: stored.cron, daily: undefined })
+      )
+
+      expect(logSpy.mock.calls.flat().join('\n')).toBe(
+        [
+          `✓ Schedule ${stored.id} unchanged`,
+          `Frequency: cron ${stored.cron}`,
+          `Timezone: ${stored.timezone}`,
+          nextRun,
+        ].join('\n')
+      )
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('outputs the changed schedule as JSON with input names but no input values', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions({ output: 'json' }))
+
+      const printed = logSpy.mock.calls.flat().join('\n')
+      expect(JSON.parse(printed)).toStrictEqual({
+        success: true,
+        path: HELLO_WORLD_FILE,
+        notebookId: NOTEBOOK_ID,
+        changed: true,
+        schedule: { ...STORED_JSON, cron: '30 7 * * *', nextRunAt: '2026-11-28T06:30:00.000Z' },
+        url: RESULT.viewUrl,
+      })
+      expect(printed).not.toContain('hunter2')
+    })
+
+    it('opens the notebook when requested', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions({ open: true }))
+
+      expect(openInBrowser).toHaveBeenCalledWith(RESULT.viewUrl)
+    })
+
+    it('requires --at with a frequency', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions({ at: undefined }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('With --schedule-id, a frequency needs --at')
+      expect(localRunnerMock.updateScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it('requires something to change', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions({ daily: undefined, at: undefined }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('Choose what to change')
+      expect(localRunnerMock.updateScheduleInCloud).not.toHaveBeenCalled()
+    })
+
+    it('refuses an id that is not one of the notebook’s schedules, pointing to --list', async () => {
+      localRunnerMock.updateScheduleInCloud.mockRejectedValueOnce(new ScheduleNotFoundError('99', NOTEBOOK_ID))
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions({ scheduleId: '99' }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(
+        "Schedule 99 is not one of this notebook's schedules. See them with deepnote schedule <path> --list."
+      )
+    })
+
+    it('refuses a schedule of a notebook that is not in Deepnote Cloud', async () => {
+      localRunnerMock.updateScheduleInCloud.mockRejectedValueOnce(new ScheduleNotFoundError('99', null))
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, updateOptions({ scheduleId: '99' }))
+
+      expect(process.exitCode).toBe(2)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(
+        'This notebook was not found in Deepnote Cloud, so it has no schedule 99.'
+      )
+    })
+  })
+
+  describe('--schedule-id with --remove', () => {
+    it('removes only that schedule', async () => {
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ scheduleId: '15' }))
+
+      expect(localRunnerMock.removeScheduleInCloud).toHaveBeenCalledWith(HELLO_WORLD_FILE, '15', {
+        token: 'test-token',
+        baseUrl: 'https://api.deepnote.com',
+        notebookId: undefined,
+      })
+      expect(localRunnerMock.unscheduleInCloud).not.toHaveBeenCalled()
+      expect(logSpy.mock.calls.flat().join('\n')).toBe('✓ Schedule 15 removed from Deepnote Cloud')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('reports an absent id as nothing to remove', async () => {
+      localRunnerMock.removeScheduleInCloud.mockResolvedValueOnce({ notebookId: NOTEBOOK_ID, removed: false })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ scheduleId: '99' }))
+
+      expect(logSpy.mock.calls.flat().join('\n')).toBe('Nothing to remove: schedule 99 is absent from this notebook.')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('outputs the same JSON as --remove', async () => {
+      localRunnerMock.removeScheduleInCloud.mockResolvedValueOnce({ notebookId: NOTEBOOK_ID, removed: false })
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, removeOptions({ scheduleId: '99', output: 'json' }))
+
+      expect(JSON.parse(logSpy.mock.calls.flat().join('\n'))).toStrictEqual({
+        success: true,
+        path: HELLO_WORLD_FILE,
+        notebookId: NOTEBOOK_ID,
+        removed: false,
+      })
+      expect(process.exitCode).toBeUndefined()
+    })
+  })
+
+  describe('a notebook with several schedules', () => {
+    it.each([
+      ['scheduling', options(), 'scheduleInCloud', 2],
+      ['--remove', removeOptions(), 'unscheduleInCloud', 3],
+    ] as const)('tells the user how to pick one when %s', async (_case, commandOptions, fn, scheduleCount) => {
+      localRunnerMock[fn].mockRejectedValueOnce(
+        new MultipleSchedulesError(SEVERAL_SCHEDULES, NOTEBOOK_ID, scheduleCount)
+      )
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, commandOptions)
+
+      expect(errorSpy.mock.calls.flat()).toEqual([
+        `This notebook has ${scheduleCount} schedules. Use --list to choose one, then pass --schedule-id <id>.`,
+      ])
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('prints the same hint in JSON', async () => {
+      localRunnerMock.scheduleInCloud.mockRejectedValueOnce(
+        new MultipleSchedulesError(SEVERAL_SCHEDULES, NOTEBOOK_ID, 2)
+      )
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, options({ output: 'json' }))
+
+      expect(JSON.parse(logSpy.mock.calls.flat().join('\n'))).toEqual({
+        success: false,
+        error: 'This notebook has 2 schedules. Use --list to choose one, then pass --schedule-id <id>.',
+      })
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('keeps the server message for a conflict on a notebook with one schedule', async () => {
+      localRunnerMock.scheduleInCloud.mockRejectedValueOnce(new ApiError(409, 'Project is suspended'))
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, options())
+
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain('Project is suspended')
+      expect(errorSpy.mock.calls.flat().join('\n')).not.toContain('--schedule-id')
+      expect(process.exitCode).toBe(1)
+    })
   })
 })
