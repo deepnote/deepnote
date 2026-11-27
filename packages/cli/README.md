@@ -719,18 +719,16 @@ availability depends on the workspace plan.
 
 Where the workspace allows several schedules per notebook, the command and `--remove` exit `1` for a
 notebook that has more than one. `--list` shows its schedules and their ids, `--schedule-id <id>`
-changes or removes one of them, `--add` adds another, and `--input` sets values for a schedule's
-runs. None of them creates a project.
+changes or removes one, `--add` adds another, and `--input` sets values for a schedule's runs. None
+of them creates a project.
 
 With `--schedule-id` and `--add`, `--hourly`, `--daily`, `--weekly` and `--monthly` need `--at`, and
 `--cron` takes none. With `--schedule-id`, an omitted `--timezone` keeps the schedule's own, and a
-change resumes a paused schedule and makes you its owner.
-`--add` exits `2` for a notebook that is not in Deepnote, and `0` without adding anything when a
-schedule with the same timing, name and inputs exists. `--input` values are typed by the notebook's
-input blocks, as with `run`; with `--schedule-id` they are merged into the schedule's own.
-
-Added schedules don't update the notebook's outputs, and input values stop a schedule from updating
-them; you can turn that back on in Deepnote.
+change resumes a paused schedule and makes you its owner. `--add` exits `2` for a notebook that is
+not in Deepnote, and `0` without adding anything when a schedule with the same timing, name and
+inputs exists. `--input` values are typed by the notebook's input blocks and merged into the
+schedule's own. Added schedules and schedules with input values don't update the notebook's outputs
+until you turn that on in Deepnote.
 
 Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
 monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same
@@ -760,9 +758,6 @@ deepnote schedule report.deepnote --list
 
 # Move schedule 15 to 09:00 every day, keeping its timezone
 deepnote schedule report.deepnote --schedule-id 15 --daily --at 09:00
-
-# Change only the timezone of schedule 15
-deepnote schedule report.deepnote --schedule-id 15 --timezone Europe/Prague
 
 # Remove only schedule 15
 deepnote schedule report.deepnote --schedule-id 15 --remove

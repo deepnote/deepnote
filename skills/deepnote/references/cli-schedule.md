@@ -97,77 +97,46 @@ of guessing.
 ## Several Schedules
 
 Where the workspace allows several schedules per notebook, the plain command and `--remove` refuse a
-notebook that has more than one. They exit `1` with:
+notebook that has more than one and exit `1` with:
 
 ```text
 This notebook has 3 schedules. Use --list to choose one, then pass --schedule-id <id>.
 ```
 
-List the schedules, then change or remove one by its id:
+Work with one schedule by its id, or add another:
 
 ```bash
 deepnote schedule report.deepnote --list
 deepnote schedule report.deepnote --schedule-id 15 --daily --at 09:00
-deepnote schedule report.deepnote --schedule-id 15 --timezone Europe/Prague
+deepnote schedule report.deepnote --schedule-id 15 --name Morning -i region=US
+deepnote schedule report.deepnote --schedule-id 15 --clear-inputs
 deepnote schedule report.deepnote --schedule-id 15 --remove
-```
-
-`--list` shows each schedule's id, name, cron and timezone, next run, and input names, but never
-input values. A paused schedule shows `paused (<reason>)` instead of its next run. `--list` works for
-any notebook and exits `0` when the notebook has no schedules or is not in Deepnote Cloud. It cannot
-be combined with flags that set, add, open, or remove a schedule, or with `--schedule-id`.
-
-With `--schedule-id` and a new timing, the command changes only that schedule, and running it twice
-is safe:
-
-- A frequency needs `--at` (`--at :15` for `--hourly`) instead of defaulting to the current time.
-  `--cron` works as usual.
-- An omitted `--timezone` keeps the schedule's timezone, and `--timezone` on its own changes only
-  the timezone.
-- When nothing would change, nothing is sent and the output says `unchanged`. A paused schedule
-  stays paused.
-- A change resumes a paused schedule and makes you its owner.
-- The id must be one of the notebook's schedules. Any other id exits `2` and changes nothing.
-
-`--schedule-id <id> --remove` removes only that schedule and accepts the same flags as `--remove`.
-If the notebook has no schedule with that id, it says so and exits `0`.
-
-`--add` adds a schedule next to the others. Its frequency needs `--at` too, and an omitted
-`--timezone` uses the system timezone:
-
-```bash
 deepnote schedule report.deepnote --add --daily --at 18:00 --name Evening -i region=EU
 ```
 
-- A notebook that is not in Deepnote Cloud exits `2`; create it first with the plain command.
-- When the notebook already has a schedule with the same timing, name, and inputs, nothing is added,
-  the output says `already exists`, and the command exits `0`, so reruns are safe. Another name or
-  other input values add a new schedule.
-- Where the workspace allows only one schedule per notebook, a second one exits `1` and points to
-  `--list` and `--schedule-id`.
-- It cannot be combined with `--list`, `--remove`, `--schedule-id`, or `--clear-inputs`.
-
-`--name` and `--input` work with `--add` and `--schedule-id`, and `--clear-inputs` with
-`--schedule-id`. Input values need a workspace that allows several schedules per notebook; elsewhere
-Deepnote refuses them and the command exits `2`. With `--schedule-id`, a name or input values alone
-are a change:
-
-```bash
-deepnote schedule report.deepnote --schedule-id 15 --name Morning
-deepnote schedule report.deepnote --schedule-id 15 -i region=US
-deepnote schedule report.deepnote --schedule-id 15 --clear-inputs
-```
-
-- `--input` values are typed by the notebook's input blocks, as with `run --input`. An unknown name,
-  a value the block can't take, or an empty `--name` exits `2`.
-- With `--schedule-id`, the given input values are merged into the schedule's own, and
-  `--clear-inputs` removes them all. `--clear-inputs` cannot be combined with `--input`.
+- `--list` shows each schedule's id, name, cron and timezone, next run or `paused (<reason>)`, and
+  input names, never input values. It exits `0` when there are no schedules or the notebook is not
+  in Deepnote Cloud, and cannot be combined with flags that set, add, open, or remove a schedule.
+- `--schedule-id` changes only that schedule. Every frequency except `--cron` needs `--at`, an
+  omitted `--timezone` keeps the schedule's own, and a name or input values alone are a change. When
+  nothing would change, nothing is sent and the output says `unchanged`; a change resumes a paused
+  schedule and makes you its owner. An id that is not one of the notebook's schedules exits `2`, or
+  `0` with `--remove`.
+- `--add` adds a schedule next to the others, with the same `--at` rule; an omitted `--timezone` uses
+  the system timezone. A notebook that is not in Deepnote Cloud exits `2`. When a schedule with the
+  same timing, name, and inputs exists, nothing is added, the output says `already exists`, and the
+  command exits `0`. Where the workspace allows only one schedule per notebook, a second one exits
+  `1` and points to `--schedule-id`.
+- `--input` values are typed by the notebook's input blocks, as with `run --input`, and need a
+  workspace that allows several schedules per notebook; elsewhere the command exits `2`. With
+  `--schedule-id` they are merged into the schedule's own, and `--clear-inputs` removes them. An
+  unknown name, a value the block can't take, or an empty `--name` also exits `2`.
 - Added schedules don't update the notebook's outputs, and input values stop a schedule from
-  updating them. `--clear-inputs` doesn't turn that back on, but you can in Deepnote. The text output
-  says so when a change does that.
+  updating them; the text output says so. `--clear-inputs` doesn't turn that back on, but you can
+  in Deepnote.
 
-Like `--remove`, `--list`, `--add`, and `--schedule-id` fail rather than guess between projects that
-share a name.
+`--list`, `--schedule-id`, and `--add` fail rather than guess between projects that share a name, as
+`--remove` does.
 
 ## Output and Exit Codes
 
