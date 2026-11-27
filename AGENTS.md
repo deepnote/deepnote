@@ -6,6 +6,7 @@ This document provides guidelines for AI coding agents working on the Deepnote m
 
 This is a TypeScript monorepo for Deepnote's open-source packages, managed with pnpm workspaces. The repository contains:
 
+- **packages/app-client** - Browser client for Deepnote data app pages (`window.Deepnote`) and the types of what it reads from servers and the Deepnote shell
 - **packages/blocks** - Core package for working with Deepnote blocks and notebook files
 - **packages/cli** - Command-line interface for running Deepnote projects locally and on Deepnote Cloud
 - **packages/cloud** - Client for the Deepnote Cloud runs API (trigger a run, poll it, fetch its snapshot)
@@ -32,6 +33,7 @@ Start with the owning package and its README before searching broadly. Avoid tra
 | Deepnote Cloud runs and schedules API clients                  | `packages/cloud/`                                     |
 | Syncing and publishing local folders with Deepnote Cloud       | `packages/cloud-sync/`                                |
 | Mocking the Deepnote Cloud API in tests                        | `packages/cloud-mock/`                                |
+| Data app client (`window.Deepnote`) and its token handshake    | `packages/app-client/`                                |
 | Local notebook execution and serving                           | `packages/local-runner/` and `packages/runtime-core/` |
 | Dependency and reactivity analysis                             | `packages/reactivity/`                                |
 | Database integration definitions                               | `packages/database-integrations/`                     |
