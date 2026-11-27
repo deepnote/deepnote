@@ -719,7 +719,8 @@ availability depends on the workspace plan.
 
 Where the workspace allows several schedules per notebook, the command and `--remove` exit `1` for a
 notebook that has more than one. `--list` shows its schedules and their ids, `--schedule-id <id>`
-changes or removes one of them, and `--add` adds another. None of them creates a project.
+changes or removes one of them, `--add` adds another, and `--input` sets values for a schedule's
+runs. None of them creates a project.
 
 With `--schedule-id` and `--add`, `--hourly`, `--daily`, `--weekly` and `--monthly` need `--at`, and
 `--cron` takes none. With `--schedule-id`, an omitted `--timezone` keeps the schedule's own, and a
@@ -729,7 +730,7 @@ schedule with the same timing, name and inputs exists. `--input` values are type
 input blocks, as with `run`; with `--schedule-id` they are merged into the schedule's own.
 
 Added schedules don't update the notebook's outputs, and input values stop a schedule from updating
-them for good.
+them; you can turn that back on in Deepnote.
 
 Without `--at`, a schedule fires at the time it was created — hour and minute for daily, weekly and
 monthly, the minute alone for `--hourly`. Deepnote's scheduling UI defaults new schedules the same

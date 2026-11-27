@@ -272,16 +272,17 @@ curl -s -X POST https://api.deepnote.com/v2/schedules \
   }'
 ```
 
-`timezone` defaults to UTC, and `name` (up to 100 characters) and `inputs` are optional. As in a
-run, input values are strings, booleans or arrays of strings keyed by input `name`, and the
-schedule's runs use them.
+`timezone` defaults to UTC, and `name` and `inputs` are optional. A name has up to 100 characters,
+and runs of whitespace in it become one space. Where the workspace allows several schedules per
+notebook, `inputs` sets the values the schedule's runs use: as in a run, strings, booleans or arrays
+of strings keyed by input `name`. Elsewhere, input values answer `400`.
 
 `PATCH /v2/schedules/{scheduleId}` with any of `cron`, `timezone`, `name` and `inputs` changes one
 schedule, and `DELETE /v2/schedules/{scheduleId}` removes it. `inputs` replaces all of the
 schedule's input values, `null` or `{}` removes them, and `"name": null` removes the name. A `PATCH`
 resumes the schedule if it was paused and makes you its owner. Schedules added with
 `POST /v2/schedules` don't update the notebook's outputs, and setting input values stops a schedule
-from updating them, even if you remove the values later.
+from updating them. Removing the values doesn't turn that back on, but you can in Deepnote.
 
 ## Related
 

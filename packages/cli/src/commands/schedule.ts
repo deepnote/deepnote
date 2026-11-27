@@ -230,7 +230,14 @@ async function addDeepnoteFileSchedule(path: string | undefined, options: Schedu
     absolutePath,
     { cron: schedule.cron, timezone: schedule.timezone, name: options.name, inputs },
     cloudOptions
-  )
+  ).catch(error => {
+    if (error instanceof ApiError && error.statusCode === 409 && error.message !== 'Project is suspended') {
+      throw new Error(
+        'This notebook already has a schedule, and the workspace allows one per notebook. Use --list to see it, then pass --schedule-id <id> to change it.'
+      )
+    }
+    throw error
+  })
   if (result.notebookId === null) {
     throw new ScheduleExpressionError(
       'This notebook was not found in Deepnote Cloud. Create it first with deepnote schedule <path> and a frequency.'
@@ -460,7 +467,9 @@ function renderUpdate(
     output(`${c.dim('Resumed:')} it was ${pauseDescription(previous)}.`)
   }
   if (options.input?.length && previous.updatesNotebook && !schedule.updatesNotebook) {
-    warn("This schedule no longer updates the notebook's outputs, because it has inputs.")
+    warn(
+      "This schedule no longer updates the notebook's outputs, because it has inputs. You can turn that back on in Deepnote."
+    )
   }
   if (result.viewUrl) {
     output(`${c.dim('URL:')} ${result.viewUrl}`)

@@ -289,7 +289,7 @@ export async function updateScheduleInCloud(
   const changed =
     (body.cron !== undefined && body.cron !== previous.cron) ||
     (body.timezone !== undefined && body.timezone !== previous.timezone) ||
-    (body.name !== undefined && (body.name?.trim() || null) !== previous.name) ||
+    (body.name !== undefined && storedName(body.name) !== previous.name) ||
     (inputs !== undefined && !isDeepStrictEqual(inputs ?? {}, previous.inputs ?? {}))
   const schedule = changed
     ? await updateSchedule(lookup.baseUrl, lookup.token, scheduleId, { ...body, inputs }, lookup.requestOptions)
@@ -319,7 +319,7 @@ export async function addScheduleInCloud(
     schedule =>
       schedule.cron === wanted.cron &&
       schedule.timezone === wanted.timezone &&
-      schedule.name === (wanted.name?.trim() || null) &&
+      schedule.name === storedName(wanted.name) &&
       isDeepStrictEqual(schedule.inputs ?? {}, wanted.inputs ?? {})
   )
   const schedule =
@@ -464,6 +464,11 @@ function cloudInputs(
       return [name, coerceInputValueForBlocks(blocks, value)]
     })
   )
+}
+
+/** The name as Deepnote stores it: runs of whitespace become one space, and a blank name is none. */
+function storedName(name: string | null | undefined): string | null {
+  return name?.replace(/\s+/g, ' ').trim() || null
 }
 
 /** Read the public status-code contract without depending on a cross-bundle class identity. */

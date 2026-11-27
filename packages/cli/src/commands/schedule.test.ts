@@ -977,6 +977,26 @@ describe('schedule command', () => {
       expect(errorSpy.mock.calls.flat().join('\n')).toContain('--name cannot be empty.')
       expect(localRunnerMock.addScheduleInCloud).not.toHaveBeenCalled()
     })
+
+    it.each([
+      [
+        'points to --list and --schedule-id where the workspace allows one schedule per notebook',
+        new ApiError(409, 'This notebook already has a schedule; change it with PATCH /v2/schedules/{scheduleId}.'),
+        'This notebook already has a schedule, and the workspace allows one per notebook. Use --list to see it, then pass --schedule-id <id> to change it.',
+      ],
+      [
+        'keeps Deepnote’s message for a suspended project',
+        new ApiError(409, 'Project is suspended'),
+        'Project is suspended',
+      ],
+    ])('%s', async (_case, error, message) => {
+      localRunnerMock.addScheduleInCloud.mockRejectedValueOnce(error)
+
+      await createScheduleAction(new Command())(HELLO_WORLD_FILE, addOptions())
+
+      expect(process.exitCode).toBe(1)
+      expect(errorSpy.mock.calls.flat().join('\n')).toContain(message)
+    })
   })
 
   describe('--schedule-id with a name or inputs', () => {
@@ -1061,7 +1081,7 @@ describe('schedule command', () => {
       await createScheduleAction(new Command())(INPUTS_FILE, nameOrInputs({ input: ['enabled=true'] }))
 
       expect(errorSpy.mock.calls.flat().join('\n')).toBe(
-        "This schedule no longer updates the notebook's outputs, because it has inputs."
+        "This schedule no longer updates the notebook's outputs, because it has inputs. You can turn that back on in Deepnote."
       )
       expect(logSpy.mock.calls.flat().join('\n')).toContain('Inputs: enabled')
     })

@@ -143,11 +143,14 @@ deepnote schedule report.deepnote --add --daily --at 18:00 --name Evening -i reg
 - When the notebook already has a schedule with the same timing, name, and inputs, nothing is added,
   the output says `already exists`, and the command exits `0`, so reruns are safe. Another name or
   other input values add a new schedule.
-- Where the workspace allows only one schedule per notebook, a second one exits `1`.
+- Where the workspace allows only one schedule per notebook, a second one exits `1` and points to
+  `--list` and `--schedule-id`.
 - It cannot be combined with `--list`, `--remove`, `--schedule-id`, or `--clear-inputs`.
 
 `--name` and `--input` work with `--add` and `--schedule-id`, and `--clear-inputs` with
-`--schedule-id`. With `--schedule-id`, a name or input values alone are a change:
+`--schedule-id`. Input values need a workspace that allows several schedules per notebook; elsewhere
+Deepnote refuses them and the command exits `2`. With `--schedule-id`, a name or input values alone
+are a change:
 
 ```bash
 deepnote schedule report.deepnote --schedule-id 15 --name Morning
@@ -160,7 +163,8 @@ deepnote schedule report.deepnote --schedule-id 15 --clear-inputs
 - With `--schedule-id`, the given input values are merged into the schedule's own, and
   `--clear-inputs` removes them all. `--clear-inputs` cannot be combined with `--input`.
 - Added schedules don't update the notebook's outputs, and input values stop a schedule from
-  updating them for good. The text output says so when a change does that.
+  updating them. `--clear-inputs` doesn't turn that back on, but you can in Deepnote. The text output
+  says so when a change does that.
 
 Like `--remove`, `--list`, `--add`, and `--schedule-id` fail rather than guess between projects that
 share a name.

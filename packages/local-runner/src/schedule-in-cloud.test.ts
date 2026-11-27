@@ -861,6 +861,16 @@ describe('addScheduleInCloud', () => {
     expect(cloudMock.listSchedules).not.toHaveBeenCalled()
   })
 
+  it('compares names the way Deepnote stores them', async () => {
+    const existing = storedSchedule('15', { ...evening, name: 'EU report' })
+    cloudMock.listSchedules.mockResolvedValueOnce([existing])
+
+    const result = await addScheduleInCloud(INPUT_NOTEBOOK, { ...evening, name: ' EU  report ' }, { token: 'token' })
+
+    expect(cloudMock.createSchedule).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ added: false, schedule: existing })
+  })
+
   it('does not add a schedule with the same timing, name and inputs as an existing one', async () => {
     const existing = storedSchedule('15', { ...evening, inputs: { dry_run: false, region: 'US' } })
     cloudMock.listSchedules.mockResolvedValueOnce([existing])
@@ -960,6 +970,15 @@ describe('updateScheduleInCloud with a name and inputs', () => {
       { name: 'Evening' },
       expect.anything()
     )
+  })
+
+  it('sends nothing for a name Deepnote stores the same way', async () => {
+    cloudMock.listSchedules.mockResolvedValue([storedSchedule('15', { name: 'EU report' })])
+
+    const result = await updateScheduleInCloud(INPUT_NOTEBOOK, '15', { name: ' EU  report ' }, { token: 'token' })
+
+    expect(cloudMock.updateSchedule).not.toHaveBeenCalled()
+    expect(result.changed).toBe(false)
   })
 
   it('sends nothing when the name and inputs are already stored', async () => {

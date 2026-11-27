@@ -505,10 +505,11 @@ ${c.bold('Description:')}
   When the notebook has several schedules, pick one with --schedule-id; --list shows them.
   With --schedule-id, --hourly, --daily, --weekly and --monthly need --at, and an omitted
   --timezone keeps the schedule's own. A change resumes a paused schedule and makes you its owner.
-  Where the workspace allows several schedules per notebook, --add adds another; its frequency
-  needs --at too. --input values are typed by the notebook's input blocks and, with
-  --schedule-id, merged into the schedule's own. Added schedules don't update the notebook's
-  outputs, and input values stop a schedule from updating them for good.
+  Where the workspace allows several schedules per notebook, --add adds another and --input sets
+  values for a schedule's runs. --add's frequency needs --at too. --input values are typed by the
+  notebook's input blocks and, with --schedule-id, merged into the schedule's own. Added schedules
+  don't update the notebook's outputs, and input values stop a schedule from updating them; you
+  can turn that back on in Deepnote.
 
 ${c.bold('Examples:')}
   ${c.dim('# Run every day at 09:00 in your local timezone')}
