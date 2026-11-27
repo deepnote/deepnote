@@ -193,10 +193,7 @@ export interface WorkspaceSyncOptions {
   baseUrl: string
   /** API token. Used as given; it is never looked up in the environment or in `.env` files. */
   token: string
-  /**
-   * Also sync each project's working-directory files. Their conflicts are `working-files-changed` on
-   * upload and `local-working-files-changed` on download.
-   */
+  /** Also sync each project's working-directory files. */
   allFiles?: boolean
   /** When pushing, delete cloud notebooks that have no local file. */
   deleteMissingNotebooks?: boolean
